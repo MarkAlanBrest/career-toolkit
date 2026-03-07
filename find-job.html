@@ -20,10 +20,20 @@ body{
     text-align:center;
 }
 
+.intro{
+    background:white;
+    padding:20px;
+    margin:30px auto;
+    max-width:1000px;
+    border-radius:8px;
+    box-shadow:0 4px 10px rgba(0,0,0,.08);
+    text-align:center;
+}
+
 .container{
     max-width:1100px;
     margin:auto;
-    padding:40px 20px;
+    padding:20px;
 }
 
 .section{
@@ -36,23 +46,29 @@ body{
 }
 
 .card{
+    display:block;
     background:white;
     padding:20px;
     margin-top:15px;
     border-radius:8px;
     box-shadow:0 4px 10px rgba(0,0,0,.08);
+    text-decoration:none;
+    color:#000;
+    transition:.2s;
 }
 
-.card a{
-    font-size:18px;
-    font-weight:bold;
+.card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 8px 18px rgba(0,0,0,.15);
+}
+
+.card h3{
+    margin:0;
     color:#1e3a8a;
-    text-decoration:none;
 }
 
 .card p{
     margin:8px 0 0 0;
-    color:#444;
 }
 
 .tip{
@@ -72,6 +88,12 @@ body{
 </div>
 
 
+<div class="intro">
+<p><strong>Use the resources below to search for employment opportunities.</strong>  
+These websites and local listings are commonly used by employers to advertise open positions.</p>
+</div>
+
+
 <div class="container">
 
 <!-- Major Job Boards -->
@@ -79,29 +101,29 @@ body{
 <div class="section">
 <h2>Major Job Boards</h2>
 
-<div class="card">
-<a href="https://www.indeed.com" target="_blank">Indeed</a>
+<a class="card" href="https://www.indeed.com" target="_blank">
+<h3>Indeed</h3>
 <p>One of the largest job search websites with millions of listings.</p>
 <div class="tip">Tip: Search by job title and location. Upload your resume so employers can find you.</div>
-</div>
+</a>
 
-<div class="card">
-<a href="https://www.linkedin.com/jobs" target="_blank">LinkedIn Jobs</a>
+<a class="card" href="https://www.linkedin.com/jobs" target="_blank">
+<h3>LinkedIn Jobs</h3>
 <p>Professional networking site with job listings and employer connections.</p>
 <div class="tip">Tip: Create a strong LinkedIn profile and connect with employers in your field.</div>
-</div>
+</a>
 
-<div class="card">
-<a href="https://www.ziprecruiter.com" target="_blank">ZipRecruiter</a>
+<a class="card" href="https://www.ziprecruiter.com" target="_blank">
+<h3>ZipRecruiter</h3>
 <p>Job board used by many employers across the country.</p>
-<div class="tip">Tip: Use job alerts so new positions are emailed to you automatically.</div>
-</div>
+<div class="tip">Tip: Set up job alerts so new positions are emailed to you automatically.</div>
+</a>
 
-<div class="card">
-<a href="https://www.glassdoor.com" target="_blank">Glassdoor</a>
+<a class="card" href="https://www.glassdoor.com" target="_blank">
+<h3>Glassdoor</h3>
 <p>Job listings plus company reviews and salary information.</p>
 <div class="tip">Tip: Research companies before applying to learn about work culture and pay.</div>
-</div>
+</a>
 
 </div>
 
@@ -111,23 +133,23 @@ body{
 <div class="section">
 <h2>Trade and Skilled Labor Jobs</h2>
 
-<div class="card">
-<a href="https://www.constructionjobs.com" target="_blank">ConstructionJobs.com</a>
+<a class="card" href="https://www.constructionjobs.com" target="_blank">
+<h3>ConstructionJobs.com</h3>
 <p>Jobs focused on construction and skilled trades.</p>
 <div class="tip">Tip: Search by trade such as welding, HVAC, electrical, or carpentry.</div>
-</div>
+</a>
 
-<div class="card">
-<a href="https://www.roadtechs.com" target="_blank">Roadtechs</a>
+<a class="card" href="https://www.roadtechs.com" target="_blank">
+<h3>Roadtechs</h3>
 <p>Industrial, mechanical, and traveling trade jobs.</p>
 <div class="tip">Tip: Many positions involve travel and can offer higher pay.</div>
-</div>
+</a>
 
-<div class="card">
-<a href="https://www.ihireconstruction.com" target="_blank">iHireConstruction</a>
+<a class="card" href="https://www.ihireconstruction.com" target="_blank">
+<h3>iHireConstruction</h3>
 <p>Construction industry job listings.</p>
 <div class="tip">Tip: Upload your resume so employers can contact you directly.</div>
-</div>
+</a>
 
 </div>
 
@@ -137,17 +159,17 @@ body{
 <div class="section">
 <h2>Government Jobs</h2>
 
-<div class="card">
-<a href="https://www.usajobs.gov" target="_blank">USAJobs</a>
+<a class="card" href="https://www.usajobs.gov" target="_blank">
+<h3>USAJobs</h3>
 <p>The official job site for federal government positions.</p>
-<div class="tip">Tip: Federal applications can take longer, but benefits are often excellent.</div>
-</div>
+<div class="tip">Tip: Federal jobs often include strong benefits and long-term career stability.</div>
+</a>
 
-<div class="card">
-<a href="https://www.governmentjobs.com" target="_blank">GovernmentJobs.com</a>
+<a class="card" href="https://www.governmentjobs.com" target="_blank">
+<h3>GovernmentJobs.com</h3>
 <p>State and local government job listings.</p>
 <div class="tip">Tip: Search for city, county, and state employment opportunities.</div>
-</div>
+</a>
 
 </div>
 
@@ -157,17 +179,17 @@ body{
 <div class="section">
 <h2>Local Job Listings</h2>
 
-<div class="card">
-<a href="https://www.vindy.com/classifieds/jobs/" target="_blank">The Vindicator Job Listings</a>
+<a class="card" href="https://www.vindy.com/classifieds/jobs/" target="_blank">
+<h3>The Vindicator Job Listings</h3>
 <p>Local job advertisements from the Youngstown area.</p>
-<div class="tip">Tip: Many small local employers still advertise in local newspapers.</div>
-</div>
+<div class="tip">Tip: Many small local employers still advertise jobs in local newspapers.</div>
+</a>
 
-<div class="card">
-<a href="https://www.indeed.com/q-welder-l-youngstown-oh-jobs.html" target="_blank">Local Indeed Jobs</a>
-<p>Example search for welding jobs in the Youngstown area.</p>
-<div class="tip">Tip: Replace the job title in your search to find positions in your trade.</div>
-</div>
+<a class="card" href="https://www.sharonherald.com/classifieds/jobs/" target="_blank">
+<h3>The Sharon Herald Job Listings</h3>
+<p>Local job listings serving Mercer County and surrounding areas.</p>
+<div class="tip">Tip: Check local newspapers regularly for regional job openings.</div>
+</a>
 
 </div>
 
