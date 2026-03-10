@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>New Castle School of Trades | Career Toolkit</title>
 
-
 <style>
 
 body{
@@ -51,22 +50,33 @@ body{
     gap:25px;
 }
 
+/* CARD */
+
 .card{
+    display:block;
     background:white;
-    border-radius:12px;
+    border-radius:14px;
     padding:30px;
     text-align:center;
+    text-decoration:none;
     box-shadow:0 6px 18px rgba(0,0,0,.12);
-    transition:.2s;
+    transition:all .25s ease;
+    min-height:200px;
+    color:inherit;
+    position:relative;
 }
 
-.card:hover{
-    transform:translateY(-6px);
-    box-shadow:0 10px 25px rgba(0,0,0,.18);
+/* ICON */
+
+.icon{
+    font-size:40px;
+    margin-bottom:10px;
 }
+
+/* TEXT */
 
 .card h2{
-    margin-top:0;
+    margin:10px 0;
     color:#1e3a8a;
 }
 
@@ -75,19 +85,16 @@ body{
     color:#444;
 }
 
-.button{
-    display:inline-block;
-    margin-top:15px;
-    padding:10px 18px;
-    background:#1e3a8a;
-    color:white;
-    text-decoration:none;
-    border-radius:8px;
-    font-weight:bold;
-}
+/* HOVER EFFECT */
 
-.button:hover{
-    background:#1d4ed8;
+.card:hover{
+    transform:translateY(-6px);
+    background:#eff6ff;
+
+    box-shadow:
+        0 10px 25px rgba(0,0,0,.18),
+        0 0 0 2px #3b82f6,
+        0 0 15px rgba(59,130,246,.5);
 }
 
 .footer{
@@ -99,7 +106,6 @@ body{
 
 </style>
 </head>
-
 
 <body>
 
@@ -120,53 +126,53 @@ New Castle School of Trades
 
 <div class="grid">
 
-<div class="card">
+<a class="card" href="find-job.html">
+<div class="icon">🔎</div>
 <h2>Find a Job</h2>
 <p>Search job boards, trade sites, and government job listings.</p>
-<a class="button" href="find-job.html">Open</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="https://resume-builder-one-gules-56.vercel.app/" target="_blank">
+<div class="icon">📄</div>
 <h2>Resume Builder</h2>
 <p>Create a professional resume using our guided builder.</p>
-<a class="button" href="https://resume-builder-one-gules-56.vercel.app/" target="_blank">Launch Tool</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="https://cover-letter-ai-cyan.vercel.app/" target="_blank">
+<div class="icon">✉️</div>
 <h2>Cover Letter Creator</h2>
 <p>Generate a customized cover letter for the job you want.</p>
-<a class="button" href="https://cover-letter-ai-cyan.vercel.app/" target="_blank">Launch Tool</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="https://interview-ob8v.vercel.app/" target="_blank">
+<div class="icon">🎤</div>
 <h2>Practice Interview</h2>
 <p>Practice answering interview questions and improve your confidence.</p>
-<a class="button" href="https://interview-ob8v.vercel.app/" target="_blank">Start Practice</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="follow-up.html">
+<div class="icon">📬</div>
 <h2>Follow-Up & Thank-You Letters</h2>
 <p>Create professional follow-up emails and thank-you letters.</p>
-<a class="button" href="follow-up.html">Open</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="job-tips.html">
+<div class="icon">💡</div>
 <h2>Job Search Tips</h2>
 <p>Learn strategies that help job seekers stand out and get hired.</p>
-<a class="button" href="job-tips.html">Open</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="certifications.html">
+<div class="icon">🏆</div>
 <h2>Earn Certifications</h2>
 <p>Complete short career certifications offered by the school.</p>
-<a class="button" href="certifications.html">View</a>
-</div>
+</a>
 
-<div class="card">
+<a class="card" href="career-services.html">
+<div class="icon">👩‍💼</div>
 <h2>Contact Career Services</h2>
 <p>Need help? Connect with our career advisors.</p>
-<a class="button" href="career-services.html">Contact</a>
-</div>
+</a>
 
 </div>
 
