@@ -1,25 +1,23 @@
-import { useEffect, useState } from "react";
+"use client";
+
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 function DashboardContent() {
   const params = useSearchParams();
   const code = params.get("code") || "";
 
   const [data, setData] = useState<any>(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!code) return;
 
     fetch(`/api/course?code=${code}`)
       .then((res) => res.json())
-      .then((d) => {
-        if (d.error) setError(d.error);
-        else setData(d);
-      });
+      .then(setData);
   }, [code]);
 
-  if (error) return <div>{error}</div>;
-  if (!data) return <div>Loading...</div>;
+  if (!data) return <div className="p-10 text-center">Loading...</div>;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-300">
@@ -29,29 +27,12 @@ function DashboardContent() {
           Course Information
         </h1>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
 
-          <div>
-            <p className="text-sm text-gray-500">Student Name</p>
-            <p className="font-semibold">
-              {data.FirstName} {data.LastName}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">Email</p>
-            <p className="font-semibold">{data.Email}</p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">Course ID</p>
-            <p className="font-semibold">{data.CourseID}</p>
-          </div>
-
-          <div>
-            <p className="text-sm text-gray-500">Progress</p>
-            <p className="font-semibold">{data.Progress}%</p>
-          </div>
+          <p><strong>Name:</strong> {data.FirstName} {data.LastName}</p>
+          <p><strong>Email:</strong> {data.Email}</p>
+          <p><strong>Course ID:</strong> {data.CourseID}</p>
+          <p><strong>Progress:</strong> {data.Progress}%</p>
 
         </div>
 
@@ -61,5 +42,13 @@ function DashboardContent() {
 
       </div>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
