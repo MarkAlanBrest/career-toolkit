@@ -14,10 +14,9 @@ function DashboardContent() {
 
     fetch(`/api/course?code=${code}`)
       .then((res) => res.json())
-      .then(setData);
+      .then(setData)
+      .catch(() => setData({ error: "Failed to load data" }));
   }, [code]);
-
-  if (!data) return <div className="p-10 text-center">Loading...</div>;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-300">
@@ -27,18 +26,32 @@ function DashboardContent() {
           Course Information
         </h1>
 
-        <div className="space-y-4">
+        {!code && (
+          <p className="text-center text-red-600">
+            No course code provided
+          </p>
+        )}
 
-          <p><strong>Name:</strong> {data.FirstName} {data.LastName}</p>
-          <p><strong>Email:</strong> {data.Email}</p>
-          <p><strong>Course ID:</strong> {data.CourseID}</p>
-          <p><strong>Progress:</strong> {data.Progress}%</p>
+        {code && !data && (
+          <p className="text-center">Loading data…</p>
+        )}
 
-        </div>
+        {data?.error && (
+          <p className="text-center text-red-600">{data.error}</p>
+        )}
 
-        <button className="mt-8 w-full bg-blue-900 text-white p-3 rounded-lg hover:bg-blue-800">
-          Start Course
-        </button>
+        {data && !data.error && (
+          <div className="space-y-4">
+            <p><strong>Name:</strong> {data.FirstName} {data.LastName}</p>
+            <p><strong>Email:</strong> {data.Email}</p>
+            <p><strong>Course ID:</strong> {data.CourseID}</p>
+            <p><strong>Progress:</strong> {data.Progress}%</p>
+
+            <button className="mt-6 w-full bg-blue-900 text-white p-3 rounded-lg hover:bg-blue-800">
+              Start Course
+            </button>
+          </div>
+        )}
 
       </div>
     </main>
