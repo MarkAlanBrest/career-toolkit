@@ -20,7 +20,7 @@ function DashboardContent() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-300">
-      <div className="bg-white p-10 rounded-xl shadow-xl w-[520px]">
+      <div className="bg-white p-10 rounded-xl shadow-xl w-[600px]">
 
         <h1 className="text-2xl font-bold text-center mb-6 text-blue-900">
           Course Information
@@ -41,15 +41,56 @@ function DashboardContent() {
         )}
 
         {data && !data.error && (
-          <div className="space-y-4">
-            <p><strong>Name:</strong> {data.FirstName} {data.LastName}</p>
-            <p><strong>Email:</strong> {data.Email}</p>
-            <p><strong>Course ID:</strong> {data.CourseID}</p>
-            <p><strong>Progress:</strong> {data.Progress}%</p>
+          <div className="space-y-3">
+
+            <p>
+              <strong>Name:</strong> {data.FirstName} {data.LastName}
+            </p>
+
+            <p>
+              <strong>Email:</strong> {data.Email}
+            </p>
+
+            <p>
+              <strong>Course:</strong> {data.CourseName}
+            </p>
+
+            <p>
+              <strong>Progress:</strong> {data.Progress}%
+            </p>
+
+            <p>
+              <strong>Start Date:</strong>{" "}
+              {data.StartDate
+                ? new Date(data.StartDate).toLocaleString()
+                : "—"}
+            </p>
+
+            <p>
+              <strong>End Date:</strong>{" "}
+              {data.EndDate
+                ? new Date(data.EndDate).toLocaleString()
+                : "—"}
+            </p>
+
+            <div>
+              <strong>Test Scores:</strong>
+              <ul className="list-disc ml-6">
+                <li>Test 1: {data.Test1 ?? "—"}</li>
+                <li>Test 2: {data.Test2 ?? "—"}</li>
+                <li>Test 3: {data.Test3 ?? "—"}</li>
+                <li>Test 4: {data.Test4 ?? "—"}</li>
+                <li>Test 5: {data.Test5 ?? "—"}</li>
+                <li>Test 6: {data.Test6 ?? "—"}</li>
+                <li>Test 7: {data.Test7 ?? "—"}</li>
+                <li>Test 8: {data.Test8 ?? "—"}</li>
+              </ul>
+            </div>
 
             <button className="mt-6 w-full bg-blue-900 text-white p-3 rounded-lg hover:bg-blue-800">
               Start Course
             </button>
+
           </div>
         )}
 
