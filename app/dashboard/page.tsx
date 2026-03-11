@@ -1,11 +1,25 @@
-"use client";
-
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 function DashboardContent() {
   const params = useSearchParams();
   const code = params.get("code") || "";
+
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!code) return;
+
+    fetch(`/api/course?code=${code}`)
+      .then((res) => res.json())
+      .then((d) => {
+        if (d.error) setError(d.error);
+        else setData(d);
+      });
+  }, [code]);
+
+  if (error) return <div>{error}</div>;
+  if (!data) return <div>Loading...</div>;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-300">
@@ -18,51 +32,34 @@ function DashboardContent() {
         <div className="space-y-5">
 
           <div>
-            <p className="text-sm text-gray-500">Course Code</p>
-            <p className="text-lg font-semibold tracking-wider">
-              {code || "Not provided"}
-            </p>
-          </div>
-
-          <div>
             <p className="text-sm text-gray-500">Student Name</p>
-            <p className="font-semibold">Loading…</p>
+            <p className="font-semibold">
+              {data.FirstName} {data.LastName}
+            </p>
           </div>
 
           <div>
             <p className="text-sm text-gray-500">Email</p>
-            <p className="font-semibold">Loading…</p>
+            <p className="font-semibold">{data.Email}</p>
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">Course</p>
-            <p className="font-semibold">Loading…</p>
+            <p className="text-sm text-gray-500">Course ID</p>
+            <p className="font-semibold">{data.CourseID}</p>
           </div>
 
           <div>
-            <p className="text-sm text-gray-500">Directions</p>
-            <p className="text-gray-700">
-              Please review all instructions before starting the training.
-            </p>
+            <p className="text-sm text-gray-500">Progress</p>
+            <p className="font-semibold">{data.Progress}%</p>
           </div>
 
         </div>
 
-        <button
-          className="mt-8 w-full bg-blue-900 text-white p-3 rounded-lg hover:bg-blue-800 transition"
-        >
+        <button className="mt-8 w-full bg-blue-900 text-white p-3 rounded-lg hover:bg-blue-800">
           Start Course
         </button>
 
       </div>
     </main>
-  );
-}
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
-      <DashboardContent />
-    </Suspense>
   );
 }
