@@ -6,8 +6,8 @@
     {
       "type": "content",
       "title": "Welcome to Ladder Safety",
-      "text": "This course will teach you how to inspect, set up, and safely climb ladders. Ladder accidents cause thousands of injuries every year. This course will teach you how to inspect, set up, and safely climb ladders. Ladder accidents cause thousands of injuries every year.",
-      "image": "/images/ladder1.jpg",
+      "text": "This course will teach you how to inspect, set up, and safely climb ladders. Ladder accidents cause thousands of injuries every year.",
+      "image": "/LadderSafety/images/ladder1.jpg",
       "imagePosition": "left"
     },
 
@@ -15,7 +15,7 @@
       "type": "content",
       "title": "Why Ladder Safety Matters",
       "text": "Falls from ladders can cause serious injury. Always follow proper ladder procedures and inspect equipment before use.",
-      "image": "/images/ladder2.jpg",
+      "image": "/LadderSafety/images/ladder2.jpg",
       "imagePosition": "right"
     },
 
@@ -29,7 +29,7 @@
       "type": "video",
       "title": "Ladder Setup Demonstration",
       "text": "Watch this short video demonstrating proper ladder setup.",
-      "video": "/videos/ladder-demo.mp4"
+      "video": "/LadderSafety/videos/ladder-demo.mp4"
     },
 
     {
@@ -47,42 +47,25 @@
       "type": "content",
       "title": "Three Points of Contact",
       "text": "Always maintain three points of contact when climbing a ladder. This helps maintain balance and stability.",
-      "image": "/images/ladder3.jpg",
+      "image": "/LadderSafety/images/ladder3.jpg",
       "imagePosition": "top"
     },
 
     {
       "type": "hotspots",
       "title": "Identify Ladder Safety Points",
-      "image": "/images/ladder-diagram.jpg",
+      "image": "/LadderSafety/images/ladder-diagram.jpg",
       "points": [
-        {
-          "x": 25,
-          "y": 70,
-          "text": "Ladder feet must be placed on solid, level ground."
-        },
-        {
-          "x": 55,
-          "y": 20,
-          "text": "Never stand on the top rung."
-        },
-        {
-          "x": 80,
-          "y": 45,
-          "text": "Keep your body centered between the rails."
-        }
+        { "x": 25, "y": 70, "text": "Ladder feet must be placed on solid, level ground." },
+        { "x": 55, "y": 20, "text": "Never stand on the top rung." },
+        { "x": 80, "y": 45, "text": "Keep your body centered between the rails." }
       ]
     },
 
     {
       "type": "quiz",
       "question": "How many points of contact should you maintain when climbing a ladder?",
-      "options": [
-        "One",
-        "Two",
-        "Three",
-        "Four"
-      ],
+      "options": ["One", "Two", "Three", "Four"],
       "correct": 2,
       "correctText": "Correct. Three points of contact keeps you stable.",
       "incorrectText": "Incorrect. The correct answer is three."
@@ -97,7 +80,7 @@
     },
 
     {
-      "type": "scenario",
+      "type": "quiz",
       "question": "You see a ladder placed on uneven ground. What should you do?",
       "options": [
         "Use it carefully",
@@ -112,16 +95,8 @@
       "type": "content",
       "title": "Common Ladder Hazards",
       "text": "Common ladder hazards include unstable ground, overreaching, damaged rungs, and using the wrong ladder for the job.",
-      "image": "/images/ladder4.jpg",
+      "image": "/LadderSafety/images/ladder4.jpg",
       "imagePosition": "right"
-    },
-
-    {
-      "type": "compare",
-      "leftImage": "/images/bad-ladder.jpg",
-      "rightImage": "/images/good-ladder.jpg",
-      "title": "Unsafe vs Safe Ladder Setup",
-      "text": "The left image shows a ladder placed on unstable ground. The right image shows proper ladder placement."
     },
 
     {
