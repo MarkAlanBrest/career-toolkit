@@ -112,8 +112,8 @@ useEffect(() => {
 const folder = record.SlidesPath || "LadderSafety";
 
   // 3) Load correct course JSON
-const mod = await fetch(/${folder}/module.json);
-      const data = await mod.json();
+const mod = await fetch(`/${folder}/module.json`);
+const data = await mod.json();
 
       setSlides(data.slides || []);
 
