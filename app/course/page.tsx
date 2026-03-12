@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type ContentSlide = {
   type: "content";
@@ -77,6 +78,8 @@ export default function CoursePage() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const params = useSearchParams();
+const code = params.get("code") || "";
 
   const [quizFeedback, setQuizFeedback] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -91,23 +94,87 @@ export default function CoursePage() {
 
   const current = slides[index];
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      synthRef.current = window.speechSynthesis;
-    }
-  }, []);
+useEffect(() => {
+  if (!code) return;
 
-  useEffect(() => {
-    fetch("/modules/module1.json")
-      .then((res) => res.json())
-      .then((data) => {
-        setSlides(data.slides || []);
-      })
-      .catch((err) => {
-        console.error("Failed to load slides:", err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  async function loadCourse() {
+    try {
+      // 1) Get student record using the code
+      const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
+      const record = await res.json();
+
+      if (!record || record.error) {
+        setLoading(false);
+        return;
+      }
+
+      // 2) Convert "Ladder Safety" → "LadderSafety"
+      const folder = record.CourseName.replace(/\s+/g, "");
+
+      // 3) Load correct course JSON
+      const mod = await fetch(`/courses/${folder}/module.json`);
+      const data = await mod.json();
+
+      setSlides(data.slides || []);
+
+      // 4) Start slide from Progress (or 0)
+      const start =
+        record.Progress && Number(record.Progress) > 0
+          ? Number(record.Progress)
+          : 0;
+
+      setIndex(start);
+
+    } catch (err) {
+      console.error("Failed to load course:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadCourse();
+}, [code]);
+
+useEffect(() => {
+  if (!code) return;
+
+  async function loadCourse() {
+    try {
+      // 1) Get student record
+      const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
+      const record = await res.json();
+
+      if (!record || record.error) {
+        setLoading(false);
+        return;
+      }
+
+      // 2) Convert "Ladder Safety" → "LadderSafety"
+      const folder = record.CourseName.replace(/\s+/g, "");
+
+      // 3) Load correct JSON
+      const mod = await fetch(`/courses/${folder}/module.json`);
+      const data = await mod.json();
+
+      setSlides(data.slides || []);
+
+      // 4) Start position from Progress
+      const start =
+        record.Progress && Number(record.Progress) > 0
+          ? Number(record.Progress)
+          : 0;
+
+      setIndex(start);
+
+    } catch (err) {
+      console.error("Failed to load course:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadCourse();
+}, [code]);
 
   useEffect(() => {
     setQuizFeedback("");
