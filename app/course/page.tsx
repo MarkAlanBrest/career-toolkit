@@ -74,10 +74,13 @@ type Slide =
   | CalloutSlide
   | CompletionSlide;
 
+
+
 function CourseContent()  {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+   const [isLight, setIsLight] = useState(false);
   const params = useSearchParams();
 const code = params.get("code") || "";
 
@@ -502,73 +505,111 @@ const data = await mod.json();
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 px-6 py-10">
+  <main
+    className={`min-h-screen px-6 py-10 transition-colors duration-300 ${
+      isLight
+        ? "bg-gradient-to-br from-slate-100 to-slate-300 text-slate-900"
+        : "bg-gradient-to-br from-slate-900 to-slate-700 text-white"
+    }`}
+  >
     <div className="max-w-4xl mx-auto">
-        <div className="bg-slate-900/70 border border-slate-700 rounded-3xl p-8 shadow-2xl">
-        
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            
-            
-            <div>
-              <p className="text-slate-300 text-sm">
-                Slide {index + 1} of {slides.length}
-              </p>
-              <div className="w-64 h-3 bg-slate-700 rounded-full mt-2 overflow-hidden">
-                <div
-                  className="h-full bg-blue-500"
-                  style={{ width: `${((index + 1) / slides.length) * 100}%` }}
-                />
-              </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={speakSlide}
-                className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl"
-              >
-                Read Slide
-              </button>
-              <button
-                onClick={stopSpeaking}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl"
-              >
-                Stop
-              </button>
+      {/* 🔵 TOP BAR */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setIsLight(!isLight)}
+          className={`px-4 py-2 rounded-xl font-semibold shadow ${
+            isLight
+              ? "bg-slate-800 text-white hover:bg-slate-700"
+              : "bg-yellow-300 text-slate-900 hover:bg-yellow-200"
+          }`}
+        >
+          {isLight ? "🌙 Night Mode" : "☀️ Day Mode"}
+        </button>
+      </div>
+
+      {/* 🔵 MAIN PANEL */}
+      <div
+        className={`border rounded-3xl p-8 shadow-2xl transition-colors ${
+          isLight
+            ? "bg-white border-slate-300"
+            : "bg-slate-900/70 border-slate-700"
+        }`}
+      >
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+
+          <div>
+            <p className={isLight ? "text-slate-600 text-sm" : "text-slate-300 text-sm"}>
+              Slide {index + 1} of {slides.length}
+            </p>
+
+            <div
+              className={`w-64 h-3 rounded-full mt-2 overflow-hidden ${
+                isLight ? "bg-slate-300" : "bg-slate-700"
+              }`}
+            >
+              <div
+                className="h-full bg-blue-500"
+                style={{ width: `${((index + 1) / slides.length) * 100}%` }}
+              />
             </div>
           </div>
 
-         <div className="min-h-[380px] text-slate-800">{renderSlide()}</div>
-
-          <div className="flex justify-between mt-10">
+          <div className="flex gap-3">
             <button
-              onClick={prevSlide}
-              disabled={index === 0}
-              className="px-5 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+              onClick={speakSlide}
+              className={`px-4 py-2 rounded-xl ${
+                isLight
+                  ? "bg-blue-600 hover:bg-blue-500 text-white"
+                  : "bg-blue-900 hover:bg-blue-800 text-white"
+              }`}
             >
-              Previous
+              Read Slide
             </button>
 
             <button
-              onClick={nextSlide}
-              disabled={index === slides.length - 1}
-              className="px-5 py-3 rounded-xl bg-blue-900 hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed text-white"
+              onClick={stopSpeaking}
+              className={`px-4 py-2 rounded-xl ${
+                isLight
+                  ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+                  : "bg-slate-700 hover:bg-slate-600 text-white"
+              }`}
             >
-              Next
+              Stop
             </button>
           </div>
         </div>
+
+        {/* 🔵 SLIDE CONTENT */}
+        <div className="min-h-[380px]">{renderSlide()}</div>
+
+        {/* 🔵 NAV BUTTONS */}
+        <div className="flex justify-between mt-10">
+          <button
+            onClick={prevSlide}
+            disabled={index === 0}
+            className={`px-5 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${
+              isLight
+                ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+                : "bg-slate-700 hover:bg-slate-600 text-white"
+            }`}
+          >
+            Previous
+          </button>
+
+          <button
+            onClick={nextSlide}
+            disabled={index === slides.length - 1}
+            className={`px-5 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${
+              isLight
+                ? "bg-blue-600 hover:bg-blue-500 text-white"
+                : "bg-blue-900 hover:bg-blue-800 text-white"
+            }`}
+          >
+            Next
+          </button>
+        </div>
       </div>
-    </main>
-  );
-}
-export default function CoursePage() {
-  return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-center justify-center">
-        <div className="text-xl">Loading course...</div>
-      </main>
-    }>
-      <CourseContent />
-    </Suspense>
-  );
-}
+    </div>
+  </main>
+);
