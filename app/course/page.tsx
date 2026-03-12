@@ -109,8 +109,7 @@ useEffect(() => {
       }
 
       // 2) Convert "Ladder Safety" → "LadderSafety"
-const folder = record.SlidesPath || "LadderSafety";
-
+const folder = (record.SlidesPath || "LadderSafety").replace(/^\/+|\/+$/g, "");
   // 3) Load correct course JSON
 const mod = await fetch(`/${folder}/module.json`);
 const data = await mod.json();
