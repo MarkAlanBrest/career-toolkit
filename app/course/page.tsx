@@ -613,3 +613,17 @@ const data = await mod.json();
     </div>
   </main>
 );
+
+export default function CoursePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-center justify-center">
+          <div className="text-xl">Loading course...</div>
+        </main>
+      }
+    >
+      <CourseContent />
+    </Suspense>
+  );
+}
