@@ -613,7 +613,7 @@ const data = await mod.json();
     </div>
   </main>
 );
-
+}
 export default function CoursePage() {
   return (
     <Suspense
