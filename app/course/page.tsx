@@ -97,7 +97,9 @@ const code = params.get("code") || "";
 
   const current = slides[index];
 
-
+const textMain = isLight ? "text-slate-900" : "text-white";
+const textSoft = isLight ? "text-slate-700" : "text-slate-200";
+const panelBg = isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800 border-slate-600";
 
 useEffect(() => {
   if (!code) return;
@@ -581,8 +583,13 @@ const data = await mod.json();
         </div>
 
         {/* 🔵 SLIDE CONTENT */}
-        <div className="min-h-[380px]">{renderSlide()}</div>
-
+<div
+  className={`min-h-[380px] ${
+    isLight ? "text-slate-900" : "text-white"
+  }`}
+>
+  {renderSlide()}
+</div>
         {/* 🔵 NAV BUTTONS */}
         <div className="flex justify-between mt-10">
           <button
