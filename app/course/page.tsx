@@ -217,8 +217,20 @@ const data = await mod.json();
             />
           )}
           <div>
-            <h2 className="text-3xl font-bold text-white mb-4">{slide.title}</h2>
-            <p className="text-lg leading-8 text-slate-200 whitespace-pre-line">{slide.text}</p>
+            <h2
+  className={`text-3xl font-bold mb-4 ${
+    isLight ? "text-slate-900" : "text-white"
+  }`}
+>
+                
+                
+                {slide.title}</h2>
+<p
+  className={`text-lg leading-8 ${
+    isLight ? "text-slate-700" : "text-slate-200"
+  }`}
+>                
+                {slide.text}</p>
           </div>
         </div>
       );
@@ -321,8 +333,11 @@ const data = await mod.json();
         </div>
 
         {quizFeedback && (
-          <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 text-slate-100">
-            {quizFeedback}
+className={`border ${
+  isLight
+    ? "bg-slate-100 border-slate-300"
+    : "bg-slate-800 border-slate-600"
+}`}            {quizFeedback}
           </div>
         )}
       </div>
