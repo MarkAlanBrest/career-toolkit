@@ -1,16 +1,15 @@
 "use client";
 
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CourseCodePage() {
   const router = useRouter();
-
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!code.trim()) {
@@ -18,8 +17,26 @@ export default function CourseCodePage() {
       return;
     }
 
-    // Pass code to dashboard (can validate later with DB)
-    router.push(`/dashboard?code=${encodeURIComponent(code)}`);
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        setError("Invalid course code.");
+        setLoading(false);
+        return;
+      }
+
+      // Code exists → go to dashboard
+      router.push(`/dashboard?code=${encodeURIComponent(code)}`);
+
+    } catch {
+      setError("Server error.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -46,9 +63,10 @@ export default function CourseCodePage() {
 
           <button
             type="submit"
-            className="w-full bg-blue-900 text-white p-3 rounded hover:bg-blue-800"
+            disabled={loading}
+            className="w-full bg-blue-900 text-white p-3 rounded hover:bg-blue-800 disabled:opacity-50"
           >
-            Continue
+            {loading ? "Checking…" : "Continue"}
           </button>
 
         </form>
