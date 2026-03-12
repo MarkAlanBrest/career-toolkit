@@ -94,45 +94,7 @@ const code = params.get("code") || "";
 
   const current = slides[index];
 
-useEffect(() => {
-  if (!code) return;
 
-  async function loadCourse() {
-    try {
-      // 1) Get student record using the code
-      const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
-      const record = await res.json();
-
-      if (!record || record.error) {
-        setLoading(false);
-        return;
-      }
-
-      // 2) Convert "Ladder Safety" → "LadderSafety"
-const folder = (record.SlidesPath || "LadderSafety").replace(/^\/+|\/+$/g, "");
-  // 3) Load correct course JSON
-const mod = await fetch(`/${folder}/module.json`);
-const data = await mod.json();
-
-      setSlides(data.slides || []);
-
-      // 4) Start slide from Progress (or 0)
-      const start =
-        record.Progress && Number(record.Progress) > 0
-          ? Number(record.Progress)
-          : 0;
-
-      setIndex(start);
-
-    } catch (err) {
-      console.error("Failed to load course:", err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  loadCourse();
-}, [code]);
 
 useEffect(() => {
   if (!code) return;
