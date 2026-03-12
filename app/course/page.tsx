@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
+import { Suspense } from "react";
 type ContentSlide = {
   type: "content";
   title: string;
@@ -74,7 +74,7 @@ type Slide =
   | CalloutSlide
   | CompletionSlide;
 
-export default function CoursePage() {
+function CourseContent()  {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -600,5 +600,16 @@ useEffect(() => {
         </div>
       </div>
     </main>
+  );
+}
+export default function CoursePage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-center justify-center">
+        <div className="text-xl">Loading course...</div>
+      </main>
+    }>
+      <CourseContent />
+    </Suspense>
   );
 }
