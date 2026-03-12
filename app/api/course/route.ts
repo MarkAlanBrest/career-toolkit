@@ -1,23 +1,21 @@
 import mysql from "mysql2/promise";
 
 export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
+  const { searchParams } = new URL(req.url);
+  const code = searchParams.get("code");
 
-    const db = await mysql.createPool({
-      uri: process.env.DATABASE_URL!,   // Railway URL
-      ssl: { rejectUnauthorized: false } // required on Vercel
-    });
+  const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
-    const [rows]: any = await db.execute(
-      "SELECT * FROM CourseRecords WHERE CourseName = ?",
-      [code]
-    );
+  const [rows]: any = await db.execute(
+    "SELECT * FROM CourseRecords WHERE Code = ?",
+    [code]
+  );
 
-    return Response.json(rows[0] || { error: "Not found" });
+  await db.end();
 
-  } catch (e: any) {
-    return Response.json({ error: e.message });
+  if (!rows.length) {
+    return Response.json({ error: "Invalid code" }, { status: 404 });
   }
+
+  return Response.json(rows[0]);
 }
