@@ -112,7 +112,7 @@ useEffect(() => {
       const folder = record.CourseName.replace(/\s+/g, "");
 
       // 3) Load correct course JSON
-      const mod = await fetch(`/courses/${folder}/module.json`);
+const mod = await fetch(/courses/${folder}/module1.json);
       const data = await mod.json();
 
       setSlides(data.slides || []);
