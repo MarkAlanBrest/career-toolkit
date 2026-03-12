@@ -111,8 +111,7 @@ useEffect(() => {
       }
 
       // 2) Convert "Ladder Safety" → "LadderSafety"
-const folder = record.CourseName.replace(/\s+/g, "").replace(/[^a-zA-Z0-9_-]/g, "");
-      // 3) Load correct JSON
+const folder = "LadderSafety";      // 3) Load correct JSON
 const mod = await fetch(`/${folder}/module.json`);      
 const data = await mod.json();
 
