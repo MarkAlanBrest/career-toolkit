@@ -332,17 +332,17 @@ const data = await mod.json();
           })}
         </div>
 
-        {quizFeedback && (
-className={`border ${
-  isLight
-    ? "bg-slate-100 border-slate-300"
-    : "bg-slate-800 border-slate-600"
-}`}            {quizFeedback}
-          </div>
-        )}
-      </div>
-    );
-  };
+       {quizFeedback && (
+  <div
+    className={`border rounded-xl p-4 ${
+      isLight
+        ? "bg-slate-100 border-slate-300 text-slate-900"
+        : "bg-slate-800 border-slate-600 text-slate-100"
+    }`}
+  >
+    {quizFeedback}
+  </div>
+)}
 
   const renderTrueFalseSlide = (slide: TrueFalseSlide) => {
     const handleAnswer = (answer: boolean) => {
