@@ -544,18 +544,7 @@ const data = await mod.json();
     <div className="max-w-4xl mx-auto">
 
       {/* 🔵 TOP BAR */}
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setIsLight(!isLight)}
-          className={`px-4 py-2 rounded-xl font-semibold shadow ${
-            isLight
-              ? "bg-slate-800 text-white hover:bg-slate-700"
-              : "bg-yellow-300 text-slate-900 hover:bg-yellow-200"
-          }`}
-        >
-          {isLight ? "🌙 Night Mode" : "☀️ Day Mode"}
-        </button>
-      </div>
+  
 
       {/* 🔵 MAIN PANEL */}
       <div
@@ -585,29 +574,44 @@ const data = await mod.json();
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={speakSlide}
-              className={`px-4 py-2 rounded-xl ${
-                isLight
-                  ? "bg-blue-600 hover:bg-blue-500 text-white"
-                  : "bg-blue-900 hover:bg-blue-800 text-white"
-              }`}
-            >
-              Read Slide
-            </button>
 
-            <button
-              onClick={stopSpeaking}
-              className={`px-4 py-2 rounded-xl ${
-                isLight
-                  ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
-                  : "bg-slate-700 hover:bg-slate-600 text-white"
-              }`}
-            >
-              Stop
-            </button>
-          </div>
-        </div>
+  {/* 🌙 Day/Night Toggle */}
+  <button
+    onClick={() => setIsLight(!isLight)}
+    className={`px-4 py-2 rounded-xl font-semibold ${
+      isLight
+        ? "bg-slate-700 hover:bg-slate-600 text-white"
+        : "bg-yellow-300 hover:bg-yellow-200 text-slate-900"
+    }`}
+  >
+    {isLight ? "🌙 Night" : "☀️ Day"}
+  </button>
+
+  {/* 🔊 Read Slide */}
+  <button
+    onClick={speakSlide}
+    className={`px-4 py-2 rounded-xl ${
+      isLight
+        ? "bg-blue-600 hover:bg-blue-500 text-white"
+        : "bg-blue-900 hover:bg-blue-800 text-white"
+    }`}
+  >
+    Read Slide
+  </button>
+
+  {/* ⏹ Stop */}
+  <button
+    onClick={stopSpeaking}
+    className={`px-4 py-2 rounded-xl ${
+      isLight
+        ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+        : "bg-slate-700 hover:bg-slate-600 text-white"
+    }`}
+  >
+    Stop
+  </button>
+
+</div>
 
         {/* 🔵 SLIDE CONTENT */}
 <div
