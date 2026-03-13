@@ -12,8 +12,9 @@ export async function GET(req: Request) {
     const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
     const [rows]: any = await db.execute(
-      "SELECT * FROM CourseRecords WHERE Code = ?",
-      [code]
+  "SELECT * FROM CourseRecords WHERE TRIM(Code) = ?",
+[code?.trim()]
+   
     );
 
     await db.end();
