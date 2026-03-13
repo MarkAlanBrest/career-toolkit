@@ -296,53 +296,65 @@ const data = await mod.json();
     );
   };
 
-  const renderQuizSlide = (slide: QuizSlide) => {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white">{slide.question}</h2>
 
-        <div className="grid gap-4">
-          {slide.options.map((option, i) => {
-            const isSelected = selectedAnswer === i;
-            return (
-              <button
-                key={i}
-                onClick={() => {
-                  setSelectedAnswer(i);
-                  if (i === slide.correct) {
-                    setQuizFeedback(
-                      slide.correctText || "Correct!"
-                    );
-                  } else {
-                    setQuizFeedback(
-                      slide.incorrectText ||
-                        `Incorrect. The correct answer is: ${slide.options[slide.correct]}`
-                    );
-                  }
-                }}
-                className={`text-left p-4 rounded-xl border transition ${
-                  isSelected
-                    ? "bg-blue-900 border-blue-400 text-white"
-                    : "bg-slate-800 border-slate-600 text-slate-100 hover:bg-slate-700"
-                }`}
-              >
-                {option}
-              </button>
-            );
-          })}
+
+ const renderQuizSlide = (slide: QuizSlide) => {
+  return (
+    <div className="space-y-6">
+      <h2
+        className={`text-3xl font-bold ${
+          isLight ? "text-slate-900" : "text-white"
+        }`}
+      >
+        {slide.question}
+      </h2>
+
+      <div className="grid gap-4">
+        {slide.options.map((option, i) => {
+          const isSelected = selectedAnswer === i;
+
+          return (
+            <button
+              key={i}
+              onClick={() => {
+                setSelectedAnswer(i);
+                if (i === slide.correct) {
+                  setQuizFeedback(slide.correctText || "Correct!");
+                } else {
+                  setQuizFeedback(
+                    slide.incorrectText ||
+                      `Incorrect. The correct answer is: ${slide.options[slide.correct]}`
+                  );
+                }
+              }}
+              className={`text-left p-4 rounded-xl border transition ${
+                isSelected
+                  ? "bg-blue-600 border-blue-400 text-white"
+                  : isLight
+                  ? "bg-slate-100 border-slate-300 text-slate-900 hover:bg-slate-200"
+                  : "bg-slate-800 border-slate-600 text-slate-100 hover:bg-slate-700"
+              }`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+
+      {quizFeedback && (
+        <div
+          className={`rounded-xl p-4 border ${
+            isLight
+              ? "bg-slate-100 border-slate-300 text-slate-900"
+              : "bg-slate-800 border-slate-600 text-slate-100"
+          }`}
+        >
+          {quizFeedback}
         </div>
-
-       {quizFeedback && (
-  <div
-    className={`border rounded-xl p-4 ${
-      isLight
-        ? "bg-slate-100 border-slate-300 text-slate-900"
-        : "bg-slate-800 border-slate-600 text-slate-100"
-    }`}
-  >
-    {quizFeedback}
-  </div>
-)}
+      )}
+    </div>
+  );
+};
 
   const renderTrueFalseSlide = (slide: TrueFalseSlide) => {
     const handleAnswer = (answer: boolean) => {
