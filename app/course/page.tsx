@@ -554,49 +554,67 @@ const data = await mod.json();
             : "bg-slate-900/70 border-slate-700"
         }`}
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
 
-          <div>
-            <p className={isLight ? "text-slate-600 text-sm" : "text-slate-300 text-sm"}>
-              Slide {index + 1} of {slides.length}
-            </p>
+  {/* LEFT — Progress */}
+  <div>
+    <p className={isLight ? "text-slate-600 text-sm" : "text-slate-300 text-sm"}>
+      Slide {index + 1} of {slides.length}
+    </p>
 
-            <div
-              className={`w-64 h-3 rounded-full mt-2 overflow-hidden ${
-                isLight ? "bg-slate-300" : "bg-slate-700"
-              }`}
-            >
-              <div
-                className="h-full bg-blue-500"
-                style={{ width: `${((index + 1) / slides.length) * 100}%` }}
-              />
-            </div>
-          </div>
+    <div
+      className={`w-64 h-3 rounded-full mt-2 overflow-hidden ${
+        isLight ? "bg-slate-300" : "bg-slate-700"
+      }`}
+    >
+      <div
+        className="h-full bg-blue-500"
+        style={{ width: `${((index + 1) / slides.length) * 100}%` }}
+      />
+    </div>
+  </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={speakSlide}
-              className={`px-4 py-2 rounded-xl ${
-                isLight
-                  ? "bg-blue-600 hover:bg-blue-500 text-white"
-                  : "bg-blue-900 hover:bg-blue-800 text-white"
-              }`}
-            >
-              Read Slide
-            </button>
+  {/* RIGHT — Buttons */}
+  <div className="flex gap-3">
 
-            <button
-              onClick={stopSpeaking}
-              className={`px-4 py-2 rounded-xl ${
-                isLight
-                  ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
-                  : "bg-slate-700 hover:bg-slate-600 text-white"
-              }`}
-            >
-              Stop
-            </button>
-          </div>
-        </div>
+    {/* Day/Night Toggle */}
+    <button
+      onClick={() => setIsLight(!isLight)}
+      className={`px-4 py-2 rounded-xl font-semibold ${
+        isLight
+          ? "bg-slate-700 hover:bg-slate-600 text-white"
+          : "bg-yellow-300 hover:bg-yellow-200 text-slate-900"
+      }`}
+    >
+      {isLight ? "🌙 Night" : "☀️ Day"}
+    </button>
+
+    {/* Read Slide */}
+    <button
+      onClick={speakSlide}
+      className={`px-4 py-2 rounded-xl ${
+        isLight
+          ? "bg-blue-600 hover:bg-blue-500 text-white"
+          : "bg-blue-900 hover:bg-blue-800 text-white"
+      }`}
+    >
+      Read Slide
+    </button>
+
+    {/* Stop */}
+    <button
+      onClick={stopSpeaking}
+      className={`px-4 py-2 rounded-xl ${
+        isLight
+          ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+          : "bg-slate-700 hover:bg-slate-600 text-white"
+      }`}
+    >
+      Stop
+    </button>
+
+  </div>
+</div>
 
         {/* 🔵 SLIDE CONTENT */}
 <div
