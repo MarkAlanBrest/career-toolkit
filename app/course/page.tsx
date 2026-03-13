@@ -573,45 +573,14 @@ const data = await mod.json();
             </div>
           </div>
 
-     <div className="flex gap-3">
-
-  {/* 🌙 Day/Night Toggle */}
-  <button
-    onClick={() => setIsLight(!isLight)}
-    className={`px-4 py-2 rounded-xl font-semibold ${
-      isLight
-        ? "bg-slate-700 hover:bg-slate-600 text-white"
-        : "bg-yellow-300 hover:bg-yellow-200 text-slate-900"
-    }`}
-  >
-    {isLight ? "🌙 Night" : "☀️ Day"}
-  </button>
-
-  {/* 🔊 Read Slide */}
-  <button
-    onClick={speakSlide}
-    className={`px-4 py-2 rounded-xl ${
-      isLight
-        ? "bg-blue-600 hover:bg-blue-500 text-white"
-        : "bg-blue-900 hover:bg-blue-800 text-white"
-    }`}
-  >
-    Read Slide
-  </button>
-
-  {/* ⏹ Stop */}
-  <button
-    onClick={stopSpeaking}
-    className={`px-4 py-2 rounded-xl ${
-      isLight
-        ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
-        : "bg-slate-700 hover:bg-slate-600 text-white"
-    }`}
-  >
-    Stop
-  </button>
-
-</div>
+          <div className="flex gap-3">
+            <button
+              onClick={speakSlide}
+              className={`px-4 py-2 rounded-xl ${
+                isLight
+                  ? "bg-blue-600 hover:bg-blue-500 text-white"
+                  : "bg-blue-900 hover:bg-blue-800 text-white"
+              }`}
             >
               Read Slide
             </button>
@@ -636,7 +605,7 @@ const data = await mod.json();
   }`}
 
 
-
+  
 >
 
 
