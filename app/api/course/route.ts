@@ -4,6 +4,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code");
 
+  if (!code) {
+    return Response.json({ error: "No code provided" }, { status: 400 });
+  }
+
   const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
   const [rows]: any = await db.execute(
