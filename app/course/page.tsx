@@ -96,6 +96,7 @@ const code = params.get("code") || "";
   const synthRef = useRef<SpeechSynthesis | null>(null);
     const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 const [selectedVoice, setSelectedVoice] = useState<string>("default");
+const [showVoices, setShowVoices] = useState(false);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -597,64 +598,100 @@ const data = await mod.json();
   </div>
 
   {/* RIGHT — Buttons */}
-  <div className="flex gap-3">
 
-    <select
-  value={selectedVoice}
-  onChange={(e) => setSelectedVoice(e.target.value)}
-  className={`px-3 py-2 rounded-xl border ${
-    isLight
-      ? "bg-white border-slate-300 text-slate-900"
-      : "bg-slate-800 border-slate-600 text-white"
-  }`}
->
-  <option value="default">Default Voice</option>
 
-  {voices.map((v) => (
-    <option key={v.name} value={v.name}>
-      {v.name} ({v.lang})
-    </option>
-  ))}
-</select>
 
-    {/* Day/Night Toggle */}
+
+ <div className="flex gap-3">
+
+  {/* 🎤 Voice Button */}
+  <div className="relative">
     <button
-      onClick={() => setIsLight(!isLight)}
-      className={`px-4 py-2 rounded-xl font-semibold ${
-        isLight
-          ? "bg-slate-700 hover:bg-slate-600 text-white"
-          : "bg-yellow-300 hover:bg-yellow-200 text-slate-900"
-      }`}
-    >
-      {isLight ? "🌙 Night" : "☀️ Day"}
-    </button>
-
-    {/* Read Slide */}
-    <button
-      onClick={speakSlide}
+      onClick={() => setShowVoices((v) => !v)}
       className={`px-4 py-2 rounded-xl ${
         isLight
-          ? "bg-blue-600 hover:bg-blue-500 text-white"
-          : "bg-blue-900 hover:bg-blue-800 text-white"
+          ? "bg-purple-600 hover:bg-purple-500 text-white"
+          : "bg-purple-700 hover:bg-purple-600 text-white"
       }`}
     >
-      Read Slide
+      Voice
     </button>
 
-    {/* Stop */}
-    <button
-      onClick={stopSpeaking}
-      className={`px-4 py-2 rounded-xl ${
-        isLight
-          ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
-          : "bg-slate-700 hover:bg-slate-600 text-white"
-      }`}
-    >
-      Stop
-    </button>
+    {showVoices && (
+      <div
+        className={`absolute right-0 mt-2 w-72 max-h-72 overflow-y-auto rounded-xl shadow-xl border z-50 ${
+          isLight
+            ? "bg-white border-slate-300 text-slate-900"
+            : "bg-slate-900 border-slate-700 text-white"
+        }`}
+      >
+        <button
+          onClick={() => {
+            setSelectedVoice("default");
+            setShowVoices(false);
+          }}
+          className="block w-full text-left px-4 py-2 hover:bg-blue-500 hover:text-white"
+        >
+          Default Voice
+        </button>
 
+        {voices.map((v) => (
+          <button
+            key={v.name}
+            onClick={() => {
+              setSelectedVoice(v.name);
+              setShowVoices(false);
+            }}
+            className="block w-full text-left px-4 py-2 hover:bg-blue-500 hover:text-white"
+          >
+            {v.name} ({v.lang})
+          </button>
+        ))}
+      </div>
+    )}
   </div>
+
+  {/* 🌙 Day/Night Toggle */}
+  <button
+    onClick={() => setIsLight(!isLight)}
+    className={`px-4 py-2 rounded-xl font-semibold ${
+      isLight
+        ? "bg-slate-700 hover:bg-slate-600 text-white"
+        : "bg-yellow-300 hover:bg-yellow-200 text-slate-900"
+    }`}
+  >
+    {isLight ? "🌙 Night" : "☀️ Day"}
+  </button>
+
+  {/* 🔊 Read Slide */}
+  <button
+    onClick={speakSlide}
+    className={`px-4 py-2 rounded-xl ${
+      isLight
+        ? "bg-blue-600 hover:bg-blue-500 text-white"
+        : "bg-blue-900 hover:bg-blue-800 text-white"
+    }`}
+  >
+    Read Slide
+  </button>
+
+  {/* ⏹ Stop */}
+  <button
+    onClick={stopSpeaking}
+    className={`px-4 py-2 rounded-xl ${
+      isLight
+        ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+        : "bg-slate-700 hover:bg-slate-600 text-white"
+    }`}
+  >
+    Stop
+  </button>
+
 </div>
+
+
+
+
 
         {/* 🔵 SLIDE CONTENT */}
 <div
