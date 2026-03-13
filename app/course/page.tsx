@@ -690,7 +690,7 @@ const data = await mod.json();
 </div>
 
 
-
+</div>
 
 
         {/* 🔵 SLIDE CONTENT */}
