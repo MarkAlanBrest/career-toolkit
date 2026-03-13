@@ -94,6 +94,23 @@ const code = params.get("code") || "";
   const [hotspotText, setHotspotText] = useState("");
 
   const synthRef = useRef<SpeechSynthesis | null>(null);
+    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+const [selectedVoice, setSelectedVoice] = useState<string>("default");
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  synthRef.current = window.speechSynthesis;
+
+  const loadVoices = () => {
+    const v = window.speechSynthesis.getVoices();
+    setVoices(v);
+  };
+
+  loadVoices();
+
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}, []);
 
   const current = slides[index];
 
@@ -184,6 +201,11 @@ const data = await mod.json();
     }
 
     const utter = new SpeechSynthesisUtterance(textToRead);
+
+    if (selectedVoice !== "default") {
+  const voice = voices.find((v) => v.name === selectedVoice);
+  if (voice) utter.voice = voice;
+}
     synthRef.current.speak(utter);
   };
 
@@ -576,6 +598,24 @@ const data = await mod.json();
 
   {/* RIGHT — Buttons */}
   <div className="flex gap-3">
+
+    <select
+  value={selectedVoice}
+  onChange={(e) => setSelectedVoice(e.target.value)}
+  className={`px-3 py-2 rounded-xl border ${
+    isLight
+      ? "bg-white border-slate-300 text-slate-900"
+      : "bg-slate-800 border-slate-600 text-white"
+  }`}
+>
+  <option value="default">Default Voice</option>
+
+  {voices.map((v) => (
+    <option key={v.name} value={v.name}>
+      {v.name} ({v.lang})
+    </option>
+  ))}
+</select>
 
     {/* Day/Night Toggle */}
     <button
