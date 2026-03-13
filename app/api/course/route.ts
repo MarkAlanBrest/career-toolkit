@@ -11,19 +11,19 @@ export async function GET(req: Request) {
 
     const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
-    const [rows]: any = await db.execute(
+    const [rows]: any = await db.query(
       "SELECT * FROM CourseRecords WHERE Code = ?",
-      [code.trim()]
+      [code]
     );
 
     await db.end();
 
-    if (!rows.length) {
+    if (!rows || rows.length === 0) {
       return Response.json({ error: "Invalid course code." }, { status: 404 });
     }
 
     return Response.json(rows[0]);
-  } catch (err) {
+  } catch {
     return Response.json({ error: "Server error" }, { status: 500 });
   }
 }
