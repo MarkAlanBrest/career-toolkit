@@ -573,7 +573,7 @@ const data = await mod.json();
             </div>
           </div>
 
-          <div className="flex gap-3">
+     <div className="flex gap-3">
 
   {/* 🌙 Day/Night Toggle */}
   <button
@@ -612,13 +612,34 @@ const data = await mod.json();
   </button>
 
 </div>
+            >
+              Read Slide
+            </button>
+
+            <button
+              onClick={stopSpeaking}
+              className={`px-4 py-2 rounded-xl ${
+                isLight
+                  ? "bg-slate-300 hover:bg-slate-400 text-slate-900"
+                  : "bg-slate-700 hover:bg-slate-600 text-white"
+              }`}
+            >
+              Stop
+            </button>
+          </div>
+        </div>
 
         {/* 🔵 SLIDE CONTENT */}
 <div
   className={`min-h-[380px] ${
     isLight ? "text-slate-900" : "text-white"
   }`}
+
+
+
 >
+
+
   {renderSlide()}
 </div>
         {/* 🔵 NAV BUTTONS */}
