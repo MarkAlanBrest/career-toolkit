@@ -239,7 +239,7 @@ const data = await mod.json();
     if (imagePosition === "none" || !slide.image) {
       return (
         <div>
-          <h2 className="text-3xl font-bold text-white mb-4">{slide.title}</h2>
+          <h2 className={`text-3xl font-bold mb-4 ${isLight ? "text-slate-900" : "text-white"}`}>{slide.title}</h2>
           <p className="text-lg leading-8 text-slate-200 whitespace-pre-line">{slide.text}</p>
         </div>
       );
@@ -260,8 +260,8 @@ const data = await mod.json();
         )}
 
         <div>
-          <h2 className="text-3xl font-bold text-white mb-4">{slide.title}</h2>
-          <p className="text-lg leading-8 text-slate-200 whitespace-pre-line">{slide.text}</p>
+          <h2 className={`text-3xl font-bold mb-4 ${isLight ? "text-slate-900" : "text-white"}`}>{slide.title}</h2>
+          <p className={`text-lg leading-8 whitespace-pre-line ${isLight ? "text-slate-700" : "text-slate-200"}`}>{slide.text}</p>
         </div>
 
         {imagePosition === "right" && (
@@ -281,7 +281,7 @@ const data = await mod.json();
         <div>
           <h2 className="text-3xl font-bold text-white mb-3">{slide.title}</h2>
           {slide.text && (
-            <p className="text-lg leading-8 text-slate-200 whitespace-pre-line">{slide.text}</p>
+            <p className={`text-lg leading-8 whitespace-pre-line ${isLight ? "text-slate-700" : "text-slate-200"}`}>{slide.text}</p>
           )}
         </div>
 
@@ -371,7 +371,7 @@ const data = await mod.json();
 
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white">{slide.question}</h2>
+        <h2 className={`text-3xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{slide.question}</h2>
 
         <div className="flex gap-4">
           <button
@@ -409,7 +409,7 @@ const data = await mod.json();
   const renderStepsSlide = (slide: StepsSlide) => {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white">{slide.title}</h2>
+        <h2 className={`text-3xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{slide.title}</h2>
 
         <div className="space-y-4">
           {slide.steps.slice(0, revealedSteps).map((step, i) => (
@@ -437,7 +437,7 @@ const data = await mod.json();
   const renderHotspotsSlide = (slide: HotspotSlide) => {
     return (
       <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white">{slide.title}</h2>
+        <h2 className={`text-3xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{slide.title}</h2>
 
         <div className="relative w-full max-w-4xl mx-auto">
           <img
@@ -485,8 +485,8 @@ const data = await mod.json();
     return (
       <div className="flex items-center justify-center min-h-[350px]">
         <div className="text-center space-y-4">
-          <h2 className="text-4xl font-bold text-green-300">{slide.title}</h2>
-          <p className="text-xl text-slate-200">{slide.text}</p>
+          <h2 className={`text-4xl font-bold ${isLight ? "text-green-700" : "text-green-300"}`}>{slide.title}</h2>
+          <p className={`text-xl ${isLight ? "text-slate-700" : "text-slate-200"}`}>{slide.text}</p>
         </div>
       </div>
     );
