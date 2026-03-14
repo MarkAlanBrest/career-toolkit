@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    const filePath = path.join(process.cwd(), "lib", "admins.json");
+const filePath = path.join(process.cwd(), "lib/admins.json");
     const raw = fs.readFileSync(filePath, "utf-8");
     const admins = JSON.parse(raw);
 
