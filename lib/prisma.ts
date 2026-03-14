@@ -1,7 +1,8 @@
 import Prisma from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as {
-  prisma: Prisma.PrismaClient | undefined;
+  prisma: PrismaClient | undefined;
 };
 
 export const prisma =
