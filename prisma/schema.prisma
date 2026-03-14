@@ -1,29 +1,29 @@
-const startDate = new Date();
-const endDate = new Date(startDate);
-endDate.setFullYear(endDate.getFullYear() + 1);
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
 
-const record = await prisma.courseRecords.create({
-  data: {
-    FirstName: firstName,
-    LastName: lastName,
-    Email: email,
-    CourseName: courseFolder,
-    Code: courseCode,
+datasource db {
+  provider = "mysql"
+}
 
-    StartDate: startDate,
-    EndDate: endDate,
-
-    Test1: 0,
-    Test2: 0,
-    Test3: 0,
-    Test4: 0,
-    Test5: 0,
-    Test6: 0,
-    Test7: 0,
-    Test8: 0,
-
-    Progress: 0,
-
-    SlidesPath: courseFolder // or null if you prefer
-  }
-});
+model CourseRecords {
+  id         Int       @id @default(autoincrement())
+  FirstName  String
+  LastName   String
+  Email      String
+  CourseName String
+  Code       String
+  StartDate  DateTime
+  EndDate    DateTime?
+  Test1      Int
+  Test2      Int
+  Test3      Int
+  Test4      Int
+  Test5      Int
+  Test6      Int
+  Test7      Int
+  Test8      Int
+  Progress   Int
+  SlidesPath String?
+}
