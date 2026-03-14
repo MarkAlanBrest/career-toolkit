@@ -1,12 +1,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const cookieStore = await cookies(); // ✅ async in Next 16
+  const cookieStore = await cookies();
   const auth = cookieStore.get("admin-auth")?.value;
 
   if (auth !== "true") {
