@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { db } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -13,8 +13,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [rows] = await db.query("SELECT * FROM CourseRecords");
-  const records = Array.isArray(rows) ? rows : [];
+  const records = await prisma.courseRecords.findMany({
+    orderBy: { id: "desc" },
+  });
 
   return NextResponse.json({
     totalRecords: records.length,
