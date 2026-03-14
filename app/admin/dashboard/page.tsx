@@ -1,37 +1,62 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+// app/admin/dashboard/page.tsx
+import Link from "next/link";
+import { getAllCourses } from "@/lib/courses";
 
-export default async function Dashboard() {
+export const dynamic = "force-dynamic"; // ensure fresh read of public/ if you want
 
-
- const cookieStore = await cookies();
-const auth = cookieStore.get("admin-auth")?.value;
-
-
-
-
-  if (auth !== "true") redirect("/admin/login");
-
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/dashboard`, {
-    cache: "no-store",
-  });
-
-  const data = await res.json();
+export default function AdminDashboardPage() {
+  const courses = getAllCourses();
 
   return (
-    <main style={{ padding: 40 }}>
-      <h1 className="text-3xl font-bold text-blue-950">Admin Dashboard</h1>
+    <main className="max-w-4xl mx-auto px-4 py-8">
+      <h1 className="text-2xl font-semibold mb-6">Admin Dashboard</h1>
 
-      <div className="mt-6">
-        <p className="text-lg">Total Records: {data.totalRecords}</p>
-      </div>
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Available Courses</h2>
 
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold">All Records</h2>
-        <pre className="mt-4 bg-slate-100 p-4 rounded-xl">
-          {JSON.stringify(data.records, null, 2)}
-        </pre>
-      </div>
+        {courses.length === 0 ? (
+          <p className="text-sm text-gray-600">
+            No courses found. Add a folder under <code>public/</code> with a{" "}
+            <code>module.json</code> file.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {courses.map((course) => (
+              <li
+                key={course.folder}
+                className="border rounded-md p-4 flex items-start justify-between gap-4"
+              >
+                <div>
+                  <div className="font-medium">{course.courseName}</div>
+                  {course.description && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {course.description}
+                    </p>
+                  )}
+                  {course.duration && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Duration: {course.duration}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    Folder: <code>{course.folder}</code>
+                  </p>
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <Link
+                    href={`/admin/create/${course.folder}`}
+                    className="inline-flex items-center px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    Create Student
+                  </Link>
+                  {/* Future: link to preview player, analytics, etc. */}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </main>
   );
 }
