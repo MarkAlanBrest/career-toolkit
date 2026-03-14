@@ -17,15 +17,10 @@ export default function CreateCourseCodePage({ params }: Props) {
           { cache: "no-store" }
         );
 
-        if (!res.ok) {
-          console.error("Failed to load course:", res.status);
-          return;
-        }
+        if (!res.ok) return;
 
         const data = await res.json();
-        console.log("FETCH RESULT:", data);
 
-        // FIX: restore folder field so the page works
         setCourse({
           ...data.course,
           folder: params.courseFolder,
@@ -44,7 +39,7 @@ export default function CreateCourseCodePage({ params }: Props) {
 
   if (!course) {
     return (
-      <main className="max-w-xl mx-auto px-4 py-8">
+      <main className="max-w-xl mx-auto px-4 py-8 text-white bg-slate-900 min-h-screen">
         <h1 className="text-xl font-semibold mb-4">Loading…</h1>
       </main>
     );
@@ -61,8 +56,9 @@ export default function CreateCourseCodePage({ params }: Props) {
 
     const res = await fetch("/api/create-course-code", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        courseFolder: course.folder, // now works
+        courseFolder: course.folder,
         firstName,
         lastName,
         email,
@@ -77,14 +73,14 @@ export default function CreateCourseCodePage({ params }: Props) {
   }
 
   return (
-    <main className="max-w-xl mx-auto px-4 py-8">
+    <main className="max-w-xl mx-auto px-4 py-8 text-white bg-slate-900 min-h-screen">
       {step === "form" && (
         <>
-          <h1 className="text-2xl font-semibold text-slate-900 mb-2">
+          <h1 className="text-2xl font-semibold mb-2">
             Create Course Code – {course.courseName}
           </h1>
 
-          <p className="text-sm text-slate-500 mb-6">
+          <p className="text-sm mb-6">
             Folder: <code>{course.folder}</code>
           </p>
 
@@ -96,7 +92,7 @@ export default function CreateCourseCodePage({ params }: Props) {
               <input
                 type="text"
                 name="firstName"
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 text-black"
                 required
               />
             </div>
@@ -108,7 +104,7 @@ export default function CreateCourseCodePage({ params }: Props) {
               <input
                 type="text"
                 name="lastName"
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 text-black"
                 required
               />
             </div>
@@ -120,33 +116,43 @@ export default function CreateCourseCodePage({ params }: Props) {
               <input
                 type="email"
                 name="email"
-                className="w-full border rounded px-3 py-2"
+                className="w-full border rounded px-3 py-2 text-black"
                 required
               />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-            >
-              {loading ? "Saving..." : "Create Course Code"}
-            </button>
+      <div className="space-y-3">
+  <button
+    type="submit"
+    disabled={loading}
+    className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+  >
+    {loading ? "Saving..." : "Create Course Code"}
+  </button>
+
+  <a
+    href="/admin/dashboard"
+    className="block w-full text-center bg-slate-700 text-white py-2 rounded-md hover:bg-slate-600"
+  >
+    Cancel
+  </a>
+</div>
+
+
+
           </form>
         </>
       )}
 
       {step === "confirm" && (
         <>
-          <h1 className="text-2xl font-semibold text-slate-900 mb-4">
-            Course Created
-          </h1>
+          <h1 className="text-2xl font-semibold mb-4">Course Created</h1>
 
           <p className="text-sm mb-3">
             <strong>Course Code:</strong> {generatedCode}
           </p>
 
-          <p className="text-sm text-green-700 mb-6">
+          <p className="text-sm text-green-400 mb-6">
             An email with the course code was sent to the student.
           </p>
 
