@@ -22,10 +22,12 @@ export default function CreateStudentPage({ params }: Props) {
 
   return (
     <main className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-xl font-semibold mb-2">
-        Create Student – {course.courseName}
+      {/* ✅ Updated header goes here */}
+      <h1 className="text-2xl font-semibold text-slate-900 mb-2">
+        Create Course Code – {course.courseName}
       </h1>
-      <p className="text-sm text-gray-500 mb-6">
+
+      <p className="text-sm text-slate-500 mb-6">
         Folder: <code>{course.folder}</code>
       </p>
 
