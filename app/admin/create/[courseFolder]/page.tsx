@@ -23,6 +23,8 @@ export default function CreateCourseCodePage({ params }: Props) {
         }
 
         const data = await res.json();
+        console.log("FETCH RESULT:", data);
+
         setCourse(data.course);
       } catch (err) {
         console.error("Fetch error:", err);
