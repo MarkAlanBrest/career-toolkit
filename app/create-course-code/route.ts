@@ -1,5 +1,8 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma"; // adjust if needed
+import prisma from "@/lib/prisma";
+
 
 // -------------------------------
 // Generate a clean course code

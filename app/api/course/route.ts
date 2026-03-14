@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import mysql from "mysql2/promise";
 
 export async function GET(req: Request) {

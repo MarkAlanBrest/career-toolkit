@@ -81,8 +81,10 @@ function CourseContent()  {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
    const [isLight, setIsLight] = useState(false);
+  
+  
   const params = useSearchParams();
-const code = params.get("code") || "";
+const code = params?.get("code") ?? "";
 
   const [quizFeedback, setQuizFeedback] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);

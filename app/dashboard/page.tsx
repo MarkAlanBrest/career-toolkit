@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 function Content() {
   const router = useRouter();
-  const code = useSearchParams().get("code") || "";
+
+  const params = useSearchParams();   // ⭐ ADD THIS
+  const code = params?.get("code") ?? "";  // ⭐ SAFE
+
   const [d, setD] = useState<any>(null);
 
   useEffect(() => {
