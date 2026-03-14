@@ -49,7 +49,7 @@ export default function CreateCourseCodePage({ params }: Props) {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.target);
+const formData = new FormData(e.currentTarget);
     const firstName = formData.get("firstName");
     const lastName = formData.get("lastName");
     const email = formData.get("email");
