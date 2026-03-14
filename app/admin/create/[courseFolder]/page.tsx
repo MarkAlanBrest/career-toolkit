@@ -25,7 +25,11 @@ export default function CreateCourseCodePage({ params }: Props) {
         const data = await res.json();
         console.log("FETCH RESULT:", data);
 
-        setCourse(data.course);
+        // FIX: restore folder field so the page works
+        setCourse({
+          ...data.course,
+          folder: params.courseFolder,
+        });
       } catch (err) {
         console.error("Fetch error:", err);
       }
@@ -58,7 +62,7 @@ export default function CreateCourseCodePage({ params }: Props) {
     const res = await fetch("/api/create-course-code", {
       method: "POST",
       body: JSON.stringify({
-        courseFolder: course.folder,
+        courseFolder: course.folder, // now works
         firstName,
         lastName,
         email,
