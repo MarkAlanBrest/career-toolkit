@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { getAllCourses } from "@/lib/courses";
 
 type Props = {
@@ -7,6 +10,10 @@ type Props = {
 export default function CreateCourseCodePage({ params }: Props) {
   const courses = getAllCourses();
   const course = courses.find((c) => c.folder === params.courseFolder);
+
+  const [step, setStep] = useState("form");
+  const [loading, setLoading] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState("");
 
   if (!course) {
     return (
@@ -19,60 +26,114 @@ export default function CreateCourseCodePage({ params }: Props) {
     );
   }
 
+  async function handleSubmit(e: any) {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.target);
+    const firstName = formData.get("firstName");
+    const lastName = formData.get("lastName");
+    const email = formData.get("email");
+
+    const res = await fetch("/api/create-course-code", {
+      method: "POST",
+      body: JSON.stringify({
+        courseFolder: course.folder,
+        firstName,
+        lastName,
+        email,
+      }),
+    });
+
+    const data = await res.json();
+
+    setGeneratedCode(data.courseCode);
+    setLoading(false);
+    setStep("confirm");
+  }
+
   return (
     <main className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold text-slate-900 mb-2">
-        Create Course Code – {course.courseName}
-      </h1>
+      {step === "form" && (
+        <>
+          <h1 className="text-2xl font-semibold text-slate-900 mb-2">
+            Create Course Code – {course.courseName}
+          </h1>
 
-      <p className="text-sm text-slate-500 mb-6">
-        Folder: <code>{course.folder}</code>
-      </p>
+          <p className="text-sm text-slate-500 mb-6">
+            Folder: <code>{course.folder}</code>
+          </p>
 
-      <form className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            First Name
-          </label>
-          <input
-            type="text"
-            name="firstName"
-            className="w-full border border-slate-300 rounded-md px-3 py-2"
-            required
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                First Name
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Last Name
-          </label>
-          <input
-            type="text"
-            name="lastName"
-            className="w-full border border-slate-300 rounded-md px-3 py-2"
-            required
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Email
-          </label>
-          <input
-            type="email"
-            name="email"
-            className="w-full border border-slate-300 rounded-md px-3 py-2"
-            required
-          />
-        </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-        >
-          Create Course Code
-        </button>
-      </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+            >
+              {loading ? "Saving..." : "Create Course Code"}
+            </button>
+          </form>
+        </>
+      )}
+
+      {step === "confirm" && (
+        <>
+          <h1 className="text-2xl font-semibold text-slate-900 mb-4">
+            Course Created
+          </h1>
+
+          <p className="text-sm mb-3">
+            <strong>Course Code:</strong> {generatedCode}
+          </p>
+
+          <p className="text-sm text-green-700 mb-6">
+            An email with the course code was sent to the student.
+          </p>
+
+          <a
+            href="/admin/dashboard"
+            className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Back to Dashboard
+          </a>
+        </>
+      )}
     </main>
   );
 }
