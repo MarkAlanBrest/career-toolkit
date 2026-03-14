@@ -13,8 +13,6 @@ function generateCourseCode(folder: string) {
 }
 
 export async function POST(req: Request) {
-  const requestId = crypto.randomUUID();
-
   try {
     const body = await req.json();
     const { courseFolder, firstName, lastName, email } = body;
@@ -35,35 +33,50 @@ export async function POST(req: Request) {
 
     const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
-    await db.query(
-      `INSERT INTO CourseRecords
-       (FirstName, LastName, Email, CourseName, Code,
-        StartDate, EndDate,
-        Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8,
-        Progress, SlidePath)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        firstName,
-        lastName,
-        email,
-        courseFolder,
-        courseCode,
-        startDate,
-        endDate,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0,
-        courseFolder,
-      ]
-    );
+    try {
+      const [result] = await db.query(
+        `INSERT INTO CourseRecords
+         (FirstName, LastName, Email, CourseName, Code,
+          StartDate, EndDate,
+          Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8,
+          Progress, SlidesPath)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          firstName,
+          lastName,
+          email,
+          courseFolder,
+          courseCode,
+          startDate,
+          endDate,
+          0, 0, 0, 0, 0, 0, 0, 0,
+          0,
+          courseFolder,
+        ]
+      );
 
-    await db.end();
+      console.log("INSERT OK:", result);
 
-    return NextResponse.json({ courseCode });
+      await db.end();
+
+      return NextResponse.json({ success: true, courseCode });
+
+    } catch (e: any) {
+      console.error("INSERT FAILED:", e);
+
+      await db.end();
+
+      return NextResponse.json(
+        { error: e.message, code: e.code },
+        { status: 500 }
+      );
+    }
+
   } catch (err: any) {
-    console.error(err);
+    console.error("SERVER ERROR:", err);
 
     return NextResponse.json(
-      { error: err.message || "Server error", requestId },
+      { error: err.message || "Server error" },
       { status: 500 }
     );
   }
