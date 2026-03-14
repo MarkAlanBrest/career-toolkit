@@ -8,9 +8,10 @@ export default function AdminDashboardPage() {
   const courses = getAllCourses();
 
   return (
-  <h1 className="text-3xl font-bold text-white mb-8">
-  Admin Dashboard
-</h1>
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold text-white  mb-8">
+
+
 
         Admin Dashboard
       </h1>
