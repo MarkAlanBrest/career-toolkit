@@ -12,18 +12,21 @@ export async function GET(req: Request) {
     const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
     const [rows]: any = await db.query(
-      "SELECT * FROM CourseRecords WHERE Code = ?",
+      "SELECT * FROM CourseRecords WHERE Code = ? COLLATE utf8mb4_general_ci",
       [code]
     );
 
     await db.end();
 
-    if (!rows || rows.length === 0) {
+    if (!rows.length) {
       return Response.json({ error: "Invalid course code." }, { status: 404 });
     }
 
     return Response.json(rows[0]);
-  } catch {
-    return Response.json({ error: "Server error" }, { status: 500 });
+  } catch (err: any) {
+    return Response.json(
+      { error: err.message || "Server error" },
+      { status: 500 }
+    );
   }
 }
