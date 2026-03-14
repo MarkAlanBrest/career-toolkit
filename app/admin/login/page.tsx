@@ -7,8 +7,8 @@ export default function Page() {
   const [password, setPassword] = useState("");
 
   const login = async () => {
-    const res = await fetch("/api/admin/login", {
-      method: "POST",
+const res = await fetch("/api/login", {
+        method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
