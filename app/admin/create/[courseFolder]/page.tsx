@@ -58,7 +58,7 @@ export default function CreateCourseCodePage({ params }: Props) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        courseFolder: course.folder,
+courseFolder: params.courseFolder,
         firstName,
         lastName,
         email,
