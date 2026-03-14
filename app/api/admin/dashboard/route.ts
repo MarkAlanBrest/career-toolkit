@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  const cookieStore = await cookies();
+const cookieStore = cookies();
   const auth = cookieStore.get("admin-auth")?.value;
 
   if (auth !== "true") {
