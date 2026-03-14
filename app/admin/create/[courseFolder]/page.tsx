@@ -24,7 +24,13 @@ export default function CreateCourseCodePage({ params }: Props) {
   const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
 
-  if (!course) return null;
+if (!course) {
+  return (
+    <main className="max-w-xl mx-auto px-4 py-8">
+      <h1 className="text-xl font-semibold mb-4">Loading…</h1>
+    </main>
+  );
+}
 
   async function handleSubmit(e: any) {
     e.preventDefault();
