@@ -2,7 +2,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function Dashboard() {
-  const auth = cookies().get("admin-auth")?.value;
+
+
+ const cookieStore = await cookies();
+const auth = cookieStore.get("admin-auth")?.value;
+
+
+
+
   if (auth !== "true") redirect("/admin/login");
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/dashboard`, {
