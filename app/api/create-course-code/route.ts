@@ -29,6 +29,11 @@ export async function POST(req: Request) {
 
     const courseCode = generateCourseCode(courseFolder);
 
+    // Auto dates
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setFullYear(endDate.getFullYear() + 1);
+
     await prisma.courseRecords.create({
       data: {
         FirstName: firstName,
@@ -36,8 +41,22 @@ export async function POST(req: Request) {
         Email: email,
         CourseName: courseFolder,
         Code: courseCode,
-        StartDate: new Date(),
+
+        StartDate: startDate,
+        EndDate: endDate,
+
+        Test1: 0,
+        Test2: 0,
+        Test3: 0,
+        Test4: 0,
+        Test5: 0,
+        Test6: 0,
+        Test7: 0,
+        Test8: 0,
+
         Progress: 0,
+
+        SlidesPath: courseFolder,
       },
     });
 
