@@ -1,10 +1,9 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import mysql from "mysql2/promise";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -14,9 +13,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const records = await prisma.courseRecords.findMany({
-    orderBy: { id: "desc" },
-  });
+  const db = await mysql.createConnection(process.env.DATABASE_URL!);
+
+  const [rows]: any = await db.query("SELECT * FROM CourseRecords");
+
+  await db.end();
+
+  const records = Array.isArray(rows) ? rows : [];
 
   return NextResponse.json({
     totalRecords: records.length,
