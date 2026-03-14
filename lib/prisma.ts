@@ -1,8 +1,7 @@
 import Prisma from "@prisma/client";
-import type { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: InstanceType<typeof Prisma.PrismaClient> | undefined;
 };
 
 export const prisma =
@@ -14,4 +13,3 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export default prisma;
- 
