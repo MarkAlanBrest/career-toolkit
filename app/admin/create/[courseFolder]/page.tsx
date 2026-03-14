@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { getAllCourses } from "@/lib/courses";
+import { useState, useEffect } from "react";
 
 type Props = {
   params: { courseFolder: string };
 };
 
 export default function CreateCourseCodePage({ params }: Props) {
-  const courses = getAllCourses();
-  const course = courses.find((c) => c.folder === params.courseFolder);
+  const [course, setCourse] = useState<any>(null);
+
+  useEffect(() => {
+    async function load() {
+      const res = await fetch("/api/get-course?folder=" + params.courseFolder);
+      const data = await res.json();
+      setCourse(data.course);
+    }
+    load();
+  }, [params.courseFolder]);
 
   const [step, setStep] = useState("form");
   const [loading, setLoading] = useState(false);
@@ -18,10 +25,7 @@ export default function CreateCourseCodePage({ params }: Props) {
   if (!course) {
     return (
       <main className="max-w-xl mx-auto px-4 py-8">
-        <h1 className="text-xl font-semibold mb-4">Course not found</h1>
-        <p className="text-sm text-gray-600">
-          No course found for folder <code>{params.courseFolder}</code>.
-        </p>
+        <h1 className="text-xl font-semibold mb-4">Loading…</h1>
       </main>
     );
   }
