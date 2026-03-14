@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
       </h1>
 
       <section>
-        <h2 className="text-xl font-semibold text-slate-800 mb-4">
+        <h2 className="text-xl font-semibold text-white mb-4">
           Available Courses
         </h2>
 
