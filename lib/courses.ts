@@ -3,16 +3,16 @@ import fs from "fs";
 import path from "path";
 
 export type CourseMeta = {
-  folder: string;        // e.g. "LadderSafety"
-  courseName: string;    // from module.json
-  description?: string;  // optional
-  duration?: string;     // optional
+  folder: string;
+  courseName: string;
+  description?: string;
+  duration?: string;
 };
 
-const PUBLIC_DIR = path.join(process.cwd(), "public");
+const DATA_DIR = path.join(process.cwd(), "data/courses");
 
 export function getAllCourses(): CourseMeta[] {
-  const entries = fs.readdirSync(PUBLIC_DIR, { withFileTypes: true });
+  const entries = fs.readdirSync(DATA_DIR, { withFileTypes: true });
 
   const courses: CourseMeta[] = [];
 
@@ -20,7 +20,7 @@ export function getAllCourses(): CourseMeta[] {
     if (!entry.isDirectory()) continue;
 
     const folderName = entry.name;
-    const modulePath = path.join(PUBLIC_DIR, folderName, "module.json");
+    const modulePath = path.join(DATA_DIR, folderName, "module.json");
 
     if (!fs.existsSync(modulePath)) continue;
 
@@ -40,11 +40,9 @@ export function getAllCourses(): CourseMeta[] {
       });
     } catch (err) {
       console.error(`Failed to read module.json for ${folderName}`, err);
-      // skip broken course
     }
   }
 
-  // Optional: sort alphabetically by courseName
   courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
 
   return courses;
