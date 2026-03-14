@@ -11,12 +11,24 @@ export default function CreateCourseCodePage({ params }: Props) {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("/api/get-course?folder=" + params.courseFolder, {
-        cache: "no-store",
-      });
-      const data = await res.json();
-      setCourse(data.course);
+      try {
+        const res = await fetch(
+          "/api/get-course?folder=" + params.courseFolder,
+          { cache: "no-store" }
+        );
+
+        if (!res.ok) {
+          console.error("Failed to load course:", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        setCourse(data.course);
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
     }
+
     load();
   }, [params.courseFolder]);
 
@@ -24,13 +36,13 @@ export default function CreateCourseCodePage({ params }: Props) {
   const [loading, setLoading] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
 
-if (!course) {
-  return (
-    <main className="max-w-xl mx-auto px-4 py-8">
-      <h1 className="text-xl font-semibold mb-4">Loading…</h1>
-    </main>
-  );
-}
+  if (!course) {
+    return (
+      <main className="max-w-xl mx-auto px-4 py-8">
+        <h1 className="text-xl font-semibold mb-4">Loading…</h1>
+      </main>
+    );
+  }
 
   async function handleSubmit(e: any) {
     e.preventDefault();
