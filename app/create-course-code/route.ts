@@ -1,124 +1,66 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma"; // adjust if needed
 
-// ---- helpers --------------------------------------------------
-
-function validateBody(body: any) {
-  const errors: string[] = [];
-
-  if (!body.courseFolder || typeof body.courseFolder !== "string") {
-    errors.push("courseFolder is required");
-  }
-  if (!body.firstName || typeof body.firstName !== "string") {
-    errors.push("firstName is required");
-  }
-  if (!body.lastName || typeof body.lastName !== "string") {
-    errors.push("lastName is required");
-  }
-  if (!body.email || typeof body.email !== "string") {
-    errors.push("email is required");
-  }
-
-  return {
-    ok: errors.length === 0,
-    errors,
-  };
-}
-
-// Example: LAD-2025-7F3C
-function generateCourseCode(courseFolder: string) {
-  const prefix = courseFolder
-    .replace(/[^A-Za-z0-9]/g, "")
-    .slice(0, 3)
-    .toUpperCase();
-
+// -------------------------------
+// Generate a clean course code
+// Example: LAD-7F3C-2026
+// -------------------------------
+function generateCourseCode(folder: string) {
+  const prefix = folder.slice(0, 3).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   const year = new Date().getFullYear();
-  const random = Math.random().toString(36).slice(2, 6).toUpperCase();
-
-  return `${prefix}-${year}-${random}`;
+  return `${prefix}-${random}-${year}`;
 }
 
-// TODO: replace with real DB call
-async function saveCourseCodeToDatabase(input: {
-  courseFolder: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  courseCode: string;
-}) {
-  // Plug in Prisma / SQL / whatever here
-  console.log("[DB] Saving course code record:", input);
-}
-
-// TODO: replace with real email provider
-async function sendCourseCodeEmail(input: {
-  email: string;
-  firstName: string;
-  lastName: string;
-  courseCode: string;
-  courseFolder: string;
-}) {
-  // Plug in Resend / SendGrid / SES / etc here
-  console.log("[EMAIL] Sending course code email:", input);
-}
-
-// ---- handler --------------------------------------------------
-
+// -------------------------------
+// POST handler
+// -------------------------------
 export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
 
   try {
     const body = await req.json();
+    const { courseFolder, firstName, lastName, email } = body;
 
-    console.log("[CREATE-COURSE-CODE] Incoming request", {
-      requestId,
-      body,
-    });
+    // Validation
+    const missing = [];
+    if (!courseFolder) missing.push("courseFolder");
+    if (!firstName) missing.push("firstName");
+    if (!lastName) missing.push("lastName");
+    if (!email) missing.push("email");
 
-    const validation = validateBody(body);
-    if (!validation.ok) {
-      console.warn("[CREATE-COURSE-CODE] Validation failed", {
-        requestId,
-        errors: validation.errors,
-      });
-
+    if (missing.length > 0) {
+      console.warn("[CREATE-COURSE-CODE] Missing fields", { requestId, missing });
       return NextResponse.json(
-        { error: "Invalid request", details: validation.errors },
+        { error: "Missing required fields", missing },
         { status: 400 }
       );
     }
 
-    const { courseFolder, firstName, lastName, email } = body;
-
+    // Generate code
     const courseCode = generateCourseCode(courseFolder);
 
-    await saveCourseCodeToDatabase({
-      courseFolder,
-      firstName,
-      lastName,
-      email,
-      courseCode,
+    // Save to DB
+    const record = await prisma.courseRecords.create({
+      data: {
+        FirstName: firstName,
+        LastName: lastName,
+        Email: email,
+        CourseName: courseFolder,
+        Code: courseCode,
+        StartDate: new Date(),
+        Progress: 0,
+      },
     });
 
-    await sendCourseCodeEmail({
-      email,
-      firstName,
-      lastName,
-      courseCode,
-      courseFolder,
-    });
+    console.log("[CREATE-COURSE-CODE] Saved record", { requestId, record });
 
-    console.log("[CREATE-COURSE-CODE] Success", {
-      requestId,
-      courseCode,
-      courseFolder,
-      email,
-    });
-
+    // Return success
     return NextResponse.json({ courseCode });
-  } catch (err) {
+  } catch (err: any) {
     console.error("[CREATE-COURSE-CODE] Server error", {
       requestId,
-      error: String(err),
+      error: err.message,
     });
 
     return NextResponse.json(
