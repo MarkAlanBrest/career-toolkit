@@ -135,10 +135,11 @@ useEffect(() => {
 
       // 2) Convert "Ladder Safety" → "LadderSafety"
 const folder = "LadderSafety";      // 3) Load correct JSON
-const mod = await fetch(`/${folder}/module.json`);      
+const courseRes = await fetch(`/api/get-course?folder=${folder}`);
+
 const data = await mod.json();
 
-      setSlides(data.slides || []);
+setSlides(courseData.course.slides || []);
 
       // 4) Start position from Progress
       const start =
