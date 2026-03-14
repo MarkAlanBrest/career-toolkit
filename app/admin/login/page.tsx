@@ -1,26 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const r = useRouter();
-  const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const login = async () => {
-    const res = await fetch("/api/admin/login",{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ email,password })
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
-    if(res.ok) r.push("/admin/dashboard");
+
+    if (!res.ok) {
+      alert("Login failed");
+      return;
+    }
+
+    window.location.href = "/admin/dashboard"; // force redirect
   };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-300 to-slate-500">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8">
-        
         <h1 className="text-3xl font-bold text-blue-900 mb-2">
           Admin Login
         </h1>
@@ -33,7 +36,7 @@ export default function Page() {
           type="email"
           placeholder="Email"
           value={email}
-          onChange={e=>setEmail(e.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
           className="w-full mb-4 px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-blue-900"
         />
 
@@ -41,7 +44,7 @@ export default function Page() {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={e=>setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           className="w-full mb-6 px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-blue-900"
         />
 
@@ -51,7 +54,6 @@ export default function Page() {
         >
           Login
         </button>
-
       </div>
     </main>
   );
