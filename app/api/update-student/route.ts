@@ -10,6 +10,8 @@ async function getConnection() {
 }
 
 export async function PATCH(req: Request) {
+  let conn;
+
   try {
     const body = await req.json();
     const { id, updates } = body;
@@ -49,19 +51,28 @@ export async function PATCH(req: Request) {
 
     values.push(id);
 
-    const conn = await getConnection();
-    await conn.execute(
+    conn = await getConnection();
+
+    const [result]: any = await conn.execute(
       `UPDATE CourseRecords SET ${setParts.join(", ")} WHERE ID = ?`,
       values
     );
-    await conn.end();
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        affectedRows: result?.affectedRows ?? 0,
+        changedRows: result?.changedRows ?? 0,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (err) {
     console.error("Update error:", err);
     return new Response("Database error", { status: 500 });
+  } finally {
+    if (conn) await conn.end();
   }
 }
