@@ -130,52 +130,8 @@ function CourseContent()  {
   const textSoft = isLight ? "text-slate-700" : "text-slate-200";
   const panelBg = isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800 border-slate-600";
 
-  useEffect(() => {
-    if (!code) return;
 
-    async function loadCourse() {
-      try {
-        // 1) Get student record
-        const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
-        const record = await res.json();
 
-        if (!record || record.error) {
-          setLoading(false);
-          return;
-        }
-
-        // 2) Load course JSON
-        const folder = record.SlidesPath;
-        const courseRes = await fetch(`/api/get-course?folder=${folder}`);
-        const courseData = await courseRes.json();
-
-        setSlides(courseData.course.slides || []);
-
-        // 3) Start at saved progress
-        const start =
-          record.Progress && Number(record.Progress) > 0
-            ? Number(record.Progress)
-            : 0;
-
-        setIndex(start);
-      } catch (err) {
-        console.error("Failed to load course:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadCourse();
-  }, [code]);
-
-  useEffect(() => {
-    setQuizFeedback("");
-    setSelectedAnswer(null);
-    setTfFeedback("");
-    setTfSelected(null);
-    setRevealedSteps(1);
-    setHotspotText("");
-  }, [index]);
 
   // ⭐ UPDATED — Next slide now updates progress
   const nextSlide = () => {
@@ -193,21 +149,8 @@ function CourseContent()  {
     }
   };
 
+
   // (…everything else in your component stays exactly the same…)
-}
-
-
-  loadVoices();
-
-  window.speechSynthesis.onvoiceschanged = loadVoices;
-}, []);
-
-  const current = slides[index];
-
-const textMain = isLight ? "text-slate-900" : "text-white";
-const textSoft = isLight ? "text-slate-700" : "text-slate-200";
-const panelBg = isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800 border-slate-600";
-
 useEffect(() => {
   if (!code) return;
 
@@ -306,17 +249,7 @@ setSlides(courseData.course.slides || []);
     synthRef.current?.cancel();
   };
 
-  const nextSlide = () => {
-    if (index < slides.length - 1) {
-      setIndex((prev) => prev + 1);
-    }
-  };
-
-  const prevSlide = () => {
-    if (index > 0) {
-      setIndex((prev) => prev - 1);
-    }
-  };
+ 
 
   const renderContentSlide = (slide: ContentSlide) => {
     const imagePosition = slide.imagePosition || "right";
