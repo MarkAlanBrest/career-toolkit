@@ -7,6 +7,9 @@ type Props = {
 };
 
 export default function CreateCourseCodePage({ params }: Props) {
+
+  console.log("PARAMS:", params);
+
   const [course, setCourse] = useState<any>(null);
 
   useEffect(() => {
