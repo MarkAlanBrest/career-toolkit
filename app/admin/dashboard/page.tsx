@@ -9,6 +9,30 @@ export default function AdminDashboardPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-10">
+
+      {/* Top Action Bar */}
+      <div className="flex justify-end gap-3 mb-6">
+
+        {/* Test Course Code */}
+        <Link
+          href="/"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm"
+        >
+          Test Course Code
+        </Link>
+
+        {/* Log Out */}
+        <form action="/admin/logout" method="POST">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
+          >
+            Log Out
+          </button>
+        </form>
+
+      </div>
+
       <h1 className="text-3xl font-bold text-white mb-8">
         Admin Dashboard
       </h1>
@@ -18,16 +42,6 @@ export default function AdminDashboardPage() {
           Available Courses
         </h2>
 
-        <div className="flex justify-end mb-6">
-  <form action="/admin/logout" method="POST">
-    <button
-      type="submit"
-      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
-    >
-      Log Out
-    </button>
-  </form>
-</div>
 
 
         {courses.length === 0 ? (
