@@ -136,7 +136,8 @@ useEffect(() => {
       }
 
       // 2) Convert "Ladder Safety" → "LadderSafety"
-const folder = "LadderSafety";
+const folder = record.SlidesPath;
+
 
 const courseRes = await fetch(`/api/get-course?folder=${folder}`);
 const courseData = await courseRes.json();
