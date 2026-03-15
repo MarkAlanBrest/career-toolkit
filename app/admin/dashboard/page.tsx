@@ -101,7 +101,9 @@ export default function AdminDashboardPage() {
                     </Link>
 
                     <Link
-                      href={`/admin/reports/roster/${course.folder}`}
+
+                          href={`/admin/roster/${course.folder}`}
+
                       className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 shadow-sm"
                     >
                       Class Roster
