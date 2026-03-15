@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import mysql from "mysql2/promise";
+import fs from "fs/promises"; // added
 
 // Generate course code
 function generateCourseCode(folder: string) {
@@ -15,30 +16,27 @@ function generateCourseCode(folder: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
-    console.log("BODY:", body);
-
     const { courseFolder, firstName, lastName, email } = body;
 
-    console.log("BODY RECEIVED:", { courseFolder, firstName, lastName, email });
-
     if (!courseFolder || !firstName || !lastName || !email) {
-
-
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
+    // 🔥 NEW: read the real course name from module.json
+    const raw = await fs.readFile(`data/courses/${courseFolder}/module.json`, "utf8");
+    const json = JSON.parse(raw);
+    const realCourseName = json.courseName;   // <-- this is the correct name
+
     const courseCode = generateCourseCode(courseFolder);
 
-    // Dates
     const startDate = new Date();
     const endDate = new Date(startDate);
     endDate.setFullYear(endDate.getFullYear() + 1);
 
-const db = await mysql.createConnection(process.env.DATABASE_URL!);
+    const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
     try {
       const [result] = await db.query(
@@ -49,31 +47,24 @@ const db = await mysql.createConnection(process.env.DATABASE_URL!);
           Progress, SlidesPath)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
        [
-  firstName,
-  lastName,
-  email,
-  courseFolder,     // CourseName
-  courseCode,
-  startDate,
-  endDate,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0,
-  courseFolder      // SlidesPath
-]
-
+        firstName,
+        lastName,
+        email,
+        realCourseName,   // 🔥 FIXED — now using JSON course name
+        courseCode,
+        startDate,
+        endDate,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+        courseFolder      // stays the folder name
+       ]
       );
 
-      console.log("INSERT OK:", result);
-
       await db.end();
-
       return NextResponse.json({ success: true, courseCode });
 
     } catch (e: any) {
-      console.error("INSERT FAILED:", e);
-
       await db.end();
-
       return NextResponse.json(
         { error: e.message, code: e.code },
         { status: 500 }
@@ -81,11 +72,9 @@ const db = await mysql.createConnection(process.env.DATABASE_URL!);
     }
 
   } catch (err: any) {
-    console.error("SERVER ERROR:", err);
-
     return NextResponse.json(
       { error: err.message || "Server error" },
       { status: 500 }
     );
   }
-} 
+}
