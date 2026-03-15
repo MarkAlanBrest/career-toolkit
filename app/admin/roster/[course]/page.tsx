@@ -60,7 +60,7 @@ export default function RosterPage() {
 
     async function loadRoster() {
       setLoading(true);
-      const res = await fetch(`/api/roster?course=${courseParam}`);
+const res = await fetch(`/api/getRoster?course=${courseParam}`);
       const data = await res.json();
       setStudents(data);
       setLoading(false);
