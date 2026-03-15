@@ -44,6 +44,7 @@ export default function AdminDashboardPage() {
 
 
 
+
         {courses.length === 0 ? (
           <p className="text-sm text-slate-600">
             No courses found. Add a folder under <code>public/</code> with a{" "}
