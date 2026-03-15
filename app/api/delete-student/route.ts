@@ -1,4 +1,3 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import mysql from "mysql2/promise";
 
 async function getConnection() {
@@ -10,28 +9,25 @@ async function getConnection() {
   });
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  if (req.method !== "DELETE") {
-    return res.status(405).send("Method not allowed");
-  }
-
-  const { id } = req.query;
-  const numericId = Number(id);
-
-  if (!numericId || Number.isNaN(numericId)) {
-    return res.status(400).send("Invalid id");
-  }
-
+export async function DELETE(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const id = Number(searchParams.get("id"));
+
+    if (!id) {
+      return new Response("Invalid id", { status: 400 });
+    }
+
     const conn = await getConnection();
-    await conn.execute("DELETE FROM CourseRecords WHERE ID = ?", [numericId]);
+    await conn.execute("DELETE FROM CourseRecords WHERE ID = ?", [id]);
     await conn.end();
-    return res.status(200).json({ success: true });
-  } catch (err: any) {
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (err) {
     console.error("Delete error:", err);
-    return res.status(500).send("Database error");
+    return new Response("Database error", { status: 500 });
   }
 }
