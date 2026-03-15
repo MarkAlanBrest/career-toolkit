@@ -19,8 +19,14 @@ export async function GET(req: Request) {
   if (!course) {
     return NextResponse.json({ error: "Missing course" }, { status: 400 });
   }
+const db = await mysql.createConnection({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
 
-  const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
   const [rows]: any = await db.query(
     "SELECT * FROM CourseRecords WHERE CourseName = ?",
