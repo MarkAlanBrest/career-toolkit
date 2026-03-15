@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import mysql from "mysql2/promise";
-import fs from "fs/promises"; // added
+import fs from "fs/promises";
 
 // Generate course code
 function generateCourseCode(folder: string) {
@@ -25,10 +25,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 NEW: read the real course name from module.json
-    const raw = await fs.readFile(`data/courses/${courseFolder}/module.json`, "utf8");
+    // ✅ FIXED PATH — Vercel needs the full app/ prefix
+    const raw = await fs.readFile(
+      `app/data/courses/${courseFolder}/module.json`,
+      "utf8"
+    );
+
     const json = JSON.parse(raw);
-    const realCourseName = json.courseName;   // <-- this is the correct name
+    const realCourseName = json.courseName;
 
     const courseCode = generateCourseCode(courseFolder);
 
@@ -46,18 +50,18 @@ export async function POST(req: Request) {
           Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8,
           Progress, SlidesPath)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-       [
-        firstName,
-        lastName,
-        email,
-        realCourseName,   // 🔥 FIXED — now using JSON course name
-        courseCode,
-        startDate,
-        endDate,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0,
-        courseFolder      // stays the folder name
-       ]
+        [
+          firstName,
+          lastName,
+          email,
+          realCourseName,
+          courseCode,
+          startDate,
+          endDate,
+          0, 0, 0, 0, 0, 0, 0, 0,
+          0,
+          courseFolder
+        ]
       );
 
       await db.end();
