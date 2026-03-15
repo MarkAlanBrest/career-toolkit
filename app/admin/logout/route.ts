@@ -1,10 +1,11 @@
 // app/admin/logout/route.ts
 import { NextResponse } from "next/server";
 
-export async function POST() {
-  const response = NextResponse.redirect("/admin/login");
+export async function POST(request: Request) {
+  const url = new URL("/admin/login", request.url);
 
-  // Clear the cookie on the response object
+  const response = NextResponse.redirect(url);
+
   response.cookies.set("admin-auth", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
