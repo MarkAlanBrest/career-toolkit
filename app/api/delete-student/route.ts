@@ -9,51 +9,22 @@ async function getConnection() {
   });
 }
 
-export async function PATCH(req: Request) {
+export async function DELETE(req: Request) {
   try {
-    const body = await req.json();
-    const { id, updates } = body;
+    const { searchParams } = new URL(req.url);
+    const id = Number(searchParams.get("id"));
 
-    if (!id || !updates || typeof updates !== "object") {
-      return new Response("Missing id or updates", { status: 400 });
+    if (!id) {
+      return new Response("Missing id", { status: 400 });
     }
-
-    const allowedFields = [
-      "FirstName",
-      "LastName",
-      "Email",
-      "Code",
-      "Test1",
-      "Test2",
-      "Test3",
-      "Test4",
-      "Test5",
-      "Test6",
-      "Test7",
-      "Test8",
-      "Progress",
-    ];
-
-    const setParts: string[] = [];
-    const values: any[] = [];
-
-    for (const key of Object.keys(updates)) {
-      if (!allowedFields.includes(key)) continue;
-      setParts.push(`${key} = ?`);
-      values.push(updates[key]);
-    }
-
-    if (setParts.length === 0) {
-      return new Response("No valid fields to update", { status: 400 });
-    }
-
-    values.push(id);
 
     const conn = await getConnection();
+
     await conn.execute(
-      `UPDATE CourseRecords SET ${setParts.join(", ")} WHERE ID = ?`,
-      values
+      `DELETE FROM CourseRecords WHERE ID = ?`,
+      [id]
     );
+
     await conn.end();
 
     return new Response(JSON.stringify({ success: true }), {
@@ -61,7 +32,7 @@ export async function PATCH(req: Request) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("Update error:", err);
+    console.error("Delete error:", err);
     return new Response("Database error", { status: 500 });
   }
 }
