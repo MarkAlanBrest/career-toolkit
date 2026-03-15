@@ -24,17 +24,16 @@ export default function AdminDashboardPage() {
         {/* Log Out */}
 
 
-     <button
-  onClick={async () => {
-    await fetch("/admin/logout", { method: "POST" });
-    window.location.href = "/admin/login";
-  }}
-  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
->
-  Log Out
-</button>
+        <form action="/admin/logout" method="POST">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
+          >
+            Log Out
+          </button>
+        </form>
 
-
+        
 
       </div>
 
