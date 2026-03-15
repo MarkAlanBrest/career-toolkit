@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from "react";
 
-type Props = {
-  params: { courseFolder: string };
-};
-
-export default function CreateCourseCodePage({ params }: Props) {
-
-  console.log("PARAMS:", params);
+export default function CreateCourseCodePage() {
+  // 🔥 FIX: Get folder name from URL (client components cannot receive params)
+  const courseFolder = window.location.pathname.split("/").pop();
+  console.log("FOLDER:", courseFolder);
 
   const [course, setCourse] = useState<any>(null);
 
@@ -16,7 +13,7 @@ export default function CreateCourseCodePage({ params }: Props) {
     async function load() {
       try {
         const res = await fetch(
-          "/api/get-course?folder=" + params.courseFolder,
+          "/api/get-course?folder=" + courseFolder,
           { cache: "no-store" }
         );
 
@@ -26,7 +23,7 @@ export default function CreateCourseCodePage({ params }: Props) {
 
         setCourse({
           ...data.course,
-          folder: params.courseFolder,
+          folder: courseFolder,
         });
       } catch (err) {
         console.error("Fetch error:", err);
@@ -34,7 +31,7 @@ export default function CreateCourseCodePage({ params }: Props) {
     }
 
     load();
-  }, [params.courseFolder]);
+  }, [courseFolder]);
 
   const [step, setStep] = useState("form");
   const [loading, setLoading] = useState(false);
@@ -52,17 +49,16 @@ export default function CreateCourseCodePage({ params }: Props) {
     e.preventDefault();
     setLoading(true);
 
-const formData = new FormData(e.currentTarget);
-  const firstName = String(formData.get("firstName"));
-const lastName = String(formData.get("lastName"));
-const email = String(formData.get("email"));
-
+    const formData = new FormData(e.currentTarget);
+    const firstName = String(formData.get("firstName"));
+    const lastName = String(formData.get("lastName"));
+    const email = String(formData.get("email"));
 
     const res = await fetch("/api/create-course-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-courseFolder: params.courseFolder,
+        courseFolder: courseFolder, // 🔥 FIXED
         firstName,
         lastName,
         email,
@@ -125,25 +121,22 @@ courseFolder: params.courseFolder,
               />
             </div>
 
-      <div className="space-y-3">
-  <button
-    type="submit"
-    disabled={loading}
-    className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-  >
-    {loading ? "Saving..." : "Create Course Code"}
-  </button>
+            <div className="space-y-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
+              >
+                {loading ? "Saving..." : "Create Course Code"}
+              </button>
 
-  <a
-    href="/admin/dashboard"
-    className="block w-full text-center bg-slate-700 text-white py-2 rounded-md hover:bg-slate-600"
-  >
-    Cancel
-  </a>
-</div>
-
-
-
+              <a
+                href="/admin/dashboard"
+                className="block w-full text-center bg-slate-700 text-white py-2 rounded-md hover:bg-slate-600"
+              >
+                Cancel
+              </a>
+            </div>
           </form>
         </>
       )}
