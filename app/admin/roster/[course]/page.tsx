@@ -402,9 +402,10 @@ const isActive =
   activeCell.field === field;
 
   const rawValue =
-    (rowEdits[field] as any) !== undefined
-      ? (rowEdits[field] as any)
-      : (student as any)[field];
+  rowEdits && rowEdits[field] !== undefined
+    ? rowEdits[field]
+    : (student as any)[field];
+
 
   const displayValue =
     rawValue === null || rawValue === undefined ? "" : String(rawValue);
