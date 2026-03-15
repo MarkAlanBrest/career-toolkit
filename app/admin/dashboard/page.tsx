@@ -18,6 +18,18 @@ export default function AdminDashboardPage() {
           Available Courses
         </h2>
 
+        <div className="flex justify-end mb-6">
+  <form action="/admin/logout" method="POST">
+    <button
+      type="submit"
+      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
+    >
+      Log Out
+    </button>
+  </form>
+</div>
+
+
         {courses.length === 0 ? (
           <p className="text-sm text-slate-600">
             No courses found. Add a folder under <code>public/</code> with a{" "}
