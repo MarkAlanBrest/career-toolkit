@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 
 export default function CreateCourseCodePage() {
-  // 🔥 FIX: Get folder name from URL (client components cannot receive params)
+  // Get folder name from URL
   const courseFolder = window.location.pathname.split("/").pop();
   console.log("FOLDER:", courseFolder);
 
@@ -58,7 +58,7 @@ export default function CreateCourseCodePage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        courseFolder: courseFolder, // 🔥 FIXED
+        courseFolder: courseFolder,
         firstName,
         lastName,
         email,
