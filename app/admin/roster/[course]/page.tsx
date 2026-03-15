@@ -1,4 +1,7 @@
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
+
 
 import { prisma } from "@/lib/prisma";
 import RosterClient from "./RosterClient";
