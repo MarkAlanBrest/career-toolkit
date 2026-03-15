@@ -18,7 +18,7 @@ export async function PATCH(req: Request) {
       return new Response("Missing id or updates", { status: 400 });
     }
 
-    const allowedFields = [
+    const allowed = [
       "FirstName",
       "LastName",
       "Email",
@@ -31,16 +31,16 @@ export async function PATCH(req: Request) {
       "Test6",
       "Test7",
       "Test8",
-      "Progress",
     ];
 
     const setParts: string[] = [];
     const values: any[] = [];
 
     for (const key of Object.keys(updates)) {
-      if (!allowedFields.includes(key)) continue;
-      setParts.push(`${key} = ?`);
-      values.push(updates[key]);
+      if (allowed.includes(key)) {
+        setParts.push(`${key} = ?`);
+        values.push(updates[key]);
+      }
     }
 
     if (setParts.length === 0) {
