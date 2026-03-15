@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 function Content() {
   const router = useRouter();
 
-  const params = useSearchParams();   // ⭐ ADD THIS
-  const code = params?.get("code") ?? "";  // ⭐ SAFE
+  const params = useSearchParams();
+  const code = params?.get("code") ?? "";
 
   const [d, setD] = useState<any>(null);
 
@@ -16,7 +16,21 @@ function Content() {
 
     fetch(`/api/course?code=${encodeURIComponent(code)}`)
       .then((r) => r.json())
-      .then(setD);
+      .then((data) => {
+        // 🔵 EXPIRATION CHECK
+        if (data?.EndDate) {
+          const now = new Date();
+          const end = new Date(data.EndDate);
+
+          if (now > end) {
+            alert("This course has expired.");
+            setD(null);
+            return;
+          }
+        }
+
+        setD(data);
+      });
   }, [code]);
 
   if (!code) return <div className="p-10">No course code.</div>;
@@ -25,6 +39,10 @@ function Content() {
 
   const currentSlide = d.Progress ? Number(d.Progress) + 1 : 1;
   const totalSlides = d.TotalSlides || "—";
+
+  // 🔵 FORMAT DATES
+  const startDate = d.StartDate ? new Date(d.StartDate).toLocaleDateString() : "Not started";
+  const endDate = d.EndDate ? new Date(d.EndDate).toLocaleDateString() : "—";
 
   return (
     <main className="min-h-screen bg-slate-300 flex items-center justify-center">
@@ -39,7 +57,10 @@ function Content() {
           <p><b>Email:</b> {d.Email}</p>
           <p><b>Course:</b> {d.CourseName}</p>
           <p><b>Progress:</b> Slide {currentSlide} of {totalSlides}</p>
-          <p><b>Start Date:</b> {d.StartDate || "Not started"}</p>
+
+          {/* 🔵 NEW DATE FIELDS */}
+          <p><b>Start Date:</b> {startDate}</p>
+          <p><b>Available Until:</b> {endDate}</p>
         </div>
 
         <div className="bg-slate-100 border rounded-lg p-4 space-y-2 text-sm">
