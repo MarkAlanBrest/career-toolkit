@@ -41,18 +41,17 @@ export default function RosterPage() {
     typeof window !== "undefined"
       ? window.location.pathname.split("/").pop()
       : "";
+
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [editedRows, setEditedRows] = useState<
-    Record<number, Partial<Student>>
-  >({});
-  const [activeCell, setActiveCell] = useState<{
-    id: number;
-    field: keyof Student;
-  } | null>(null);
+
   const [savingId, setSavingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // NEW: modal edit state
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Student>>({});
 
   useEffect(() => {
     async function load() {
@@ -60,21 +59,17 @@ export default function RosterPage() {
         const res = await fetch("/api/get-roster?course=" + course, {
           cache: "no-store",
         });
-
         if (!res.ok) {
           console.error("API error:", await res.text());
           return;
         }
-
         const data = await res.json();
         setStudents(data.students || []);
       } catch (err) {
         console.error("Fetch error:", err);
       }
-
       setLoading(false);
     }
-
     if (course) load();
   }, [course]);
 
@@ -91,46 +86,53 @@ export default function RosterPage() {
     });
   }, [students, search]);
 
-  function handleCellClick(id: number, field: keyof Student) {
-    // lock ID and CourseName (not editable anyway, but just in case)
-    if (field === "ID" || field === "CourseName") return;
-    setActiveCell({ id, field });
+  function exportCSV() {
+    if (!filteredStudents.length) return;
+
+    const headers = ["FirstName", "LastName", "Email", "Code", ...testFields];
+
+    const rows = filteredStudents.map((s) =>
+      [
+        s.FirstName,
+        s.LastName,
+        s.Email,
+        s.Code,
+        ...testFields.map((f) => (s as any)[f]),
+      ].join(",")
+    );
+
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roster-${course || "course"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
-  function handleCellChange(
-    id: number,
-    field: keyof Student,
-    value: string
-  ): void {
-    setEditedRows((prev) => {
-      const current = prev[id] || {};
-      let castValue: any = value;
+  // --- Edit modal helpers ---
 
-      if (testFields.includes(field as TestField)) {
-        const num = Number(value);
-        castValue = Number.isNaN(num) ? 0 : num;
-      }
-
-      return {
-        ...prev,
-        [id]: {
-          ...current,
-          [field]: castValue,
-        },
-      };
-    });
+  function openEdit(student: Student) {
+    setEditingStudent(student);
+    setEditForm({ ...student });
   }
 
-  async function handleSaveRow(id: number) {
-    const updates = editedRows[id];
-    if (!updates || Object.keys(updates).length === 0) return;
+  function closeEdit() {
+    setEditingStudent(null);
+    setEditForm({});
+  }
+
+  async function handleSaveEdit() {
+    if (!editingStudent) return;
+    const id = editingStudent.ID;
 
     try {
       setSavingId(id);
       const res = await fetch("/api/update-student", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, updates }),
+        body: JSON.stringify({ id, updates: editForm }),
       });
 
       if (!res.ok) {
@@ -139,21 +141,9 @@ export default function RosterPage() {
       }
 
       setStudents((prev) =>
-        prev.map((s) =>
-          s.ID === id
-            ? {
-                ...s,
-                ...updates,
-              }
-            : s
-        )
+        prev.map((s) => (s.ID === id ? { ...s, ...editForm } : s))
       );
-      setEditedRows((prev) => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
-      setActiveCell(null);
+      closeEdit();
     } catch (err) {
       console.error("Save error:", err);
     } finally {
@@ -182,48 +172,11 @@ export default function RosterPage() {
       }
 
       setStudents((prev) => prev.filter((s) => s.ID !== id));
-      setEditedRows((prev) => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
-      if (activeCell?.id === id) setActiveCell(null);
     } catch (err) {
       console.error("Delete error:", err);
     } finally {
       setDeletingId(null);
     }
-  }
-
-  function exportCSV() {
-    if (!filteredStudents.length) return;
-
-    const headers = [
-      "FirstName",
-      "LastName",
-      "Email",
-      "Code",
-      ...testFields,
-    ];
-
-    const rows = filteredStudents.map((s) =>
-      [
-        s.FirstName,
-        s.LastName,
-        s.Email,
-        s.Code,
-        ...testFields.map((f) => (s as any)[f]),
-      ].join(",")
-    );
-
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `roster-${course || "course"}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   if (loading) {
@@ -258,7 +211,7 @@ export default function RosterPage() {
         <table className="min-w-full border border-gray-300 text-sm">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border px-3 py-2 w-20">Actions</th>
+              <th className="border px-3 py-2 w-24">Actions</th>
               <th className="border px-3 py-2">First</th>
               <th className="border px-3 py-2">Last</th>
               <th className="border px-3 py-2">Email</th>
@@ -268,19 +221,19 @@ export default function RosterPage() {
                   {t}
                 </th>
               ))}
-              <th className="border px-3 py-2 w-24 text-center">Save</th>
             </tr>
           </thead>
-
           <tbody>
-            {filteredStudents.map((s) => {
-              const rowEdits = editedRows[s.ID] || {};
-              const hasEdits = Object.keys(rowEdits).length > 0;
-
-              return (
-                <tr key={s.ID}>
-                  {/* Delete button (left) */}
-                  <td className="border px-3 py-2 text-center">
+            {filteredStudents.map((s) => (
+              <tr key={s.ID}>
+                <td className="border px-3 py-2 text-center">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => openEdit(s)}
+                      className="text-xs rounded-md bg-sky-600 px-2 py-1 text-white hover:bg-sky-700"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDeleteRow(s.ID)}
                       disabled={deletingId === s.ID}
@@ -288,80 +241,24 @@ export default function RosterPage() {
                     >
                       {deletingId === s.ID ? "…" : "Delete"}
                     </button>
+                  </div>
+                </td>
+                <td className="border px-3 py-2">{s.FirstName}</td>
+                <td className="border px-3 py-2">{s.LastName}</td>
+                <td className="border px-3 py-2">{s.Email}</td>
+                <td className="border px-3 py-2">{s.Code}</td>
+                {testFields.map((field) => (
+                  <td key={field} className="border px-3 py-2 text-center">
+                    {(s as any)[field]}
                   </td>
-
-                  {/* FirstName */}
-                  <EditableCell
-                    student={s}
-                    field="FirstName"
-                    activeCell={activeCell}
-                    rowEdits={rowEdits}
-                    onClick={handleCellClick}
-                    onChange={handleCellChange}
-                  />
-
-                  {/* LastName */}
-                  <EditableCell
-                    student={s}
-                    field="LastName"
-                    activeCell={activeCell}
-                    rowEdits={rowEdits}
-                    onClick={handleCellClick}
-                    onChange={handleCellChange}
-                  />
-
-                  {/* Email */}
-                  <EditableCell
-                    student={s}
-                    field="Email"
-                    activeCell={activeCell}
-                    rowEdits={rowEdits}
-                    onClick={handleCellClick}
-                    onChange={handleCellChange}
-                  />
-
-                  {/* Code */}
-                  <EditableCell
-                    student={s}
-                    field="Code"
-                    activeCell={activeCell}
-                    rowEdits={rowEdits}
-                    onClick={handleCellClick}
-                    onChange={handleCellChange}
-                  />
-
-                  {/* Tests */}
-                  {testFields.map((field) => (
-                    <EditableCell
-                      key={field}
-                      student={s}
-                      field={field}
-                      activeCell={activeCell}
-                      rowEdits={rowEdits}
-                      onClick={handleCellClick}
-                      onChange={handleCellChange}
-                      isTest
-                    />
-                  ))}
-
-                  {/* Save button (right) */}
-                  <td className="border px-3 py-2 text-center">
-                    <button
-                      onClick={() => handleSaveRow(s.ID)}
-                      disabled={!hasEdits || savingId === s.ID}
-                      className="text-xs rounded-md bg-emerald-600 px-3 py-1 text-white hover:bg-emerald-700 disabled:opacity-50"
-                    >
-                      {savingId === s.ID ? "Saving…" : "Save"}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+                ))}
+              </tr>
+            ))}
 
             {filteredStudents.length === 0 && (
               <tr>
                 <td
-                  colSpan={5 + testFields.length + 2}
+                  colSpan={5 + testFields.length}
                   className="border px-3 py-4 text-center text-slate-500"
                 >
                   No students match your search.
@@ -371,72 +268,133 @@ export default function RosterPage() {
           </tbody>
         </table>
       </div>
+
+      {editingStudent && (
+        <EditStudentModal
+          student={editingStudent}
+          form={editForm}
+          setForm={setEditForm}
+          onClose={closeEdit}
+          onSave={handleSaveEdit}
+          saving={savingId === editingStudent.ID}
+        />
+      )}
     </main>
   );
 }
 
-type EditableCellProps = {
+type EditStudentModalProps = {
   student: Student;
-  field: keyof Student;
-  activeCell: { id: number; field: keyof Student } | null;
-  rowEdits: Partial<Student>;
-  onClick: (id: number, field: keyof Student) => void;
-  onChange: (id: number, field: keyof Student, value: string) => void;
-  isTest?: boolean;
+  form: Partial<Student>;
+  setForm: React.Dispatch<React.SetStateAction<Partial<Student>>>;
+  onClose: () => void;
+  onSave: () => void;
+  saving: boolean;
 };
 
-function EditableCell({
+function EditStudentModal({
   student,
-  field,
-  activeCell,
-  rowEdits,
-  onClick,
-  onChange,
-  isTest,
-}: EditableCellProps) {
-  const id = student.ID;
-  
-const isActive =
-  activeCell !== null &&
-  activeCell.id === id &&
-  activeCell.field === field;
-
-  const rawValue =
-  rowEdits && rowEdits[field] !== undefined
-    ? rowEdits[field]
-    : (student as any)[field];
-
-
-  const displayValue =
-    rawValue === null || rawValue === undefined ? "" : String(rawValue);
-
-  const isZeroTest = isTest && Number(displayValue) === 0 && !isActive;
-
-  if (isActive) {
-    return (
-      <td className="border px-3 py-2">
-        <input
-          autoFocus
-          type={isTest ? "number" : "text"}
-          value={displayValue}
-          onChange={(e) => onChange(id, field, e.target.value)}
-          onBlur={() => {
-            // keep edits but exit active state
-          }}
-          className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
-        />
-      </td>
-    );
-  }
-
+  form,
+  setForm,
+  onClose,
+  onSave,
+  saving,
+}: EditStudentModalProps) {
   return (
-    <td
-      className={`border px-3 py-2 ${
-        isTest ? "text-center" : ""
-      } ${isZeroTest ? "bg-gray-200 text-gray-600" : ""}`}
-      onClick={() => onClick(id, field)}
-    >
-      {isTest ? displayValue || "0" : displayValue}
-    </td>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white text-slate-900 p-6 rounded-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">
+          Edit {student.FirstName} {student.LastName}
+        </h2>
+
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <LabeledInput
+            label="First Name"
+            value={form.FirstName ?? ""}
+            onChange={(v) =>
+              setForm((prev) => ({ ...prev, FirstName: v }))
+            }
+          />
+          <LabeledInput
+            label="Last Name"
+            value={form.LastName ?? ""}
+            onChange={(v) =>
+              setForm((prev) => ({ ...prev, LastName: v }))
+            }
+          />
+          <LabeledInput
+            label="Email"
+            value={form.Email ?? ""}
+            onChange={(v) => setForm((prev) => ({ ...prev, Email: v }))}
+          />
+          <LabeledInput
+            label="Access Code"
+            value={form.Code ?? ""}
+            onChange={(v) => setForm((prev) => ({ ...prev, Code: v }))}
+          />
+
+          {testFields.map((field) => (
+            <LabeledInput
+              key={field}
+              label={field}
+              type="number"
+              value={
+                form[field] !== undefined
+                  ? String(form[field])
+                  : String((student as any)[field] ?? "")
+              }
+              onChange={(v) =>
+                setForm((prev) => ({
+                  ...prev,
+                  [field]: v === "" ? 0 : Number(v),
+                }))
+              }
+            />
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="px-3 py-1 bg-gray-300 rounded"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={saving}
+            className="px-3 py-1 bg-emerald-600 text-white rounded disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type LabeledInputProps = {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+};
+
+function LabeledInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+}: LabeledInputProps) {
+  return (
+    <div>
+      <label className="block text-sm font-semibold mb-1">{label}</label>
+      <input
+        type={type}
+        className="w-full border px-2 py-1 rounded text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
   );
 }
