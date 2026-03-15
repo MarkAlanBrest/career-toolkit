@@ -2,6 +2,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import mysql from "mysql2/promise";
+import { promises as fs } from "fs";
+import path from "path";
 
 export async function GET(req: Request) {
   try {
@@ -12,6 +14,7 @@ export async function GET(req: Request) {
       return Response.json({ error: "No code provided" }, { status: 400 });
     }
 
+    // ⭐ Connect to DB
     const db = await mysql.createConnection(process.env.DATABASE_URL!);
 
     const [rows]: any = await db.query(
@@ -25,7 +28,39 @@ export async function GET(req: Request) {
       return Response.json({ error: "Invalid course code." }, { status: 404 });
     }
 
-    return Response.json(rows[0]);
+    const record = rows[0];
+
+    // ⭐ Determine JSON path based on folder stored in DB
+    // Example: record.SlidesPath = "ladder-safety"
+    const folder = record.SlidesPath;
+    let totalSlides = null;
+
+    if (folder) {
+      try {
+        const jsonPath = path.join(
+          process.cwd(),
+          "public",
+          "courses",
+          folder,
+          "module.json"
+        );
+
+        const file = await fs.readFile(jsonPath, "utf8");
+        const json = JSON.parse(file);
+
+        // ⭐ Read totalSlides from JSON
+        totalSlides = json.totalSlides ?? null;
+      } catch (err) {
+        console.error("Failed to read module JSON:", err);
+      }
+    }
+
+    // ⭐ Return DB record + totalSlides
+    return Response.json({
+      ...record,
+      TotalSlides: totalSlides
+    });
+
   } catch (err: any) {
     return Response.json(
       { error: err.message || "Server error" },
