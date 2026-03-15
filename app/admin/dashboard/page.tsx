@@ -21,8 +21,23 @@ export default function AdminDashboardPage() {
           Test Course Code
         </Link>
 
-        {/* Log Out */}
-        <form action="/admin/logout" method="GET">
+        {/* Log Out — FIXED */}
+        <form
+          action={async () => {
+            "use server";
+            const { cookies } = await import("next/headers");
+            const { redirect } = await import("next/navigation");
+
+            const cookieStore = await cookies();
+            cookieStore.set("admin-auth", "", {
+              httpOnly: true,
+              path: "/",
+              expires: new Date(0),
+            });
+
+            redirect("/admin/login");
+          }}
+        >
           <button
             type="submit"
             className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
@@ -31,13 +46,7 @@ export default function AdminDashboardPage() {
           </button>
         </form>
 
-
       </div>
-
-
-
-
-
 
       <h1 className="text-3xl font-bold text-white mb-8">
         Admin Dashboard
@@ -47,9 +56,6 @@ export default function AdminDashboardPage() {
         <h2 className="text-xl font-semibold text-white mb-4">
           Available Courses
         </h2>
-
-
-
 
         {courses.length === 0 ? (
           <p className="text-sm text-slate-600">
