@@ -15,11 +15,14 @@ function generateCourseCode(folder: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    console.log("BODY:", body);
+
     const { courseFolder, firstName, lastName, email } = body;
 
     if (!courseFolder || !firstName || !lastName || !email) {
 
-      
+
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
