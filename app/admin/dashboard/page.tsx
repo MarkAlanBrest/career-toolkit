@@ -53,12 +53,21 @@ export default function AdminDashboardPage() {
                     </p>
                   </div>
 
-                  <Link
-                    href={`/admin/create/${course.folder}`}
-                    className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                  >
-                    Create Course Code
-                  </Link>
+                  <div className="flex flex-col gap-2">
+                    <Link
+                      href={`/admin/create/${course.folder}`}
+                      className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                    >
+                      Create Course Code
+                    </Link>
+
+                    <Link
+                      href={`/admin/reports/roster/${course.folder}`}
+                      className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 shadow-sm"
+                    >
+                      Class Roster
+                    </Link>
+                  </div>
                 </div>
               </li>
             ))}
