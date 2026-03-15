@@ -23,7 +23,7 @@ export async function DELETE(req: Request) {
     conn = await getConnection();
 
     const [result]: any = await conn.execute(
-      `DELETE FROM CourseRecords WHERE ID = ?`,
+      `DELETE FROM CourseRecords WHERE id = ?`,
       [id]
     );
 

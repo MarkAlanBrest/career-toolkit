@@ -54,7 +54,7 @@ export async function PATCH(req: Request) {
     conn = await getConnection();
 
     const [result]: any = await conn.execute(
-      `UPDATE CourseRecords SET ${setParts.join(", ")} WHERE ID = ?`,
+      `UPDATE CourseRecords SET ${setParts.join(", ")} WHERE id = ?`,
       values
     );
 
