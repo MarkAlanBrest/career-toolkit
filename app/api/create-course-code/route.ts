@@ -20,6 +20,8 @@ export async function POST(req: Request) {
 
     const { courseFolder, firstName, lastName, email } = body;
 
+    console.log("BODY RECEIVED:", { courseFolder, firstName, lastName, email });
+
     if (!courseFolder || !firstName || !lastName || !email) {
 
 
