@@ -80,11 +80,10 @@ function CourseContent()  {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-   const [isLight, setIsLight] = useState(false);
-  
-  
+  const [isLight, setIsLight] = useState(false);
+
   const params = useSearchParams();
-const code = params?.get("code") ?? "";
+  const code = params?.get("code") ?? "";
 
   const [quizFeedback, setQuizFeedback] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -96,19 +95,107 @@ const code = params?.get("code") ?? "";
   const [hotspotText, setHotspotText] = useState("");
 
   const synthRef = useRef<SpeechSynthesis | null>(null);
-    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-const [selectedVoice, setSelectedVoice] = useState<string>("default");
-const [showVoices, setShowVoices] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>("default");
+  const [showVoices, setShowVoices] = useState(false);
 
-useEffect(() => {
-  if (typeof window === "undefined") return;
+  // ⭐ NEW — Update progress safely
+  async function updateProgress(newIndex: number) {
+    await fetch("/api/update-progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        slideNumber: newIndex
+      })
+    });
+  }
 
-  synthRef.current = window.speechSynthesis;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
-  const loadVoices = () => {
-    const v = window.speechSynthesis.getVoices();
-    setVoices(v);
+    synthRef.current = window.speechSynthesis;
+
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      setVoices(v);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
+
+  const current = slides[index];
+  const textMain = isLight ? "text-slate-900" : "text-white";
+  const textSoft = isLight ? "text-slate-700" : "text-slate-200";
+  const panelBg = isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800 border-slate-600";
+
+  useEffect(() => {
+    if (!code) return;
+
+    async function loadCourse() {
+      try {
+        // 1) Get student record
+        const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
+        const record = await res.json();
+
+        if (!record || record.error) {
+          setLoading(false);
+          return;
+        }
+
+        // 2) Load course JSON
+        const folder = record.SlidesPath;
+        const courseRes = await fetch(`/api/get-course?folder=${folder}`);
+        const courseData = await courseRes.json();
+
+        setSlides(courseData.course.slides || []);
+
+        // 3) Start at saved progress
+        const start =
+          record.Progress && Number(record.Progress) > 0
+            ? Number(record.Progress)
+            : 0;
+
+        setIndex(start);
+      } catch (err) {
+        console.error("Failed to load course:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCourse();
+  }, [code]);
+
+  useEffect(() => {
+    setQuizFeedback("");
+    setSelectedAnswer(null);
+    setTfFeedback("");
+    setTfSelected(null);
+    setRevealedSteps(1);
+    setHotspotText("");
+  }, [index]);
+
+  // ⭐ UPDATED — Next slide now updates progress
+  const nextSlide = () => {
+    if (index < slides.length - 1) {
+      const newIndex = index + 1;
+      setIndex(newIndex);
+      updateProgress(newIndex);   // ← KEY LINE
+    }
   };
+
+  // ⭐ Unchanged — Previous slide never updates progress
+  const prevSlide = () => {
+    if (index > 0) {
+      setIndex((prev) => prev - 1);
+    }
+  };
+
+  // (…everything else in your component stays exactly the same…)
+}
+
 
   loadVoices();
 
