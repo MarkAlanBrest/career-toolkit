@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     return Response.json({ error: "Missing course param" }, { status: 400 });
   }
 
-  const students = await prisma.courseRecord.findMany({
+  const students = await prisma.courseRecords.findMany({
     where: { CourseName: course },
   });
 
