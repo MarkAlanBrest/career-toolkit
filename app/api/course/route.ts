@@ -30,8 +30,7 @@ export async function GET(req: Request) {
 
     const record = rows[0];
 
-    // ⭐ Determine JSON path based on folder stored in DB
-    // Example: record.SlidesPath = "ladder-safety"
+    // ⭐ Load module.json from data/courses/<SlidesPath>/module.json
     const folder = record.SlidesPath;
     let totalSlides = null;
 
@@ -39,7 +38,7 @@ export async function GET(req: Request) {
       try {
         const jsonPath = path.join(
           process.cwd(),
-          "public",
+          "data",
           "courses",
           folder,
           "module.json"
@@ -48,7 +47,6 @@ export async function GET(req: Request) {
         const file = await fs.readFile(jsonPath, "utf8");
         const json = JSON.parse(file);
 
-        // ⭐ Read totalSlides from JSON
         totalSlides = json.totalSlides ?? null;
       } catch (err) {
         console.error("Failed to read module JSON:", err);
