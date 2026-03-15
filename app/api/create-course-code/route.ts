@@ -43,18 +43,19 @@ const db = await mysql.createConnection({
           Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8,
           Progress, SlidesPath)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          firstName,
-          lastName,
-          email,
-          courseFolder,
-          courseCode,
-          startDate,
-          endDate,
-          0, 0, 0, 0, 0, 0, 0, 0,
-          0,
-          courseFolder,
-        ]
+       [
+  firstName,
+  lastName,
+  email,
+  courseFolder,     // CourseName
+  courseCode,
+  startDate,
+  endDate,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0,
+  courseFolder      // SlidesPath
+]
+
       );
 
       console.log("INSERT OK:", result);
