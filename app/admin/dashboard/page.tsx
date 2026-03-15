@@ -22,18 +22,15 @@ export default function AdminDashboardPage() {
         </Link>
 
         {/* Log Out */}
+        <form action="/admin/logout" method="GET">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
+          >
+            Log Out
+          </button>
+        </form>
 
-
-      <form action="/admin/logout" method="POST">
-  <button
-    type="submit"
-    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
-  >
-    Log Out
-  </button>
-</form>
-
-        
 
       </div>
 
