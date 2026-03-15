@@ -395,7 +395,12 @@ function EditableCell({
   isTest,
 }: EditableCellProps) {
   const id = student.ID;
-  const isActive = activeCell?.id === id && activeCell.field === field;
+  
+const isActive =
+  activeCell !== null &&
+  activeCell.id === id &&
+  activeCell.field === field;
+
   const rawValue =
     (rowEdits[field] as any) !== undefined
       ? (rowEdits[field] as any)
