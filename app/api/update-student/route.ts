@@ -1,13 +1,9 @@
 import mysql from "mysql2/promise";
 
 async function getConnection() {
-  return mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
+  return mysql.createConnection(process.env.DATABASE_URL!);
 }
+
 
 export async function PATCH(req: Request) {
   let conn;
