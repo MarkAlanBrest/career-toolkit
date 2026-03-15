@@ -31,8 +31,10 @@ export async function POST(req: Request) {
     const endDate = new Date(startDate);
     endDate.setFullYear(endDate.getFullYear() + 1);
 
-    const db = await mysql.createConnection(process.env.DATABASE_URL!);
-
+const db = await mysql.createConnection({
+  uri: process.env.DATABASE_URL!,
+  ssl: { rejectUnauthorized: true }
+});
     try {
       const [result] = await db.query(
         `INSERT INTO CourseRecords
@@ -80,4 +82,4 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-}
+} 
