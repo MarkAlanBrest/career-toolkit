@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Student = {
-  ID: number;
+  id: number;
   FirstName: string;
   LastName: string;
   Email: string;
@@ -125,7 +125,10 @@ export default function RosterPage() {
 
   async function handleSaveEdit() {
     if (!editingStudent) return;
-    const id = editingStudent.ID;
+
+    const id = editingStudent.id;
+
+
 
     try {
       setSavingId(id);
@@ -141,7 +144,10 @@ export default function RosterPage() {
       }
 
       setStudents((prev) =>
-        prev.map((s) => (s.ID === id ? { ...s, ...editForm } : s))
+        prev.map((s) => (s.id === id ? { ...s, ...editForm } : s ))
+
+
+
       );
       closeEdit();
     } catch (err) {
@@ -152,7 +158,7 @@ export default function RosterPage() {
   }
 
   async function handleDeleteRow(id: number) {
-    const student = students.find((s) => s.ID === id);
+    const student = students.find((s) => s.id === id);     
     if (!student) return;
 
     const ok = window.confirm(
@@ -171,7 +177,7 @@ export default function RosterPage() {
         return;
       }
 
-      setStudents((prev) => prev.filter((s) => s.ID !== id));
+      setStudents((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       console.error("Delete error:", err);
     } finally {
@@ -225,7 +231,7 @@ export default function RosterPage() {
           </thead>
           <tbody>
             {filteredStudents.map((s) => (
-              <tr key={s.ID}>
+              <tr key={s.id}>
                 <td className="border px-3 py-2 text-center">
                   <div className="flex flex-col gap-1">
                     <button
@@ -235,11 +241,11 @@ export default function RosterPage() {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDeleteRow(s.ID)}
-                      disabled={deletingId === s.ID}
+                      onClick={() => handleDeleteRow(s.id)}
+                      disabled={deletingId === s.id}
                       className="text-xs rounded-md bg-red-600 px-2 py-1 text-white hover:bg-red-700 disabled:opacity-50"
                     >
-                      {deletingId === s.ID ? "…" : "Delete"}
+                      {deletingId === s.id ? "…" : "Delete"}
                     </button>
                   </div>
                 </td>
@@ -276,7 +282,7 @@ export default function RosterPage() {
           setForm={setEditForm}
           onClose={closeEdit}
           onSave={handleSaveEdit}
-          saving={savingId === editingStudent.ID}
+          saving={savingId === editingStudent.id}
         />
       )}
     </main>
