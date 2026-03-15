@@ -18,6 +18,8 @@ export async function POST(req: Request) {
     const { courseFolder, firstName, lastName, email } = body;
 
     if (!courseFolder || !firstName || !lastName || !email) {
+
+      
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }

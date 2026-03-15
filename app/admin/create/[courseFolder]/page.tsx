@@ -50,9 +50,10 @@ export default function CreateCourseCodePage({ params }: Props) {
     setLoading(true);
 
 const formData = new FormData(e.currentTarget);
-    const firstName = formData.get("firstName");
-    const lastName = formData.get("lastName");
-    const email = formData.get("email");
+  const firstName = String(formData.get("firstName"));
+const lastName = String(formData.get("lastName"));
+const email = String(formData.get("email"));
+
 
     const res = await fetch("/api/create-course-code", {
       method: "POST",
