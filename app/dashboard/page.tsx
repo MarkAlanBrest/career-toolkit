@@ -37,7 +37,7 @@ function Content() {
   if (!d) return <div className="p-10">Loading…</div>;
   if (d.error) return <div className="p-10 text-red-600">{d.error}</div>;
 
-  const currentSlide = d.Progress ? Number(d.Progress) + 1 : 1;
+const currentSlide = d.Progress ?? 0;
   const totalSlides = d.TotalSlides || "—";
 
   // 🔵 FORMAT DATES
