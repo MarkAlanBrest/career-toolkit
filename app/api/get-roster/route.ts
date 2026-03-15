@@ -29,8 +29,11 @@ const db = await mysql.createConnection({
 
 
   const [rows]: any = await db.query(
-    "SELECT * FROM CourseRecords WHERE CourseName = ?",
-    [course]
+    "SELECT * FROM CourseRecords WHERE SlidesPath = ?",
+[course]
+
+
+   
   );
 
   await db.end();
