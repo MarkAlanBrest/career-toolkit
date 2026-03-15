@@ -33,6 +33,7 @@ export async function PATCH(req: Request) {
       "Test6",
       "Test7",
       "Test8",
+      "Progress",
     ];
 
     const setParts: string[] = [];
