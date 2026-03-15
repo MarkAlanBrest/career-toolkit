@@ -1,143 +1,170 @@
-
 {
-
-  "totalSlides": 17,
+  "totalSlides": 40,
   "courseName": "Ladder Safety Training",
-  "description": "A foundational safety course covering proper ladder usage, inspection, setup, and fall prevention.",
+  "description": "Comprehensive training on ladder selection, inspection, setup, safe use, and fall prevention.",
   "duration": "1 hour",
   "passingScore": 80,
+
   "slides": [
+
     {
       "type": "content",
-      "title": "Welcome to Ladder Safety",
-      "text": "This course will teach you how to inspect, set up, and safely climb ladders. Ladder accidents cause thousands of injuries every year.",
+      "title": "Welcome to Ladder Safety Training",
+      "text": "This course provides essential training on how to safely select, inspect, set up, and use ladders in the workplace. Ladder-related incidents cause thousands of injuries every year, many of which result in serious harm or lost work time. Most ladder accidents are preventable when workers follow proper procedures and remain aware of hazards. By completing this course, you will learn practical techniques that reduce risk and help ensure your safety on the job.",
       "image": "/LadderSafety/images/ladder1.jpg",
       "imagePosition": "left"
     },
+
     {
       "type": "content",
       "title": "Why Ladder Safety Matters",
-      "text": "Falls from ladders can cause serious injury. Always follow proper ladder procedures and inspect equipment before use.",
+      "text": "Falls from ladders are among the leading causes of workplace injuries in construction, maintenance, and general industry. Even a short fall can result in broken bones, head injuries, or permanent disability. Many incidents occur because workers rush, use the wrong equipment, or fail to inspect the ladder before use. Understanding how accidents happen is the first step toward preventing them.",
       "image": "/LadderSafety/images/ladder2.jpg",
       "imagePosition": "right"
     },
+
     {
       "type": "callout",
-      "title": "Important Safety Rule",
-      "text": "Never use a ladder that is damaged, bent, or missing parts."
+      "title": "Key Fact",
+      "text": "Most ladder injuries are caused by improper setup, using the wrong ladder for the task, or failing to maintain three points of contact while climbing."
     },
+
     {
-      "type": "video",
-      "title": "Ladder Setup Demonstration",
-      "text": "Watch this short video demonstrating proper ladder setup.",
-      "video": "/LadderSafety/videos/ladder-demo.mp4"
+      "type": "content",
+      "title": "Types of Ladders",
+      "text": "There are several types of ladders designed for different tasks, including step ladders, extension ladders, platform ladders, and fixed ladders. Each type has specific advantages and limitations depending on the work environment and height requirements. Using the wrong ladder can create instability and increase the risk of falls. Always ensure the ladder you choose is appropriate for the job and work conditions.",
+      "image": "/LadderSafety/images/ladder-types.jpg",
+      "imagePosition": "top"
     },
+
+    {
+      "type": "content",
+      "title": "Choosing the Right Ladder",
+      "text": "Selecting the correct ladder involves more than just choosing the right height. You must consider weight capacity, material, and the nature of the task being performed. A ladder that is too short encourages standing on unsafe rungs, while one that cannot support your weight can fail unexpectedly. Proper selection ensures stability, safety, and efficiency while working.",
+      "image": "/LadderSafety/images/ladder-duty.jpg",
+      "imagePosition": "right"
+    },
+
     {
       "type": "steps",
-      "title": "Steps to Inspect a Ladder",
+      "title": "Ladder Selection Guidelines",
       "steps": [
-        "Check the ladder rails for cracks or bends.",
-        "Inspect the rungs for damage or looseness.",
-        "Check ladder feet for wear or missing rubber.",
-        "Make sure locks and spreaders function correctly."
+        "Choose a ladder rated for your weight plus tools and materials.",
+        "Select a ladder tall enough to avoid standing on top rungs.",
+        "Use fiberglass ladders when working near electricity.",
+        "Ensure the ladder meets industrial safety standards."
       ]
     },
+
+    {
+      "type": "content",
+      "title": "Ladder Inspection",
+      "text": "Before every use, ladders must be carefully inspected for damage or defects. Even minor issues such as loose rungs or worn feet can lead to serious accidents. Environmental exposure, heavy use, and improper storage can weaken ladder components over time. A quick inspection can prevent equipment failure and protect workers from injury.",
+      "image": "/LadderSafety/images/ladder-inspection.jpg",
+      "imagePosition": "left"
+    },
+
+    {
+      "type": "content",
+      "title": "Inspection Checklist",
+      "text": "During inspection, examine the ladder rails for cracks, bends, or corrosion that could weaken the structure. Check that all rungs are secure and free from damage, and confirm that locking mechanisms function properly. Inspect the ladder feet to ensure they provide traction and stability. If any defect is found, the ladder should not be used.",
+      "image": "/LadderSafety/images/ladder-inspect-close.jpg",
+      "imagePosition": "right"
+    },
+
+    {
+      "type": "callout",
+      "title": "Out of Service Rule",
+      "text": "Any ladder that is damaged, missing parts, or structurally compromised must be removed from service immediately and clearly marked to prevent use."
+    },
+
+    {
+      "type": "content",
+      "title": "Proper Ladder Setup",
+      "text": "Correct ladder placement is critical for stability and safety. Ladders should always be positioned on firm, level ground that can support both the ladder and the worker. Uneven or soft surfaces can cause shifting or tipping during use. When necessary, ladders should be secured or stabilized to prevent movement.",
+      "image": "/LadderSafety/images/ladder-setup.jpg",
+      "imagePosition": "right"
+    },
+
+    {
+      "type": "content",
+      "title": "Extension Ladder Angle",
+      "text": "Extension ladders must be positioned at the proper angle to prevent sliding or tipping. The recommended setup follows the 4-to-1 rule, meaning the base should be placed one foot away from the structure for every four feet of ladder height. This angle provides optimal balance and load distribution. Incorrect angles significantly increase the risk of accidents.",
+      "image": "/LadderSafety/images/ladder-angle.jpg",
+      "imagePosition": "top"
+    },
+
+    {
+      "type": "content",
+      "title": "Climbing Safely",
+      "text": "When climbing a ladder, always face the ladder and use both hands whenever possible. Sudden movements, distractions, or carrying objects can cause loss of balance. Climbing slowly and deliberately reduces the chance of slipping. Maintaining focus is essential while ascending or descending.",
+      "image": "/LadderSafety/images/ladder-climb.jpg",
+      "imagePosition": "left"
+    },
+
     {
       "type": "content",
       "title": "Three Points of Contact",
-      "text": "Always maintain three points of contact when climbing a ladder. This helps maintain balance and stability.",
-      "image": "/LadderSafety/images/ladder3.jpg",
-      "imagePosition": "top"
-    },
-    {
-      "type": "hotspots",
-      "title": "Identify Ladder Safety Points",
-      "image": "/LadderSafety/images/ladder-diagram.jpg",
-      "points": [
-        { "x": 25, "y": 70, "text": "Ladder feet must be placed on solid, level ground." },
-        { "x": 55, "y": 20, "text": "Never stand on the top rung." },
-        { "x": 80, "y": 45, "text": "Keep your body centered between the rails." }
-      ]
-    },
-    {
-      "type": "quiz",
-      "question": "How many points of contact should you maintain when climbing a ladder?",
-      "options": ["One", "Two", "Three", "Four"],
-      "correct": 2,
-      "correctText": "Correct. Three points of contact keeps you stable.",
-      "incorrectText": "Incorrect. The correct answer is three."
-    },
-    {
-      "type": "truefalse",
-      "question": "It is safe to stand on the top rung of a ladder.",
-      "correct": false,
-      "correctText": "Correct. Standing on the top rung is unsafe.",
-      "incorrectText": "Incorrect. Standing on the top rung is dangerous."
-    },
-    {
-      "type": "quiz",
-      "question": "You see a ladder placed on uneven ground. What should you do?",
-      "options": [
-        "Use it carefully",
-        "Level the ladder before use",
-        "Have someone hold it",
-        "Climb slowly"
-      ],
-      "correct": 1
-    },
-    {
-      "type": "content",
-      "title": "Common Ladder Hazards",
-      "text": "Common ladder hazards include unstable ground, overreaching, damaged rungs, and using the wrong ladder for the job.",
-      "image": "/LadderSafety/images/ladder4.jpg",
+      "text": "Maintaining three points of contact means keeping two hands and one foot, or two feet and one hand, on the ladder at all times. This technique ensures stability and balance during climbing. If one point slips, the remaining points help prevent a fall. Workers should never compromise this rule, even for a moment.",
+      "image": "/LadderSafety/images/three-points.jpg",
       "imagePosition": "right"
     },
+
     {
-      "type": "quiz",
-      "question": "When should a ladder be inspected?",
-      "options": [
-        "Once a week",
-        "Before every use",
-        "Only if it looks damaged",
-        "Once a month"
-      ],
-      "correct": 1
+      "type": "content",
+      "title": "Electrical Hazards",
+      "text": "Metal ladders conduct electricity and pose a serious risk when used near power lines or electrical equipment. Contact with energized sources can result in severe injury or death. Fiberglass ladders are nonconductive and are recommended for electrical work environments. Always assess the area for electrical hazards before setting up a ladder.",
+      "image": "/LadderSafety/images/electrical-hazard.jpg",
+      "imagePosition": "top"
     },
+
     {
-      "type": "truefalse",
-      "question": "You should keep your belt buckle between ladder rails while climbing.",
-      "correct": true
+      "type": "content",
+      "title": "Overreaching",
+      "text": "Overreaching is a common cause of ladder falls. Leaning too far to one side shifts your center of gravity and can cause the ladder to tip. Instead of stretching to reach your work area, descend and reposition the ladder. Keeping your belt buckle centered between the ladder rails helps maintain balance.",
+      "image": "/LadderSafety/images/overreach.jpg",
+      "imagePosition": "right"
     },
+
     {
-      "type": "steps",
-      "title": "Safe Ladder Climbing Procedure",
-      "steps": [
-        "Face the ladder when climbing.",
-        "Maintain three points of contact.",
-        "Climb slowly and deliberately.",
-        "Do not carry tools in your hands."
-      ]
+      "type": "content",
+      "title": "Common Causes of Falls",
+      "text": "Many ladder accidents occur because of unstable setup, rushing, improper equipment selection, or loss of balance. Environmental factors such as wet surfaces, wind, or poor lighting can also contribute to falls. Recognizing these hazards allows workers to take preventive action. Awareness and caution are key components of ladder safety.",
+      "image": "/LadderSafety/images/fall-risk.jpg",
+      "imagePosition": "left"
     },
+
     {
-      "type": "quiz",
-      "question": "What should you do if a ladder is damaged?",
-      "options": [
-        "Use it carefully",
-        "Report and remove it from service",
-        "Fix it yourself",
-        "Ignore the damage"
-      ],
-      "correct": 1
+      "type": "content",
+      "title": "Working from a Ladder",
+      "text": "When performing tasks from a ladder, keep both feet on the rungs and maintain a stable stance. Avoid sudden movements that could shift your balance. Tools should be secured in a belt or raised using a rope rather than carried by hand. Proper positioning allows you to work safely and efficiently.",
+      "image": "/LadderSafety/images/work-from-ladder.jpg",
+      "imagePosition": "right"
     },
+
     {
       "type": "callout",
-      "title": "Final Safety Reminder",
-      "text": "Always use the right ladder for the job and inspect it before every use."
+      "title": "Top Rung Warning",
+      "text": "Standing on the top rung or cap of a ladder significantly reduces stability and is one of the most common causes of falls."
     },
+
+    {
+      "type": "callout",
+      "title": "Review Section",
+      "text": "You will now answer several review questions to reinforce the key safety principles covered in this course."
+    },
+
+    {
+      "type": "callout",
+      "title": "Final Reminder",
+      "text": "Safe ladder use requires proper selection, inspection, setup, and climbing technique every time you use a ladder."
+    },
+
     {
       "type": "completion",
       "title": "Course Complete",
-      "text": "Congratulations! You have completed the Ladder Safety Training course."
+      "text": "Congratulations. You have completed the Ladder Safety Training course and should now understand how to reduce risks and prevent ladder-related injuries."
     }
+
   ]
 }
