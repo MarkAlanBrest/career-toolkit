@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 
 export default function CreateCourseCodePage() {
   // Get folder name from URL
-  const courseFolder = window.location.pathname.split("/").pop();
+const courseFolder = window?.location?.pathname?.split("/")?.pop() || "";
+
+  
   console.log("FOLDER:", courseFolder);
 
   const [course, setCourse] = useState<any>(null);
@@ -44,6 +46,7 @@ export default function CreateCourseCodePage() {
       </main>
     );
   }
+
 
   async function handleSubmit(e: any) {
     e.preventDefault();

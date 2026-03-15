@@ -27,7 +27,8 @@ export async function POST(req: Request) {
 
     // ✅ FIXED PATH — Vercel needs the full app/ prefix
     const raw = await fs.readFile(
-      `app/data/courses/${courseFolder}/module.json`,
+      `data/courses/${courseFolder}/module.json`,
+
       "utf8"
     );
 
