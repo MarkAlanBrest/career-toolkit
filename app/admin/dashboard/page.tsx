@@ -1,168 +1,70 @@
-"use client";
+// app/admin/dashboard/page.tsx
+import Link from "next/link";
+import { getAllCourses } from "@/lib/courses";
 
-import { useState, useEffect } from "react";
+export const dynamic = "force-dynamic";
 
-export default function CreateCourseCodePage() {
-  const courseFolder = window.location.pathname.split("/").pop();
-
-  const [course, setCourse] = useState<any>(null);
-  const [step, setStep] = useState("form");
-  const [loading, setLoading] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState("");
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/get-course?folder=" + courseFolder, {
-          cache: "no-store",
-        });
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        setCourse({
-          ...data.course,
-          folder: courseFolder,
-        });
-      } catch (err) {
-        console.error("Fetch error:", err);
-      }
-    }
-
-    load();
-  }, [courseFolder]);
-
-  if (!course) {
-    return (
-      <main className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-white text-lg">Loading…</div>
-      </main>
-    );
-  }
-
-  async function handleSubmit(e: any) {
-    e.preventDefault();
-    setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const firstName = String(formData.get("firstName"));
-    const lastName = String(formData.get("lastName"));
-    const email = String(formData.get("email"));
-
-    const res = await fetch("/api/create-course-code", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        courseFolder,
-        firstName,
-        lastName,
-        email,
-      }),
-    });
-
-    const data = await res.json();
-
-    setGeneratedCode(data.courseCode);
-    setLoading(false);
-    setStep("confirm");
-  }
+export default function AdminDashboardPage() {
+  const courses = getAllCourses();
 
   return (
-    <main className="min-h-screen bg-slate-900 px-4 py-10 flex justify-center">
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-lg p-8">
-        {step === "form" && (
-          <>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">
-              Create Course Code
-            </h1>
+    <main className="max-w-4xl mx-auto px-4 py-10">
+      <h1 className="text-3xl font-bold text-white mb-8">
+        Admin Dashboard
+      </h1>
 
-            <p className="text-sm text-slate-600 mb-6">
-              Course: <strong>{course.courseName}</strong>  
-              <br />
-              Folder: <code className="text-slate-700">{course.folder}</code>
-            </p>
+      <section>
+        <h2 className="text-xl font-semibold text-white mb-4">
+          Available Courses
+        </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  className="w-full rounded-md px-3 py-2 bg-slate-100 text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+        {courses.length === 0 ? (
+          <p className="text-sm text-slate-600">
+            No courses found. Add a folder under <code>public/</code> with a{" "}
+            <code>module.json</code> file.
+          </p>
+        ) : (
+          <ul className="space-y-4">
+            {courses.map((course) => (
+              <li
+                key={course.folder}
+                className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-lg font-semibold text-slate-900">
+                      {course.courseName}
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  name="lastName"
-                  className="w-full rounded-md px-3 py-2 bg-slate-100 text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+                    {course.description && (
+                      <p className="text-sm text-slate-600 mt-1">
+                        {course.description}
+                      </p>
+                    )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  className="w-full rounded-md px-3 py-2 bg-slate-100 text-slate-900 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+                    {course.duration && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Duration: {course.duration}
+                      </p>
+                    )}
 
-              <div className="space-y-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-blue-600 text-white py-2 rounded-md font-medium hover:bg-blue-700 transition disabled:opacity-50"
-                >
-                  {loading ? "Saving…" : "Create Course Code"}
-                </button>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Folder: <code>{course.folder}</code>
+                    </p>
+                  </div>
 
-                <a
-                  href="/admin/dashboard"
-                  className="block w-full text-center bg-slate-200 text-slate-800 py-2 rounded-md font-medium hover:bg-slate-300 transition"
-                >
-                  Cancel
-                </a>
-              </div>
-            </form>
-          </>
+                  <Link
+                    href={`/admin/create/${course.folder}`}
+                    className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                  >
+                    Create Course Code
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
-
-        {step === "confirm" && (
-          <>
-            <h1 className="text-2xl font-bold text-slate-900 mb-4">
-              Course Code Created
-            </h1>
-
-            <p className="text-lg font-semibold text-blue-600 mb-2">
-              {generatedCode}
-            </p>
-
-            <p className="text-sm text-green-600 mb-6">
-              An email with the course code was sent to the student.
-            </p>
-
-            <a
-              href="/admin/dashboard"
-              className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition"
-            >
-              Back to Dashboard
-            </a>
-          </>
-        )}
-      </div>
+      </section>
     </main>
   );
 }
