@@ -30,9 +30,7 @@ export default function CourseCodePage() {
         return;
       }
 
-      // Code exists → go to dashboard
       router.push(`/dashboard?code=${encodeURIComponent(code)}`);
-
     } catch {
       setError("Server error.");
       setLoading(false);
@@ -40,38 +38,126 @@ export default function CourseCodePage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-300">
-      <div className="bg-white p-10 rounded-xl shadow-lg w-96">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-white">
 
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          Enter Course Code
-        </h1>
+      {/* ===== TOP BAR ===== */}
+      <header className="flex justify-between items-center px-8 py-5 bg-slate-950/70 border-b border-slate-700">
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <h1 className="text-xl font-bold">Career Safety Certifications</h1>
+          <p className="text-sm text-slate-300">
+            Professional training that employers recognize
+          </p>
+        </div>
+
+        {/* 🔑 LOGIN BOX — TOP RIGHT */}
+        <form onSubmit={handleSubmit} className="flex items-center gap-3">
 
           <input
             type="text"
-            placeholder="Course Code"
-            className="w-full border p-3 rounded text-center uppercase tracking-wider"
+            placeholder="Enter Course Code"
+            className="px-4 py-2 rounded bg-white text-slate-900 uppercase tracking-wider"
             value={code}
             onChange={(e) => setCode(e.target.value.toUpperCase())}
           />
 
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-900 text-white p-3 rounded hover:bg-blue-800 disabled:opacity-50"
+            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold disabled:opacity-50"
           >
-            {loading ? "Checking…" : "Continue"}
+            {loading ? "Checking…" : "Enter"}
           </button>
 
         </form>
 
-      </div>
+      </header>
+
+      {/* ERROR MESSAGE */}
+      {error && (
+        <div className="text-center text-red-400 mt-4">
+          {error}
+        </div>
+      )}
+
+      {/* ===== HERO SECTION ===== */}
+      <section className="max-w-6xl mx-auto px-8 py-16 grid md:grid-cols-2 gap-12 items-center">
+
+        <div>
+          <h2 className="text-4xl font-bold mb-6">
+            Industry-Recognized Certifications
+          </h2>
+
+          <p className="text-lg text-slate-200 mb-6 leading-relaxed">
+            Earning safety certifications demonstrates professionalism,
+            responsibility, and job readiness. Employers actively look for
+            certified candidates because it reduces risk and training time.
+          </p>
+
+          <ul className="space-y-3 text-slate-200">
+            <li>✔ Strengthens your resume instantly</li>
+            <li>✔ Shows commitment to safety and professionalism</li>
+            <li>✔ Makes you stand out from other applicants</li>
+            <li>✔ Often required for trade and industrial jobs</li>
+            <li>✔ Helps you qualify for higher-paying positions</li>
+          </ul>
+        </div>
+
+        <div className="bg-slate-800 rounded-2xl p-8 border border-slate-600 shadow-2xl">
+          <h3 className="text-2xl font-bold mb-4">Why Certifications Matter</h3>
+
+          <p className="text-slate-200 leading-relaxed mb-4">
+            Hiring managers frequently filter applicants by certifications.
+            Having documented training proves you can work safely, follow
+            procedures, and contribute immediately on the job site.
+          </p>
+
+          <p className="text-slate-200 leading-relaxed">
+            Whether you are entering the workforce or advancing your career,
+            certifications provide a measurable advantage and demonstrate
+            real-world competence.
+          </p>
+        </div>
+
+      </section>
+
+      {/* ===== FEATURES SECTION ===== */}
+      <section className="bg-slate-800/60 border-y border-slate-700 py-14">
+
+        <div className="max-w-6xl mx-auto px-8 grid md:grid-cols-3 gap-8 text-center">
+
+          <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
+            <h4 className="text-xl font-semibold mb-3">Employer Approved</h4>
+            <p className="text-slate-300">
+              Training aligned with industry standards and workplace
+              expectations.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
+            <h4 className="text-xl font-semibold mb-3">Career Boost</h4>
+            <p className="text-slate-300">
+              Certifications demonstrate initiative and improve hiring
+              prospects.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
+            <h4 className="text-xl font-semibold mb-3">Fast & Practical</h4>
+            <p className="text-slate-300">
+              Learn real skills you will actually use on the job.
+            </p>
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ===== FOOTER ===== */}
+      <footer className="text-center py-8 text-slate-400 text-sm">
+        Professional Certification Training Platform
+      </footer>
+
     </main>
   );
 }
