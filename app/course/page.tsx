@@ -107,6 +107,7 @@ function CourseContent()  {
   const [testPassed, setTestPassed] = useState(false);
   const [testAnswers, setTestAnswers] = useState<any[]>([]);
 const [testScore, setTestScore] = useState<number | null>(null);
+const [recordId, setRecordId] = useState<number | null>(null);
 
   const params = useSearchParams();
   const code = params?.get("code") ?? "";
@@ -185,6 +186,7 @@ useEffect(() => {
       // 1) Get student record
       const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
       const record = await res.json();
+      setRecordId(record.id);
 
       if (!record || record.error) {
         setLoading(false);
@@ -584,6 +586,9 @@ useEffect(() => {
 
   const renderTestSlide = (slide: TestSlide) => {
 
+
+
+    
   const submitTest = async () => {
     let correct = 0;
 
@@ -597,15 +602,22 @@ useEffect(() => {
 
     setTestScore(percent);
 
-    await fetch("/api/update-test-score", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code,
-        field: slide.testField,
-        score: percent
-      })
-    });
+if (!recordId) return;
+
+await fetch("/api/update-student", {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    id: recordId,
+    updates: {
+      [slide.testField]: percent
+    }
+  })
+});
+
+
+
+
 
     if (percent >= slide.passingScore) {
       setTestPassed(true);
