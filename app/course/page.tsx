@@ -3,6 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+
+type TestQuestion =
+  | {
+      type: "mc";
+      question: string;
+      options: string[];
+      correct: number;
+    }
+  | {
+      type: "tf";
+      question: string;
+      correct: boolean;
+    };
+
+type TestSlide = {
+  type: "test";
+  title: string;
+  testField: string;
+  passingScore: number;
+  questions: TestQuestion[];
+};
+
 type ContentSlide = {
   type: "content";
   title: string;
@@ -65,6 +87,7 @@ type CompletionSlide = {
 };
 
 type Slide =
+  | TestSlide
   | ContentSlide
   | VideoSlide
   | QuizSlide
@@ -81,6 +104,9 @@ function CourseContent()  {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isLight, setIsLight] = useState(false);
+  const [testPassed, setTestPassed] = useState(false);
+  const [testAnswers, setTestAnswers] = useState<any[]>([]);
+const [testScore, setTestScore] = useState<number | null>(null);
 
   const params = useSearchParams();
   const code = params?.get("code") ?? "";
@@ -193,14 +219,21 @@ setSlides(courseData.course.slides || []);
   loadCourse();
 }, [code]);
 
-  useEffect(() => {
-    setQuizFeedback("");
-    setSelectedAnswer(null);
-    setTfFeedback("");
-    setTfSelected(null);
-    setRevealedSteps(1);
-    setHotspotText("");
-  }, [index]);
+useEffect(() => {
+  setQuizFeedback("");
+  setSelectedAnswer(null);
+  setTfFeedback("");
+  setTfSelected(null);
+  setRevealedSteps(1);
+  setHotspotText("");
+
+  setTestPassed(false);
+  setTestAnswers([]);
+  setTestScore(null);
+
+}, [index]);
+
+
 
   const speakSlide = () => {
     if (!current || !synthRef.current) return;
@@ -540,10 +573,128 @@ setSlides(courseData.course.slides || []);
     );
   };
 
+
+  const renderTestSlide = (slide: TestSlide) => {
+
+  const submitTest = async () => {
+    let correct = 0;
+
+    slide.questions.forEach((q, i) => {
+      if (testAnswers[i] === q.correct) correct++;
+    });
+
+    const percent = Math.round(
+      (correct / slide.questions.length) * 100
+    );
+
+    setTestScore(percent);
+
+    await fetch("/api/update-test-score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        field: slide.testField,
+        score: percent
+      })
+    });
+
+    if (percent >= slide.passingScore) {
+      setTestPassed(true);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-3xl font-bold">{slide.title}</h2>
+
+      {slide.questions.map((q, qi) => {
+
+        // MULTIPLE CHOICE
+        if (q.type === "mc") {
+          return (
+            <div key={qi}>
+              <p>{qi + 1}. {q.question}</p>
+
+              {q.options.map((opt, oi) => (
+                <label key={oi} className="block">
+                  <input
+                    type="radio"
+                    name={`q-${qi}`}
+                    onChange={() => {
+                      const newAns = [...testAnswers];
+                      newAns[qi] = oi;
+                      setTestAnswers(newAns);
+                    }}
+                  /> {opt}
+                </label>
+              ))}
+            </div>
+          );
+        }
+
+        // TRUE / FALSE
+        if (q.type === "tf") {
+          return (
+            <div key={qi}>
+              <p>{qi + 1}. {q.question}</p>
+
+              <label className="block">
+                <input
+                  type="radio"
+                  name={`q-${qi}`}
+                  onChange={() => {
+                    const newAns = [...testAnswers];
+                    newAns[qi] = true;
+                    setTestAnswers(newAns);
+                  }}
+                /> True
+              </label>
+
+              <label className="block">
+                <input
+                  type="radio"
+                  name={`q-${qi}`}
+                  onChange={() => {
+                    const newAns = [...testAnswers];
+                    newAns[qi] = false;
+                    setTestAnswers(newAns);
+                  }}
+                /> False
+              </label>
+            </div>
+          );
+        }
+
+        return null;
+      })}
+
+      <button
+        onClick={submitTest}
+        className="px-6 py-3 bg-blue-600 text-white rounded-xl"
+      >
+        Submit Test
+      </button>
+
+      {testScore !== null && (
+        <div className="text-xl font-bold">
+          Score: {testScore}%{" "}
+          {testScore >= slide.passingScore
+            ? "✅ You passed"
+            : "❌ You did not pass"}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
   const renderSlide = () => {
     if (!current) return null;
 
     switch (current.type) {
+      case "test":
+      return renderTestSlide(current);
       case "content":
         return renderContentSlide(current);
       case "video":
@@ -560,6 +711,7 @@ setSlides(courseData.course.slides || []);
         return renderCalloutSlide(current);
       case "completion":
         return renderCompletionSlide(current);
+
       default:
         return <div className="text-white">Unknown slide type</div>;
     }
@@ -747,7 +899,10 @@ setSlides(courseData.course.slides || []);
 
           <button
             onClick={nextSlide}
-            disabled={index === slides.length - 1}
+          disabled={
+  index === slides.length - 1 ||
+  (current.type === "test" && !testPassed)
+}
             className={`px-5 py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${
               isLight
                 ? "bg-blue-600 hover:bg-blue-500 text-white"
@@ -756,6 +911,7 @@ setSlides(courseData.course.slides || []);
           >
             Next
           </button>
+
         </div>
       </div>
     </div>
