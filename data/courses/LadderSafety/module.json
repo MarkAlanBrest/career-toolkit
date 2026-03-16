@@ -332,6 +332,61 @@
       "title": "Final Safety Reminder",
       "text": "Safe ladder use depends on proper selection, inspection, setup, climbing technique, and constant attention to hazards. Every use matters."
     },
+
+{
+  "type": "test",
+  "title": "Ladder Safety Test",
+  "testField": "Test1",
+  "passingScore": 80,
+  "questions": [
+    {
+      "type": "mc",
+      "question": "What is the 4-to-1 ladder rule?",
+      "options": [
+        "1 foot out for every 4 feet up",
+        "4 feet out for every 1 foot up",
+        "1 foot out for every 1 foot up",
+        "No spacing required"
+      ],
+      "correct": 0
+    },
+    {
+      "type": "tf",
+      "question": "You can stand on the top rung of a ladder.",
+      "correct": false
+    },
+    {
+      "type": "mc",
+      "question": "What should a ladder be placed on?",
+      "options": [
+        "Stable, level surface",
+        "Loose gravel",
+        "Ice",
+        "Wet grass"
+      ],
+      "correct": 0
+    },
+    {
+      "type": "tf",
+      "question": "Metal ladders are safe near electrical hazards.",
+      "correct": false
+    },
+    {
+      "type": "mc",
+      "question": "How many points of contact should you maintain?",
+      "options": [
+        "One",
+        "Two",
+        "Three",
+        "Four"
+      ],
+      "correct": 2
+    }
+  ]
+},
+
+
+
     {
       "type": "completion",
       "title": "Course Complete",

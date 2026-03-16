@@ -234,6 +234,14 @@ useEffect(() => {
 }, [index]);
 
 
+useEffect(() => {
+  if (current?.type === "test") {
+    setTestAnswers(
+      new Array(current.questions.length).fill(null)
+    );
+  }
+}, [current]);
+
 
   const speakSlide = () => {
     if (!current || !synthRef.current) return;
