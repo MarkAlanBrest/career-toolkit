@@ -2,13 +2,22 @@
 
 import { useEffect, useState } from "react";
 
+type Tile = {
+  id: number;
+  Title: string;
+  SubTitle: string;
+  Description: string;
+  Link: string;
+};
+
 export default function JobsPage() {
-  const [tiles, setTiles] = useState<any[]>([]);
-  const [original, setOriginal] = useState<any[]>([]);
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const [original, setOriginal] = useState<Tile[]>([]);
   const [editMode, setEditMode] = useState(false);
 
   const PASSWORD = "ncst-admin";
 
+  // LOAD DATA
   useEffect(() => {
     fetch("/api/jobboard")
       .then(r => r.json())
@@ -23,9 +32,11 @@ export default function JobsPage() {
     if (p === PASSWORD) setEditMode(true);
   }
 
+  // ADD TILE
   async function addTile() {
     await fetch("/api/jobboard", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         Title: "New Job Listing",
         SubTitle: "",
@@ -37,9 +48,11 @@ export default function JobsPage() {
     location.reload();
   }
 
+  // SAVE
   async function saveChanges() {
     await fetch("/api/jobboard", {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(tiles),
     });
 
@@ -47,146 +60,92 @@ export default function JobsPage() {
     location.reload();
   }
 
+  // CANCEL
   function cancelChanges() {
     setTiles(original);
     setEditMode(false);
   }
 
+  // DELETE
   async function deleteTile(id: number) {
     if (!confirm("Delete this listing?")) return;
 
-    await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
+    await fetch(`/api/jobboard?id=${id}`, {
+      method: "DELETE"
+    });
+
     setTiles(tiles.filter(t => t.id !== id));
   }
 
-  function onDragStart(e: any, i: number) {
-    e.dataTransfer.setData("i", i);
-  }
-
-  function onDrop(e: any, i: number) {
-    const from = Number(e.dataTransfer.getData("i"));
-    const copy = [...tiles];
-    const [moved] = copy.splice(from, 1);
-    copy.splice(i, 0, moved);
-    setTiles(copy);
-  }
-
   return (
-    <>
-      <style>{`
-        body{
-          margin:0;
-          font-family: Arial, Helvetica, sans-serif;
-          background: linear-gradient(135deg,#cbd5f5,#94a3b8);
-        }
+    <div style={{ background: "linear-gradient(135deg,#cbd5f5,#94a3b8)", minHeight: "100vh" }}>
 
-        .header{
-          background:#0f172a;
-          color:white;
-          padding:30px;
-          text-align:center;
-        }
+      {/* HEADER */}
+      <div style={{
+        background: "#0f172a",
+        color: "white",
+        padding: 30,
+        textAlign: "center"
+      }}>
+        <div style={{ fontSize: 16, letterSpacing: 1, textTransform: "uppercase", color: "#cbd5f5" }}>
+          New Castle School of Trades
+        </div>
 
-        .container{
-          max-width:1200px;
-          margin:auto;
-          padding:40px 20px;
-        }
-
-        .grid{
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-          gap:25px;
-        }
-
-        .card{
-          display:block;
-          background:white;
-          border-radius:14px;
-          padding:24px;
-          text-decoration:none;
-          box-shadow:0 6px 18px rgba(0,0,0,.12);
-          transition:all .25s ease;
-          min-height:260px;
-          color:inherit;
-          position:relative;
-          display:flex;
-          flex-direction:column;
-          justify-content:space-between;
-        }
-
-        .card:hover{
-          transform:translateY(-6px);
-          background:#eff6ff;
-          box-shadow:
-            0 10px 25px rgba(0,0,0,.18),
-            0 0 0 2px #3b82f6,
-            0 0 15px rgba(59,130,246,.5);
-        }
-
-        .company{
-          font-size:20px;
-          font-weight:bold;
-          color:#1e3a8a;
-        }
-
-        .subtitle{
-          font-size:14px;
-          color:#555;
-          margin-top:4px;
-        }
-
-        .desc{
-          font-size:15px;
-          margin-top:16px;
-          line-height:1.4;
-          color:#333;
-        }
-
-        .editBtn{
-          position:fixed;
-          bottom:15px;
-          right:15px;
-          opacity:.35;
-        }
-
-        .toolbar{
-          text-align:center;
-          margin-bottom:20px;
-        }
-      `}</style>
-
-      <div className="header">
-        <h1>Student Job Placement Resources</h1>
-        <p>Local employers, job boards, and career opportunities</p>
+        <h1 style={{ margin: 0 }}>Student Job Placement Resources</h1>
+        <p>Opportunities for students and graduates</p>
       </div>
 
-      <div className="container">
+      {/* TOOLBAR */}
+      {editMode && (
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <button onClick={addTile}>Add New Job</button>{" "}
+          <button onClick={saveChanges}>Save Changes</button>{" "}
+          <button onClick={cancelChanges}>Cancel</button>
+        </div>
+      )}
 
-        {editMode && (
-          <div className="toolbar">
-            <button onClick={addTile}>Add New Job</button>{" "}
-            <button onClick={saveChanges}>Save Changes</button>{" "}
-            <button onClick={cancelChanges}>Cancel</button>
-          </div>
-        )}
+      {/* GRID */}
+      <div style={{
+        maxWidth: 1100,
+        margin: "auto",
+        padding: 30,
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
+        gap: 25
+      }}>
 
-        <div className="grid">
+        {tiles.map(t => (
 
-          {tiles.map((t, i) => (
+          <div key={t.id}
+            style={{
+              background: "white",
+              borderRadius: 14,
+              padding: 26,
+              minHeight: 260,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              boxShadow: "0 6px 18px rgba(0,0,0,.12)",
+              transition: "all .25s ease"
+            }}
 
-            editMode ? (
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-6px)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow =
+                "0 10px 25px rgba(0,0,0,.18), 0 0 0 2px #3b82f6, 0 0 15px rgba(59,130,246,.5)";
+            }}
 
-              <div
-                key={t.id}
-                draggable
-                onDragStart={e => onDragStart(e, i)}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => onDrop(e, i)}
-                className="card"
-              >
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLDivElement).style.transform = "none";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 18px rgba(0,0,0,.12)";
+            }}
+          >
+
+            {editMode ? (
+              <>
                 <input
                   value={t.Title}
+                  placeholder="Company Name"
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -194,11 +153,11 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Company Name"
                 />
 
                 <input
-                  value={t.SubTitle}
+                  value={t.SubTitle || ""}
+                  placeholder="Location / Position"
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -206,11 +165,11 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Sub Title"
                 />
 
                 <textarea
-                  value={t.Description}
+                  value={t.Description || ""}
+                  placeholder="Description"
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -218,11 +177,11 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Description"
                 />
 
                 <input
-                  value={t.Link}
+                  value={t.Link || ""}
+                  placeholder="Apply Link"
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -230,41 +189,53 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Link"
                 />
 
                 <button onClick={() => deleteTile(t.id)}>
                   Delete
                 </button>
-              </div>
-
+              </>
             ) : (
-
               <a
-                key={t.id}
                 href={t.Link}
                 target="_blank"
-                className="card"
+                rel="noopener noreferrer"
+                style={{ textDecoration: "none", color: "inherit" }}
               >
                 <div>
-                  <div className="company">{t.Title}</div>
-                  <div className="subtitle">{t.SubTitle}</div>
-                  <div className="desc">{t.Description}</div>
+                  <h2 style={{ color: "#1e3a8a", marginBottom: 8 }}>
+                    {t.Title}
+                  </h2>
+
+                  <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>
+                    {t.SubTitle}
+                  </div>
+
+                  <p style={{ fontSize: 15, color: "#333" }}>
+                    {t.Description}
+                  </p>
                 </div>
               </a>
+            )}
 
-            )
-          ))}
-
-        </div>
-
+          </div>
+        ))}
       </div>
 
+      {/* ADMIN BUTTON */}
       {!editMode && (
-        <button className="editBtn" onClick={unlock}>
+        <button
+          onClick={unlock}
+          style={{
+            position: "fixed",
+            bottom: 15,
+            right: 15,
+            opacity: 0.3
+          }}
+        >
           ⚙
         </button>
       )}
-    </>
+    </div>
   );
 }
