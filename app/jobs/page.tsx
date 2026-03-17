@@ -204,6 +204,7 @@ export default function JobsPage() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 12,
+                    minHeight: 340,   // ← NEW LINE
                     transition: "transform .15s ease, box-shadow .15s ease",
                   }}
                   onMouseEnter={(e) => {
