@@ -1,3 +1,6 @@
 export async function GET() {
-  return new Response("API WORKING");
+  return Response.json({
+    ok: true,
+    db: process.env.DATABASE_URL ? "exists" : "missing"
+  });
 }
