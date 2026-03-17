@@ -10,6 +10,8 @@ type Job = {
   Link: string;
 };
 
+const ADMIN_PASSWORD = "ncst-admin";
+
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [original, setOriginal] = useState<Job[]>([]);
@@ -63,6 +65,11 @@ export default function JobsPage() {
   async function deleteJob(id: number) {
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
     load();
+  }
+
+  function unlockAdmin() {
+    const p = prompt("Admin password:");
+    if (p === ADMIN_PASSWORD) setEdit(true);
   }
 
   return (
@@ -124,7 +131,6 @@ export default function JobsPage() {
         {jobs.map((t) => (
           <div key={t.id}>
             {!edit ? (
-              /* NORMAL TILE */
               <a
                 href={t.Link}
                 target="_blank"
@@ -140,7 +146,6 @@ export default function JobsPage() {
                     display: "flex",
                     flexDirection: "column",
                     boxShadow: "0 8px 22px rgba(0,0,0,.12)",
-                    transition: "all .25s",
                   }}
                 >
                   <div
@@ -156,7 +161,7 @@ export default function JobsPage() {
                     {t.Title}
                   </div>
 
-                  <div style={{ padding: 20, flexGrow: 1 }}>
+                  <div style={{ padding: 20 }}>
                     <div
                       style={{
                         fontSize: 13,
@@ -181,7 +186,6 @@ export default function JobsPage() {
                 </div>
               </a>
             ) : (
-              /* EDIT TILE */
               <div
                 style={{
                   background: "white",
@@ -231,24 +235,25 @@ export default function JobsPage() {
         ))}
       </div>
 
-      {/* EDIT MODE TOGGLE */}
-      <button
-        onClick={() => setEdit(!edit)}
-        style={{
-          position: "fixed",
-          bottom: 25,
-          right: 25,
-          padding: "14px 20px",
-          background: "#1e3a8a",
-          color: "white",
-          borderRadius: 30,
-          border: "none",
-          fontWeight: 700,
-          cursor: "pointer",
-        }}
-      >
-        {edit ? "Exit Edit" : "Admin"}
-      </button>
+      {/* ⚙ ADMIN GEAR */}
+      {!edit && (
+        <button
+          onClick={unlockAdmin}
+          style={{
+            position: "fixed",
+            bottom: 18,
+            right: 18,
+            fontSize: 20,
+            opacity: 0.35,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+          title="Admin"
+        >
+          ⚙
+        </button>
+      )}
     </main>
   );
 }
