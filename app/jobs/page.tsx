@@ -72,7 +72,6 @@ export default function JobsPage() {
     if (p === ADMIN_PASSWORD) setEdit(true);
   }
 
-  // ✅ MOVE UP / DOWN
   function moveJob(index: number, direction: number) {
     const newJobs = [...jobs];
     const target = index + direction;
@@ -122,10 +121,54 @@ export default function JobsPage() {
         </p>
 
         {edit && (
-          <div style={{ marginTop: 18 }}>
-            <button onClick={save}>Save Changes</button>{" "}
-            <button onClick={cancel}>Cancel</button>{" "}
-            <button onClick={addJob}>Add Job</button>
+          <div style={{ marginTop: 18, display: "flex", gap: 12, justifyContent: "center" }}>
+            <button
+              onClick={save}
+              style={{
+                background: "#2563eb",
+                color: "white",
+                border: "none",
+                padding: "10px 18px",
+                borderRadius: 6,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Save
+            </button>
+
+            <button
+              onClick={cancel}
+              style={{
+                background: "#6b7280",
+                color: "white",
+                border: "none",
+                padding: "10px 18px",
+                borderRadius: 6,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={addJob}
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "none",
+                padding: "10px 18px",
+                borderRadius: 6,
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Add Job
+            </button>
           </div>
         )}
       </div>
@@ -137,8 +180,7 @@ export default function JobsPage() {
           margin: "auto",
           padding: "40px 20px",
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit,minmax(260px,1fr))",
+          gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
           gap: 28,
         }}
       >
@@ -151,51 +193,94 @@ export default function JobsPage() {
                 rel="noopener noreferrer"
                 style={{ textDecoration: "none", color: "inherit" }}
               >
+                {/* NEWSPAPER-STYLE TILE */}
                 <div
                   style={{
                     background: "white",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    minHeight: 320,
+                    borderRadius: 8,
+                    padding: "22px 24px",
+                    border: "1px solid #d1d5db",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                     display: "flex",
                     flexDirection: "column",
-                    boxShadow: "0 8px 22px rgba(0,0,0,.12)",
+                    gap: 12,
+                    transition: "transform .15s ease, box-shadow .15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-3px)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 14px rgba(0,0,0,0.10)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow =
+                      "0 2px 8px rgba(0,0,0,0.06)";
                   }}
                 >
-                  <div
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#1e3a8a,#2563eb)",
-                      color: "white",
-                      padding: 16,
-                      fontWeight: 700,
-                      fontSize: 18,
-                    }}
-                  >
-                    {t.Title}
+                  {/* ICON + TITLE */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 22, color: "#1e3a8a" }}>💼</span>
+                    <div
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: "#111827",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {t.Title}
+                    </div>
                   </div>
 
-                  <div style={{ padding: 20 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#2563eb",
-                        marginBottom: 8,
-                      }}
-                    >
-                      {t.SubTitle}
-                    </div>
+                  {/* SUBTITLE */}
+                  <div
+                    style={{
+                      fontSize: 15,
+                      fontStyle: "italic",
+                      color: "#374151",
+                    }}
+                  >
+                    {t.SubTitle}
+                  </div>
 
-                    <div
+                  {/* DIVIDER */}
+                  <div
+                    style={{
+                      height: 1,
+                      background: "#e5e7eb",
+                      margin: "4px 0",
+                    }}
+                  />
+
+                  {/* DESCRIPTION */}
+                  <div
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 1.55,
+                      color: "#4b5563",
+                    }}
+                  >
+                    {t.Description}
+                  </div>
+
+                  {/* APPLY LINK */}
+                  <div
+                    style={{
+                      marginTop: "auto",
+                      display: "flex",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <span
                       style={{
-                        fontSize: 15,
-                        lineHeight: 1.5,
-                        color: "#333",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "#2563eb",
+                        textDecoration: "underline",
                       }}
                     >
-                      {t.Description}
-                    </div>
+                      View / Apply →
+                    </span>
                   </div>
                 </div>
               </a>
@@ -203,15 +288,41 @@ export default function JobsPage() {
               <div
                 style={{
                   background: "white",
-                  borderRadius: 16,
-                  padding: 18,
-                  boxShadow: "0 8px 22px rgba(0,0,0,.12)",
+                  borderRadius: 12,
+                  padding: 20,
+                  border: "1px solid #e5e7eb",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
                 }}
               >
                 {/* MOVE BUTTONS */}
-                <div style={{ marginBottom: 8 }}>
-                  <button onClick={() => moveJob(i, -1)}>▲</button>{" "}
-                  <button onClick={() => moveJob(i, 1)}>▼</button>
+                <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => moveJob(i, -1)}
+                    style={{
+                      background: "#e5e7eb",
+                      border: "none",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 14,
+                    }}
+                  >
+                    Move Up
+                  </button>
+
+                  <button
+                    onClick={() => moveJob(i, 1)}
+                    style={{
+                      background: "#e5e7eb",
+                      border: "none",
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 14,
+                    }}
+                  >
+                    Move Down
+                  </button>
                 </div>
 
                 <input
@@ -246,7 +357,18 @@ export default function JobsPage() {
                   style={{ width: "100%", marginBottom: 10 }}
                 />
 
-                <button onClick={() => deleteJob(t.id)}>
+                <button
+                  onClick={() => deleteJob(t.id)}
+                  style={{
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
                   Delete
                 </button>
               </div>
