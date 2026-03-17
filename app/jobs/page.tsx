@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Tile = {
+type Job = {
   id: number;
   Title: string;
   SubTitle: string;
@@ -11,231 +11,170 @@ type Tile = {
 };
 
 export default function JobsPage() {
-  const [tiles, setTiles] = useState<Tile[]>([]);
-  const [original, setOriginal] = useState<Tile[]>([]);
-  const [editMode, setEditMode] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
-  const PASSWORD = "ncst-admin";
-
-  // LOAD DATA
   useEffect(() => {
     fetch("/api/jobboard")
-      .then(r => r.json())
-      .then(data => {
-        setTiles(data);
-        setOriginal(data);
-      });
+      .then((r) => r.json())
+      .then(setJobs)
+      .catch(() => {});
   }, []);
 
-  function unlock() {
-    const p = prompt("Admin password:");
-    if (p === PASSWORD) setEditMode(true);
-  }
-
-  // ADD TILE
-  async function addTile() {
-    await fetch("/api/jobboard", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        Title: "New Job Listing",
-        SubTitle: "",
-        Description: "",
-        Link: "#"
-      }),
-    });
-
-    location.reload();
-  }
-
-  // SAVE
-  async function saveChanges() {
-    await fetch("/api/jobboard", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tiles),
-    });
-
-    setEditMode(false);
-    location.reload();
-  }
-
-  // CANCEL
-  function cancelChanges() {
-    setTiles(original);
-    setEditMode(false);
-  }
-
-  // DELETE
-  async function deleteTile(id: number) {
-    if (!confirm("Delete this listing?")) return;
-
-    await fetch(`/api/jobboard?id=${id}`, {
-      method: "DELETE"
-    });
-
-    setTiles(tiles.filter(t => t.id !== id));
-  }
-
   return (
-    <div style={{ background: "linear-gradient(135deg,#cbd5f5,#94a3b8)", minHeight: "100vh" }}>
-
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg,#cbd5f5,#94a3b8)",
+      }}
+    >
       {/* HEADER */}
-      <div style={{
-        background: "#0f172a",
-        color: "white",
-        padding: 30,
-        textAlign: "center"
-      }}>
-        <div style={{ fontSize: 16, letterSpacing: 1, textTransform: "uppercase", color: "#cbd5f5" }}>
+      <div
+        style={{
+          background: "#0f172a",
+          color: "white",
+          padding: "30px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 14,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: "#cbd5f5",
+          }}
+        >
           New Castle School of Trades
         </div>
 
-        <h1 style={{ margin: 0 }}>Student Job Placement Resources</h1>
-        <p>Opportunities for students and graduates</p>
+        <h1 style={{ margin: 0, fontSize: 32 }}>
+          Student Job Placement Resources
+        </h1>
+
+        <p style={{ marginTop: 8, fontSize: 18 }}>
+          Opportunities from employers and career sites
+        </p>
       </div>
 
-      {/* TOOLBAR */}
-      {editMode && (
-        <div style={{ textAlign: "center", padding: 20 }}>
-          <button onClick={addTile}>Add New Job</button>{" "}
-          <button onClick={saveChanges}>Save Changes</button>{" "}
-          <button onClick={cancelChanges}>Cancel</button>
-        </div>
-      )}
-
-      {/* GRID */}
-      <div style={{
-        maxWidth: 1100,
-        margin: "auto",
-        padding: 30,
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))",
-        gap: 25
-      }}>
-
-        {tiles.map(t => (
-
-          <div key={t.id}
-            style={{
-              background: "white",
-              borderRadius: 14,
-              padding: 26,
-              minHeight: 260,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              boxShadow: "0 6px 18px rgba(0,0,0,.12)",
-              transition: "all .25s ease"
-            }}
-
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-6px)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow =
-                "0 10px 25px rgba(0,0,0,.18), 0 0 0 2px #3b82f6, 0 0 15px rgba(59,130,246,.5)";
-            }}
-
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLDivElement).style.transform = "none";
-              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 18px rgba(0,0,0,.12)";
-            }}
-          >
-
-            {editMode ? (
-              <>
-                <input
-                  value={t.Title}
-                  placeholder="Company Name"
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, Title: e.target.value } : x
-                      )
-                    )
-                  }
-                />
-
-                <input
-                  value={t.SubTitle || ""}
-                  placeholder="Location / Position"
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, SubTitle: e.target.value } : x
-                      )
-                    )
-                  }
-                />
-
-                <textarea
-                  value={t.Description || ""}
-                  placeholder="Description"
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, Description: e.target.value } : x
-                      )
-                    )
-                  }
-                />
-
-                <input
-                  value={t.Link || ""}
-                  placeholder="Apply Link"
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, Link: e.target.value } : x
-                      )
-                    )
-                  }
-                />
-
-                <button onClick={() => deleteTile(t.id)}>
-                  Delete
-                </button>
-              </>
-            ) : (
-              <a
-                href={t.Link}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ textDecoration: "none", color: "inherit" }}
+      {/* CONTENT */}
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: "auto",
+          padding: "40px 20px",
+        }}
+      >
+        {/* GRID */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit,minmax(260px,1fr))",
+            gap: 28,
+          }}
+        >
+          {jobs.map((t) => (
+            <a
+              key={t.id}
+              href={t.Link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  minHeight: 320,
+                  display: "flex",
+                  flexDirection: "column",
+                  boxShadow: "0 8px 22px rgba(0,0,0,.12)",
+                  transition: "all .25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget;
+                  el.style.transform = "translateY(-6px)";
+                  el.style.boxShadow =
+                    "0 12px 30px rgba(0,0,0,.18), 0 0 0 2px #3b82f6, 0 0 18px rgba(59,130,246,.5)";
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget;
+                  el.style.transform = "none";
+                  el.style.boxShadow =
+                    "0 8px 22px rgba(0,0,0,.12)";
+                }}
               >
-                <div>
-                  <h2 style={{ color: "#1e3a8a", marginBottom: 8 }}>
-                    {t.Title}
-                  </h2>
+                {/* HEADER BAR */}
+                <div
+                  style={{
+                    background:
+                      "linear-gradient(135deg,#1e3a8a,#2563eb)",
+                    color: "white",
+                    padding: "14px 18px",
+                    fontWeight: 700,
+                    fontSize: 18,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {t.Title}
+                </div>
 
-                  <div style={{ fontSize: 14, color: "#555", marginBottom: 12 }}>
+                {/* BODY */}
+                <div
+                  style={{
+                    padding: 20,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    flexGrow: 1,
+                  }}
+                >
+                  {/* SUBTITLE */}
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#2563eb",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
                     {t.SubTitle}
                   </div>
 
-                  <p style={{ fontSize: 15, color: "#333" }}>
+                  {/* DESCRIPTION */}
+                  <div
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 1.5,
+                      color: "#333",
+                      flexGrow: 1,
+                    }}
+                  >
                     {t.Description}
-                  </p>
+                  </div>
+
+                  {/* FOOTER */}
+                  <div
+                    style={{
+                      marginTop: 12,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#555",
+                    }}
+                  >
+                    Click to view details →
+                  </div>
                 </div>
-              </a>
-            )}
-
-          </div>
-        ))}
+              </div>
+            </a>
+          ))}
+        </div>
       </div>
-
-      {/* ADMIN BUTTON */}
-      {!editMode && (
-        <button
-          onClick={unlock}
-          style={{
-            position: "fixed",
-            bottom: 15,
-            right: 15,
-            opacity: 0.3
-          }}
-        >
-          ⚙
-        </button>
-      )}
-    </div>
+    </main>
   );
 }

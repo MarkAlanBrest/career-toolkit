@@ -1,180 +1,165 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-type Job = {
-  id: number;
-  Title: string;
-  SubTitle: string;
-  Description: string;
-  Link: string;
-};
-
-export default function JobsPage() {
-  const [jobs, setJobs] = useState<Job[]>([]);
-
-  useEffect(() => {
-    fetch("/api/jobboard")
-      .then((r) => r.json())
-      .then(setJobs)
-      .catch(() => {});
-  }, []);
-
+export default function Page() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg,#cbd5f5,#94a3b8)",
-      }}
-    >
-      {/* HEADER */}
-      <div
-        style={{
-          background: "#0f172a",
-          color: "white",
-          padding: "30px",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 14,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            color: "#cbd5f5",
-          }}
-        >
+    <>
+      <style>{`
+        body{
+          margin:0;
+          font-family: Arial, Helvetica, sans-serif;
+          background: linear-gradient(135deg,#cbd5f5,#94a3b8);
+        }
+
+        .header{
+          background:#0f172a;
+          color:white;
+          padding:30px;
+          text-align:center;
+        }
+
+        .school{
+          font-size:16px;
+          letter-spacing:1px;
+          text-transform:uppercase;
+          color:#cbd5f5;
+          margin-bottom:6px;
+        }
+
+        .header h1{
+          margin:0;
+          font-size:32px;
+        }
+
+        .header p{
+          margin-top:8px;
+          font-size:18px;
+        }
+
+        .container{
+          max-width:1100px;
+          margin:auto;
+          padding:40px 20px;
+        }
+
+        .grid{
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+          gap:25px;
+        }
+
+        .card{
+          display:block;
+          background:white;
+          border-radius:14px;
+          padding:30px;
+          text-align:center;
+          text-decoration:none;
+          box-shadow:0 6px 18px rgba(0,0,0,.12);
+          transition:all .25s ease;
+          min-height:200px;
+          color:inherit;
+        }
+
+        .icon{
+          font-size:40px;
+          margin-bottom:10px;
+        }
+
+        .card h2{
+          margin:10px 0;
+          color:#1e3a8a;
+        }
+
+        .card p{
+          font-size:15px;
+          color:#444;
+        }
+
+        .card:hover{
+          transform:translateY(-6px);
+          background:#eff6ff;
+          box-shadow:
+            0 10px 25px rgba(0,0,0,.18),
+            0 0 0 2px #3b82f6,
+            0 0 15px rgba(59,130,246,.5);
+        }
+
+        .footer{
+          text-align:center;
+          margin-top:40px;
+          color:#333;
+          font-size:14px;
+        }
+      `}</style>
+
+      <div className="header">
+        <div className="school">
           New Castle School of Trades
         </div>
 
-        <h1 style={{ margin: 0, fontSize: 32 }}>
-          Student Job Placement Resources
-        </h1>
+        <h1>Student Career Toolkit</h1>
 
-        <p style={{ marginTop: 8, fontSize: 18 }}>
-          Opportunities from employers and career sites
-        </p>
+        <p>Professional tools to help you find and secure a job</p>
       </div>
 
-      {/* CONTENT */}
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "auto",
-          padding: "40px 20px",
-        }}
-      >
-        {/* GRID */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit,minmax(260px,1fr))",
-            gap: 28,
-          }}
-        >
-          {jobs.map((t) => (
-            <a
-              key={t.id}
-              href={t.Link}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <div
-                style={{
-                  background: "white",
-                  borderRadius: 16,
-                  overflow: "hidden",
-                  minHeight: 320,
-                  display: "flex",
-                  flexDirection: "column",
-                  boxShadow: "0 8px 22px rgba(0,0,0,.12)",
-                  transition: "all .25s ease",
-                }}
-                onMouseEnter={(e) => {
-                  const el = e.currentTarget;
-                  el.style.transform = "translateY(-6px)";
-                  el.style.boxShadow =
-                    "0 12px 30px rgba(0,0,0,.18), 0 0 0 2px #3b82f6, 0 0 18px rgba(59,130,246,.5)";
-                }}
-                onMouseLeave={(e) => {
-                  const el = e.currentTarget;
-                  el.style.transform = "none";
-                  el.style.boxShadow =
-                    "0 8px 22px rgba(0,0,0,.12)";
-                }}
-              >
-                {/* HEADER BAR */}
-                <div
-                  style={{
-                    background:
-                      "linear-gradient(135deg,#1e3a8a,#2563eb)",
-                    color: "white",
-                    padding: "14px 18px",
-                    fontWeight: 700,
-                    fontSize: 18,
-                    letterSpacing: 0.3,
-                  }}
-                >
-                  {t.Title}
-                </div>
+      <div className="container">
 
-                {/* BODY */}
-                <div
-                  style={{
-                    padding: 20,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                    flexGrow: 1,
-                  }}
-                >
-                  {/* SUBTITLE */}
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "#2563eb",
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                    }}
-                  >
-                    {t.SubTitle}
-                  </div>
+        <div className="grid">
 
-                  {/* DESCRIPTION */}
-                  <div
-                    style={{
-                      fontSize: 15,
-                      lineHeight: 1.5,
-                      color: "#333",
-                      flexGrow: 1,
-                    }}
-                  >
-                    {t.Description}
-                  </div>
+          {/* FIXED — goes to your Jobs Board */}
+          <a className="card" href="/jobs">
+            <div className="icon">🔎</div>
+            <h2>Find a Job</h2>
+            <p>Search job boards, trade sites, and government job listings.</p>
+          </a>
 
-                  {/* FOOTER */}
-                  <div
-                    style={{
-                      marginTop: 12,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#555",
-                    }}
-                  >
-                    Click to view details →
-                  </div>
-                </div>
-              </div>
-            </a>
-          ))}
+          <a className="card" href="https://resume-builder-one-gules-56.vercel.app/" target="_blank">
+            <div className="icon">📄</div>
+            <h2>Resume Builder</h2>
+            <p>Create a professional resume using our guided builder.</p>
+          </a>
+
+          <a className="card" href="https://cover-letter-ai-cyan.vercel.app/" target="_blank">
+            <div className="icon">✉️</div>
+            <h2>Cover Letter Creator</h2>
+            <p>Generate a customized cover letter for the job you want.</p>
+          </a>
+
+          <a className="card" href="https://interview-ob8v.vercel.app/" target="_blank">
+            <div className="icon">🎤</div>
+            <h2>Practice Interview</h2>
+            <p>Practice answering interview questions and improve your confidence.</p>
+          </a>
+
+          <a className="card" href="follow-up.html">
+            <div className="icon">📬</div>
+            <h2>Follow-Up & Thank-You Letters</h2>
+            <p>Create professional follow-up emails and thank-you letters.</p>
+          </a>
+
+          <a className="card" href="job-tips.html">
+            <div className="icon">💡</div>
+            <h2>Job Search Tips</h2>
+            <p>Learn strategies that help job seekers stand out and get hired.</p>
+          </a>
+
+          <a className="card" href="https://safety-training-platform-eta.vercel.app/" target="_blank">
+            <div className="icon">🏆</div>
+            <h2>Earn Certifications</h2>
+            <p>Complete short career certifications offered by the school.</p>
+          </a>
+
+          <a className="card" href="career-services.html">
+            <div className="icon">👩‍💼</div>
+            <h2>Contact Career Services</h2>
+            <p>Need help? Connect with our career advisors.</p>
+          </a>
+
         </div>
+
+        <div className="footer">
+          New Castle School of Trades | Career Development Tools
+        </div>
+
       </div>
-    </main>
+    </>
   );
 }
