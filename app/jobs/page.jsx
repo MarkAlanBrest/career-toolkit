@@ -4,79 +4,49 @@ import { useEffect, useState } from "react";
 
 export default function JobsPage() {
   const [tiles, setTiles] = useState([]);
-  const [original, setOriginal] = useState([]);
-  const [editMode, setEditMode] = useState(false);
-
-  const PASSWORD = "ncst-admin";
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    loadTiles();
+    async function load() {
+      try {
+        const res = await fetch("/api/jobboard");
+
+        if (!res.ok) throw new Error("API error");
+
+        const data = await res.json();
+
+        if (!Array.isArray(data)) throw new Error("Bad data");
+
+        setTiles(data);
+
+      } catch (e) {
+        console.error(e);
+        setError("Failed to load job listings.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
   }, []);
-
-  async function loadTiles() {
-    const data = await fetch("/api/jobboard").then(r => r.json());
-    setTiles(data);
-    setOriginal(data);
-  }
-
-  function unlock() {
-    const p = prompt("Admin password:");
-    if (p === PASSWORD) setEditMode(true);
-  }
-
-  async function addTile() {
-    await fetch("/api/jobboard", {
-      method: "POST",
-      body: JSON.stringify({}),
-    });
-    loadTiles();
-  }
-
-  async function saveChanges() {
-    await fetch("/api/jobboard", {
-      method: "PATCH",
-      body: JSON.stringify(tiles),
-    });
-    setEditMode(false);
-    loadTiles();
-  }
-
-  function cancelChanges() {
-    setTiles(original);
-    setEditMode(false);
-  }
-
-  async function deleteTile(id) {
-    if (!confirm("Delete this tile?")) return;
-
-    await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
-    loadTiles();
-  }
-
-  function onDragStart(e, i) {
-    e.dataTransfer.setData("i", i);
-  }
-
-  function onDrop(e, i) {
-    const from = Number(e.dataTransfer.getData("i"));
-    const copy = [...tiles];
-    const [moved] = copy.splice(from, 1);
-    copy.splice(i, 0, moved);
-    setTiles(copy);
-  }
 
   return (
     <main style={{ padding: 20, background: "#f1f5f9", minHeight: "100vh" }}>
-      <h1 style={{ textAlign: "center", marginBottom: 20 }}>
+      <h1 style={{ textAlign: "center" }}>
         Student Job Placement Resources
       </h1>
 
-      {editMode && (
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <button onClick={addTile}>➕ Add</button>{" "}
-          <button onClick={saveChanges}>💾 Save</button>{" "}
-          <button onClick={cancelChanges}>❌ Cancel</button>
-        </div>
+      {loading && (
+        <p style={{ textAlign: "center" }}>Loading jobs...</p>
+      )}
+
+      {error && (
+        <p style={{ textAlign: "center", color: "red" }}>{error}</p>
+      )}
+
+      {!loading && !error && tiles.length === 0 && (
+        <p style={{ textAlign: "center" }}>No jobs available.</p>
       )}
 
       <div
@@ -88,13 +58,9 @@ export default function JobsPage() {
           margin: "auto",
         }}
       >
-        {tiles.map((t, i) => (
+        {tiles.map((t) => (
           <div
             key={t.id}
-            draggable={editMode}
-            onDragStart={e => onDragStart(e, i)}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => onDrop(e, i)}
             style={{
               background: "white",
               padding: 18,
@@ -105,86 +71,33 @@ export default function JobsPage() {
               justifyContent: "space-between",
             }}
           >
-            {editMode ? (
-              <>
-                <input
-                  value={t.Title}
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, Title: e.target.value } : x
-                      )
-                    )
-                  }
-                />
+            <div>
+              <h3>{t.Title}</h3>
+              {t.SubTitle && (
+                <div style={{ color: "#555" }}>{t.SubTitle}</div>
+              )}
+              <p>{t.Description}</p>
+            </div>
 
-                <textarea
-                  value={t.Description}
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id
-                          ? { ...x, Description: e.target.value }
-                          : x
-                      )
-                    )
-                  }
-                />
-
-                <input
-                  value={t.Link}
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id ? { ...x, Link: e.target.value } : x
-                      )
-                    )
-                  }
-                />
-
-                <button onClick={() => deleteTile(t.id)}>🗑 Delete</button>
-              </>
-            ) : (
-              <>
-                <div>
-                  <strong>{t.Title}</strong>
-                  <div style={{ color: "#555" }}>{t.SubTitle}</div>
-                  <p>{t.Description}</p>
-                </div>
-
-                <a
-                  href={t.Link}
-                  target="_blank"
-                  style={{
-                    background: "#1e3a8a",
-                    color: "white",
-                    textAlign: "center",
-                    padding: 10,
-                    borderRadius: 6,
-                    textDecoration: "none",
-                  }}
-                >
-                  {t.ButtonLabel || "Open"}
-                </a>
-              </>
-            )}
+            <a
+              href={t.Link}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                background: "#1e3a8a",
+                color: "white",
+                textAlign: "center",
+                padding: 10,
+                borderRadius: 6,
+                textDecoration: "none",
+                marginTop: 10,
+              }}
+            >
+              {t.ButtonLabel || "Open"}
+            </a>
           </div>
         ))}
       </div>
-
-      {!editMode && (
-        <button
-          onClick={unlock}
-          style={{
-            position: "fixed",
-            bottom: 15,
-            right: 15,
-            opacity: 0.35,
-          }}
-        >
-          ⚙
-        </button>
-      )}
     </main>
   );
 }
