@@ -12,7 +12,7 @@ export async function GET() {
 }
 
 // POST — add tile
-export async function POST(req: Request) {
+export async function POST(req) {
   const body = await req.json();
 
   const data = JSON.parse(await fs.readFile(filePath, "utf8"));
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 }
 
 // PATCH — save all edits
-export async function PATCH(req: Request) {
+export async function PATCH(req) {
   const tiles = await req.json();
 
   await fs.writeFile(filePath, JSON.stringify(tiles, null, 2));
@@ -45,13 +45,13 @@ export async function PATCH(req: Request) {
 }
 
 // DELETE — remove tile
-export async function DELETE(req: Request) {
+export async function DELETE(req) {
   const { searchParams } = new URL(req.url);
   const id = Number(searchParams.get("id"));
 
   const data = JSON.parse(await fs.readFile(filePath, "utf8"));
 
-  const updated = data.filter((t: any) => t.id !== id);
+  const updated = data.filter(t => t.id !== id);
 
   await fs.writeFile(filePath, JSON.stringify(updated, null, 2));
 
