@@ -49,18 +49,18 @@ export default function JobsPage() {
     setEdit(false);
   }
 
-  function addJob() {
-    setJobs([
-      {
-        id: Date.now(),
-        Title: "New Company",
-        SubTitle: "Position",
-        Description: "Job description",
-        Link: "#",
-      },
-      ...jobs,
-    ]);
-  }
+ function addJob() {
+  setJobs([
+    {
+      id: 0,
+      Title: "New Company",
+      SubTitle: "Position",
+      Description: "Job description",
+      Link: "#",
+    },
+    ...jobs,
+  ]);
+}
 
   async function deleteJob(id: number) {
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
