@@ -10,13 +10,14 @@ export default function JobsPage() {
   const PASSWORD = "ncst-admin";
 
   useEffect(() => {
-    fetch("/api/jobboard")
-      .then(r => r.json())
-      .then(data => {
-        setTiles(data);
-        setOriginal(data);
-      });
+    loadTiles();
   }, []);
+
+  async function loadTiles() {
+    const data = await fetch("/api/jobboard").then(r => r.json());
+    setTiles(data);
+    setOriginal(data);
+  }
 
   function unlock() {
     const p = prompt("Admin password:");
@@ -26,14 +27,9 @@ export default function JobsPage() {
   async function addTile() {
     await fetch("/api/jobboard", {
       method: "POST",
-      body: JSON.stringify({
-        Title: "New Listing",
-        Description: "",
-        Link: "#"
-      }),
+      body: JSON.stringify({}),
     });
-
-    location.reload();
+    loadTiles();
   }
 
   async function saveChanges() {
@@ -41,9 +37,8 @@ export default function JobsPage() {
       method: "PATCH",
       body: JSON.stringify(tiles),
     });
-
     setEditMode(false);
-    location.reload();
+    loadTiles();
   }
 
   function cancelChanges() {
@@ -55,8 +50,7 @@ export default function JobsPage() {
     if (!confirm("Delete this tile?")) return;
 
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
-
-    setTiles(tiles.filter(t => t.id !== id));
+    loadTiles();
   }
 
   function onDragStart(e, i) {
@@ -72,24 +66,23 @@ export default function JobsPage() {
   }
 
   return (
-    <div style={{ padding: 20, background: "#f1f5f9" }}>
-      <h1 style={{ textAlign: "center" }}>
+    <main style={{ padding: 20, background: "#f1f5f9", minHeight: "100vh" }}>
+      <h1 style={{ textAlign: "center", marginBottom: 20 }}>
         Student Job Placement Resources
       </h1>
 
       {editMode && (
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <button onClick={addTile}>Add New Tile</button>
-          <button onClick={saveChanges}>Save Changes</button>
-          <button onClick={cancelChanges}>Cancel</button>
+          <button onClick={addTile}>➕ Add</button>{" "}
+          <button onClick={saveChanges}>💾 Save</button>{" "}
+          <button onClick={cancelChanges}>❌ Cancel</button>
         </div>
       )}
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
           gap: 20,
           maxWidth: 1200,
           margin: "auto",
@@ -107,6 +100,9 @@ export default function JobsPage() {
               padding: 18,
               borderRadius: 10,
               boxShadow: "0 6px 16px rgba(0,0,0,.08)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
             }}
           >
             {editMode ? (
@@ -116,9 +112,7 @@ export default function JobsPage() {
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
-                        x.id === t.id
-                          ? { ...x, Title: e.target.value }
-                          : x
+                        x.id === t.id ? { ...x, Title: e.target.value } : x
                       )
                     )
                   }
@@ -142,25 +136,35 @@ export default function JobsPage() {
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
-                        x.id === t.id
-                          ? { ...x, Link: e.target.value }
-                          : x
+                        x.id === t.id ? { ...x, Link: e.target.value } : x
                       )
                     )
                   }
                 />
 
-                <button onClick={() => deleteTile(t.id)}>
-                  Delete
-                </button>
+                <button onClick={() => deleteTile(t.id)}>🗑 Delete</button>
               </>
             ) : (
               <>
-                <h3>{t.Title}</h3>
-                <p>{t.Description}</p>
+                <div>
+                  <strong>{t.Title}</strong>
+                  <div style={{ color: "#555" }}>{t.SubTitle}</div>
+                  <p>{t.Description}</p>
+                </div>
 
-                <a href={t.Link} target="_blank">
-                  Open
+                <a
+                  href={t.Link}
+                  target="_blank"
+                  style={{
+                    background: "#1e3a8a",
+                    color: "white",
+                    textAlign: "center",
+                    padding: 10,
+                    borderRadius: 6,
+                    textDecoration: "none",
+                  }}
+                >
+                  {t.ButtonLabel || "Open"}
                 </a>
               </>
             )}
@@ -175,12 +179,12 @@ export default function JobsPage() {
             position: "fixed",
             bottom: 15,
             right: 15,
-            opacity: 0.4,
+            opacity: 0.35,
           }}
         >
           ⚙
         </button>
       )}
-    </div>
+    </main>
   );
 }
