@@ -1,18 +1,14 @@
 {
   "dependencies": {
+    "next": "^15.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
     "mysql2": "^3.20.0",
-    "next": "^16.1.7",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
     "resend": "^6.9.3"
   },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
-  },
-  "devDependencies": {
-    "@types/react": "19.2.14",
-    "typescript": "5.9.3"
   }
 }
