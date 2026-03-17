@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-type Tile = {
-  id: number;
-  Title: string;
-  SubTitle: string;
-  Description: string;
-  ButtonLabel: string;
-  Link: string;
-};
-
 export default function JobsPage() {
-  const [tiles, setTiles] = useState<Tile[]>([]);
-  const [original, setOriginal] = useState<Tile[]>([]);
+  const [tiles, setTiles] = useState<any[]>([]);
+  const [original, setOriginal] = useState<any[]>([]);
   const [editMode, setEditMode] = useState(false);
 
   const PASSWORD = "ncst-admin";
@@ -35,16 +26,23 @@ export default function JobsPage() {
   async function addTile() {
     await fetch("/api/jobboard", {
       method: "POST",
-      body: JSON.stringify({ Title: "New Job", Description: "" })
+      body: JSON.stringify({
+        Title: "New Job Listing",
+        SubTitle: "",
+        Description: "",
+        Link: "#"
+      }),
     });
+
     location.reload();
   }
 
   async function saveChanges() {
     await fetch("/api/jobboard", {
       method: "PATCH",
-      body: JSON.stringify(tiles)
+      body: JSON.stringify(tiles),
     });
+
     setEditMode(false);
     location.reload();
   }
@@ -55,78 +53,138 @@ export default function JobsPage() {
   }
 
   async function deleteTile(id: number) {
-    if (!confirm("Delete this job?")) return;
+    if (!confirm("Delete this listing?")) return;
 
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
     setTiles(tiles.filter(t => t.id !== id));
   }
 
+  function onDragStart(e: any, i: number) {
+    e.dataTransfer.setData("i", i);
+  }
+
+  function onDrop(e: any, i: number) {
+    const from = Number(e.dataTransfer.getData("i"));
+    const copy = [...tiles];
+    const [moved] = copy.splice(from, 1);
+    copy.splice(i, 0, moved);
+    setTiles(copy);
+  }
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg,#cbd5f5,#94a3b8)"
-    }}>
+    <>
+      <style>{`
+        body{
+          margin:0;
+          font-family: Arial, Helvetica, sans-serif;
+          background: linear-gradient(135deg,#cbd5f5,#94a3b8);
+        }
 
-      {/* HEADER BAR */}
-      <div style={{
-        background: "#0f172a",
-        color: "white",
-        padding: 30,
-        textAlign: "center"
-      }}>
-        <div style={{
-          fontSize: 14,
-          letterSpacing: 1,
-          color: "#cbd5f5",
-          marginBottom: 6
-        }}>
-          New Castle School of Trades
-        </div>
+        .header{
+          background:#0f172a;
+          color:white;
+          padding:30px;
+          text-align:center;
+        }
 
-        <h1 style={{ margin: 0 }}>
-          Student Job Placement Resources
-        </h1>
+        .container{
+          max-width:1200px;
+          margin:auto;
+          padding:40px 20px;
+        }
 
-        <p style={{ marginTop: 8 }}>
-          Local employers and job opportunities for students
-        </p>
+        .grid{
+          display:grid;
+          grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+          gap:25px;
+        }
+
+        .card{
+          display:block;
+          background:white;
+          border-radius:14px;
+          padding:24px;
+          text-decoration:none;
+          box-shadow:0 6px 18px rgba(0,0,0,.12);
+          transition:all .25s ease;
+          min-height:260px;
+          color:inherit;
+          position:relative;
+          display:flex;
+          flex-direction:column;
+          justify-content:space-between;
+        }
+
+        .card:hover{
+          transform:translateY(-6px);
+          background:#eff6ff;
+          box-shadow:
+            0 10px 25px rgba(0,0,0,.18),
+            0 0 0 2px #3b82f6,
+            0 0 15px rgba(59,130,246,.5);
+        }
+
+        .company{
+          font-size:20px;
+          font-weight:bold;
+          color:#1e3a8a;
+        }
+
+        .subtitle{
+          font-size:14px;
+          color:#555;
+          margin-top:4px;
+        }
+
+        .desc{
+          font-size:15px;
+          margin-top:16px;
+          line-height:1.4;
+          color:#333;
+        }
+
+        .editBtn{
+          position:fixed;
+          bottom:15px;
+          right:15px;
+          opacity:.35;
+        }
+
+        .toolbar{
+          text-align:center;
+          margin-bottom:20px;
+        }
+      `}</style>
+
+      <div className="header">
+        <h1>Student Job Placement Resources</h1>
+        <p>Local employers, job boards, and career opportunities</p>
       </div>
 
-      {/* ADMIN TOOLBAR */}
-      {editMode && (
-        <div style={{
-          textAlign: "center",
-          padding: 20
-        }}>
-          <button onClick={addTile}>Add Job</button>{" "}
-          <button onClick={saveChanges}>Save Changes</button>{" "}
-          <button onClick={cancelChanges}>Cancel</button>
-        </div>
-      )}
+      <div className="container">
 
-      {/* JOB GRID */}
-      <div style={{
-        maxWidth: 1200,
-        margin: "40px auto",
-        padding: "0 20px",
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))",
-        gap: 28
-      }}>
-        {tiles.map(t => (
+        {editMode && (
+          <div className="toolbar">
+            <button onClick={addTile}>Add New Job</button>{" "}
+            <button onClick={saveChanges}>Save Changes</button>{" "}
+            <button onClick={cancelChanges}>Cancel</button>
+          </div>
+        )}
 
-          <div key={t.id} style={{
-            background: "white",
-            borderRadius: 18,
-            padding: 26,
-            boxShadow: "0 12px 28px rgba(0,0,0,.18)",
-            minHeight: 360,           // TALL CARD
-            display: "flex",
-            flexDirection: "column"
-          }}>
+        <div className="grid">
 
-            {editMode ? (
-              <>
+          {tiles.map((t, i) => (
+
+            editMode ? (
+
+              <div
+                key={t.id}
+                draggable
+                onDragStart={e => onDragStart(e, i)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => onDrop(e, i)}
+                className="card"
+              >
                 <input
                   value={t.Title}
                   onChange={e =>
@@ -136,11 +194,11 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Title"
+                  placeholder="Company Name"
                 />
 
                 <input
-                  value={t.SubTitle || ""}
+                  value={t.SubTitle}
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -148,40 +206,23 @@ export default function JobsPage() {
                       )
                     )
                   }
-                  placeholder="Company / Location"
+                  placeholder="Sub Title"
                 />
 
                 <textarea
-                  value={t.Description || ""}
+                  value={t.Description}
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
-                        x.id === t.id
-                          ? { ...x, Description: e.target.value }
-                          : x
+                        x.id === t.id ? { ...x, Description: e.target.value } : x
                       )
                     )
                   }
                   placeholder="Description"
-                  style={{ minHeight: 120 }}
                 />
 
                 <input
-                  value={t.ButtonLabel || ""}
-                  onChange={e =>
-                    setTiles(prev =>
-                      prev.map(x =>
-                        x.id === t.id
-                          ? { ...x, ButtonLabel: e.target.value }
-                          : x
-                      )
-                    )
-                  }
-                  placeholder="Button text"
-                />
-
-                <input
-                  value={t.Link || ""}
+                  value={t.Link}
                   onChange={e =>
                     setTiles(prev =>
                       prev.map(x =>
@@ -193,85 +234,37 @@ export default function JobsPage() {
                 />
 
                 <button onClick={() => deleteTile(t.id)}>
-                  Delete Job
+                  Delete
                 </button>
-              </>
+              </div>
+
             ) : (
-              <>
-                {/* TITLE */}
-                <div style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: "#1e3a8a",
-                  marginBottom: 6
-                }}>
-                  {t.Title}
-                </div>
 
-                {/* SUBTITLE */}
-                <div style={{
-                  color: "#555",
-                  marginBottom: 14
-                }}>
-                  {t.SubTitle}
+              <a
+                key={t.id}
+                href={t.Link}
+                target="_blank"
+                className="card"
+              >
+                <div>
+                  <div className="company">{t.Title}</div>
+                  <div className="subtitle">{t.SubTitle}</div>
+                  <div className="desc">{t.Description}</div>
                 </div>
+              </a>
 
-                {/* DESCRIPTION */}
-                <div style={{
-                  color: "#333",
-                  lineHeight: 1.6,
-                  marginBottom: 20
-                }}>
-                  {t.Description}
-                </div>
+            )
+          ))}
 
-                {/* BUTTON */}
-                {t.Link && (
-                  <a
-                    href={t.Link}
-                    target="_blank"
-                    style={{
-                      marginTop: "auto",
-                      alignSelf: "flex-end",
-                      background: "#1e3a8a",
-                      color: "white",
-                      padding: "10px 18px",
-                      borderRadius: 8,
-                      textDecoration: "none",
-                      fontWeight: 600
-                    }}
-                  >
-                    {t.ButtonLabel || "View Job"}
-                  </a>
-                )}
-              </>
-            )}
-          </div>
-        ))}
+        </div>
+
       </div>
 
-      {/* SMALL EDIT BUTTON */}
       {!editMode && (
-        <button
-          onClick={unlock}
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            width: 46,
-            height: 46,
-            borderRadius: "50%",
-            background: "#0f172a",
-            color: "white",
-            border: "none",
-            opacity: 0.4,
-            cursor: "pointer"
-          }}
-        >
+        <button className="editBtn" onClick={unlock}>
           ⚙
         </button>
       )}
-
-    </div>
+    </>
   );
 }
