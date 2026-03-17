@@ -49,18 +49,18 @@ export default function JobsPage() {
     setEdit(false);
   }
 
- function addJob() {
-  setJobs([
-    {
-      id: 0,
-      Title: "New Company",
-      SubTitle: "Position",
-      Description: "Job description",
-      Link: "#",
-    },
-    ...jobs,
-  ]);
-}
+  function addJob() {
+    setJobs([
+      {
+        id: 0,
+        Title: "New Company",
+        SubTitle: "Position",
+        Description: "Job description",
+        Link: "#",
+      },
+      ...jobs,
+    ]);
+  }
 
   async function deleteJob(id: number) {
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
@@ -70,6 +70,20 @@ export default function JobsPage() {
   function unlockAdmin() {
     const p = prompt("Admin password:");
     if (p === ADMIN_PASSWORD) setEdit(true);
+  }
+
+  // ✅ MOVE UP / DOWN
+  function moveJob(index: number, direction: number) {
+    const newJobs = [...jobs];
+    const target = index + direction;
+
+    if (target < 0 || target >= newJobs.length) return;
+
+    const temp = newJobs[index];
+    newJobs[index] = newJobs[target];
+    newJobs[target] = temp;
+
+    setJobs(newJobs);
   }
 
   return (
@@ -128,8 +142,8 @@ export default function JobsPage() {
           gap: 28,
         }}
       >
-        {jobs.map((t) => (
-          <div key={t.id}>
+        {jobs.map((t, i) => (
+          <div key={i}>
             {!edit ? (
               <a
                 href={t.Link}
@@ -194,6 +208,12 @@ export default function JobsPage() {
                   boxShadow: "0 8px 22px rgba(0,0,0,.12)",
                 }}
               >
+                {/* MOVE BUTTONS */}
+                <div style={{ marginBottom: 8 }}>
+                  <button onClick={() => moveJob(i, -1)}>▲</button>{" "}
+                  <button onClick={() => moveJob(i, 1)}>▼</button>
+                </div>
+
                 <input
                   value={t.Title}
                   onChange={(e) =>
@@ -235,7 +255,7 @@ export default function JobsPage() {
         ))}
       </div>
 
-      {/* ⚙ ADMIN GEAR */}
+      {/* ADMIN GEAR */}
       {!edit && (
         <button
           onClick={unlockAdmin}
