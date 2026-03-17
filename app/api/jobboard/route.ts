@@ -19,7 +19,7 @@ export async function GET() {
 }
 
 //
-// POST — add new tile
+// POST — add new tile (TOP of list)
 //
 export async function POST(req: Request) {
   const body = await req.json();
@@ -27,12 +27,15 @@ export async function POST(req: Request) {
   const db = await mysql.createConnection(dbConfig);
 
   // Shift positions down
-  await db.query("UPDATE JobBoard SET Position = Position + 1");
+  await db.query(
+    "UPDATE JobBoard SET Position = Position + 1 WHERE Active = 1"
+  );
 
+  // Insert new job at position 1
   await db.query(
     `INSERT INTO JobBoard
-    (Title, SubTitle, Description, ButtonLabel, Link, Type, Position, Active)
-    VALUES (?, ?, ?, ?, ?, ?, 1, 1)`,
+     (Title, SubTitle, Description, ButtonLabel, Link, Type, Position, Active)
+     VALUES (?, ?, ?, ?, ?, ?, 1, 1)`,
     [
       body.Title || "New Job Listing",
       body.SubTitle || "",
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
 }
 
 //
-// PATCH — save edits + order
+// PATCH — save edits + order (FIXED — handles NEW rows)
 //
 export async function PATCH(req: Request) {
   const tiles = await req.json();
@@ -58,27 +61,48 @@ export async function PATCH(req: Request) {
   for (let i = 0; i < tiles.length; i++) {
     const t = tiles[i];
 
-    await db.query(
-      `UPDATE JobBoard SET
-        Title=?,
-        SubTitle=?,
-        Description=?,
-        ButtonLabel=?,
-        Link=?,
-        Type=?,
-        Position=?
-       WHERE id=?`,
-      [
-        t.Title,
-        t.SubTitle,
-        t.Description,
-        t.ButtonLabel || "Apply",
-        t.Link,
-        t.Type || "General",
-        i + 1,
-        t.id
-      ]
-    );
+    // NEW TILE → INSERT
+    if (!t.id || t.id === 0) {
+      await db.query(
+        `INSERT INTO JobBoard
+        (Title, SubTitle, Description, ButtonLabel, Link, Type, Position, Active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+        [
+          t.Title || "New Job Listing",
+          t.SubTitle || "",
+          t.Description || "",
+          t.ButtonLabel || "Apply",
+          t.Link || "#",
+          t.Type || "General",
+          i + 1
+        ]
+      );
+    }
+
+    // EXISTING TILE → UPDATE
+    else {
+      await db.query(
+        `UPDATE JobBoard SET
+          Title=?,
+          SubTitle=?,
+          Description=?,
+          ButtonLabel=?,
+          Link=?,
+          Type=?,
+          Position=?
+         WHERE id=?`,
+        [
+          t.Title,
+          t.SubTitle,
+          t.Description,
+          t.ButtonLabel || "Apply",
+          t.Link,
+          t.Type || "General",
+          i + 1,
+          t.id
+        ]
+      );
+    }
   }
 
   await db.end();
@@ -86,7 +110,7 @@ export async function PATCH(req: Request) {
 }
 
 //
-// DELETE — remove tile
+// DELETE — remove tile permanently
 //
 export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
