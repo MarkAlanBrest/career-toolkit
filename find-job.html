@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Find a Job | New Castle School of Trades</title>
 
-
-
 <style>
 
 body{
@@ -18,65 +16,101 @@ body{
 .header{
     background:#0f172a;
     color:white;
-    padding:25px;
-    text-align:center;
-}
-
-.intro{
-    background:white;
-    padding:20px;
-    margin:30px auto;
-    max-width:1000px;
-    border-radius:8px;
-    box-shadow:0 4px 10px rgba(0,0,0,.08);
+    padding:28px;
     text-align:center;
 }
 
 .container{
-    max-width:1100px;
+    max-width:1150px;
     margin:auto;
     padding:20px;
 }
 
 .section{
-    margin-bottom:40px;
+    margin-bottom:55px;
 }
 
 .section h2{
-    border-bottom:3px solid #1e3a8a;
+    border-bottom:4px solid #1e3a8a;
     padding-bottom:8px;
+    margin-bottom:8px;
+    color:#0f172a;
 }
 
-.card{
-    display:block;
+.section p{
+    margin-top:0;
+    margin-bottom:18px;
+    color:#444;
+}
+
+.tile-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    gap:20px;
+}
+
+.tile{
     background:white;
-    padding:20px;
-    margin-top:15px;
-    border-radius:8px;
-    box-shadow:0 4px 10px rgba(0,0,0,.08);
+    border-radius:10px;
+    padding:18px;
+    box-shadow:0 6px 16px rgba(0,0,0,.08);
+    transition:.25s;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
     text-decoration:none;
     color:#000;
-    transition:.2s;
 }
 
-.card:hover{
-    transform:translateY(-4px);
-    box-shadow:0 8px 18px rgba(0,0,0,.15);
+.tile:hover{
+    transform:translateY(-5px);
+    box-shadow:0 10px 22px rgba(0,0,0,.15);
 }
 
-.card h3{
-    margin:0;
+.company{
+    font-weight:bold;
     color:#1e3a8a;
+    font-size:18px;
 }
 
-.card p{
-    margin:8px 0 0 0;
-}
-
-.tip{
-    margin-top:10px;
+.location{
     font-size:14px;
     color:#555;
+    margin-bottom:8px;
+}
+
+.title{
+    font-weight:bold;
+    margin:8px 0;
+}
+
+.details{
+    font-size:14px;
+    color:#333;
+    margin-bottom:14px;
+}
+
+.action-btn{
+    background:#1e3a8a;
+    color:white;
+    text-align:center;
+    padding:10px;
+    border-radius:6px;
+    font-weight:bold;
+}
+
+.action-btn:hover{
+    background:#0f2563;
+}
+
+.back{
+    margin-bottom:20px;
+}
+
+.back a{
+    text-decoration:none;
+    color:#1e3a8a;
+    font-weight:bold;
 }
 
 </style>
@@ -86,13 +120,7 @@ body{
 
 <div class="header">
 <h1>New Castle School of Trades</h1>
-<p>Find a Job – Online Job Search Resources</p>
-</div>
-
-
-<div class="intro">
-<p><strong>Use the resources below to search for employment opportunities.</strong>  
-These websites and local listings are commonly used by employers to advertise open positions.</p>
+<p>Student Job Placement Resources</p>
 </div>
 
 <div class="container">
@@ -100,103 +128,196 @@ These websites and local listings are commonly used by employers to advertise op
 <div class="back">
 <a href="index.html">← Back to Dashboard</a>
 </div>
-<div class="container">
 
-<!-- Major Job Boards -->
+<!-- ========================================================= -->
+<!-- LOCAL EMPLOYERS -->
+<!-- ========================================================= -->
 
 <div class="section">
-<h2>Major Job Boards</h2>
+<h2>Local Employers Hiring Now</h2>
+<p>Positions reported directly to Career Services. Contact us for referral and application assistance.</p>
 
-<a class="card" href="https://www.indeed.com" target="_blank">
-<h3>Indeed</h3>
-<p>One of the largest job search websites with millions of listings.</p>
-<div class="tip">Tip: Search by job title and location. Upload your resume so employers can find you.</div>
+<div class="tile-grid">
+
+<div class="tile">
+<div>
+<div class="company">SteelWorks Fabrication</div>
+<div class="location">Youngstown, OH</div>
+<div class="title">Entry-Level Welder</div>
+<div class="details">MIG welding. Full benefits after 90 days.</div>
+</div>
+<div class="action-btn">Contact Career Services</div>
+</div>
+
+<div class="tile">
+<div>
+<div class="company">Tri-State HVAC Solutions</div>
+<div class="location">Sharon, PA</div>
+<div class="title">HVAC Installer Apprentice</div>
+<div class="details">Paid training. No experience required.</div>
+</div>
+<div class="action-btn">Contact Career Services</div>
+</div>
+
+<div class="tile">
+<div>
+<div class="company">Precision Auto Repair</div>
+<div class="location">New Castle, PA</div>
+<div class="title">Automotive Technician</div>
+<div class="details">ASE preferred. Competitive hourly pay.</div>
+</div>
+<div class="action-btn">Contact Career Services</div>
+</div>
+
+</div>
+</div>
+
+<!-- ========================================================= -->
+<!-- MAJOR JOB SITES -->
+<!-- ========================================================= -->
+
+<div class="section">
+<h2>Major Job Search Websites</h2>
+<p>Large national platforms with the highest volume of job postings across all industries.</p>
+
+<div class="tile-grid">
+
+<a class="tile" href="https://www.indeed.com" target="_blank">
+<div>
+<div class="company">Indeed</div>
+<div class="details">Millions of listings nationwide.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.linkedin.com/jobs" target="_blank">
-<h3>LinkedIn Jobs</h3>
-<p>Professional networking site with job listings and employer connections.</p>
-<div class="tip">Tip: Create a strong LinkedIn profile and connect with employers in your field.</div>
+<a class="tile" href="https://www.linkedin.com/jobs" target="_blank">
+<div>
+<div class="company">LinkedIn Jobs</div>
+<div class="details">Professional networking and employer connections.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.ziprecruiter.com" target="_blank">
-<h3>ZipRecruiter</h3>
-<p>Job board used by many employers across the country.</p>
-<div class="tip">Tip: Set up job alerts so new positions are emailed to you automatically.</div>
+<a class="tile" href="https://www.ziprecruiter.com" target="_blank">
+<div>
+<div class="company">ZipRecruiter</div>
+<div class="details">Employers often reach out directly to candidates.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.glassdoor.com" target="_blank">
-<h3>Glassdoor</h3>
-<p>Job listings plus company reviews and salary information.</p>
-<div class="tip">Tip: Research companies before applying to learn about work culture and pay.</div>
+<a class="tile" href="https://www.glassdoor.com" target="_blank">
+<div>
+<div class="company">Glassdoor</div>
+<div class="details">Jobs plus company reviews and salary data.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
 </div>
+</div>
 
-
-<!-- Trade Job Boards -->
+<!-- ========================================================= -->
+<!-- TRADE JOB SITES -->
+<!-- ========================================================= -->
 
 <div class="section">
-<h2>Trade and Skilled Labor Jobs</h2>
+<h2>Trade & Skilled Labor Job Boards</h2>
+<p>Focused on construction, manufacturing, mechanical, and industrial careers.</p>
 
-<a class="card" href="https://www.constructionjobs.com" target="_blank">
-<h3>ConstructionJobs.com</h3>
-<p>Jobs focused on construction and skilled trades.</p>
-<div class="tip">Tip: Search by trade such as welding, HVAC, electrical, or carpentry.</div>
+<div class="tile-grid">
+
+<a class="tile" href="https://www.roadtechs.com" target="_blank">
+<div>
+<div class="company">Roadtechs</div>
+<div class="details">Industrial and traveling trade jobs.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.roadtechs.com" target="_blank">
-<h3>Roadtechs</h3>
-<p>Industrial, mechanical, and traveling trade jobs.</p>
-<div class="tip">Tip: Many positions involve travel and can offer higher pay.</div>
+<a class="tile" href="https://www.ihireconstruction.com" target="_blank">
+<div>
+<div class="company">iHireConstruction</div>
+<div class="details">Construction industry job listings.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.ihireconstruction.com" target="_blank">
-<h3>iHireConstruction</h3>
-<p>Construction industry job listings.</p>
-<div class="tip">Tip: Upload your resume so employers can contact you directly.</div>
+<a class="tile" href="https://www.constructionjobs.com" target="_blank">
+<div>
+<div class="company">ConstructionJobs.com</div>
+<div class="details">Specialized construction employment board.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
 </div>
+</div>
 
-
-<!-- Government Jobs -->
+<!-- ========================================================= -->
+<!-- GOVERNMENT JOBS -->
+<!-- ========================================================= -->
 
 <div class="section">
-<h2>Government Jobs</h2>
+<h2>Government Employment</h2>
+<p>Federal, state, and local public-sector careers with strong benefits and stability.</p>
 
-<a class="card" href="https://www.usajobs.gov" target="_blank">
-<h3>USAJobs</h3>
-<p>The official job site for federal government positions.</p>
-<div class="tip">Tip: Federal jobs often include strong benefits and long-term career stability.</div>
+<div class="tile-grid">
+
+<a class="tile" href="https://www.usajobs.gov" target="_blank">
+<div>
+<div class="company">USAJobs</div>
+<div class="details">Official federal government job portal.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
-<a class="card" href="https://www.governmentjobs.com" target="_blank">
-<h3>GovernmentJobs.com</h3>
-<p>State and local government job listings.</p>
-<div class="tip">Tip: Search for city, county, and state employment opportunities.</div>
+<a class="tile" href="https://www.governmentjobs.com" target="_blank">
+<div>
+<div class="company">GovernmentJobs.com</div>
+<div class="details">State, county, and municipal positions.</div>
+</div>
+<div class="action-btn">Open Site</div>
 </a>
 
 </div>
+</div>
 
-
-<!-- Local Resources -->
+<!-- ========================================================= -->
+<!-- NEWSPAPER LISTINGS (BOTTOM) -->
+<!-- ========================================================= -->
 
 <div class="section">
-<h2>Local Job Listings</h2>
+<h2>Local Newspaper Job Listings</h2>
+<p>Additional regional job advertisements from local newspapers and classified listings.</p>
 
-<a class="card" href="https://www.vindy.com/classifieds/jobs/" target="_blank">
-<h3>The Vindicator Job Listings</h3>
-<p>Local job advertisements from the Youngstown area.</p>
-<div class="tip">Tip: Many small local employers still advertise jobs in local newspapers.</div>
+<div class="tile-grid">
+
+<a class="tile" href="https://www.ncnewsonline.com/classifieds/" target="_blank">
+<div>
+<div class="company">New Castle News</div>
+<div class="details">Lawrence County classifieds.</div>
+</div>
+<div class="action-btn">View Listings</div>
 </a>
 
-<a class="card" href="https://www.sharonherald.com/classifieds/jobs/" target="_blank">
-<h3>The Sharon Herald Job Listings</h3>
-<p>Local job listings serving Mercer County and surrounding areas.</p>
-<div class="tip">Tip: Check local newspapers regularly for regional job openings.</div>
+<a class="tile" href="https://www.sharonherald.com/classifieds/" target="_blank">
+<div>
+<div class="company">The Herald (Sharon)</div>
+<div class="details">Mercer County regional classifieds.</div>
+</div>
+<div class="action-btn">View Listings</div>
 </a>
 
+<a class="tile" href="https://www.vindy.com/classifieds/" target="_blank">
+<div>
+<div class="company">The Vindicator</div>
+<div class="details">Youngstown area job postings.</div>
+</div>
+<div class="action-btn">View Listings</div>
+</a>
+
+</div>
 </div>
 
 </div>
