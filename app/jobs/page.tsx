@@ -2,138 +2,269 @@
 
 import { useEffect, useState } from "react";
 
-export default function JobsPage() {
-  const [tiles, setTiles] = useState([]);
+type Tile = {
+  id: number;
+  Title: string;
+  SubTitle: string;
+  Description: string;
+  ButtonLabel: string;
+  Link: string;
+  Position: number;
+};
 
+export default function JobsPage() {
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const [original, setOriginal] = useState<Tile[]>([]);
+  const [editMode, setEditMode] = useState(false);
+
+  const PASSWORD = "ncst-admin";
+
+  // LOAD FROM API
   useEffect(() => {
     fetch("/api/jobboard")
       .then(r => r.json())
-      .then(setTiles)
-      .catch(() => alert("Failed to load job listings."));
+      .then(data => {
+        setTiles(data);
+        setOriginal(data);
+      });
   }, []);
 
+  function unlock() {
+    const p = prompt("Admin password:");
+    if (p === PASSWORD) setEditMode(true);
+  }
+
+  async function addTile() {
+    await fetch("/api/jobboard", {
+      method: "POST",
+      body: JSON.stringify({ Title: "New Job", Description: "" })
+    });
+    location.reload();
+  }
+
+  async function saveChanges() {
+    await fetch("/api/jobboard", {
+      method: "PATCH",
+      body: JSON.stringify(tiles)
+    });
+    setEditMode(false);
+    location.reload();
+  }
+
+  function cancelChanges() {
+    setTiles(original);
+    setEditMode(false);
+  }
+
+  async function deleteTile(id: number) {
+    if (!confirm("Delete this job?")) return;
+
+    await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
+    setTiles(tiles.filter(t => t.id !== id));
+  }
+
+  function onDragStart(e: any, i: number) {
+    e.dataTransfer.setData("i", i);
+  }
+
+  function onDrop(e: any, i: number) {
+    const from = Number(e.dataTransfer.getData("i"));
+    const copy = [...tiles];
+    const [moved] = copy.splice(from, 1);
+    copy.splice(i, 0, moved);
+    setTiles(copy);
+  }
+
   return (
-    <>
-      <style>{`
-        body{
-          margin:0;
-          font-family: Arial, Helvetica, sans-serif;
-          background: linear-gradient(135deg,#cbd5f5,#94a3b8);
-        }
+    <div style={{ background: "#f1f5f9", minHeight: "100vh", padding: 30 }}>
+      <h1 style={{ textAlign: "center", marginBottom: 30 }}>
+        Student Job Placement Resources
+      </h1>
 
-        .header{
-          background:#0f172a;
-          color:white;
-          padding:30px;
-          text-align:center;
-        }
+      {/* ADMIN TOOLBAR */}
+      {editMode && (
+        <div style={{ textAlign: "center", marginBottom: 25 }}>
+          <button onClick={addTile}>Add New Job</button>{" "}
+          <button onClick={saveChanges}>Save Changes</button>{" "}
+          <button onClick={cancelChanges}>Cancel</button>
+        </div>
+      )}
 
-        .container{
-          max-width:1100px;
-          margin:auto;
-          padding:40px 20px;
-        }
+      {/* JOB GRID */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 25,
+          maxWidth: 1200,
+          margin: "auto"
+        }}
+      >
+        {tiles.map((t, i) => (
+          <div
+            key={t.id}
+            draggable={editMode}
+            onDragStart={e => onDragStart(e, i)}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => onDrop(e, i)}
+            style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow: "0 8px 20px rgba(0,0,0,.12)",
+              display: "flex",
+              flexDirection: "column",
+              minHeight: 220,
+              position: "relative"
+            }}
+          >
+            {editMode ? (
+              <>
+                <input
+                  value={t.Title}
+                  onChange={e =>
+                    setTiles(prev =>
+                      prev.map(x =>
+                        x.id === t.id
+                          ? { ...x, Title: e.target.value }
+                          : x
+                      )
+                    )
+                  }
+                  placeholder="Job Title"
+                />
 
-        .grid{
-          display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-          gap:25px;
-        }
+                <input
+                  value={t.SubTitle || ""}
+                  onChange={e =>
+                    setTiles(prev =>
+                      prev.map(x =>
+                        x.id === t.id
+                          ? { ...x, SubTitle: e.target.value }
+                          : x
+                      )
+                    )
+                  }
+                  placeholder="Company / Location"
+                />
 
-        .card{
-          background:white;
-          border-radius:14px;
-          padding:24px;
-          box-shadow:0 6px 18px rgba(0,0,0,.12);
-          display:flex;
-          flex-direction:column;
-          justify-content:space-between;
-          transition:.25s;
-        }
+                <textarea
+                  value={t.Description || ""}
+                  onChange={e =>
+                    setTiles(prev =>
+                      prev.map(x =>
+                        x.id === t.id
+                          ? { ...x, Description: e.target.value }
+                          : x
+                      )
+                    )
+                  }
+                  placeholder="Description"
+                />
 
-        .card:hover{
-          transform:translateY(-5px);
-          background:#eff6ff;
-        }
+                <input
+                  value={t.ButtonLabel || ""}
+                  onChange={e =>
+                    setTiles(prev =>
+                      prev.map(x =>
+                        x.id === t.id
+                          ? { ...x, ButtonLabel: e.target.value }
+                          : x
+                      )
+                    )
+                  }
+                  placeholder="Button Label"
+                />
 
-        .title{
-          font-size:20px;
-          color:#1e3a8a;
-          font-weight:bold;
-          margin-bottom:6px;
-        }
+                <input
+                  value={t.Link || ""}
+                  onChange={e =>
+                    setTiles(prev =>
+                      prev.map(x =>
+                        x.id === t.id
+                          ? { ...x, Link: e.target.value }
+                          : x
+                      )
+                    )
+                  }
+                  placeholder="Link URL"
+                />
 
-        .subtitle{
-          color:#666;
-          margin-bottom:10px;
-          font-size:14px;
-        }
+                <button onClick={() => deleteTile(t.id)}>
+                  Delete
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: "#1e3a8a",
+                      marginBottom: 6
+                    }}
+                  >
+                    {t.Title}
+                  </div>
 
-        .desc{
-          font-size:15px;
-          color:#444;
-          margin-bottom:18px;
-        }
+                  {t.SubTitle && (
+                    <div style={{ color: "#555", marginBottom: 8 }}>
+                      {t.SubTitle}
+                    </div>
+                  )}
 
-        .btn{
-          align-self:flex-start;
-          background:#1e3a8a;
-          color:white;
-          padding:10px 18px;
-          border-radius:6px;
-          text-decoration:none;
-          font-weight:600;
-        }
+                  <div style={{ color: "#333" }}>
+                    {t.Description}
+                  </div>
+                </div>
 
-        .btn:hover{
-          background:#1e40af;
-        }
-
-        .footer{
-          text-align:center;
-          margin-top:40px;
-          color:#333;
-          font-size:14px;
-        }
-      `}</style>
-
-      <div className="header">
-        <h1>Student Job Placement Resources</h1>
-        <p>Opportunities and job search tools</p>
-      </div>
-
-      <div className="container">
-
-        <div className="grid">
-          {tiles.map(t => (
-            <div key={t.id} className="card">
-
-              <div>
-                <div className="title">{t.Title}</div>
-                {t.SubTitle && (
-                  <div className="subtitle">{t.SubTitle}</div>
+                {t.Link && (
+                  <a
+                    href={t.Link}
+                    target="_blank"
+                    style={{
+                      marginTop: "auto",
+                      alignSelf: "flex-end",
+                      background: "#1e3a8a",
+                      color: "white",
+                      padding: "8px 16px",
+                      borderRadius: 6,
+                      textDecoration: "none",
+                      fontWeight: 600
+                    }}
+                  >
+                    {t.ButtonLabel || "View"}
+                  </a>
                 )}
-                <div className="desc">{t.Description}</div>
-              </div>
-
-              <a
-                href={t.Link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn"
-              >
-                {t.ButtonLabel || "Open"}
-              </a>
-
-            </div>
-          ))}
-        </div>
-
-        <div className="footer">
-          New Castle School of Trades | Career Services
-        </div>
-
+              </>
+            )}
+          </div>
+        ))}
       </div>
-    </>
+
+      {/* SMALL EDIT BUTTON */}
+      {!editMode && (
+        <button
+          onClick={unlock}
+          style={{
+            position: "fixed",
+            bottom: 18,
+            right: 18,
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: "#0f172a",
+            color: "white",
+            border: "none",
+            opacity: 0.35,
+            fontSize: 18,
+            cursor: "pointer"
+          }}
+        >
+          ⚙
+        </button>
+      )}
+    </div>
   );
 }
