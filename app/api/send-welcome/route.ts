@@ -31,4 +31,4 @@ export async function POST(req: Request) {
   } catch (err) {
     return new Response("Email failed", { status: 500 });
   }
-}
+} 
