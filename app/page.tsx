@@ -1,3 +1,7 @@
+"use client";
+
+import Link from "next/link";
+
 export default function Page() {
   return (
     <>
@@ -104,54 +108,61 @@ export default function Page() {
 
         <div className="grid">
 
-          {/* FIXED — goes to your Jobs Board */}
+          {/* Jobs Board */}
           <a className="card" href="/jobs">
             <div className="icon">🔎</div>
             <h2>Find a Job</h2>
             <p>Search job boards, trade sites, and government job listings.</p>
           </a>
 
+          {/* Resume Builder */}
           <a className="card" href="https://resume-builder-one-gules-56.vercel.app/" target="_blank">
             <div className="icon">📄</div>
             <h2>Resume Builder</h2>
             <p>Create a professional resume using our guided builder.</p>
           </a>
 
+          {/* Cover Letter Creator */}
           <a className="card" href="https://cover-letter-ai-cyan.vercel.app/" target="_blank">
             <div className="icon">✉️</div>
             <h2>Cover Letter Creator</h2>
             <p>Generate a customized cover letter for the job you want.</p>
           </a>
 
+          {/* Practice Interview */}
           <a className="card" href="https://interview-ob8v.vercel.app/" target="_blank">
             <div className="icon">🎤</div>
             <h2>Practice Interview</h2>
             <p>Practice answering interview questions and improve your confidence.</p>
           </a>
 
-          <a className="card" href="follow-up.html">
+          {/* FIXED — Follow-Up Letters */}
+          <Link className="card" href="/followup">
             <div className="icon">📬</div>
             <h2>Follow-Up & Thank-You Letters</h2>
             <p>Create professional follow-up emails and thank-you letters.</p>
-          </a>
+          </Link>
 
-          <a className="card" href="job-tips.html">
+          {/* FIXED — Job Tips */}
+          <Link className="card" href="/jobtips">
             <div className="icon">💡</div>
             <h2>Job Search Tips</h2>
             <p>Learn strategies that help job seekers stand out and get hired.</p>
-          </a>
+          </Link>
 
+          {/* Certifications */}
           <a className="card" href="https://safety-training-platform-eta.vercel.app/" target="_blank">
             <div className="icon">🏆</div>
             <h2>Earn Certifications</h2>
             <p>Complete short career certifications offered by the school.</p>
           </a>
 
-          <a className="card" href="career-services.html">
+          {/* FIXED — Career Services */}
+          <Link className="card" href="/careerservices">
             <div className="icon">👩‍💼</div>
             <h2>Contact Career Services</h2>
             <p>Need help? Connect with our career advisors.</p>
-          </a>
+          </Link>
 
         </div>
 
