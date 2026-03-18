@@ -253,22 +253,20 @@ export default function JobsPage() {
                     }}
                   />
 
-             {/* DESCRIPTION */}
-                <div
-                style={{
-                    fontSize: 15,
-                    lineHeight: 1.55,
-                    color: "#4b5563",
-                    whiteSpace: "pre-line",   // ← THIS FIXES BULLETS + LINE BREAKS
-                }}
-                >
-                {t.Description}
-                </div>
-
-
-                  >
+                  {/* DESCRIPTION */}
+                  <div
+                    style={{
+                        fontSize: 15,
+                        lineHeight: 1.55,
+                        color: "#4b5563",
+                        whiteSpace: "pre-wrap",   // ← THIS IS THE FIX
+                    }}
+                    >
                     {t.Description}
-                  </div>
+                    </div>
+
+
+
 
                   {/* APPLY LINK */}
                   <div
