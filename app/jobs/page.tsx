@@ -8,8 +8,8 @@ type Job = {
   SubTitle: string;
   Description: string;
   Link: string;
-  ButtonLabel: string;   
-  Type: number;         
+  ButtonLabel: string;
+  Type: number;
 };
 
 const ADMIN_PASSWORD = "ncst-admin";
@@ -30,7 +30,7 @@ export default function JobsPage() {
     setOriginal(data);
   }
 
-  function updateField(id: number, field: keyof Job, value: string) {
+  function updateField(id: number, field: keyof Job, value: any) {
     setJobs((prev) =>
       prev.map((j) => (j.id === id ? { ...j, [field]: value } : j))
     );
@@ -51,8 +51,6 @@ export default function JobsPage() {
     setEdit(false);
   }
 
-
-
   function addJob() {
     setJobs([
       {
@@ -61,16 +59,13 @@ export default function JobsPage() {
         SubTitle: "Position",
         Description: "Job description",
         Link: "#",
-     ButtonLabel: "Click for Details",
-      Type: 1,
-    
+        ButtonLabel: "Click for Details",
+        Type: 1,
       },
       ...jobs,
     ]);
   }
 
-  
-  
   async function deleteJob(id: number) {
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
     load();
@@ -84,7 +79,6 @@ export default function JobsPage() {
   function moveJob(index: number, direction: number) {
     const newJobs = [...jobs];
     const target = index + direction;
-
     if (target < 0 || target >= newJobs.length) return;
 
     const temp = newJobs[index];
@@ -130,7 +124,14 @@ export default function JobsPage() {
         </p>
 
         {edit && (
-          <div style={{ marginTop: 18, display: "flex", gap: 12, justifyContent: "center" }}>
+          <div
+            style={{
+              marginTop: 18,
+              display: "flex",
+              gap: 12,
+              justifyContent: "center",
+            }}
+          >
             <button
               onClick={save}
               style={{
@@ -202,7 +203,7 @@ export default function JobsPage() {
                 rel="noopener noreferrer"
                 style={{ textDecoration: "none", color: "inherit" }}
               >
-                {/* NEWSPAPER-STYLE TILE */}
+                {/* TILE */}
                 <div
                   style={{
                     background: "white",
@@ -213,8 +214,9 @@ export default function JobsPage() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 12,
-                    minHeight: 340,   // ← NEW LINE
-                    transition: "transform .15s ease, box-shadow .15s ease",
+                    minHeight: 340,
+                    transition:
+                      "transform .15s ease, box-shadow .15s ease",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-3px)";
@@ -228,8 +230,17 @@ export default function JobsPage() {
                   }}
                 >
                   {/* ICON + TITLE */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 22, color: "#1e3a8a" }}>💼</span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 22, color: "#1e3a8a" }}>
+                      💼
+                    </span>
+
                     <div
                       style={{
                         fontSize: 20,
@@ -265,17 +276,14 @@ export default function JobsPage() {
                   {/* DESCRIPTION */}
                   <div
                     style={{
-                        fontSize: 15,
-                        lineHeight: 1.55,
-                        color: "#4b5563",
-                        whiteSpace: "pre-wrap",   // ← THIS IS THE FIX
+                      fontSize: 15,
+                      lineHeight: 1.55,
+                      color: "#4b5563",
+                      whiteSpace: "pre-wrap",
                     }}
-                    >
+                  >
                     {t.Description}
-                    </div>
-
-
-
+                  </div>
 
                   {/* APPLY LINK */}
                   <div
@@ -309,7 +317,13 @@ export default function JobsPage() {
                 }}
               >
                 {/* MOVE BUTTONS */}
-                <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+                <div
+                  style={{
+                    marginBottom: 12,
+                    display: "flex",
+                    gap: 8,
+                  }}
+                >
                   <button
                     onClick={() => moveJob(i, -1)}
                     style={{
@@ -339,38 +353,42 @@ export default function JobsPage() {
                   </button>
                 </div>
 
+                {/* TITLE */}
+                <label style={{ fontWeight: 600 }}>Title</label>
                 <input
                   value={t.Title}
                   onChange={(e) =>
                     updateField(t.id, "Title", e.target.value)
                   }
-                  style={{ width: "100%", marginBottom: 6 }}
+                  style={{ width: "100%", marginBottom: 10 }}
                 />
 
+                {/* SUBTITLE */}
+                <label style={{ fontWeight: 600 }}>Subtitle</label>
                 <input
                   value={t.SubTitle}
                   onChange={(e) =>
                     updateField(t.id, "SubTitle", e.target.value)
                   }
-                  style={{ width: "100%", marginBottom: 6 }}
+                  style={{ width: "100%", marginBottom: 10 }}
                 />
 
+                {/* DESCRIPTION */}
+                <label style={{ fontWeight: 600 }}>Description</label>
                 <textarea
                   value={t.Description}
                   onChange={(e) =>
                     updateField(t.id, "Description", e.target.value)
                   }
-                  style={{ width: "100%", marginBottom: 6 }}
+                  style={{
+                    width: "100%",
+                    marginBottom: 10,
+                    minHeight: 120,
+                  }}
                 />
 
-                <input
-                  value={t.ButtonLabel}
-                  onChange={(e) =>
-                    updateField(t.id, "ButtonLabel", e.target.value)
-                  }
-                  style={{ width: "100%", marginBottom: 6 }}
-                />
-
+                {/* LINK */}
+                <label style={{ fontWeight: 600 }}>Website URL</label>
                 <input
                   value={t.Link}
                   onChange={(e) =>
@@ -378,18 +396,25 @@ export default function JobsPage() {
                   }
                   style={{ width: "100%", marginBottom: 10 }}
                 />
-            
 
+                {/* HIDDEN FIELDS */}
                 <input
-                value={t.Link}
-                onChange={(e) =>
-                    updateField(t.id, "Link", e.target.value)
-                }
-                style={{ width: "100%", marginBottom: 10 }}
+                  type="hidden"
+                  value={t.ButtonLabel ?? "Click for Details"}
+                  onChange={(e) =>
+                    updateField(t.id, "ButtonLabel", e.target.value)
+                  }
                 />
 
+                <input
+                  type="hidden"
+                  value={t.Type ?? 1}
+                  onChange={(e) =>
+                    updateField(t.id, "Type", Number(e.target.value))
+                  }
+                />
 
-
+                {/* DELETE */}
                 <button
                   onClick={() => deleteJob(t.id)}
                   style={{
@@ -400,6 +425,7 @@ export default function JobsPage() {
                     borderRadius: 6,
                     cursor: "pointer",
                     fontSize: 14,
+                    marginTop: 10,
                   }}
                 >
                   Delete
