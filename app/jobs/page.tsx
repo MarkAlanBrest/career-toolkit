@@ -8,6 +8,8 @@ type Job = {
   SubTitle: string;
   Description: string;
   Link: string;
+  ButtonLabel: string;   
+  Type: number;         
 };
 
 const ADMIN_PASSWORD = "ncst-admin";
@@ -49,6 +51,8 @@ export default function JobsPage() {
     setEdit(false);
   }
 
+
+
   function addJob() {
     setJobs([
       {
@@ -57,11 +61,16 @@ export default function JobsPage() {
         SubTitle: "Position",
         Description: "Job description",
         Link: "#",
+     ButtonLabel: "Click for Details",
+      Type: 1,
+    
       },
       ...jobs,
     ]);
   }
 
+  
+  
   async function deleteJob(id: number) {
     await fetch(`/api/jobboard?id=${id}`, { method: "DELETE" });
     load();
@@ -355,12 +364,31 @@ export default function JobsPage() {
                 />
 
                 <input
+                  value={t.ButtonLabel}
+                  onChange={(e) =>
+                    updateField(t.id, "ButtonLabel", e.target.value)
+                  }
+                  style={{ width: "100%", marginBottom: 6 }}
+                />
+
+                <input
                   value={t.Link}
                   onChange={(e) =>
                     updateField(t.id, "Link", e.target.value)
                   }
                   style={{ width: "100%", marginBottom: 10 }}
                 />
+            
+
+                <input
+                value={t.Link}
+                onChange={(e) =>
+                    updateField(t.id, "Link", e.target.value)
+                }
+                style={{ width: "100%", marginBottom: 10 }}
+                />
+
+
 
                 <button
                   onClick={() => deleteJob(t.id)}
