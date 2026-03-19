@@ -1,4 +1,5 @@
 "use client";
+import html2pdf from "html2pdf.js";
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -603,26 +604,31 @@ useEffect(() => {
       ? `${slide.certificateIdField}-${recordId ?? "0000"}`
       : `CERT-${recordId ?? "0000"}`;
 
-  const downloadPDF = async () => {
-    const html2pdf = (await import("html2pdf.js")).default;
 
-    const element = document.getElementById("certificate");
-    if (!element) return;
 
-    html2pdf()
-      .set({
-        margin: 0.5,
-        filename: `${slide.courseName}-Certificate.pdf`,
-        html2canvas: { scale: 2 },
-        jsPDF: {
-          unit: "in",
-          format: "letter",
-          orientation: "landscape",
-        },
-      })
-      .from(element)
-      .save();
-  };
+
+const downloadPDF = () => {
+  const element = document.getElementById("certificate");
+
+  if (!element) {
+    alert("Certificate not found.");
+    return;
+  }
+
+  html2pdf()
+    .set({
+      margin: 0.5,
+      filename: "Certificate.pdf",
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: {
+        unit: "in",
+        format: "letter",
+        orientation: "landscape",
+      },
+    })
+    .from(element)
+    .save();
+};
 
   return (
     <div className="text-center space-y-6">
@@ -687,7 +693,10 @@ useEffect(() => {
   );
 };
 
-  
+
+
+
+
 
   const renderTestSlide = (slide: TestSlide) => {
 
