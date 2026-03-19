@@ -86,6 +86,17 @@ type CompletionSlide = {
   text: string;
 };
 
+type CertificateSlide = {
+  type: "certificate";
+  title: string;
+  courseName: string;
+  hours?: string;
+  certificateIdField?: string;
+  showScore?: boolean;
+  printButton?: boolean;
+  downloadPdf?: boolean;
+};
+
 type Slide =
   | TestSlide
   | ContentSlide
@@ -95,7 +106,8 @@ type Slide =
   | StepsSlide
   | HotspotSlide
   | CalloutSlide
-  | CompletionSlide;
+  | CompletionSlide
+  | CertificateSlide;
 
 
 
@@ -583,6 +595,99 @@ useEffect(() => {
     );
   };
 
+ const renderCertificateSlide = (slide: CertificateSlide) => {
+  const today = new Date().toLocaleDateString();
+
+  const certId =
+    slide.certificateIdField
+      ? `${slide.certificateIdField}-${recordId ?? "0000"}`
+      : `CERT-${recordId ?? "0000"}`;
+
+  const downloadPDF = async () => {
+    const html2pdf = (await import("html2pdf.js")).default;
+
+    const element = document.getElementById("certificate");
+    if (!element) return;
+
+    html2pdf()
+      .set({
+        margin: 0.5,
+        filename: `${slide.courseName}-Certificate.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: {
+          unit: "in",
+          format: "letter",
+          orientation: "landscape",
+        },
+      })
+      .from(element)
+      .save();
+  };
+
+  return (
+    <div className="text-center space-y-6">
+
+      <div
+        id="certificate"
+        className="bg-white text-slate-900 p-12 rounded-2xl shadow-xl max-w-4xl mx-auto"
+      >
+        <h1 className="text-5xl font-bold mb-6">
+          CERTIFICATE OF COMPLETION
+        </h1>
+
+        <p>This certifies that</p>
+
+        <h2 className="text-4xl font-semibold my-6">
+          Student Name
+        </h2>
+
+        <p>has successfully completed</p>
+
+        <h2 className="text-3xl font-bold my-6">
+          {slide.courseName}
+        </h2>
+
+        {slide.hours && (
+          <p>Training Duration: {slide.hours}</p>
+        )}
+
+        <p>Date: {today}</p>
+
+        {slide.showScore && testScore !== null && (
+          <p>Score: {testScore}%</p>
+        )}
+
+        <p className="mt-6 text-sm text-slate-600">
+          Certificate ID: {certId}
+        </p>
+      </div>
+
+      <div className="flex justify-center gap-4">
+
+        {slide.printButton && (
+          <button
+            onClick={() => window.print()}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl"
+          >
+            Print / Save as PDF
+          </button>
+        )}
+
+        {slide.downloadPdf && (
+          <button
+            onClick={downloadPDF}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl"
+          >
+            Download PDF
+          </button>
+        )}
+
+      </div>
+    </div>
+  );
+};
+
+  
 
   const renderTestSlide = (slide: TestSlide) => {
 
@@ -731,6 +836,8 @@ await fetch("/api/update-student", {
         return renderCalloutSlide(current);
       case "completion":
         return renderCompletionSlide(current);
+      case "certificate":
+        return renderCertificateSlide(current);
 
       default:
         return <div className="text-white">Unknown slide type</div>;

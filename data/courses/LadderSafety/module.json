@@ -385,12 +385,21 @@
   ]
 },
 
-
-
     {
       "type": "completion",
       "title": "Course Complete",
       "text": "Congratulations. You have completed the Ladder Safety Training course. You should now understand the key practices needed to reduce ladder hazards and work more safely."
-    }
+    },
+
+   {
+  "type": "certificate",
+  "title": "Certificate of Completion",
+  "courseName": "Ladder Safety Training",
+  "hours": "1 Hour",
+  "certificateIdField": "CertID",
+  "showScore": true,
+  "printButton": true,
+  "downloadPdf": true
+}
   ]
 }
