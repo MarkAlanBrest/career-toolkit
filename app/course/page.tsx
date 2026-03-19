@@ -1,5 +1,4 @@
 "use client";
-import html2pdf from "html2pdf.js";
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -607,7 +606,10 @@ useEffect(() => {
 
 
 
-const downloadPDF = () => {
+const downloadPDF = async () => {
+  // ⭐ Only run in browser
+  if (typeof window === "undefined") return;
+
   const element = document.getElementById("certificate");
 
   if (!element) {
@@ -615,19 +617,27 @@ const downloadPDF = () => {
     return;
   }
 
-  html2pdf()
-    .set({
-      margin: 0.5,
-      filename: "Certificate.pdf",
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: {
-        unit: "in",
-        format: "letter",
-        orientation: "landscape",
-      },
-    })
-    .from(element)
-    .save();
+  try {
+    const html2pdf = (await import("html2pdf.js")).default;
+
+    html2pdf()
+      .set({
+        margin: 0.5,
+        filename: "Certificate.pdf",
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: {
+          unit: "in",
+          format: "letter",
+          orientation: "landscape",
+        },
+      })
+      .from(element)
+      .save();
+
+  } catch (err) {
+    console.error(err);
+    alert("PDF generation failed.");
+  }
 };
 
   return (
