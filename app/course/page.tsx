@@ -745,6 +745,7 @@ await fetch("/api/update-student", {
 
     if (percent >= slide.passingScore) {
       setTestPassed(true);
+      window.location.href = `/certificate?code=${code}`;
     }
   };
 
