@@ -41,36 +41,38 @@ export default function CourseCodePage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-white">
 
       {/* ===== TOP BAR ===== */}
-      <header className="flex justify-between items-center px-8 py-5 bg-slate-950/70 border-b border-slate-700">
+      <header className="bg-slate-950/70 border-b border-slate-700">
+        <div className="max-w-6xl mx-auto px-8 py-5 flex justify-between items-center">
 
-        <div>
-          <h1 className="text-xl font-bold">Career Safety Certifications</h1>
-          <p className="text-sm text-slate-300">
-            Professional training that employers recognize
-          </p>
+          <div>
+            <h1 className="text-xl font-bold">Career Safety Certifications</h1>
+            <p className="text-sm text-slate-300">
+              Professional training that employers recognize
+            </p>
+          </div>
+
+          {/* 🔑 LOGIN BOX — TOP RIGHT */}
+          <form onSubmit={handleSubmit} className="flex items-center gap-3">
+
+            <input
+              type="text"
+              placeholder="Enter Course Code"
+              className="px-4 py-2 rounded bg-white text-slate-900 uppercase tracking-wider"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+            />
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold disabled:opacity-50"
+            >
+              {loading ? "Checking…" : "Enter"}
+            </button>
+
+          </form>
+
         </div>
-
-        {/* 🔑 LOGIN BOX — TOP RIGHT */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-3">
-
-          <input
-            type="text"
-            placeholder="Enter Course Code"
-            className="px-4 py-2 rounded bg-white text-slate-900 uppercase tracking-wider"
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-          />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded font-semibold disabled:opacity-50"
-          >
-            {loading ? "Checking…" : "Enter"}
-          </button>
-
-        </form>
-
       </header>
 
       {/* ERROR MESSAGE */}
@@ -154,8 +156,20 @@ export default function CourseCodePage() {
       </section>
 
       {/* ===== FOOTER ===== */}
-      <footer className="text-center py-8 text-slate-400 text-sm">
-        Professional Certification Training Platform
+      <footer className="text-center py-8 text-slate-400 text-sm space-y-2">
+
+        <div>Professional Certification Training Platform</div>
+
+        {/* 🔒 SMALL ADMIN LINK */}
+        <div>
+          <a
+            href="https://safety-training-platform-eta.vercel.app/admin/login"
+            className="text-slate-500 hover:text-slate-400 text-xs"
+          >
+            Admin Login
+          </a>
+        </div>
+
       </footer>
 
     </main>
