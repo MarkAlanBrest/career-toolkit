@@ -3,559 +3,509 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PA Building Code Assistant</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<title>PA & Ohio Building Code Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #root { height: 100%; }
-  body { font-family: Georgia, serif; background: #FAFBFC; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
-  @keyframes bounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-6px); }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f4f5f7;
+    --surface:   #ffffff;
+    --surface2:  #f0f2f5;
+    --border:    #e2e5ea;
+    --border2:   #cdd0d8;
+    --text:      #1a1d23;
+    --text2:     #5a6070;
+    --text3:     #9aa0ae;
+    --pa-bg:     #e8f0fe;
+    --pa-text:   #1a56c4;
+    --oh-bg:     #fce8e8;
+    --oh-text:   #c41a1a;
+    --accent:    #2563eb;
+    --accent-h:  #1d4ed8;
+    --success:   #16a34a;
+    --tag-bg:    #eff6ff;
+    --tag-border:#bfdbfe;
   }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+
+  html, body {
+    height: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
   }
+
+  .shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 860px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .header-copy { flex: 1; }
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .header-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+  .state-pills { display: flex; gap: 6px; flex-shrink: 0; }
+  .pill {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .pill-pa { background: var(--pa-bg); color: var(--pa-text); }
+  .pill-oh { background: var(--oh-bg); color: var(--oh-text); }
+
+  /* ── Messages ── */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+
+  .msg { display: flex; gap: 12px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+  .av-bot  { background: linear-gradient(135deg,#1e40af,#2563eb); color: #fff; }
+  .av-user { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+
+  .bubble {
+    max-width: 82%;
+    padding: 12px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    word-break: break-word;
+  }
+
+  .msg.user .bubble {
+    background: var(--surface);
+    border-color: var(--border2);
+    border-radius: 16px 4px 16px 16px;
+  }
+
+  .msg.bot .bubble { border-radius: 4px 16px 16px 16px; }
+
+  .bubble p { margin: 0 0 8px; }
+  .bubble p:last-child { margin: 0; }
+  .bubble strong { font-weight: 600; }
+  .bubble a { color: var(--accent); text-decoration: none; font-size: 13px; }
+  .bubble a:hover { text-decoration: underline; }
+
+  .bubble ul { padding-left: 18px; margin: 6px 0; }
+  .bubble li { margin: 3px 0; }
+
+  .state-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin: 0 3px 0 0;
+    vertical-align: middle;
+  }
+  .tag-pa { background: var(--pa-bg); color: var(--pa-text); }
+  .tag-oh { background: var(--oh-bg); color: var(--oh-text); }
+
+  .code-ref {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    background: var(--tag-bg);
+    color: var(--accent);
+    border: 1px solid var(--tag-border);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  .sources-block {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .sources-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+  .source-link { display: block; font-size: 12px; color: var(--accent); margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* typing */
+  .typing-wrap { display: flex; align-items: center; gap: 12px; }
+  .typing-dots { display: flex; gap: 4px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px 16px 16px 16px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); animation: bounce 1.3s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: 0.18s; }
+  .dot:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+
+  /* ── Quick prompts ── */
+  .quick-area {
+    padding: 10px 20px 6px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .quick-label { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 7px; letter-spacing: 0.04em; }
+
+  .quick-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .qbtn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .qbtn:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+  /* ── Input ── */
+  .input-area {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .input-box {
+    flex: 1;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--text);
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    transition: border 0.15s;
+    max-height: 120px;
+  }
+  .input-box:focus { border-color: var(--accent); background: var(--surface); }
+  .input-box::placeholder { color: var(--text3); }
+
+  .send-btn {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+    align-self: flex-end;
+  }
+  .send-btn:hover { background: var(--accent-h); }
+  .send-btn:active { transform: scale(0.97); }
+  .send-btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+  .send-btn svg { width: 14px; height: 14px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .disclaimer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text3);
+    padding: 0 20px 10px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  /* scrollbar */
+  .messages::-webkit-scrollbar { width: 5px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div class="shell">
 
-<script type="text/babel">
-
-/* ─── CONFIGURATION ─────────────────────────────────────────────────────────
-   Replace the empty string below with your Anthropic API key.
-   Get one at: https://console.anthropic.com/settings/keys
-   ⚠️  Keep this file on a password-protected or internal server.
-────────────────────────────────────────────────────────────────────────── */
-const API_KEY = "";   // ← PASTE YOUR KEY HERE
-
-const MODEL   = "claude-sonnet-4-20250514";
-
-/* ─── CODE BOOK REFERENCE DATA ─────────────────────────────────────────── */
-const CODE_BOOKS = [
-  { id:"IBC",  name:"IBC 2021",  full:"International Building Code 2021",              color:"#1B4F8A", url:"https://codes.iccsafe.org/content/IBC2021P6" },
-  { id:"IRC",  name:"IRC 2021",  full:"International Residential Code 2021",           color:"#2E7D32", url:"https://codes.iccsafe.org/content/IRC2021P6" },
-  { id:"IFC",  name:"IFC 2021",  full:"International Fire Code 2021",                  color:"#B71C1C", url:"https://codes.iccsafe.org/content/IFC2021P6" },
-  { id:"IMC",  name:"IMC 2021",  full:"International Mechanical Code 2021",            color:"#6A1B9A", url:"https://codes.iccsafe.org/content/IMC2021P6" },
-  { id:"IPC",  name:"IPC 2021",  full:"International Plumbing Code 2021",              color:"#00695C", url:"https://codes.iccsafe.org/content/IPC2021P6" },
-  { id:"IECC", name:"IECC 2021", full:"International Energy Conservation Code 2021",   color:"#E65100", url:"https://codes.iccsafe.org/content/IECC2021P5" },
-  { id:"UCC",  name:"PA UCC",    full:"Pennsylvania Uniform Construction Code",         color:"#4A148C", url:"https://up.codes/codes/pennsylvania" },
-];
-
-/* ─── SYSTEM PROMPT ─────────────────────────────────────────────────────── */
-const SYSTEM_PROMPT = `You are an expert Pennsylvania building code assistant embedded in a student learning tool. Your ONLY job is to answer questions about Pennsylvania's Uniform Construction Code (PA UCC), which adopts the 2021 ICC code series with Pennsylvania-specific amendments. These codes became effective January 1, 2026. Prior to that, the 2018 ICC series applied.
-
-Pennsylvania uses these codes:
-- International Building Code (IBC) 2021 — commercial/multi-family buildings
-- International Residential Code (IRC) 2021 — 1- and 2-family dwellings and townhouses
-- International Fire Code (IFC) 2021 — fire safety
-- International Mechanical Code (IMC) 2021 — HVAC and mechanical systems
-- International Plumbing Code (IPC) 2021 — plumbing systems
-- International Energy Conservation Code (IECC) 2021 — energy efficiency
-- Pennsylvania UCC Amendments — state-specific changes from the RAC (Review & Advisory Council)
-
-STRICT RULES:
-1. ONLY answer Pennsylvania building code questions. Politely decline anything else.
-2. Always cite the exact code section (e.g., "IRC 2021 Section R302.1").
-3. Give a plain-English explanation first, then the technical reference.
-4. Note any known PA-specific amendments when relevant.
-5. Distinguish between residential (IRC) and commercial (IBC) when relevant.
-6. Always remind users that local municipalities may have additional requirements.
-7. Be honest if you are uncertain — direct them to the official source.
-
-RESPOND ONLY WITH VALID JSON in this exact structure (no markdown, no code fences):
-{
-  "answer": "2-4 sentence plain-English explanation a student can understand",
-  "codes": [
-    {
-      "book": "IRC 2021",
-      "bookId": "IRC",
-      "section": "R305.1",
-      "title": "Minimum Ceiling Height",
-      "requirement": "One-sentence plain statement of what the code actually requires",
-      "url": "https://codes.iccsafe.org/content/IRC2021P6/chapter-3-building-planning#IRC2021P6_Pt03_Ch03_SecR305"
-    }
-  ],
-  "paAmendment": "Description of any PA-specific amendment to this section, or null",
-  "localNote": "Always include: Local municipalities in PA may have stricter requirements — verify with your local building code official before finalizing any design.",
-  "isOffTopic": false
-}
-
-If the question is off-topic:
-{
-  "answer": "Friendly one-sentence explanation that you only cover PA building codes",
-  "codes": [],
-  "paAmendment": null,
-  "localNote": null,
-  "isOffTopic": true
-}`;
-
-/* ─── SUGGESTED STARTER QUESTIONS ──────────────────────────────────────── */
-const SUGGESTED = [
-  "What is the minimum ceiling height for a bedroom?",
-  "How close can I build to my property line?",
-  "What are the stair riser and tread requirements?",
-  "How many smoke detectors are required in a house?",
-  "What are egress window requirements for basements?",
-  "What are the handrail height requirements?",
-  "Do I need a permit to build a deck?",
-  "What is the minimum bathroom ventilation requirement?",
-];
-
-/* ─── COMPONENTS ────────────────────────────────────────────────────────── */
-
-function CodeBadge({ book, bookId, section, title, requirement, url }) {
-  const cb = CODE_BOOKS.find(b => b.id === bookId) || CODE_BOOKS[0];
-  const [hover, setHover] = React.useState(false);
-  return (
-    <a
-      href={url} target="_blank" rel="noopener noreferrer"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display:"block", textDecoration:"none",
-        border:`1.5px solid ${cb.color}${hover?"44":"22"}`,
-        borderLeft:`4px solid ${cb.color}`,
-        borderRadius:"8px", padding:"11px 14px", marginTop:"8px",
-        background: hover ? `${cb.color}14` : `${cb.color}07`,
-        transform: hover ? "translateX(2px)" : "none",
-        transition:"all 0.18s",
-      }}>
-      <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"4px" }}>
-        <span style={{
-          background:cb.color, color:"#fff", fontSize:"10px", fontWeight:"700",
-          padding:"2px 8px", borderRadius:"4px", letterSpacing:"0.5px", whiteSpace:"nowrap",
-          fontFamily:"sans-serif"
-        }}>{book}</span>
-        <span style={{ fontSize:"13px", fontWeight:"700", color:cb.color, fontFamily:"sans-serif" }}>§ {section}</span>
-        <span style={{ fontSize:"10px", color:"#888", marginLeft:"auto", fontFamily:"sans-serif" }}>View in codebook ↗</span>
-      </div>
-      <div style={{ fontSize:"12px", fontWeight:"700", color:"#1a1a1a", marginBottom:"3px", fontFamily:"sans-serif" }}>{title}</div>
-      <div style={{ fontSize:"12px", color:"#555", lineHeight:"1.55", fontFamily:"sans-serif" }}>{requirement}</div>
-    </a>
-  );
-}
-
-function TypingDots() {
-  return (
-    <div style={{ display:"flex", gap:"5px", alignItems:"center", padding:"4px 0" }}>
-      {[0,1,2].map(i => (
-        <div key={i} style={{
-          width:"8px", height:"8px", borderRadius:"50%", background:"#1B4F8A",
-          animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`
-        }}/>
-      ))}
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     </div>
-  );
-}
-
-function BotMessage({ data }) {
-  if (!data) return null;
-
-  if (data.isOffTopic) {
-    return (
-      <div style={{
-        background:"#FFFDE7", border:"1px solid #FFE082",
-        borderRadius:"4px 16px 16px 16px", padding:"14px 18px", maxWidth:"85%"
-      }}>
-        <div style={{ fontSize:"10px", fontWeight:"700", color:"#F9A825", letterSpacing:"1.5px", marginBottom:"6px", fontFamily:"sans-serif" }}>
-          OUT OF SCOPE
-        </div>
-        <div style={{ fontSize:"14px", color:"#5D4037", lineHeight:"1.6" }}>{data.answer}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ maxWidth:"88%", flex:1, animation:"fadeIn 0.3s ease" }}>
-      <div style={{
-        background:"#F8F9FB", border:"1px solid #E4EAF0",
-        borderRadius:"4px 16px 16px 16px", padding:"16px 18px"
-      }}>
-        {/* Main answer */}
-        <div style={{ fontSize:"14px", color:"#1a1a1a", lineHeight:"1.75", marginBottom: data.codes?.length ? "14px" : 0 }}>
-          {data.answer}
-        </div>
-
-        {/* Code references */}
-        {data.codes?.length > 0 && (
-          <div>
-            <div style={{ fontSize:"10px", fontWeight:"700", color:"#999", letterSpacing:"1.5px", marginBottom:"6px", fontFamily:"sans-serif" }}>
-              CODE REFERENCES
-            </div>
-            {data.codes.map((c, i) => <CodeBadge key={i} {...c} />)}
-          </div>
-        )}
-
-        {/* PA Amendment callout */}
-        {data.paAmendment && (
-          <div style={{
-            marginTop:"12px", background:"#EDE7F6",
-            border:"1px solid #B39DDB", borderRadius:"7px", padding:"10px 13px"
-          }}>
-            <div style={{ fontSize:"10px", fontWeight:"700", color:"#4A148C", letterSpacing:"1.5px", marginBottom:"4px", fontFamily:"sans-serif" }}>
-              🏛 PA AMENDMENT
-            </div>
-            <div style={{ fontSize:"13px", color:"#4A148C", lineHeight:"1.55", fontFamily:"sans-serif" }}>
-              {data.paAmendment}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Local note */}
-      {data.localNote && (
-        <div style={{ fontSize:"11px", color:"#999", marginTop:"6px", paddingLeft:"4px", lineHeight:"1.5", fontFamily:"sans-serif" }}>
-          ⚠️ {data.localNote}
-        </div>
-      )}
+    <div class="header-copy">
+      <div class="header-title">Building Code Assistant</div>
+      <div class="header-sub">Searches official PA &amp; Ohio code resources in real time</div>
     </div>
-  );
-}
-
-function Message({ msg }) {
-  if (msg.role === "user") {
-    return (
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:"16px" }}>
-        <div style={{
-          background:"#1B4F8A", color:"#fff",
-          borderRadius:"16px 16px 4px 16px",
-          padding:"11px 16px", maxWidth:"75%",
-          fontSize:"14px", lineHeight:"1.55"
-        }}>{msg.content}</div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display:"flex", gap:"11px", marginBottom:"20px", alignItems:"flex-start" }}>
-      <div style={{
-        width:"32px", height:"32px", borderRadius:"50%", background:"#1B4F8A",
-        display:"flex", alignItems:"center", justifyContent:"center",
-        flexShrink:0, fontSize:"15px"
-      }}>🏛️</div>
-      {msg.loading ? (
-        <div style={{
-          background:"#F8F9FB", border:"1px solid #E4EAF0",
-          borderRadius:"4px 16px 16px 16px", padding:"14px 18px"
-        }}>
-          <TypingDots />
-        </div>
-      ) : (
-        <BotMessage data={msg.data} />
-      )}
+    <div class="state-pills">
+      <span class="pill pill-pa">PA</span>
+      <span class="pill pill-oh">OH</span>
     </div>
-  );
-}
+  </header>
 
-/* ─── MAIN APP ──────────────────────────────────────────────────────────── */
-function App() {
-  const [messages,  setMessages]  = React.useState([]);
-  const [input,     setInput]     = React.useState("");
-  const [loading,   setLoading]   = React.useState(false);
-  const [noKey,     setNoKey]     = React.useState(!API_KEY);
-  const [keyInput,  setKeyInput]  = React.useState("");
-  const [runtimeKey,setRuntimeKey]= React.useState(API_KEY);
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="msg bot">
+      <div class="avatar av-bot">BC</div>
+      <div class="bubble">
+        <p>Hello! I'm your <strong>Building Code Assistant</strong> for Pennsylvania and Ohio. I search official state code resources to help you interpret requirements accurately.</p>
+        <p>I can help with occupancy classifications, egress, fire ratings, structural requirements, plumbing, electrical, accessibility (ADA/IBC), and more. Try one of the suggestions below or type your own question.</p>
+      </div>
+    </div>
+  </div>
 
-  const bottomRef = React.useRef(null);
-  const textaRef  = React.useRef(null);
+  <!-- Quick prompts -->
+  <div class="quick-area" id="quick-area">
+    <div class="quick-label">Suggested questions</div>
+    <div class="quick-grid">
+      <button class="qbtn" onclick="fireQuick('Egress window size requirements in Pennsylvania residential code')">Egress windows — PA</button>
+      <button class="qbtn" onclick="fireQuick('Ohio commercial occupancy load calculations')">Occupancy loads — OH</button>
+      <button class="qbtn" onclick="fireQuick('Fire-rated wall assembly requirements Pennsylvania')">Fire-rated walls — PA</button>
+      <button class="qbtn" onclick="fireQuick('Stair riser and tread dimensions Ohio building code')">Stair dimensions — OH</button>
+      <button class="qbtn" onclick="fireQuick('ADA accessible restroom requirements PA and Ohio')">ADA restrooms</button>
+      <button class="qbtn" onclick="fireQuick('Electrical panel clearance requirements Pennsylvania and Ohio')">Electrical clearance</button>
+    </div>
+  </div>
 
-  React.useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior:"smooth" });
-  }, [messages]);
+  <!-- Input -->
+  <div class="input-area">
+    <textarea class="input-box" id="input" rows="1"
+      placeholder="Ask about PA or Ohio building codes…"
+      onkeydown="onKey(event)"
+      oninput="resize(this)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="send()">
+      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      Send
+    </button>
+  </div>
+  <div class="disclaimer">Always verify code interpretations with a licensed design professional or your local building department.</div>
 
-  function getKey() { return runtimeKey || API_KEY; }
+</div>
 
-  async function send(text) {
-    const q = (text || input).trim();
-    if (!q || loading) return;
-    setInput("");
-    if (textaRef.current) { textaRef.current.style.height = "auto"; }
+<script>
+const SYSTEM = `You are a specialized building code assistant for Pennsylvania (PA) and Ohio (OH) only.
 
-    const userMsg    = { role:"user",      content: q };
-    const loadingMsg = { role:"assistant", loading: true };
-    setMessages(prev => [...prev, userMsg, loadingMsg]);
-    setLoading(true);
+You search official online resources and interpret building code requirements for these two states. You do NOT answer questions outside of PA and OH building codes.
 
-    // Build conversation history for the API
-    const history = [];
-    for (const m of messages) {
-      if (m.role === "user")      history.push({ role:"user",      content: m.content });
-      if (m.role === "assistant" && m.data) history.push({ role:"assistant", content: JSON.stringify(m.data) });
-    }
-    history.push({ role:"user", content: q });
+Official sources to draw from:
+- PA: Pennsylvania UCC (Uniform Construction Code) at dli.pa.gov, ICC codes as adopted by PA (IBC, IRC, IFC, IMC, IPC, IECC), PA Bulletin
+- OH: Ohio Building Code at com.ohio.gov/divisions/industrial-compliance, Ohio Administrative Code Chapter 4101, ICC codes as adopted by Ohio
 
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "x-api-key": getKey(),
-          "anthropic-version":"2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: history
-        })
-      });
+Response format rules:
+1. Start with a brief direct answer
+2. Label each state's requirements clearly: use "PA:" and "OH:" prefixes
+3. Cite specific code sections like [IBC 1005.1], [OBC 4101:1-10], [PA UCC Section X]
+4. Note meaningful differences between PA and OH when both are relevant
+5. End with a "Sources:" line listing 1-3 relevant official URLs
+6. Keep responses clear and practical for contractors, architects, inspectors, and students
+7. If the question is unrelated to PA/OH building codes, politely decline and redirect
 
-      if (res.status === 401) {
-        throw new Error("Invalid API key. Please check and try again.");
+Do not use markdown headers. Use plain paragraphs. Use "PA:" and "OH:" as prefixes on separate lines when comparing both states.`;
+
+let history = [];
+let busy = false;
+let typingId = 0;
+
+async function send() {
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if (!text || busy) return;
+
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  inp.value = '';
+  resize(inp);
+  document.getElementById('quick-area').style.display = 'none';
+
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+  const tid = showTyping();
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+    hideTyping(tid);
+
+    let reply = '';
+    let srcs = [];
+
+    if (data.content) {
+      for (const b of data.content) {
+        if (b.type === 'text') reply += b.text;
+        if (b.type === 'mcp_tool_result' || b.type === 'tool_result') {
+          try {
+            const r = JSON.parse(b.content?.[0]?.text || '{}');
+            if (r.results) srcs = r.results.slice(0, 3);
+          } catch(e) {}
+        }
       }
-
-      const json = await res.json();
-      if (json.error) throw new Error(json.error.message);
-
-      const raw = json.content?.find(b => b.type === "text")?.text || "{}";
-      let parsed;
-      try {
-        const clean = raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-        parsed = JSON.parse(clean);
-      } catch {
-        parsed = { answer: raw, codes:[], paAmendment:null, localNote:null, isOffTopic:false };
-      }
-
-      setMessages(prev => [
-        ...prev.slice(0, -1),
-        { role:"assistant", data: parsed }
-      ]);
-    } catch(err) {
-      setMessages(prev => [
-        ...prev.slice(0, -1),
-        { role:"assistant", data:{
-          answer:`Error: ${err.message || "Something went wrong. Please try again."}`,
-          codes:[], paAmendment:null, localNote:null, isOffTopic:false
-        }}
-      ]);
     }
-    setLoading(false);
+
+    if (!reply) reply = 'I was unable to retrieve code information right now. Please try again, or visit the PA DLI portal (dli.pa.gov) or Ohio ICC portal (com.ohio.gov) directly.';
+
+    history.push({ role: 'assistant', content: data.content || [{ type: 'text', text: reply }] });
+    addMsg('bot', reply, srcs);
+
+  } catch(e) {
+    hideTyping(tid);
+    addMsg('bot', 'Sorry, there was a network error. Please try again in a moment.');
   }
 
-  function handleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-  }
-
-  function handleInput(e) {
-    e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 130) + "px";
-    setInput(e.target.value);
-  }
-
-  const isEmpty = messages.length === 0;
-
-  /* ── Key entry screen ── */
-  if (noKey) {
-    return (
-      <div style={{
-        height:"100%", display:"flex", alignItems:"center", justifyContent:"center",
-        background:"#F0F4F9", padding:"20px"
-      }}>
-        <div style={{
-          background:"#fff", borderRadius:"14px", padding:"40px 36px",
-          maxWidth:"440px", width:"100%", boxShadow:"0 4px 32px rgba(0,0,0,0.1)",
-          textAlign:"center"
-        }}>
-          <div style={{ fontSize:"40px", marginBottom:"14px" }}>🏛️</div>
-          <h2 style={{ fontFamily:"Georgia,serif", color:"#1B4F8A", fontSize:"22px", marginBottom:"8px" }}>
-            PA Building Code Assistant
-          </h2>
-          <p style={{ color:"#666", fontSize:"13px", lineHeight:"1.6", fontFamily:"sans-serif", marginBottom:"24px" }}>
-            Enter your Anthropic API key to get started.<br/>
-            Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" style={{ color:"#1B4F8A" }}>console.anthropic.com</a>
-          </p>
-          <input
-            type="password"
-            placeholder="sk-ant-..."
-            value={keyInput}
-            onChange={e => setKeyInput(e.target.value)}
-            onKeyDown={e => { if(e.key==="Enter" && keyInput.trim()) { setRuntimeKey(keyInput.trim()); setNoKey(false); }}}
-            style={{
-              width:"100%", padding:"11px 14px", border:"1.5px solid #d0d8e4",
-              borderRadius:"8px", fontSize:"14px", fontFamily:"sans-serif",
-              marginBottom:"12px", color:"#222"
-            }}
-          />
-          <button
-            onClick={() => { if(keyInput.trim()) { setRuntimeKey(keyInput.trim()); setNoKey(false); }}}
-            disabled={!keyInput.trim()}
-            style={{
-              width:"100%", padding:"12px", background: keyInput.trim() ? "#1B4F8A" : "#ccc",
-              color:"#fff", border:"none", borderRadius:"8px", fontSize:"14px",
-              cursor: keyInput.trim() ? "pointer" : "not-allowed", fontFamily:"sans-serif", fontWeight:"600"
-            }}>
-            Start Chatting →
-          </button>
-          <p style={{ fontSize:"11px", color:"#aaa", marginTop:"14px", fontFamily:"sans-serif", lineHeight:"1.5" }}>
-            Your key is used only in your browser and is never stored or sent anywhere except directly to Anthropic.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Main chat UI ── */
-  return (
-    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"#FAFBFC" }}>
-
-      {/* Header */}
-      <header style={{
-        background:"#1B4F8A", color:"#fff",
-        display:"flex", alignItems:"center", gap:"14px",
-        padding:"0 20px", height:"58px", flexShrink:0,
-        boxShadow:"0 2px 10px rgba(0,0,0,0.18)"
-      }}>
-        <div style={{
-          width:"36px", height:"36px", background:"rgba(255,255,255,0.15)",
-          borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"17px"
-        }}>🏛️</div>
-        <div>
-          <div style={{ fontSize:"15px", fontWeight:"bold", letterSpacing:"0.2px" }}>
-            Pennsylvania Building Code Assistant
-          </div>
-          <div style={{ fontSize:"10px", opacity:0.65, letterSpacing:"1.2px", fontFamily:"sans-serif" }}>
-            PA UCC · 2021 ICC CODES · EFFECTIVE JAN 1 2026
-          </div>
-        </div>
-        <div style={{ marginLeft:"auto", display:"flex", gap:"5px", flexWrap:"wrap", justifyContent:"flex-end" }}>
-          {CODE_BOOKS.map(cb => (
-            <a key={cb.id} href={cb.url} target="_blank" rel="noopener noreferrer" style={{
-              background:"rgba(255,255,255,0.12)", color:"#fff", fontSize:"9px",
-              padding:"3px 7px", borderRadius:"4px", textDecoration:"none",
-              border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.5px", fontFamily:"sans-serif"
-            }}>{cb.id}</a>
-          ))}
-        </div>
-      </header>
-
-      {/* Messages */}
-      <main style={{ flex:1, overflowY:"auto", padding:"24px 18px" }}>
-        {isEmpty ? (
-          <div style={{ maxWidth:"660px", margin:"0 auto" }}>
-            {/* Hero */}
-            <div style={{ textAlign:"center", padding:"28px 0 20px" }}>
-              <div style={{ fontSize:"44px", marginBottom:"12px" }}>🏗️</div>
-              <h2 style={{ fontFamily:"Georgia,serif", color:"#1B4F8A", fontSize:"21px", marginBottom:"8px" }}>
-                Ask a Pennsylvania Building Code Question
-              </h2>
-              <p style={{ color:"#666", fontSize:"13px", lineHeight:"1.65", maxWidth:"400px", margin:"0 auto", fontFamily:"sans-serif" }}>
-                I'll find the exact code section, explain it in plain English,
-                and link you directly to the official codebook.
-              </p>
-            </div>
-
-            {/* Codebook links */}
-            <div style={{ display:"flex", flexWrap:"wrap", gap:"7px", justifyContent:"center", marginBottom:"28px" }}>
-              {CODE_BOOKS.map(cb => (
-                <a key={cb.id} href={cb.url} target="_blank" rel="noopener noreferrer" style={{
-                  display:"flex", alignItems:"center", gap:"7px", padding:"6px 13px",
-                  border:`1.5px solid ${cb.color}33`, borderRadius:"20px", textDecoration:"none",
-                  background:`${cb.color}08`, fontFamily:"sans-serif", transition:"background 0.2s"
-                }}>
-                  <span style={{ width:"8px", height:"8px", borderRadius:"50%", background:cb.color, flexShrink:0 }}></span>
-                  <span style={{ fontSize:"11px", fontWeight:"700", color:cb.color, letterSpacing:"0.5px" }}>{cb.id}</span>
-                  <span style={{ fontSize:"10px", color:"#aaa" }}>↗</span>
-                </a>
-              ))}
-            </div>
-
-            {/* Suggested questions */}
-            <div>
-              <div style={{ fontSize:"10px", fontWeight:"700", color:"#aaa", letterSpacing:"2px", marginBottom:"10px", fontFamily:"sans-serif" }}>
-                SUGGESTED QUESTIONS
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
-                {SUGGESTED.map((q, i) => (
-                  <button key={i} onClick={() => send(q)} style={{
-                    background:"#fff", border:"1.5px solid #E0E8F0",
-                    borderRadius:"9px", padding:"11px 13px", textAlign:"left",
-                    cursor:"pointer", fontSize:"13px", color:"#333",
-                    lineHeight:"1.45", fontFamily:"Georgia,serif", transition:"all 0.18s"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor="#1B4F8A"; e.currentTarget.style.background="#EFF4FB"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor="#E0E8F0"; e.currentTarget.style.background="#fff"; }}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div style={{ maxWidth:"740px", margin:"0 auto" }}>
-            {messages.map((m, i) => <Message key={i} msg={m} />)}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </main>
-
-      {/* Input bar */}
-      <footer style={{
-        background:"#fff", borderTop:"1px solid #E0E8F0",
-        padding:"14px 18px", flexShrink:0,
-        boxShadow:"0 -2px 14px rgba(0,0,0,0.06)"
-      }}>
-        <div style={{ maxWidth:"740px", margin:"0 auto", display:"flex", gap:"10px", alignItems:"flex-end" }}>
-          <div style={{
-            flex:1, border:"1.5px solid #CDD8E5", borderRadius:"12px",
-            padding:"10px 14px", background:"#FAFBFC", transition:"border-color 0.2s"
-          }}
-          onFocusCapture={e => e.currentTarget.style.borderColor="#1B4F8A"}
-          onBlurCapture={e  => e.currentTarget.style.borderColor="#CDD8E5"}>
-            <textarea
-              ref={textaRef}
-              value={input}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask a Pennsylvania building code question…"
-              rows={1}
-              style={{
-                width:"100%", border:"none", background:"transparent", resize:"none",
-                fontSize:"14px", fontFamily:"Georgia,serif", color:"#222",
-                lineHeight:"1.55", maxHeight:"130px", overflowY:"auto", outline:"none"
-              }}
-            />
-          </div>
-          <button
-            onClick={() => send()}
-            disabled={!input.trim() || loading}
-            style={{
-              width:"44px", height:"44px", borderRadius:"10px", border:"none",
-              background: input.trim() && !loading ? "#1B4F8A" : "#D0D8E4",
-              color:"#fff", cursor: input.trim() && !loading ? "pointer" : "not-allowed",
-              fontSize:"19px", display:"flex", alignItems:"center", justifyContent:"center",
-              transition:"all 0.2s", flexShrink:0
-            }}>↑</button>
-        </div>
-
-        <div style={{
-          maxWidth:"740px", margin:"7px auto 0",
-          display:"flex", justifyContent:"space-between", alignItems:"center"
-        }}>
-          <span style={{ fontSize:"10px", color:"#bbb", fontFamily:"sans-serif" }}>
-            Based on PA UCC — 2021 ICC Codes. Always verify with your local code official.
-          </span>
-          {messages.length > 0 && (
-            <button onClick={() => setMessages([])} style={{
-              fontSize:"11px", color:"#bbb", background:"none", border:"none",
-              cursor:"pointer", fontFamily:"sans-serif"
-            }}>New chat</button>
-          )}
-        </div>
-      </footer>
-    </div>
-  );
+  busy = false;
+  document.getElementById('send-btn').disabled = false;
 }
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+function addMsg(role, text, srcs) {
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  const av = document.createElement('div');
+  av.className = `avatar ${role === 'bot' ? 'av-bot' : 'av-user'}`;
+  av.textContent = role === 'bot' ? 'BC' : 'You';
+
+  const bub = document.createElement('div');
+  bub.className = 'bubble';
+
+  // Format text
+  let html = esc(text);
+  // PA:/OH: labels
+  html = html.replace(/(^|\n)(PA:)/gm, '$1<span class="state-tag tag-pa">PA</span>');
+  html = html.replace(/(^|\n)(OH:|Ohio:)/gm, '$1<span class="state-tag tag-oh">OH</span>');
+  // Code refs [...]
+  html = html.replace(/\[([^\]]+)\]/g, '<span class="code-ref">[$1]</span>');
+  // Bold **...**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Paragraphs
+  html = html.split(/\n\n+/).map(p => `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+
+  bub.innerHTML = html;
+
+  // Sources
+  if (srcs && srcs.length) {
+    const sb = document.createElement('div');
+    sb.className = 'sources-block';
+    sb.innerHTML = `<div class="sources-label">Sources</div>`;
+    srcs.forEach(s => {
+      if (s.url) {
+        const a = document.createElement('a');
+        a.className = 'source-link';
+        a.href = s.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = s.title || s.url;
+        sb.appendChild(a);
+      }
+    });
+    bub.appendChild(sb);
+  }
+
+  div.appendChild(av);
+  div.appendChild(bub);
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function esc(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function showTyping() {
+  const id = ++typingId;
+  const wrap = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg bot';
+  div.id = 'typing-' + id;
+  div.innerHTML = `<div class="avatar av-bot">BC</div><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return id;
+}
+
+function hideTyping(id) {
+  const el = document.getElementById('typing-' + id);
+  if (el) el.remove();
+}
+
+function fireQuick(q) {
+  document.getElementById('input').value = q;
+  send();
+}
+
+function onKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function resize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
 </script>
 </body>
 </html>
