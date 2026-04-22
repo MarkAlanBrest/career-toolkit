@@ -226,35 +226,47 @@ export async function POST(req: Request) {
     });
   }
 
-  const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1200,
-      system: systemPrompt(state),
-      tools: [
-        {
-          type: "web_search_20250305",
-          name: "web_search",
-          max_uses: 4,
-          allowed_domains: ALLOWED_DOMAINS,
-          user_location: {
-            type: "approximate",
-            country: "US",
-            timezone: "America/New_York",
-          },
-        },
-      ],
-      messages,
-    }),
-  });
+  let anthropicResponse: Response;
 
-  const data = await anthropicResponse.json();
+  try {
+    anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1200,
+        system: systemPrompt(state),
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+            max_uses: 4,
+            allowed_domains: ALLOWED_DOMAINS,
+            user_location: {
+              type: "approximate",
+              country: "US",
+              timezone: "America/New_York",
+            },
+          },
+        ],
+        messages,
+      }),
+    });
+  } catch {
+    return Response.json(
+      {
+        error:
+          "The server could not reach Anthropic. Check internet access, deployment networking, and the ANTHROPIC_API_KEY environment variable.",
+      },
+      { status: 502 }
+    );
+  }
+
+  const data = await anthropicResponse.json().catch(() => ({}));
 
   if (!anthropicResponse.ok) {
     const message =

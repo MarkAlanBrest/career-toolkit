@@ -354,6 +354,14 @@ let history = [];
 let busy = false;
 let typingId = 0;
 
+function apiUrl() {
+  if (window.location.protocol === 'file:') {
+    throw new Error('Open this page through the Next app, such as http://localhost:3000/pa.html. The chatbot API cannot run from a file opened directly from your computer.');
+  }
+
+  return '/api/code-chat';
+}
+
 function setState(state) {
   selectedState = state;
   document.querySelectorAll('[data-state]').forEach(btn => {
@@ -377,7 +385,7 @@ async function send() {
   const tid = showTyping();
 
   try {
-    const res = await fetch('/api/code-chat', {
+    const res = await fetch(apiUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -386,7 +394,7 @@ async function send() {
       })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     hideTyping(tid);
 
     if (!res.ok) {
@@ -399,7 +407,13 @@ async function send() {
 
   } catch(e) {
     hideTyping(tid);
-    addMsg('bot', e.message || 'Sorry, there was a network error. Please try again in a moment.');
+    let message = e.message || 'Sorry, there was a network error. Please try again in a moment.';
+
+    if (e.name === 'TypeError' || message === 'Failed to fetch') {
+      message = 'I could not reach /api/code-chat. Make sure the Next app is running and open this page from the site URL, such as http://localhost:3000/pa.html, not directly as a file.';
+    }
+
+    addMsg('bot', message);
   }
 
   busy = false;
