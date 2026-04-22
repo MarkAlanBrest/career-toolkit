@@ -184,6 +184,13 @@ export default function Page() {
             <p>Need help? Connect with our career advisors.</p>
           </Link>
 
+          {/* Canvas Script Install Links */}
+          <Link className="card" href="/scripts">
+            <div className="icon">JS</div>
+            <h2>Canvas Script Install Links</h2>
+            <p>Install Canvas tools through Tampermonkey.</p>
+          </Link>
+
         </div>
 
         <div className="footer">
