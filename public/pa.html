@@ -77,14 +77,24 @@
 
   .state-pills { display: flex; gap: 6px; flex-shrink: 0; }
   .pill {
+    font-family: 'DM Sans', sans-serif;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.04em;
     padding: 4px 10px;
     border-radius: 20px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: border 0.15s, box-shadow 0.15s, transform 0.1s;
   }
   .pill-pa { background: var(--pa-bg); color: var(--pa-text); }
   .pill-oh { background: var(--oh-bg); color: var(--oh-text); }
+  .pill-both { background: #ecfdf5; color: #047857; }
+  .pill.active {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(37,99,235,.16);
+  }
+  .pill:active { transform: scale(0.96); }
 
   /* ── Messages ── */
   .messages {
@@ -292,9 +302,10 @@
       <div class="header-title">Building Code Assistant</div>
       <div class="header-sub">Searches official PA &amp; Ohio code resources in real time</div>
     </div>
-    <div class="state-pills">
-      <span class="pill pill-pa">PA</span>
-      <span class="pill pill-oh">OH</span>
+    <div class="state-pills" aria-label="Select code jurisdiction">
+      <button class="pill pill-pa" type="button" data-state="pa" onclick="setState('pa')">PA</button>
+      <button class="pill pill-oh" type="button" data-state="oh" onclick="setState('oh')">OH</button>
+      <button class="pill pill-both active" type="button" data-state="both" onclick="setState('both')">Both</button>
     </div>
   </header>
 
@@ -303,8 +314,8 @@
     <div class="msg bot">
       <div class="avatar av-bot">BC</div>
       <div class="bubble">
-        <p>Hello! I'm your <strong>Building Code Assistant</strong> for Pennsylvania and Ohio. I search official state code resources to help you interpret requirements accurately.</p>
-        <p>I can help with occupancy classifications, egress, fire ratings, structural requirements, plumbing, electrical, accessibility (ADA/IBC), and more. Try one of the suggestions below or type your own question.</p>
+        <p>Hello! I'm your <strong>Building Code Assistant</strong> for Pennsylvania and Ohio. Choose PA, OH, or Both, then ask a building code question.</p>
+        <p>I search ICC and official state code resources for occupancy classifications, egress, fire ratings, structural requirements, plumbing, electrical, accessibility (ADA/IBC), and more.</p>
       </div>
     </div>
   </div>
@@ -313,19 +324,19 @@
   <div class="quick-area" id="quick-area">
     <div class="quick-label">Suggested questions</div>
     <div class="quick-grid">
-      <button class="qbtn" onclick="fireQuick('Egress window size requirements in Pennsylvania residential code')">Egress windows — PA</button>
-      <button class="qbtn" onclick="fireQuick('Ohio commercial occupancy load calculations')">Occupancy loads — OH</button>
-      <button class="qbtn" onclick="fireQuick('Fire-rated wall assembly requirements Pennsylvania')">Fire-rated walls — PA</button>
-      <button class="qbtn" onclick="fireQuick('Stair riser and tread dimensions Ohio building code')">Stair dimensions — OH</button>
-      <button class="qbtn" onclick="fireQuick('ADA accessible restroom requirements PA and Ohio')">ADA restrooms</button>
-      <button class="qbtn" onclick="fireQuick('Electrical panel clearance requirements Pennsylvania and Ohio')">Electrical clearance</button>
+      <button class="qbtn" onclick="fireQuick('Egress window size requirements in Pennsylvania residential code', 'pa')">Egress windows - PA</button>
+      <button class="qbtn" onclick="fireQuick('Ohio commercial occupancy load calculations', 'oh')">Occupancy loads - OH</button>
+      <button class="qbtn" onclick="fireQuick('Fire-rated wall assembly requirements Pennsylvania', 'pa')">Fire-rated walls - PA</button>
+      <button class="qbtn" onclick="fireQuick('Stair riser and tread dimensions Ohio building code', 'oh')">Stair dimensions - OH</button>
+      <button class="qbtn" onclick="fireQuick('ADA accessible restroom requirements PA and Ohio', 'both')">ADA restrooms</button>
+      <button class="qbtn" onclick="fireQuick('Electrical panel clearance requirements Pennsylvania and Ohio', 'both')">Electrical clearance</button>
     </div>
   </div>
 
   <!-- Input -->
   <div class="input-area">
     <textarea class="input-box" id="input" rows="1"
-      placeholder="Ask about PA or Ohio building codes…"
+      placeholder="Ask about PA or Ohio building codes..."
       onkeydown="onKey(event)"
       oninput="resize(this)"></textarea>
     <button class="send-btn" id="send-btn" onclick="send()">
@@ -338,28 +349,17 @@
 </div>
 
 <script>
-const SYSTEM = `You are a specialized building code assistant for Pennsylvania (PA) and Ohio (OH) only.
-
-You search official online resources and interpret building code requirements for these two states. You do NOT answer questions outside of PA and OH building codes.
-
-Official sources to draw from:
-- PA: Pennsylvania UCC (Uniform Construction Code) at dli.pa.gov, ICC codes as adopted by PA (IBC, IRC, IFC, IMC, IPC, IECC), PA Bulletin
-- OH: Ohio Building Code at com.ohio.gov/divisions/industrial-compliance, Ohio Administrative Code Chapter 4101, ICC codes as adopted by Ohio
-
-Response format rules:
-1. Start with a brief direct answer
-2. Label each state's requirements clearly: use "PA:" and "OH:" prefixes
-3. Cite specific code sections like [IBC 1005.1], [OBC 4101:1-10], [PA UCC Section X]
-4. Note meaningful differences between PA and OH when both are relevant
-5. End with a "Sources:" line listing 1-3 relevant official URLs
-6. Keep responses clear and practical for contractors, architects, inspectors, and students
-7. If the question is unrelated to PA/OH building codes, politely decline and redirect
-
-Do not use markdown headers. Use plain paragraphs. Use "PA:" and "OH:" as prefixes on separate lines when comparing both states.`;
-
+let selectedState = 'both';
 let history = [];
 let busy = false;
 let typingId = 0;
+
+function setState(state) {
+  selectedState = state;
+  document.querySelectorAll('[data-state]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.state === state);
+  });
+}
 
 async function send() {
   const inp = document.getElementById('input');
@@ -377,14 +377,11 @@ async function send() {
   const tid = showTyping();
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/code-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: SYSTEM,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        state: selectedState,
         messages: history
       })
     });
@@ -392,29 +389,17 @@ async function send() {
     const data = await res.json();
     hideTyping(tid);
 
-    let reply = '';
-    let srcs = [];
-
-    if (data.content) {
-      for (const b of data.content) {
-        if (b.type === 'text') reply += b.text;
-        if (b.type === 'mcp_tool_result' || b.type === 'tool_result') {
-          try {
-            const r = JSON.parse(b.content?.[0]?.text || '{}');
-            if (r.results) srcs = r.results.slice(0, 3);
-          } catch(e) {}
-        }
-      }
+    if (!res.ok) {
+      throw new Error(data.error || 'The code assistant is not available right now.');
     }
 
-    if (!reply) reply = 'I was unable to retrieve code information right now. Please try again, or visit the PA DLI portal (dli.pa.gov) or Ohio ICC portal (com.ohio.gov) directly.';
-
-    history.push({ role: 'assistant', content: data.content || [{ type: 'text', text: reply }] });
-    addMsg('bot', reply, srcs);
+    const reply = data.reply || 'I was unable to retrieve code information right now. Please try again with a more specific PA or Ohio building code question.';
+    history.push({ role: 'assistant', content: reply });
+    addMsg('bot', reply, data.sources || []);
 
   } catch(e) {
     hideTyping(tid);
-    addMsg('bot', 'Sorry, there was a network error. Please try again in a moment.');
+    addMsg('bot', e.message || 'Sorry, there was a network error. Please try again in a moment.');
   }
 
   busy = false;
@@ -493,7 +478,8 @@ function hideTyping(id) {
   if (el) el.remove();
 }
 
-function fireQuick(q) {
+function fireQuick(q, state) {
+  if (state) setState(state);
   document.getElementById('input').value = q;
   send();
 }
