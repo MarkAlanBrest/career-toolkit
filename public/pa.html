@@ -284,6 +284,18 @@
     flex-shrink: 0;
   }
 
+  .status-line {
+    padding: 7px 20px;
+    border-top: 1px solid var(--border);
+    background: #f8fafc;
+    color: var(--text2);
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .status-line.good { color: #047857; }
+  .status-line.bad { color: #b91c1c; }
+
   /* scrollbar */
   .messages::-webkit-scrollbar { width: 5px; }
   .messages::-webkit-scrollbar-track { background: transparent; }
@@ -319,6 +331,8 @@
       </div>
     </div>
   </div>
+
+  <div class="status-line" id="api-status">Checking code assistant connection...</div>
 
   <!-- Quick prompts -->
   <div class="quick-area" id="quick-area">
@@ -360,6 +374,35 @@ function apiUrl() {
   }
 
   return '/api/code-chat';
+}
+
+function setStatus(message, state) {
+  const el = document.getElementById('api-status');
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = 'status-line ' + (state || '');
+}
+
+async function checkApi() {
+  try {
+    const res = await fetch(apiUrl(), { method: 'GET', cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setStatus('Code assistant API is not responding correctly. Open this through the Next/Vercel app, not a static file host.', 'bad');
+      return;
+    }
+
+    if (!data.ready) {
+      setStatus('Code assistant API is online, but ANTHROPIC_API_KEY is missing on the server.', 'bad');
+      return;
+    }
+
+    setStatus('Code assistant API connected. Ask a PA or Ohio building code question.', 'good');
+  } catch(e) {
+    setStatus('Cannot reach /api/code-chat. Use the Next app URL, such as http://localhost:3000/pa.html, and make sure the server is running.', 'bad');
+  }
 }
 
 function setState(state) {
@@ -407,13 +450,14 @@ async function send() {
 
   } catch(e) {
     hideTyping(tid);
-    let message = e.message || 'Sorry, there was a network error. Please try again in a moment.';
+    let message = e.message || 'The code assistant could not complete the request.';
 
-    if (e.name === 'TypeError' || message === 'Failed to fetch') {
+    if (e.name === 'TypeError' || message === 'Failed to fetch' || message === 'NetworkError when attempting to fetch resource.') {
       message = 'I could not reach /api/code-chat. Make sure the Next app is running and open this page from the site URL, such as http://localhost:3000/pa.html, not directly as a file.';
     }
 
     addMsg('bot', message);
+    checkApi();
   }
 
   busy = false;
@@ -506,6 +550,8 @@ function resize(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
+
+checkApi();
 </script>
 </body>
 </html>

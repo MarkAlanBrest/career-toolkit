@@ -184,6 +184,13 @@ function cleanMessages(messages: unknown): ChatMessage[] {
     }));
 }
 
+export async function GET() {
+  return Response.json({
+    ok: true,
+    ready: Boolean(process.env.ANTHROPIC_API_KEY),
+  });
+}
+
 export async function POST(req: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
