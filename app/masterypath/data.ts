@@ -41,6 +41,7 @@ export type AssignmentQuestion =
 
 export type MasteryAssignment = {
   id: string;
+  courseId: string;
   title: string;
   course: string;
   description: string;
@@ -52,6 +53,7 @@ export type MasteryAssignment = {
 
 export const sampleAssignment: MasteryAssignment = {
   id: "residential-wiring-unit-3",
+  courseId: "electrical-tech-101",
   title: "Residential Wiring Mastery Path",
   course: "Electrical Technology",
   description:
@@ -170,6 +172,17 @@ export const sampleAssignment: MasteryAssignment = {
     },
   ],
 };
+
+const assignmentsByCourseId: Record<string, MasteryAssignment> = {
+  [sampleAssignment.courseId]: sampleAssignment,
+  [sampleAssignment.id]: sampleAssignment,
+  "electrical-technology": sampleAssignment,
+};
+
+export function getAssignmentForCourseId(courseId?: string | null) {
+  if (!courseId) return sampleAssignment;
+  return assignmentsByCourseId[courseId] ?? sampleAssignment;
+}
 
 export function buildObjectiveSuggestions(content: string) {
   const text = content.trim();
