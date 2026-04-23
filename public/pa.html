@@ -300,6 +300,254 @@
   .messages::-webkit-scrollbar { width: 5px; }
   .messages::-webkit-scrollbar-track { background: transparent; }
   .messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* compact redesign */
+  :root {
+    --bg: #e8edf3;
+    --surface: #ffffff;
+    --surface2: #f6f8fb;
+    --border: #d9e1ea;
+    --border2: #c7d1dc;
+    --text: #17202c;
+    --text2: #536171;
+    --text3: #7b8796;
+    --accent: #2454c6;
+    --accent-h: #193f99;
+  }
+
+  body {
+    min-height: 100%;
+    padding: 18px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,0) 180px),
+      var(--bg);
+  }
+
+  .shell {
+    height: calc(100vh - 36px);
+    max-width: 760px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 18px 50px rgba(23,32,44,.14);
+    overflow: hidden;
+  }
+
+  .header {
+    gap: 10px;
+    padding: 10px 12px;
+    background: #fbfcfe;
+  }
+
+  .logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #17202c;
+  }
+
+  .logo svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .header-title {
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .header-sub {
+    font-size: 11px;
+  }
+
+  .state-pills {
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+  }
+
+  .pill {
+    min-width: 42px;
+    padding: 5px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text2);
+    letter-spacing: 0;
+  }
+
+  .pill-pa,
+  .pill-oh,
+  .pill-both {
+    background: transparent;
+    color: var(--text2);
+  }
+
+  .pill.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 5px rgba(23,32,44,.12);
+  }
+
+  .messages {
+    padding: 12px;
+    gap: 10px;
+    background: linear-gradient(180deg, #f7f9fc, #f1f5f9);
+  }
+
+  .msg {
+    gap: 8px;
+  }
+
+  .avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 9px;
+    margin-top: 1px;
+  }
+
+  .av-bot {
+    background: #17202c;
+  }
+
+  .bubble {
+    max-width: 88%;
+    padding: 9px 11px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    box-shadow: 0 1px 2px rgba(23,32,44,.04);
+  }
+
+  .msg.bot .bubble {
+    background: #fff;
+    border-radius: 4px 10px 10px 10px;
+  }
+
+  .msg.user .bubble {
+    background: #eef4ff;
+    border-color: #c8d8f8;
+    border-radius: 10px 4px 10px 10px;
+  }
+
+  .bubble p {
+    margin-bottom: 6px;
+  }
+
+  .code-ref {
+    font-size: 11px;
+    padding: 1px 4px;
+  }
+
+  .sources-block {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .source-link {
+    font-size: 11px;
+  }
+
+  .status-line {
+    padding: 5px 12px;
+    font-size: 11px;
+    background: #fbfcfe;
+  }
+
+  .quick-area {
+    padding: 8px 12px;
+    background: #fbfcfe;
+  }
+
+  .quick-label {
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .quick-grid {
+    gap: 5px;
+  }
+
+  .qbtn {
+    padding: 4px 9px;
+    border-radius: 7px;
+    font-size: 11px;
+    background: #fff;
+  }
+
+  .input-area {
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+  }
+
+  .input-box {
+    min-height: 38px;
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-size: 13px;
+    background: #f8fafc;
+  }
+
+  .send-btn {
+    min-height: 38px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .send-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .disclaimer {
+    padding: 0 12px 8px;
+    font-size: 10px;
+  }
+
+  @media (max-width: 720px) {
+    body {
+      padding: 0;
+    }
+
+    .shell {
+      height: 100vh;
+      max-width: none;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .header {
+      flex-wrap: wrap;
+    }
+
+    .header-copy {
+      min-width: 0;
+    }
+
+    .state-pills {
+      width: 100%;
+      justify-content: stretch;
+    }
+
+    .pill {
+      flex: 1;
+    }
+
+    .bubble {
+      max-width: 92%;
+    }
+
+    .quick-area {
+      max-height: 86px;
+      overflow-y: auto;
+    }
+  }
 </style>
 </head>
 <body>
@@ -312,7 +560,7 @@
     </div>
     <div class="header-copy">
       <div class="header-title">Building Code Assistant</div>
-      <div class="header-sub">Searches official PA &amp; Ohio code resources in real time</div>
+      <div class="header-sub">Official PA, Ohio, and ICC code lookup</div>
     </div>
     <div class="state-pills" aria-label="Select code jurisdiction">
       <button class="pill pill-pa" type="button" data-state="pa" onclick="setState('pa')">PA</button>
@@ -326,8 +574,7 @@
     <div class="msg bot">
       <div class="avatar av-bot">BC</div>
       <div class="bubble">
-        <p>Hello! I'm your <strong>Building Code Assistant</strong> for Pennsylvania and Ohio. Choose PA, OH, or Both, then ask a building code question.</p>
-        <p>I search ICC and official state code resources for occupancy classifications, egress, fire ratings, structural requirements, plumbing, electrical, accessibility (ADA/IBC), and more.</p>
+        <p><strong>Ask a PA or Ohio building code question.</strong> Choose a jurisdiction, then ask about egress, occupancy, fire ratings, accessibility, plumbing, electrical, mechanical, permits, and related code topics.</p>
       </div>
     </div>
   </div>
