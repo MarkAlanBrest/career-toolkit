@@ -191,6 +191,13 @@ export default function Page() {
             <p>Install Canvas tools through Tampermonkey.</p>
           </Link>
 
+          {/* Adaptive MasteryPath */}
+          <Link className="card" href="/masterypath">
+            <div className="icon">MP</div>
+            <h2>Adaptive MasteryPath</h2>
+            <p>Prototype an embed-ready mastery assignment with adaptive progress.</p>
+          </Link>
+
         </div>
 
         <div className="footer">
