@@ -82,8 +82,7 @@ export const sampleAssignment: MasteryAssignment = {
       title: "Core lesson",
       kind: "lesson",
       summary: "The student gets the main concept in plain language before trying a check.",
-      body:
-        "A residential branch circuit has to balance conductor size, breaker protection, and location-specific safety rules. Standard 15-amp circuits are commonly paired with 14 AWG copper conductors, while 20-amp circuits are commonly paired with 12 AWG copper conductors.",
+      body: "",
     },
     {
       id: "chart-1",
