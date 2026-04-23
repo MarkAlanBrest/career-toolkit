@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { getAssignmentForCourseId } from "./data";
 
@@ -168,7 +167,6 @@ export default function MasteryPathStudentClient({
           font-size:12px;
           font-weight:800;
           cursor:pointer;
-          text-decoration:none;
           display:inline-flex;
           align-items:center;
           justify-content:center;
@@ -181,69 +179,32 @@ export default function MasteryPathStudentClient({
         }
 
         .main{
-          display:grid;
-          grid-template-columns:minmax(0,1fr);
           min-height:0;
-          background:#f4f7fb;
+          background:#fff;
         }
 
         .content-view,
         .nav-view,
         .results-view{
-          padding:22px;
-          min-height:0;
+          min-height:100%;
         }
 
-        .content-view{
-          display:grid;
-          grid-template-rows:auto 1fr auto;
-          gap:16px;
-        }
-
-        .content-head{
-          display:flex;
-          align-items:flex-start;
-          justify-content:space-between;
-          gap:16px;
-        }
-
-        .content-head h2{
-          margin:0;
-          font-size:28px;
-          line-height:1.08;
-        }
-
-        .content-head p{
-          margin:8px 0 0;
-          max-width:760px;
-          font-size:14px;
-          line-height:1.6;
-          color:#56677b;
-        }
-
-        .status-pill{
-          flex-shrink:0;
-          display:inline-flex;
-          align-items:center;
-          min-height:34px;
-          padding:0 12px;
-          border-radius:999px;
-          background:#e8f0fa;
-          color:#173a63;
-          font-size:12px;
-          font-weight:800;
-        }
-
-        .stage{
-          border:1px solid #d8e2eb;
-          border-radius:8px;
+        .stage,
+        .panel{
+          min-height:100%;
+          border:0;
+          border-radius:0;
           background:#fff;
-          display:grid;
-          grid-template-rows:auto 1fr;
           overflow:hidden;
         }
 
-        .stage-head{
+        .stage{
+          display:grid;
+          grid-template-rows:auto 1fr;
+        }
+
+        .stage-head,
+        .panel-head{
           padding:16px 18px;
           border-bottom:1px solid #e6edf3;
           background:#f9fbfd;
@@ -257,13 +218,15 @@ export default function MasteryPathStudentClient({
           color:#6b7a8c;
         }
 
-        .stage-head h3{
+        .stage-head h3,
+        .panel-head h3{
           margin:8px 0 0;
           font-size:22px;
         }
 
-        .stage-body{
-          padding:20px;
+        .stage-body,
+        .panel-body{
+          padding:24px;
           display:grid;
           gap:18px;
           align-content:start;
@@ -276,7 +239,7 @@ export default function MasteryPathStudentClient({
         }
 
         .visual{
-          min-height:220px;
+          min-height:320px;
           border:1px solid #d8e2eb;
           border-radius:8px;
           background:
@@ -317,44 +280,6 @@ export default function MasteryPathStudentClient({
           border:1px solid #ccd8e2;
           background:#fff;
           color:#173a63;
-        }
-
-        .nav-view,
-        .results-view{
-          display:grid;
-          align-content:start;
-          gap:16px;
-        }
-
-        .panel{
-          border:1px solid #d8e2eb;
-          border-radius:8px;
-          background:#fff;
-          overflow:hidden;
-        }
-
-        .panel-head{
-          padding:14px 18px;
-          border-bottom:1px solid #e6edf3;
-          background:#f9fbfd;
-        }
-
-        .panel-head h3{
-          margin:0;
-          font-size:18px;
-        }
-
-        .panel-head p{
-          margin:6px 0 0;
-          font-size:13px;
-          line-height:1.55;
-          color:#5a6b7d;
-        }
-
-        .panel-body{
-          padding:18px;
-          display:grid;
-          gap:12px;
         }
 
         .objective-card{
@@ -460,20 +385,6 @@ export default function MasteryPathStudentClient({
             padding:10px 14px;
           }
 
-          .content-view,
-          .nav-view,
-          .results-view{
-            padding:14px;
-          }
-
-          .content-head{
-            display:block;
-          }
-
-          .status-pill{
-            margin-top:10px;
-          }
-
           .stage-head,
           .stage-body,
           .panel-head,
@@ -508,48 +419,27 @@ export default function MasteryPathStudentClient({
               onClick={() => setView("content")}
               type="button"
             >
-              Main Screen
+              Viewing
             </button>
             <button
               className={`tool-btn ${view === "navigation" ? "active" : ""}`}
               onClick={() => setView("navigation")}
               type="button"
             >
-              Navigation
+              Navigation / Progress
             </button>
             <button
               className={`tool-btn ${view === "results" ? "active" : ""}`}
               onClick={() => setView("results")}
               type="button"
             >
-              Results
+              Print
             </button>
-            <button className="tool-btn" onClick={() => window.print()} type="button">
-              Print Results
-            </button>
-            <Link className="tool-btn" href="/masterypath/builder">
-              Builder
-            </Link>
-            <Link className="tool-btn" href="/">
-              Dashboard
-            </Link>
           </div>
 
           <main className="main">
             {view === "content" ? (
               <section className="content-view">
-                <div className="content-head">
-                  <div>
-                    <h2>Main content area stays the focus.</h2>
-                    <p>
-                      This window is meant to load content by course ID from the URL,
-                      keep distractions out of the way, and let the student move through
-                      lessons, media, and adaptive interactions in one clear space.
-                    </p>
-                  </div>
-                  <div className="status-pill">{activeSection.title}</div>
-                </div>
-
                 <div className="stage">
                   <div className="stage-head">
                     <div className="stage-kind">{activeSection.kind}</div>
@@ -561,12 +451,12 @@ export default function MasteryPathStudentClient({
 
                     <div className="visual">
                       {activeSection.kind === "lesson"
-                        ? "Focused lesson space for text, diagrams, examples, and guided explanation"
+                        ? "Lesson content area"
                         : activeSection.kind === "chart"
-                          ? "Focused chart space for visual references, progress visuals, and process maps"
+                          ? "Chart content area"
                           : activeSection.kind === "video"
-                            ? "Focused video space for short teaching clips and guided review"
-                            : "Focused interactive space for questions, drag/drop, hotspots, images, and adaptive activities"}
+                            ? "Video content area"
+                            : "Interactive content area"}
                     </div>
 
                     <div className="action-row">
@@ -581,13 +471,6 @@ export default function MasteryPathStudentClient({
                       >
                         Next Content
                       </button>
-                      <button
-                        className="secondary"
-                        onClick={() => setView("navigation")}
-                        type="button"
-                      >
-                        Open Navigation
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -598,11 +481,7 @@ export default function MasteryPathStudentClient({
               <section className="nav-view">
                 <div className="panel">
                   <div className="panel-head">
-                    <h3>Assignment navigation</h3>
-                    <p>
-                      This screen shows progress toward each objective and lets the
-                      student move between learning blocks without crowding the main content window.
-                    </p>
+                    <h3>Navigation / Progress</h3>
                   </div>
                   <div className="panel-body">
                     {assignment.objectives.map((objective) => (
@@ -621,15 +500,7 @@ export default function MasteryPathStudentClient({
                         </p>
                       </div>
                     ))}
-                  </div>
-                </div>
 
-                <div className="panel">
-                  <div className="panel-head">
-                    <h3>Learning blocks</h3>
-                    <p>Select the content block to reopen in the main viewing area.</p>
-                  </div>
-                  <div className="panel-body">
                     {assignment.sections.map((section, index) => (
                       <button
                         className="secondary"
@@ -652,11 +523,7 @@ export default function MasteryPathStudentClient({
               <section className="results-view">
                 <div className="panel">
                   <div className="panel-head">
-                    <h3>Final report</h3>
-                    <p>
-                      This is the report screen the student can submit for a grade after
-                      completing the adaptive assignment.
-                    </p>
+                    <h3>Print</h3>
                   </div>
                   <div className="panel-body">
                     {reportRows.map((row) => (
@@ -678,12 +545,15 @@ export default function MasteryPathStudentClient({
                       >
                         Submit Final Report
                       </button>
+                      <button className="secondary" onClick={() => window.print()} type="button">
+                        Print Report
+                      </button>
                     </div>
 
                     <div className="submit-note">
                       {reportSubmitted
-                        ? "Report submitted. In the real version this would store the final result record and return grade data tied to the course ID."
-                        : "In the real version this report would be written to the database and tied to the course ID passed in the URL."}
+                        ? "Report submitted."
+                        : "Final report ready to submit and print."}
                     </div>
                   </div>
                 </div>
