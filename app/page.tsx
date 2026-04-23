@@ -194,8 +194,15 @@ export default function Page() {
           {/* Adaptive MasteryPath */}
           <Link className="card" href="/masterypath">
             <div className="icon">MP</div>
-            <h2>Adaptive MasteryPath</h2>
-            <p>Prototype an embed-ready mastery assignment with adaptive progress.</p>
+            <h2>MasteryPath Student View</h2>
+            <p>Preview the cleaner student-facing adaptive assignment player.</p>
+          </Link>
+
+          {/* MasteryPath Builder */}
+          <Link className="card" href="/masterypath/builder">
+            <div className="icon">AI</div>
+            <h2>MasteryPath Builder</h2>
+            <p>Step through the teacher workflow for building interactive assignments.</p>
           </Link>
 
         </div>
