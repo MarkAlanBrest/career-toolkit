@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS MasteryAssignments (
+  id VARCHAR(191) NOT NULL PRIMARY KEY,
+  course_id VARCHAR(191) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  course VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  source_mode VARCHAR(32) NOT NULL,
+  source_url TEXT NULL,
+  source_content LONGTEXT NOT NULL,
+  difficulty VARCHAR(32) NOT NULL,
+  layout_type VARCHAR(64) NOT NULL,
+  mastery_target INT NOT NULL DEFAULT 3,
+  learning_suggestions_accepted TINYINT(1) NOT NULL DEFAULT 0,
+  publish_state VARCHAR(32) NOT NULL DEFAULT 'draft',
+  objectives_json JSON NOT NULL,
+  sections_json JSON NOT NULL,
+  questions_json JSON NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_mastery_assignments_course_id (course_id)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

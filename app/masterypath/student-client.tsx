@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getAssignmentForCourseId } from "./data";
+import { type MasteryAssignment } from "./data";
 
 type ProgressMap = Record<
   string,
@@ -24,14 +24,10 @@ function createProgress(objectiveIds: string[]) {
 }
 
 export default function MasteryPathStudentClient({
-  courseId,
+  assignment,
 }: {
-  courseId?: string | null;
+  assignment: MasteryAssignment;
 }) {
-  const assignment = useMemo(
-    () => getAssignmentForCourseId(courseId),
-    [courseId]
-  );
   const [view, setView] = useState<"content" | "navigation" | "report">("content");
   const [progress] = useState<ProgressMap>(() =>
     createProgress(assignment.objectives.map((objective) => objective.id))

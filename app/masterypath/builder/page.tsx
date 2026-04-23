@@ -39,6 +39,9 @@ export default function MasteryPathBuilderPage() {
   );
   const [learningSuggestionsAccepted, setLearningSuggestionsAccepted] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [savedAssignmentId, setSavedAssignmentId] = useState("");
 
   const objectiveSuggestions = useMemo(
     () => buildObjectiveSuggestions(content),
@@ -68,8 +71,45 @@ export default function MasteryPathBuilderPage() {
     setObjectives(objectiveSuggestions);
   }
 
-  function saveDraft() {
-    setSaved(true);
+  async function saveDraft() {
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+
+    try {
+      const response = await fetch("/api/masterypath", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: assignmentName,
+          course: courseName,
+          sourceMode,
+          sourceUrl,
+          content,
+          objectives,
+          difficulty,
+          layout,
+          learningSuggestionsAccepted,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to save assignment.");
+      }
+
+      setSaved(true);
+      setSavedAssignmentId(payload.id);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Unable to save assignment."
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -139,6 +179,11 @@ export default function MasteryPathBuilderPage() {
           background:#173a63;
           border-color:#173a63;
           color:#fff;
+        }
+
+        .btn:disabled{
+          opacity:.65;
+          cursor:progress;
         }
 
         .shell{
@@ -399,6 +444,15 @@ export default function MasteryPathBuilderPage() {
           border-radius:8px;
           background:#ebf8f2;
           color:#0f6a4c;
+          font-size:13px;
+          line-height:1.5;
+        }
+
+        .save-error{
+          padding:12px;
+          border-radius:8px;
+          background:#fdecec;
+          color:#9c2a2a;
           font-size:13px;
           line-height:1.5;
         }
@@ -731,17 +785,34 @@ export default function MasteryPathBuilderPage() {
                       </p>
                     </div>
 
-                    <button className="btn primary" onClick={saveDraft} type="button">
-                      Save to database
+                    <button
+                      className="btn primary"
+                      disabled={saving}
+                      onClick={saveDraft}
+                      type="button"
+                    >
+                      {saving ? "Saving..." : "Save to database"}
                     </button>
 
                     {saved ? (
                       <div className="save-ok">
-                        Prototype save complete. In the real version this step writes the
-                        assignment, objectives, content blocks, interactions, and publish
-                        state to the database so the student player can load it by ID.
+                        Saved to MySQL. The student player can now load this assignment by
+                        ID from Railway.
+                        {savedAssignmentId ? (
+                          <>
+                            {" "}
+                            <Link
+                              className="btn"
+                              href={`/masterypath?assignmentId=${savedAssignmentId}`}
+                            >
+                              Open saved assignment
+                            </Link>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
+
+                    {saveError ? <div className="save-error">{saveError}</div> : null}
                   </>
                 ) : null}
               </div>
