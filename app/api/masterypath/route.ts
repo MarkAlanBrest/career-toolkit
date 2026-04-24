@@ -1,6 +1,11 @@
 export const runtime = "nodejs";
 
-import { saveMasteryAssignment, getMasteryAssignment } from "../../../lib/masterypath-store";
+import {
+  saveMasteryAssignment,
+  getMasteryAssignment,
+  listMasteryAssignments,
+  updateMasteryAssignmentPublishState,
+} from "../../../lib/masterypath-store";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -8,11 +13,9 @@ export async function GET(req: Request) {
   const courseId = searchParams.get("courseId");
 
   if (!assignmentId && !courseId) {
-    return Response.json(
-      { error: "Provide assignmentId or courseId." },
-      { status: 400 }
-    );
-  } 
+    const assignments = await listMasteryAssignments();
+    return Response.json({ assignments });
+  }
 
   try {
     const assignment = await getMasteryAssignment({ assignmentId, courseId });
@@ -56,6 +59,7 @@ export async function POST(req: Request) {
       difficulty: body.difficulty,
       layout: body.layout,
       learningSuggestionsAccepted: Boolean(body.learningSuggestionsAccepted),
+      publishState: body.publishState === "published" ? "published" : "draft",
     });
 
     return Response.json(assignment, { status: 201 });
@@ -64,6 +68,40 @@ export async function POST(req: Request) {
       {
         error:
           error instanceof Error ? error.message : "Unable to save mastery assignment.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const courseId = typeof body.courseId === "string" ? body.courseId : "";
+    const publishState = body.publishState === "published" ? "published" : "draft";
+
+    if (!courseId) {
+      return Response.json({ error: "Provide courseId." }, { status: 400 });
+    }
+
+    const assignment = await updateMasteryAssignmentPublishState({
+      courseId,
+      publishState,
+    });
+
+    if (!assignment) {
+      return Response.json(
+        { error: "Mastery assignment not found." },
+        { status: 404 }
+      );
+    }
+
+    return Response.json(assignment);
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Unable to update mastery assignment.",
       },
       { status: 500 }
     );

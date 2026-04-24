@@ -1,7 +1,7 @@
 import MasteryPathStudentClient from "./student-client";
 import { sampleAssignment } from "./data";
 import {
-  getLatestMasteryAssignment,
+  getLatestPublishedMasteryAssignment,
   getMasteryAssignment,
 } from "../../lib/masterypath-store";
 
@@ -20,7 +20,7 @@ export default async function MasteryPathPage({
             assignmentId: params.assignmentId,
             courseId: params.courseId,
           })
-        : await getLatestMasteryAssignment();
+        : await getLatestPublishedMasteryAssignment();
 
     if (storedAssignment) {
       assignment = storedAssignment;

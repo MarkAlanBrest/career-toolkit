@@ -29,6 +29,7 @@ export type SaveMasteryAssignmentInput = {
   difficulty: MasteryDifficulty;
   layout: MasteryLayout;
   learningSuggestionsAccepted: boolean;
+  publishState?: MasteryPublishState;
 };
 
 export type StoredMasteryAssignment = MasteryAssignment & {
@@ -45,6 +46,16 @@ type MasteryCoursePayloadRow = RowDataPacket & {
   course_id: string;
   title: string;
   payload_json: unknown;
+};
+
+export type MasteryAssignmentListItem = {
+  id: string;
+  courseId: string;
+  title: string;
+  course: string;
+  publishState: MasteryPublishState;
+  activityCount: number;
+  updatedAt?: string;
 };
 
 let schemaReady = false;
@@ -276,7 +287,7 @@ function buildStoredAssignment(
 
   return {
     id: slugify(title, sampleAssignment.id),
-    courseId: slugify(course, sampleAssignment.courseId),
+    courseId: slugify(`${course}-${title}`, sampleAssignment.courseId),
     title,
     course,
     description: truncateText(
@@ -290,7 +301,7 @@ function buildStoredAssignment(
     difficulty: input.difficulty,
     layout: input.layout,
     learningSuggestionsAccepted: input.learningSuggestionsAccepted,
-    publishState: "draft",
+    publishState: input.publishState || "draft",
   };
 }
 
@@ -351,6 +362,27 @@ function mapRowToAssignment(row: MasteryCoursePayloadRow) {
   return parseJsonField<StoredMasteryAssignment | null>(row.payload_json, null);
 }
 
+function mapRowToListItem(row: MasteryCoursePayloadRow & { updated_at?: Date | string }) {
+  const assignment = mapRowToAssignment(row);
+
+  if (!assignment) return null;
+
+  return {
+    id: assignment.id,
+    courseId: assignment.courseId,
+    title: assignment.title,
+    course: assignment.course,
+    publishState: assignment.publishState || "draft",
+    activityCount: assignment.objective?.blocks?.length || 0,
+    updatedAt:
+      row.updated_at instanceof Date
+        ? row.updated_at.toISOString()
+        : typeof row.updated_at === "string"
+          ? row.updated_at
+          : undefined,
+  } satisfies MasteryAssignmentListItem;
+}
+
 export async function getMasteryAssignment({
   assignmentId,
   courseId,
@@ -396,4 +428,66 @@ export async function getLatestMasteryAssignment() {
   );
 
   return rows[0] ? mapRowToAssignment(rows[0]) : null;
+}
+
+export async function getLatestPublishedMasteryAssignment() {
+  if (!hasDatabaseConfig()) return null;
+
+  await ensureMasteryAssignmentsTable();
+  const db = getDbPool();
+  const [rows] = await db.query<MasteryCoursePayloadRow[]>(
+    `
+      SELECT *
+      FROM MasteryPathCoursePayloads
+      WHERE JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.publishState')) = 'published'
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `
+  );
+
+  return rows[0] ? mapRowToAssignment(rows[0]) : null;
+}
+
+export async function listMasteryAssignments() {
+  if (!hasDatabaseConfig()) return [];
+
+  await ensureMasteryAssignmentsTable();
+  const db = getDbPool();
+  const [rows] = await db.query<(MasteryCoursePayloadRow & { updated_at?: Date | string })[]>(
+    "SELECT * FROM MasteryPathCoursePayloads ORDER BY updated_at DESC"
+  );
+
+  return rows.map(mapRowToListItem).filter(Boolean);
+}
+
+export async function updateMasteryAssignmentPublishState({
+  courseId,
+  publishState,
+}: {
+  courseId: string;
+  publishState: MasteryPublishState;
+}) {
+  if (!hasDatabaseConfig()) return null;
+
+  await ensureMasteryAssignmentsTable();
+  const assignment = await getMasteryAssignment({ courseId });
+
+  if (!assignment) return null;
+
+  const nextAssignment: StoredMasteryAssignment = {
+    ...assignment,
+    publishState,
+  };
+  const db = getDbPool();
+
+  await db.query(
+    `
+      UPDATE MasteryPathCoursePayloads
+      SET title = ?, payload_json = ?
+      WHERE course_id = ?
+    `,
+    [nextAssignment.title, JSON.stringify(nextAssignment), courseId]
+  );
+
+  return nextAssignment;
 }

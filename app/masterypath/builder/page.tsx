@@ -786,6 +786,9 @@ export default function MasteryPathBuilderPage() {
             <p>Upload or paste content, choose interaction types, then set repeat loops until mastery.</p>
           </div>
           <div className="toolbar">
+            <Link className="btn" href="/masterypath/assignments">
+              Assignments
+            </Link>
             <Link className="btn" href="/masterypath">
               Student View
             </Link>
@@ -992,8 +995,12 @@ export default function MasteryPathBuilderPage() {
                       {savedCourseId ? (
                         <>
                           {" "}
+                          <Link className="btn" href="/masterypath/assignments">
+                            Manage assignments
+                          </Link>
+                          {" "}
                           <Link className="btn" href={`/masterypath?courseId=${savedCourseId}`}>
-                            Open student view
+                            Preview
                           </Link>
                         </>
                       ) : null}
