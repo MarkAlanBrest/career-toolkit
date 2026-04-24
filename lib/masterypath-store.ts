@@ -244,6 +244,8 @@ function buildStoredAssignment(
     minBlocksComplete: Math.min(blocks.length, 6),
     minCorrectInteractions: 2,
     allowRetake: true,
+    repeatLoopsRequired: 1,
+    loopLevel: "Support" as const,
   };
   const objective: AssignmentObjective = {
     id: slugify(objectiveTitle, sampleAssignment.objective.id),

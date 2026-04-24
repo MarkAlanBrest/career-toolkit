@@ -12,7 +12,7 @@ export async function GET(req: Request) {
       { error: "Provide assignmentId or courseId." },
       { status: 400 }
     );
-  }
+  } 
 
   try {
     const assignment = await getMasteryAssignment({ assignmentId, courseId });

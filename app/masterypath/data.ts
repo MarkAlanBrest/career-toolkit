@@ -60,6 +60,8 @@ export type CompletionCriteria = {
   minBlocksComplete: number;
   minCorrectInteractions: number;
   allowRetake: boolean;
+  repeatLoopsRequired?: number;
+  loopLevel?: "Support" | "Practice" | "Mastery";
 };
 
 export type AssignmentObjective = {
@@ -213,30 +215,6 @@ export const sampleAssignment: MasteryAssignment = {
     ],
   },
 };
-
-export function buildObjectiveSuggestions(content: string) {
-  const text = content.trim();
-
-  if (!text) {
-    return {
-      title: "Identify the main skill students need to demonstrate.",
-      goal: "Describe the concrete evidence that would show students mastered the skill.",
-    };
-  }
-
-  const sentences = text
-    .split(/[.!?]/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-
-  const titleSeed = sentences[0] || "Core skill";
-  const goalSeed = sentences.slice(0, 2).join(". ");
-
-  return {
-    title: titleSeed.length > 68 ? `${titleSeed.slice(0, 65)}...` : titleSeed,
-    goal: goalSeed || titleSeed,
-  };
-}
 
 export function buildInteractionSuggestions(objectiveGoal: string, difficulty: string) {
   if (!objectiveGoal.trim()) {

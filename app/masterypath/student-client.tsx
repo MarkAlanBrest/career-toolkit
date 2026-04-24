@@ -64,13 +64,13 @@ export default function MasteryPathStudentClient({
   const [selectedChoiceId, setSelectedChoiceId] = useState("");
   const [feedback, setFeedback] = useState("");
   const [completedBlocks, setCompletedBlocks] = useState<Record<string, boolean>>({});
-  const [correctInteractions, setCorrectInteractions] = useState<Record<string, boolean>>({});
+  const [correctInteractions, setCorrectInteractions] = useState<Record<string, number>>({});
   const [reflectionText, setReflectionText] = useState<Record<string, string>>({});
 
   const currentBlock = blocks[currentIndex] ?? null;
   const hasAssignment = Boolean(assignment && objective && currentBlock);
   const completedCount = Object.values(completedBlocks).filter(Boolean).length;
-  const correctCount = Object.values(correctInteractions).filter(Boolean).length;
+  const correctCount = Object.values(correctInteractions).reduce((total, count) => total + count, 0);
   const interactiveCount = blocks.filter(isInteractiveBlock).length;
   const requiredBlocks = Math.min(criteria?.minBlocksComplete ?? blocks.length, blocks.length);
   const requiredCorrect = Math.min(criteria?.minCorrectInteractions ?? 0, interactiveCount);
@@ -98,7 +98,7 @@ export default function MasteryPathStudentClient({
     if (correct) {
       setCorrectInteractions((previous) => ({
         ...previous,
-        [block.id]: true,
+        [block.id]: (previous[block.id] || 0) + 1,
       }));
     }
   }
@@ -772,7 +772,7 @@ export default function MasteryPathStudentClient({
                         <h3>Completion Target</h3>
                         <p>
                           Complete {requiredBlocks} blocks and answer {requiredCorrect}
-                          interactive blocks correctly. Current progress: {completedCount}
+                          interaction attempts correctly. Current progress: {completedCount}
                           blocks, {correctCount} correct.
                         </p>
                       </div>

@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 
-type GenerateStage = "objective" | "blocks";
+type GenerateStage = "blocks";
 
 type GenerateRequestBody = {
   stage?: GenerateStage;
@@ -19,20 +19,12 @@ type GenerateRequestBody = {
 const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
-  const stage = body.stage === "blocks" ? "blocks" : "objective";
-
   return `
-You are helping a teacher build a mastery assignment with exactly one objective.
+You are helping a teacher build possible student interactions from uploaded content.
 
 Return JSON only. Do not wrap the response in markdown fences.
 
-If stage is "objective", return:
-{
-  "objectiveTitle": "...",
-  "objectiveGoal": "..."
-}
-
-If stage is "blocks", return:
+Return:
 {
   "completionCriteria": {
     "minBlocksComplete": 12,
@@ -88,7 +80,8 @@ Allowed layoutStyle values:
 "split", "spotlight", "bullet-focus", "media-left"
 
 Requirements:
-- Build one objective only.
+- Do not create or rewrite the teacher's objective.
+- Use the teacher's assignment title as the objective label.
 - Keep the learner experience simple: interactions first, study tips second.
 - Do not build long teaching slides or dense content sections.
 - Use most blocks for multiple-choice, true-false, checkpoint, or reflection interactions.
@@ -100,15 +93,12 @@ Requirements:
 - Generate about ${body.desiredBlockCount || 14} blocks when stage is "blocks".
 
 Input:
-stage: ${stage}
 assignmentTitle: ${body.title || ""}
 course: ${body.course || ""}
 sourceMode: ${body.sourceMode || "paste"}
 sourceUrl: ${body.sourceUrl || ""}
 difficulty: ${body.difficulty || "Intermediate"}
 layout: ${body.layout || "Mixed media path"}
-objectiveTitle: ${body.objectiveTitle || ""}
-objectiveGoal: ${body.objectiveGoal || ""}
 sourceContent:
 ${body.content || ""}
 `.trim();
@@ -171,13 +161,6 @@ export async function POST(req: Request) {
   if (!body.content?.trim()) {
     return Response.json(
       { error: "Add source content before generating AI output." },
-      { status: 400 }
-    );
-  }
-
-  if (body.stage === "blocks" && !body.objectiveGoal?.trim()) {
-    return Response.json(
-      { error: "Generate or enter the objective before building the block stack." },
       { status: 400 }
     );
   }
