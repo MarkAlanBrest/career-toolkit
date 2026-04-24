@@ -67,6 +67,10 @@ export type ObjectiveBlock = {
   bullets?: string[];
   callout?: SlideCallout | null;
   media?: SlideMedia | null;
+  imageUrl?: string;
+  imageAlt?: string;
+  videoUrl?: string;
+  caption?: string;
   stats?: SlideStat[];
   theme?: SlideTheme;
   layoutStyle?: SlideLayoutStyle;
