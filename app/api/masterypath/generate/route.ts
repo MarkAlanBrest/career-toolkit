@@ -102,8 +102,9 @@ Requirements:
 - Include drag-drop, matching, sequencing, sorting, scenario decisions, reflection, and quick checks where appropriate.
 - For drag-drop, matching, and sorting, provide activityItems with targetId values and activityTargets with matching ids.
 - For sequencing, provide activityItems with order values starting at 1.
-- Use review blocks as short study tips after harder interactions, such as "Please review [topic] again; you could improve here."
-- Keep any body text brief and question-like or study-tip-like.
+- Do not create study-tip or review-only blocks.
+- Every block should be an activity the student can interact with.
+- Keep any body text brief and activity-like.
 - Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.

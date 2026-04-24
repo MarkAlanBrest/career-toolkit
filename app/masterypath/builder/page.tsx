@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { type CompletionCriteria, type ObjectiveBlock } from "../data";
+import { type CompletionCriteria, type ObjectiveBlock, type SlideTheme } from "../data";
 
 type Step = 1 | 2 | 3;
 type LoopLevel = "Support" | "Practice" | "Mastery";
@@ -81,15 +81,32 @@ const loopLevels: Array<{
   },
 ];
 
-function slugify(value: string, fallback: string) {
-  const slug = value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || fallback;
-}
+const themes: Array<{
+  id: SlideTheme;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "ocean",
+    label: "Ocean",
+    description: "Clean blue classroom style.",
+  },
+  {
+    id: "sunset",
+    label: "Sunset",
+    description: "Warm high-energy activity style.",
+  },
+  {
+    id: "forest",
+    label: "Forest",
+    description: "Calm green focused practice style.",
+  },
+  {
+    id: "slate",
+    label: "Slate",
+    description: "Neutral professional assessment style.",
+  },
+];
 
 function contentTopics(content: string, title: string) {
   const sentences = content
@@ -291,6 +308,7 @@ export default function MasteryPathBuilderPage() {
     "reflection",
   ]);
   const [loopLevel, setLoopLevel] = useState<LoopLevel>("Practice");
+  const [selectedTheme, setSelectedTheme] = useState<SlideTheme>("ocean");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -304,7 +322,14 @@ export default function MasteryPathBuilderPage() {
     () => buildInteractionBlocks({ title, content, selectedTypes }),
     [content, selectedTypes, title]
   );
-  const finalBlocks = aiBlocks.length ? aiBlocks : interactionBlocks;
+  const finalBlocks = useMemo(
+    () =>
+      (aiBlocks.length ? aiBlocks : interactionBlocks).map((block) => ({
+        ...block,
+        theme: selectedTheme,
+      })),
+    [aiBlocks, interactionBlocks, selectedTheme]
+  );
   const completionCriteria: CompletionCriteria = {
     minBlocksComplete: finalBlocks.length,
     minCorrectInteractions: selectedLevel.correct,
@@ -848,6 +873,23 @@ export default function MasteryPathBuilderPage() {
                       value={content}
                     />
                   </div>
+
+                  <div className="field">
+                    <label>Student activity theme</label>
+                    <div className="grid">
+                      {themes.map((theme) => (
+                        <button
+                          className={`card ${selectedTheme === theme.id ? "selected" : ""}`}
+                          key={theme.id}
+                          onClick={() => setSelectedTheme(theme.id)}
+                          type="button"
+                        >
+                          <strong>{theme.label}</strong>
+                          <p>{theme.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : null}
 
@@ -930,7 +972,8 @@ export default function MasteryPathBuilderPage() {
                     <strong>Save summary</strong>
                     <p>
                       {title || "Untitled assignment"} will save with {finalBlocks.length}{" "}
-                      interactions and a {loopLevel.toLowerCase()} loop requirement.
+                      interactions, the {selectedTheme} theme, and a{" "}
+                      {loopLevel.toLowerCase()} loop requirement.
                     </p>
                   </div>
 

@@ -48,24 +48,6 @@ function hasActivityItems(block?: ObjectiveBlock | null) {
   return Boolean(block?.activityItems?.length);
 }
 
-function studyTopic(block: ObjectiveBlock, objectiveTitle?: string) {
-  return block.title || objectiveTitle || "this objective";
-}
-
-function buildStudyTip(block: ObjectiveBlock, objectiveTitle?: string) {
-  const topic = studyTopic(block, objectiveTitle);
-
-  if (block.type === "reflection") {
-    return `Please explain ${topic} in your own words before moving on.`;
-  }
-
-  if (hasChoices(block)) {
-    return `Please review ${topic} again before answering.`;
-  }
-
-  return `Please review ${topic} again; you could improve here.`;
-}
-
 export default function MasteryPathStudentClient({
   assignment,
 }: {
@@ -93,8 +75,6 @@ export default function MasteryPathStudentClient({
   const isLastBlock = currentIndex >= blocks.length - 1;
   const objectiveComplete =
     completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
-  const currentStudyTip =
-    currentBlock && objective ? buildStudyTip(currentBlock, objective.title) : "";
 
   function handleClose() {
     if (window.history.length > 1) {
@@ -139,7 +119,7 @@ export default function MasteryPathStudentClient({
     setFeedback(
       isCorrect
         ? choice.feedback || "Correct. Keep going."
-        : `Please review ${studyTopic(block, objective?.title)} again; you could improve here.`
+        : "Not quite. Try again."
     );
     return true;
   }
@@ -196,7 +176,7 @@ export default function MasteryPathStudentClient({
     setFeedback(
       isCorrect
         ? "Correct. Keep going."
-        : `Please review ${studyTopic(block, objective?.title)} again; you could improve here.`
+        : "Not quite. Try again."
     );
     return true;
   }
@@ -459,7 +439,7 @@ export default function MasteryPathStudentClient({
 
         .content-grid{
           display:grid;
-          grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);
+          grid-template-columns:minmax(0,1fr);
           gap:18px;
           align-content:start;
         }
@@ -844,12 +824,8 @@ export default function MasteryPathStudentClient({
                   <div className="content-grid">
                     <div className="stack">
                       <div className="card">
-                        <h3>{hasChoices(currentBlock) ? "Question" : "Study Tip"}</h3>
-                        <p>
-                          {hasChoices(currentBlock) || currentBlock.type === "reflection"
-                            ? currentBlock.body
-                            : currentStudyTip}
-                        </p>
+                        <h3>{hasChoices(currentBlock) ? "Question" : "Activity"}</h3>
+                        <p>{currentBlock.body}</p>
                       </div>
 
                       {hasChoices(currentBlock) ? (
@@ -970,21 +946,6 @@ export default function MasteryPathStudentClient({
                       {feedback ? <div className="feedback">{feedback}</div> : null}
                     </div>
 
-                    <div className="stack">
-                      <div className="card">
-                        <h3>Improve</h3>
-                        <p>{currentStudyTip}</p>
-                      </div>
-
-                      <div className="card">
-                        <h3>Completion Target</h3>
-                        <p>
-                          Complete {requiredBlocks} blocks and answer {requiredCorrect}
-                          interaction attempts correctly. Current progress: {completedCount}
-                          blocks, {correctCount} correct.
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
