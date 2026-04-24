@@ -89,10 +89,12 @@ Allowed layoutStyle values:
 
 Requirements:
 - Build one objective only.
-- The objective should support a large stack of content and interactions.
-- Mix content slides and interactive blocks throughout the sequence.
-- Make the blocks feel polished, visual, and classroom-ready.
-- Include multiple checks and review/reteach blocks so the section can be retaken.
+- Keep the learner experience simple: interactions first, study tips second.
+- Do not build long teaching slides or dense content sections.
+- Use most blocks for multiple-choice, true-false, checkpoint, or reflection interactions.
+- Use review blocks as short study tips, such as "Please review [topic] again; you could improve here."
+- Keep any body text brief and question-like or study-tip-like.
+- Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.
 - Generate about ${body.desiredBlockCount || 14} blocks when stage is "blocks".

@@ -84,15 +84,14 @@ function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficul
     {
       id: "block-1",
       type: "content-slide" as const,
-      title: "Open With the Core Idea",
-      summary: "Start the objective with a strong teaching slide before asking the student to respond.",
+      title: "Review the Core Idea",
+      summary: "A short study tip before the first interaction.",
       body:
-        objectiveGoal ||
-        "Teach the central idea in plain language before the first interaction appears.",
+        `Please review ${objectiveGoal || "the main objective"} again before answering.`,
       bullets: [
-        "State the rule clearly.",
-        "Show the pattern students should notice.",
-        "Anchor the objective before the first checkpoint.",
+        "Review the main rule.",
+        "Look for the pattern in the question.",
+        "Try the checkpoint when ready.",
       ],
       theme: themeForIndex(0),
       layoutStyle: layoutForIndex(0),
@@ -100,9 +99,9 @@ function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficul
     {
       id: "block-2",
       type: "bullet-slide" as const,
-      title: "Key Details Students Must Keep",
-      summary: suggestions[0]?.content || "Turn the objective into memorable, scannable teaching points.",
-      body: "Slow down the rule and highlight the details students often miss.",
+      title: "Study Tip",
+      summary: "A brief review prompt before the next check.",
+      body: `Please review ${objectiveGoal || "this objective"} again; you could improve here.`,
       bullets: suggestions[0]?.interactions || ["Content slide", "Bullet slide", "Visual cue"],
       theme: themeForIndex(1),
       layoutStyle: "bullet-focus" as const,
@@ -123,12 +122,12 @@ function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficul
         {
           id: "distractor-1",
           text: "Distractor option",
-          feedback: "Not yet. This should send the student back into the content stack.",
+          feedback: "Please review this checkpoint again; you could improve here.",
         },
         {
           id: "distractor-2",
           text: "Another distractor",
-          feedback: "This response shows the student still needs support.",
+          feedback: "Please review the objective again; you could improve here.",
         },
       ],
       theme: themeForIndex(2),
@@ -137,9 +136,9 @@ function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficul
     {
       id: "block-4",
       type: "review" as const,
-      title: "Review the Rule",
-      summary: suggestions[1]?.content || "Use a short review block that students can revisit during a retake.",
-      body: "Restate the rule in simpler language and connect it back to the decision students just made.",
+      title: "Study Tip",
+      summary: "A simple improvement prompt students can revisit during a retake.",
+      body: `Please review ${objectiveGoal || "this objective"} again; you could improve here.`,
       bullets: [
         "Rephrase the concept.",
         "Show what the wrong answer overlooked.",
@@ -164,7 +163,7 @@ function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficul
         {
           id: "false",
           text: "False",
-          feedback: "Not yet. The student should return to the earlier content and review slides.",
+          feedback: "Please review this rule again; you could improve here.",
         },
       ],
       theme: themeForIndex(4),

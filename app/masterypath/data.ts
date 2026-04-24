@@ -145,7 +145,7 @@ export const sampleAssignment: MasteryAssignment = {
           {
             id: "a",
             text: "10 AWG",
-            feedback: "10 AWG is larger than needed for this standard pairing.",
+            feedback: "Please review 20-amp conductor sizing again; you could improve here.",
           },
           {
             id: "b",
@@ -156,7 +156,7 @@ export const sampleAssignment: MasteryAssignment = {
           {
             id: "c",
             text: "14 AWG",
-            feedback: "14 AWG is commonly paired with a 15-amp circuit, not 20-amp.",
+            feedback: "Please review 20-amp conductor sizing again; you could improve here.",
           },
         ],
         theme: "sunset",
@@ -193,7 +193,7 @@ export const sampleAssignment: MasteryAssignment = {
           {
             id: "false",
             text: "False",
-            feedback: "Not quite. 14 AWG copper commonly pairs with a 15-amp breaker.",
+            feedback: "Please review 15-amp conductor sizing again; you could improve here.",
           },
         ],
         theme: "sunset",

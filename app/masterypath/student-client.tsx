@@ -34,29 +34,22 @@ function hasChoices(block?: ObjectiveBlock | null) {
   return Boolean(block?.choices?.length);
 }
 
-function videoEmbedUrl(url: string) {
-  try {
-    const parsed = new URL(url);
+function studyTopic(block: ObjectiveBlock, objectiveTitle?: string) {
+  return block.title || objectiveTitle || "this objective";
+}
 
-    if (parsed.hostname.includes("youtube.com")) {
-      const videoId = parsed.searchParams.get("v");
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
-    }
+function buildStudyTip(block: ObjectiveBlock, objectiveTitle?: string) {
+  const topic = studyTopic(block, objectiveTitle);
 
-    if (parsed.hostname.includes("youtu.be")) {
-      const videoId = parsed.pathname.replace("/", "");
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
-    }
-
-    if (parsed.hostname.includes("vimeo.com")) {
-      const videoId = parsed.pathname.replace("/", "");
-      return videoId ? `https://player.vimeo.com/video/${videoId}` : url;
-    }
-
-    return url;
-  } catch {
-    return url;
+  if (block.type === "reflection") {
+    return `Please explain ${topic} in your own words before moving on.`;
   }
+
+  if (hasChoices(block)) {
+    return `Please review ${topic} again before answering.`;
+  }
+
+  return `Please review ${topic} again; you could improve here.`;
 }
 
 export default function MasteryPathStudentClient({
@@ -84,6 +77,8 @@ export default function MasteryPathStudentClient({
   const isLastBlock = currentIndex >= blocks.length - 1;
   const objectiveComplete =
     completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
+  const currentStudyTip =
+    currentBlock && objective ? buildStudyTip(currentBlock, objective.title) : "";
 
   function handleClose() {
     if (window.history.length > 1) {
@@ -125,8 +120,9 @@ export default function MasteryPathStudentClient({
     const isCorrect = Boolean(choice.isCorrect);
     markBlockComplete(block, isCorrect);
     setFeedback(
-      choice.feedback ||
-        (isCorrect ? "Correct. Keep going." : "Not quite. Review the feedback, then continue.")
+      isCorrect
+        ? choice.feedback || "Correct. Keep going."
+        : `Please review ${studyTopic(block, objective?.title)} again; you could improve here.`
     );
     return true;
   }
@@ -718,29 +714,13 @@ export default function MasteryPathStudentClient({
                   <div className="content-grid">
                     <div className="stack">
                       <div className="card">
-                        <h3>Current Block</h3>
-                        <p>{currentBlock.body}</p>
+                        <h3>{hasChoices(currentBlock) ? "Question" : "Study Tip"}</h3>
+                        <p>
+                          {hasChoices(currentBlock) || currentBlock.type === "reflection"
+                            ? currentBlock.body
+                            : currentStudyTip}
+                        </p>
                       </div>
-
-                      {(currentBlock.bullets ?? []).length ? (
-                        <div className="card">
-                          <h3>Key Points</h3>
-                          <ul className="bullet-list">
-                            {(currentBlock.bullets ?? []).map((bullet) => (
-                              <li key={bullet}>
-                                <span>{bullet}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-
-                      {currentBlock.callout ? (
-                        <div className="card">
-                          <h3>{currentBlock.callout.label}</h3>
-                          <p>{currentBlock.callout.text}</p>
-                        </div>
-                      ) : null}
 
                       {hasChoices(currentBlock) ? (
                         <div className="card">
@@ -783,46 +763,10 @@ export default function MasteryPathStudentClient({
                     </div>
 
                     <div className="stack">
-                      {currentBlock.media?.url ? (
-                        <div className="media">
-                          {currentBlock.media.type === "video" ? (
-                            <iframe
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              src={videoEmbedUrl(currentBlock.media.url)}
-                              title={currentBlock.title}
-                            />
-                          ) : (
-                            <img
-                              alt={currentBlock.media.caption || currentBlock.title}
-                              src={currentBlock.media.url}
-                            />
-                          )}
-                          {currentBlock.media.caption ? (
-                            <div className="media-caption">{currentBlock.media.caption}</div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <div className="placeholder-graphic">
-                          <div className="graphic-lines">
-                            <div className="graphic-line" />
-                            <div className="graphic-line" />
-                            <div className="graphic-line" />
-                            <div className="graphic-line" />
-                          </div>
-                        </div>
-                      )}
-
-                      {(currentBlock.stats ?? []).length ? (
-                        <div className="stats">
-                          {(currentBlock.stats ?? []).map((stat) => (
-                            <div className="stat" key={`${stat.label}-${stat.value}`}>
-                              <strong>{stat.value}</strong>
-                              <span>{stat.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
+                      <div className="card">
+                        <h3>Improve</h3>
+                        <p>{currentStudyTip}</p>
+                      </div>
 
                       <div className="card">
                         <h3>Completion Target</h3>
