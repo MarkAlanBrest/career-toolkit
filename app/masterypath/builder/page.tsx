@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   buildInteractionSuggestions,
   buildObjectiveSuggestions,
+  type ContentSection,
 } from "../data";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -16,6 +17,10 @@ const steps: Array<{ id: Step; label: string }> = [
   { id: 4, label: "Learning Flow" },
   { id: 5, label: "Save" },
 ];
+
+type GeneratedSection = ContentSection & {
+  interactions: string[];
+};
 
 export default function MasteryPathBuilderPage() {
   const [step, setStep] = useState<Step>(1);
@@ -36,6 +41,9 @@ export default function MasteryPathBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [savedAssignmentId, setSavedAssignmentId] = useState("");
+  const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
+  const [aiError, setAiError] = useState("");
+  const [aiBusyStep, setAiBusyStep] = useState<Step | null>(null);
 
   const objectiveSuggestions = useMemo(
     () => buildObjectiveSuggestions(content),
@@ -65,6 +73,94 @@ export default function MasteryPathBuilderPage() {
     setObjectives(objectiveSuggestions);
   }
 
+  async function generateWithAi(stage: "objectives" | "flow") {
+    setAiError("");
+    setAiBusyStep(stage === "objectives" ? 2 : 4);
+
+    try {
+      const response = await fetch("/api/masterypath/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stage,
+          title: assignmentName,
+          course: courseName,
+          sourceMode,
+          sourceUrl,
+          content,
+          objectives,
+          difficulty,
+          layout,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to generate AI content.");
+      }
+
+      if (stage === "objectives") {
+        const nextObjectives = Array.isArray(payload.objectives)
+          ? payload.objectives
+              .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+              .filter(Boolean)
+          : [];
+
+        if (!nextObjectives.length) {
+          throw new Error("AI did not return any objectives.");
+        }
+
+        setObjectives(nextObjectives);
+        return;
+      }
+
+      const nextSections = Array.isArray(payload.sections)
+        ? payload.sections
+            .map((section: any, index: number) => ({
+              id:
+                typeof section?.id === "string" && section.id.trim()
+                  ? section.id.trim()
+                  : `generated-section-${index + 1}`,
+              title:
+                typeof section?.title === "string" && section.title.trim()
+                  ? section.title.trim()
+                  : `Learning block ${index + 1}`,
+              kind:
+                section?.kind === "lesson" ||
+                section?.kind === "chart" ||
+                section?.kind === "video" ||
+                section?.kind === "interactive"
+                  ? section.kind
+                  : "lesson",
+              summary:
+                typeof section?.summary === "string" ? section.summary.trim() : "",
+              body: typeof section?.body === "string" ? section.body.trim() : "",
+              interactions: Array.isArray(section?.interactions)
+                ? section.interactions
+                    .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+                    .filter(Boolean)
+                : [],
+            }))
+            .filter((section: GeneratedSection) => section.title || section.body)
+        : [];
+
+      if (!nextSections.length) {
+        throw new Error("AI did not return any learning sections.");
+      }
+
+      setGeneratedSections(nextSections);
+    } catch (error) {
+      setAiError(
+        error instanceof Error ? error.message : "Unable to generate AI content."
+      );
+    } finally {
+      setAiBusyStep(null);
+    }
+  }
+
   async function saveDraft() {
     setSaving(true);
     setSaved(false);
@@ -83,6 +179,7 @@ export default function MasteryPathBuilderPage() {
           sourceUrl,
           content,
           objectives,
+          sections: generatedSections.map(({ interactions: _interactions, ...section }) => section),
           difficulty,
           layout,
           learningSuggestionsAccepted,
@@ -648,10 +745,24 @@ export default function MasteryPathBuilderPage() {
                     </div>
 
                     <div className="segmented">
-                      <button className="active" onClick={applyObjectiveSuggestions} type="button">
-                        Accept AI suggestions
+                      <button
+                        className="active"
+                        disabled={!content.trim() || aiBusyStep === 2}
+                        onClick={() => generateWithAi("objectives")}
+                        type="button"
+                      >
+                        {aiBusyStep === 2 ? "Generating..." : "Generate with AI"}
+                      </button>
+                      <button
+                        disabled={!objectiveSuggestions.length}
+                        onClick={applyObjectiveSuggestions}
+                        type="button"
+                      >
+                        Use quick local draft
                       </button>
                     </div>
+
+                    {aiError && step === 2 ? <div className="save-error">{aiError}</div> : null}
 
                     <div className="field">
                       <label>Editable objectives</label>
@@ -731,8 +842,29 @@ export default function MasteryPathBuilderPage() {
                   <>
                     <div className="field">
                       <label>AI-suggested learning content and interactions</label>
+                      <div className="segmented">
+                        <button
+                          className="active"
+                          disabled={!content.trim() || aiBusyStep === 4}
+                          onClick={() => generateWithAi("flow")}
+                          type="button"
+                        >
+                          {aiBusyStep === 4 ? "Generating..." : "Generate with AI"}
+                        </button>
+                      </div>
                       <div className="list">
-                        {interactionSuggestions.map((suggestion) => (
+                        {(generatedSections.length
+                          ? generatedSections.map((section, index) => ({
+                              id: section.id || `generated-${index + 1}`,
+                              title: section.title,
+                              content: section.body || section.summary,
+                              interactions:
+                                section.interactions.length
+                                  ? section.interactions
+                                  : [section.kind, section.summary].filter(Boolean),
+                            }))
+                          : interactionSuggestions
+                        ).map((suggestion) => (
                           <div className="card" key={suggestion.id}>
                             <strong>{suggestion.title}</strong>
                             <p>{suggestion.content}</p>
@@ -747,6 +879,8 @@ export default function MasteryPathBuilderPage() {
                         ))}
                       </div>
                     </div>
+
+                    {aiError && step === 4 ? <div className="save-error">{aiError}</div> : null}
 
                     <div className="field">
                       <label>Teacher approval</label>

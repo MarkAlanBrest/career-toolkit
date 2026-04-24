@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       sourceUrl: body.sourceUrl,
       content: body.content,
       objectives: Array.isArray(body.objectives) ? body.objectives : [],
+      sections: Array.isArray(body.sections) ? body.sections : undefined,
       difficulty: body.difficulty,
       layout: body.layout,
       learningSuggestionsAccepted: Boolean(body.learningSuggestionsAccepted),

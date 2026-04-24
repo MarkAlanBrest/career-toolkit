@@ -21,6 +21,7 @@ export type SaveMasteryAssignmentInput = {
   sourceUrl?: string;
   content: string;
   objectives: string[];
+  sections?: ContentSection[];
   difficulty: MasteryDifficulty;
   layout: MasteryLayout;
   learningSuggestionsAccepted: boolean;
@@ -165,7 +166,10 @@ function buildStoredAssignment(
     learningSuggestionsAccepted: input.learningSuggestionsAccepted,
     publishState: "draft",
     objectives,
-    sections: buildSections(content, objectives, input.difficulty, input.layout),
+    sections:
+      input.sections && input.sections.length
+        ? input.sections
+        : buildSections(content, objectives, input.difficulty, input.layout),
     questions: buildQuestions(),
   };
 }
