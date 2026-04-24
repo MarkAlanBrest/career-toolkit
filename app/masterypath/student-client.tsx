@@ -26,20 +26,21 @@ function createProgress(objectiveIds: string[]) {
 export default function MasteryPathStudentClient({
   assignment,
 }: {
-  assignment: MasteryAssignment;
+  assignment: MasteryAssignment | null;
 }) {
+  const hasAssignment = Boolean(assignment);
   const [view, setView] = useState<"content" | "navigation" | "report">("content");
   const [progress] = useState<ProgressMap>(() =>
-    createProgress(assignment.objectives.map((objective) => objective.id))
+    createProgress(assignment?.objectives.map((objective) => objective.id) ?? [])
   );
 
   const reportRows = useMemo(
     () =>
-      assignment.objectives.map((objective) => ({
+      (assignment?.objectives ?? []).map((objective) => ({
         objective,
         progress: progress[objective.id],
       })),
-    [assignment.objectives, progress]
+    [assignment, progress]
   );
 
   function handleClose() {
@@ -278,7 +279,19 @@ export default function MasteryPathStudentClient({
           </div>
 
           <div className="screen">
-            {view === "content" ? (
+            {!hasAssignment ? (
+              <div className="report">
+                <div className="card">
+                  <strong>No saved assignment found</strong>
+                  <p>
+                    Save a MasteryPath from the builder first, or open the player with an
+                    `assignmentId` in the URL.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
+            {hasAssignment && view === "content" ? (
               <div className="viewer">
                 <div className="viewer-text">{assignment.sections[0]?.body}</div>
                 <div className="viewer-media">
@@ -293,7 +306,7 @@ export default function MasteryPathStudentClient({
               </div>
             ) : null}
 
-            {view === "navigation" ? (
+            {hasAssignment && view === "navigation" ? (
               <div className="nav">
                 {assignment.objectives.map((objective) => (
                   <div className="card" key={objective.id}>
@@ -314,7 +327,7 @@ export default function MasteryPathStudentClient({
               </div>
             ) : null}
 
-            {view === "report" ? (
+            {hasAssignment && view === "report" ? (
               <div className="report">
                 {reportRows.map((row) => (
                   <div className="report-row" key={row.objective.id}>

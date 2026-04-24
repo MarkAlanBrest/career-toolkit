@@ -1,6 +1,8 @@
 import MasteryPathStudentClient from "./student-client";
-import { sampleAssignment } from "./data";
-import { getMasteryAssignment } from "../../lib/masterypath-store";
+import {
+  getLatestMasteryAssignment,
+  getMasteryAssignment,
+} from "../../lib/masterypath-store";
 
 export default async function MasteryPathPage({
   searchParams,
@@ -8,13 +10,16 @@ export default async function MasteryPathPage({
   searchParams: Promise<{ assignmentId?: string; courseId?: string }>;
 }) {
   const params = await searchParams;
-  let assignment = sampleAssignment;
+  let assignment = null;
 
   try {
-    const storedAssignment = await getMasteryAssignment({
-      assignmentId: params.assignmentId,
-      courseId: params.courseId,
-    });
+    const storedAssignment =
+      params.assignmentId || params.courseId
+        ? await getMasteryAssignment({
+            assignmentId: params.assignmentId,
+            courseId: params.courseId,
+          })
+        : await getLatestMasteryAssignment();
 
     if (storedAssignment) {
       assignment = storedAssignment;

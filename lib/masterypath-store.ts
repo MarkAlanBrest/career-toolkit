@@ -350,3 +350,18 @@ export async function getMasteryAssignment({
 
   return rows[0] ? mapRowToAssignment(rows[0]) : null;
 }
+
+export async function getLatestMasteryAssignment() {
+  if (!hasDatabaseConfig()) {
+    return null;
+  }
+
+  await ensureMasteryAssignmentsTable();
+
+  const db = getDbPool();
+  const [rows] = await db.query<MasteryAssignmentRow[]>(
+    "SELECT * FROM MasteryAssignments ORDER BY updated_at DESC LIMIT 1"
+  );
+
+  return rows[0] ? mapRowToAssignment(rows[0]) : null;
+}

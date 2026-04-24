@@ -20,17 +20,11 @@ const steps: Array<{ id: Step; label: string }> = [
 export default function MasteryPathBuilderPage() {
   const [step, setStep] = useState<Step>(1);
   const [sourceMode, setSourceMode] = useState<"upload" | "url" | "paste">("paste");
-  const [assignmentName, setAssignmentName] = useState("Residential Wiring Mastery Path");
-  const [courseName, setCourseName] = useState("Electrical Technology");
+  const [assignmentName, setAssignmentName] = useState("");
+  const [courseName, setCourseName] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [content, setContent] = useState(
-    "Branch circuits deliver power from the panel to outlets, lighting, and dedicated loads. Standard 15-amp circuits use 14 AWG copper conductors, while 20-amp circuits use 12 AWG copper conductors. GFCI protection is used in shock-risk locations such as bathrooms, garages, kitchens, outdoors, and other wet or damp environments."
-  );
-  const [objectives, setObjectives] = useState<string[]>([
-    "Explain how conductor size pairs with breaker size.",
-    "Identify hot, neutral, and grounding conductors.",
-    "Apply GFCI and AFCI protection to the correct locations.",
-  ]);
+  const [content, setContent] = useState("");
+  const [objectives, setObjectives] = useState<string[]>(["", "", ""]);
   const [difficulty, setDifficulty] = useState<"Foundational" | "Intermediate" | "Advanced">(
     "Intermediate"
   );
@@ -580,6 +574,7 @@ export default function MasteryPathBuilderPage() {
                       <div className="field">
                         <label>Assignment name</label>
                         <input
+                          placeholder="Example: Residential Wiring Mastery Path"
                           value={assignmentName}
                           onChange={(event) => setAssignmentName(event.target.value)}
                         />
@@ -587,6 +582,7 @@ export default function MasteryPathBuilderPage() {
                       <div className="field">
                         <label>Course</label>
                         <input
+                          placeholder="Example: Electrical Technology"
                           value={courseName}
                           onChange={(event) => setCourseName(event.target.value)}
                         />
@@ -627,6 +623,7 @@ export default function MasteryPathBuilderPage() {
                     <div className="field">
                       <label>{sourceMode === "upload" ? "Uploaded text" : "Source content"}</label>
                       <textarea
+                        placeholder="Paste source content here for the builder to turn into objectives and learning flow."
                         value={content}
                         onChange={(event) => setContent(event.target.value)}
                       />
