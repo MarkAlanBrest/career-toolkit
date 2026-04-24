@@ -154,6 +154,56 @@ function parseJsonFromModel(text: string) {
   }
 }
 
+async function repairJsonWithModel({
+  apiKey,
+  invalidJson,
+  parseError,
+}: {
+  apiKey: string;
+  invalidJson: string;
+  parseError: unknown;
+}) {
+  const repairResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 6000,
+      temperature: 0,
+      messages: [
+        {
+          role: "user",
+          content: `
+Repair this malformed JSON so it parses correctly.
+
+Return valid JSON only. Do not explain the fix. Do not wrap it in markdown.
+
+Parser error:
+${parseError instanceof Error ? parseError.message : "Invalid JSON"}
+
+Malformed JSON:
+${invalidJson}
+`.trim(),
+        },
+      ],
+    }),
+  });
+
+  const repairData = await repairResponse.json();
+
+  if (!repairResponse.ok) {
+    throw new Error(
+      repairData?.error?.message || repairData?.error || "Unable to repair AI JSON."
+    );
+  }
+
+  return parseJsonFromModel(extractText(repairData));
+}
+
 export async function POST(req: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
@@ -192,7 +242,8 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2600,
+        max_tokens: 6000,
+        temperature: 0,
         messages: [
           {
             role: "user",
@@ -210,7 +261,19 @@ export async function POST(req: Request) {
       return Response.json({ error: errorMessage }, { status: 500 });
     }
 
-    return Response.json(parseJsonFromModel(extractText(data)));
+    const text = extractText(data);
+
+    try {
+      return Response.json(parseJsonFromModel(text));
+    } catch (parseError) {
+      return Response.json(
+        await repairJsonWithModel({
+          apiKey,
+          invalidJson: text,
+          parseError,
+        })
+      );
+    }
   } catch (error) {
     return Response.json(
       {
