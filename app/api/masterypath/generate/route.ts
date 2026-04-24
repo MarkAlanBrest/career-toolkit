@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 
-type GenerateStage = "objectives" | "graph";
+type GenerateStage = "objective" | "blocks";
 
 type GenerateRequestBody = {
   stage?: GenerateStage;
@@ -9,41 +9,40 @@ type GenerateRequestBody = {
   sourceMode?: "upload" | "url" | "paste";
   sourceUrl?: string;
   content?: string;
-  objectives?: string[];
+  objectiveTitle?: string;
+  objectiveGoal?: string;
   difficulty?: "Foundational" | "Intermediate" | "Advanced";
   layout?: "Guided path" | "Mixed media path" | "Scenario path";
+  desiredBlockCount?: number;
 };
 
 const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
-  const stage = body.stage === "graph" ? "graph" : "objectives";
+  const stage = body.stage === "blocks" ? "blocks" : "objective";
 
   return `
-You are helping a teacher build an adaptive mastery-based learning experience.
+You are helping a teacher build a mastery assignment with exactly one objective.
 
 Return JSON only. Do not wrap the response in markdown fences.
 
-If stage is "objectives", return:
+If stage is "objective", return:
 {
-  "objectives": ["...", "...", "..."]
+  "objectiveTitle": "...",
+  "objectiveGoal": "..."
 }
 
-If stage is "graph", return:
+If stage is "blocks", return:
 {
-  "startNodeId": "...",
-  "masteryRules": [
-    {
-      "objectiveId": "...",
-      "masteryStreak": 2,
-      "remediationThreshold": 1
-    }
-  ],
-  "nodes": [
+  "completionCriteria": {
+    "minBlocksComplete": 12,
+    "minCorrectInteractions": 4,
+    "allowRetake": true
+  },
+  "blocks": [
     {
       "id": "...",
-      "objectiveId": "...",
-      "type": "lesson",
+      "type": "content-slide",
       "title": "...",
       "summary": "...",
       "body": "...",
@@ -73,41 +72,41 @@ If stage is "graph", return:
           "feedback": "..."
         }
       ],
-      "transitions": {
-        "next": "...",
-        "correct": "...",
-        "incorrect": "...",
-        "mastered": "...",
-        "retry": "..."
-      }
+      "placeholder": "..."
     }
   ]
 }
 
+Allowed block types:
+"content-slide", "bullet-slide", "image-slide", "video-slide", "multiple-choice",
+"true-false", "checkpoint", "review", "reflection"
+
+Allowed theme values:
+"ocean", "sunset", "forest", "slate"
+
+Allowed layoutStyle values:
+"split", "spotlight", "bullet-focus", "media-left"
+
 Requirements:
-- Build an adaptive path, not a linear slideshow.
-- For each objective, create a teach -> question -> remediation -> mastery-check pattern.
-- Different answers should lead to different next nodes.
-- The student should be able to recover from errors and loop until mastery.
-- Make the content feel polished and visual, with bullets, callouts, and stats where useful.
-- Keep the student stage focused: one main node at a time.
-- Use real media URLs only if the input already includes real URLs. Otherwise omit media.
-- Keep IDs stable and machine-friendly.
-- Allowed node types: "lesson", "question", "remediation", "mastery-check", "completion".
-- Allowed media types: "image", "video".
-- Allowed themes: "ocean", "sunset", "forest", "slate".
-- Allowed layoutStyle values: "split", "spotlight", "bullet-focus", "media-left".
+- Build one objective only.
+- The objective should support a large stack of content and interactions.
+- Mix content slides and interactive blocks throughout the sequence.
+- Make the blocks feel polished, visual, and classroom-ready.
+- Include multiple checks and review/reteach blocks so the section can be retaken.
+- Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.
+- Generate about ${body.desiredBlockCount || 14} blocks when stage is "blocks".
 
 Input:
 stage: ${stage}
-title: ${body.title || ""}
+assignmentTitle: ${body.title || ""}
 course: ${body.course || ""}
 sourceMode: ${body.sourceMode || "paste"}
 sourceUrl: ${body.sourceUrl || ""}
 difficulty: ${body.difficulty || "Intermediate"}
 layout: ${body.layout || "Mixed media path"}
-objectives: ${JSON.stringify((body.objectives || []).filter(Boolean))}
+objectiveTitle: ${body.objectiveTitle || ""}
+objectiveGoal: ${body.objectiveGoal || ""}
 sourceContent:
 ${body.content || ""}
 `.trim();
@@ -139,8 +138,7 @@ function parseJsonFromModel(text: string) {
     const lastBrace = cleaned.lastIndexOf("}");
 
     if (firstBrace >= 0 && lastBrace > firstBrace) {
-      const extracted = cleaned.slice(firstBrace, lastBrace + 1);
-      return JSON.parse(extracted);
+      return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
     }
 
     throw new Error("AI returned invalid JSON.");
@@ -175,9 +173,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (body.stage === "graph" && !(body.objectives || []).filter(Boolean).length) {
+  if (body.stage === "blocks" && !body.objectiveGoal?.trim()) {
     return Response.json(
-      { error: "Add or generate at least one objective before generating the adaptive graph." },
+      { error: "Generate or enter the objective before building the block stack." },
       { status: 400 }
     );
   }
@@ -192,7 +190,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2200,
+        max_tokens: 2600,
         messages: [
           {
             role: "user",
@@ -215,7 +213,7 @@ export async function POST(req: Request) {
     return Response.json(
       {
         error:
-          error instanceof Error ? error.message : "Unable to generate mastery graph.",
+          error instanceof Error ? error.message : "Unable to generate mastery content.",
       },
       { status: 500 }
     );

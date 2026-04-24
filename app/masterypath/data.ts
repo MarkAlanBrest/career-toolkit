@@ -1,9 +1,3 @@
-export type Objective = {
-  id: string;
-  title: string;
-  goal: string;
-};
-
 export type SlideTheme = "ocean" | "sunset" | "forest" | "slate";
 
 export type SlideLayoutStyle =
@@ -28,24 +22,27 @@ export type SlideStat = {
   value: string;
 };
 
-export type NodeChoice = {
+export type BlockChoice = {
   id: string;
   text: string;
   isCorrect?: boolean;
   feedback?: string;
 };
 
-export type MasteryNodeType =
-  | "lesson"
-  | "question"
-  | "remediation"
-  | "mastery-check"
-  | "completion";
+export type ObjectiveBlockType =
+  | "content-slide"
+  | "bullet-slide"
+  | "image-slide"
+  | "video-slide"
+  | "multiple-choice"
+  | "true-false"
+  | "checkpoint"
+  | "review"
+  | "reflection";
 
-export type LearningNode = {
+export type ObjectiveBlock = {
   id: string;
-  objectiveId?: string | null;
-  type: MasteryNodeType;
+  type: ObjectiveBlockType;
   title: string;
   summary: string;
   body: string;
@@ -55,16 +52,22 @@ export type LearningNode = {
   stats?: SlideStat[];
   theme?: SlideTheme;
   layoutStyle?: SlideLayoutStyle;
-  choices?: NodeChoice[];
-  transitions?: Partial<
-    Record<"next" | "correct" | "incorrect" | "mastered" | "retry", string>
-  >;
+  choices?: BlockChoice[];
+  placeholder?: string;
 };
 
-export type MasteryRule = {
-  objectiveId: string;
-  masteryStreak: number;
-  remediationThreshold: number;
+export type CompletionCriteria = {
+  minBlocksComplete: number;
+  minCorrectInteractions: number;
+  allowRetake: boolean;
+};
+
+export type AssignmentObjective = {
+  id: string;
+  title: string;
+  goal: string;
+  completionCriteria: CompletionCriteria;
+  blocks: ObjectiveBlock[];
 };
 
 export type MasteryAssignment = {
@@ -73,11 +76,7 @@ export type MasteryAssignment = {
   title: string;
   course: string;
   description: string;
-  masteryTarget: number;
-  startNodeId: string;
-  objectives: Objective[];
-  nodes: LearningNode[];
-  masteryRules: MasteryRule[];
+  objective: AssignmentObjective;
 };
 
 export const sampleAssignment: MasteryAssignment = {
@@ -86,314 +85,197 @@ export const sampleAssignment: MasteryAssignment = {
   title: "Residential Wiring Mastery Path",
   course: "Electrical Technology",
   description:
-    "An adaptive mastery path that teaches circuit sizing and protection through short teaching slides, checks, remediation, and mastery exits.",
-  masteryTarget: 2,
-  startNodeId: "intro-sizing",
-  objectives: [
-    {
-      id: "sizing",
-      title: "Choose conductor and breaker sizes correctly",
-      goal: "Match common 15-amp and 20-amp residential circuits to the proper copper conductor size.",
+    "A single-objective mastery assignment with stacked content and interactive blocks that students can revisit and retake.",
+  objective: {
+    id: "circuit-sizing",
+    title: "Choose conductor and breaker sizes correctly",
+    goal: "Students should correctly pair common 15-amp and 20-amp residential circuits with the proper copper conductor size and explain why the pairing matters.",
+    completionCriteria: {
+      minBlocksComplete: 6,
+      minCorrectInteractions: 2,
+      allowRetake: true,
     },
-    {
-      id: "protection",
-      title: "Apply GFCI and AFCI rules",
-      goal: "Choose the right protection method based on location and hazard.",
-    },
-  ],
-  masteryRules: [
-    {
-      objectiveId: "sizing",
-      masteryStreak: 2,
-      remediationThreshold: 1,
-    },
-    {
-      objectiveId: "protection",
-      masteryStreak: 2,
-      remediationThreshold: 1,
-    },
-  ],
-  nodes: [
-    {
-      id: "intro-sizing",
-      objectiveId: "sizing",
-      type: "lesson",
-      title: "Circuit Sizing Starts With the Pairing",
-      summary: "Students first see the safe breaker-to-conductor pairing before being tested.",
-      body:
-        "In residential wiring, the breaker and conductor work together as a safety pair. Standard 15-amp circuits commonly use 14 AWG copper, while standard 20-amp circuits commonly use 12 AWG copper.",
-      bullets: [
-        "15-amp branch circuits commonly use 14 AWG copper.",
-        "20-amp branch circuits commonly use 12 AWG copper.",
-        "The breaker protects the conductor from overheating.",
-      ],
-      callout: {
-        label: "Pattern to notice",
-        text: "Bigger breaker means the conductor usually has to carry more current safely.",
-      },
-      stats: [
-        { label: "15-amp", value: "14 AWG" },
-        { label: "20-amp", value: "12 AWG" },
-      ],
-      theme: "ocean",
-      layoutStyle: "split",
-      transitions: {
-        next: "check-sizing-1",
-      },
-    },
-    {
-      id: "check-sizing-1",
-      objectiveId: "sizing",
-      type: "question",
-      title: "Sizing Check",
-      summary: "The student makes an immediate decision based on the rule they just studied.",
-      body: "A standard 20-amp residential branch circuit should normally use which copper conductor size?",
-      choices: [
-        {
-          id: "a",
-          text: "10 AWG",
-          feedback: "10 AWG is larger than needed for the standard pairing described here.",
+    blocks: [
+      {
+        id: "block-1",
+        type: "content-slide",
+        title: "Start With the Pairing Rule",
+        summary: "The first slide teaches the central rule in direct language.",
+        body:
+          "Residential branch circuits are built around safe breaker-to-conductor pairings. The conductor must be able to carry the current that the breaker allows before tripping.",
+        bullets: [
+          "15-amp branch circuits commonly use 14 AWG copper.",
+          "20-amp branch circuits commonly use 12 AWG copper.",
+          "The breaker is protecting the conductor, not just the device at the end.",
+        ],
+        callout: {
+          label: "Core idea",
+          text: "Students need to see the pattern cleanly before we ask them to reason with it.",
         },
-        {
-          id: "b",
-          text: "12 AWG",
-          isCorrect: true,
-          feedback: "Correct. 12 AWG copper is the common pairing for a standard 20-amp circuit.",
-        },
-        {
-          id: "c",
-          text: "14 AWG",
-          feedback: "14 AWG is commonly paired with a 15-amp circuit, not 20-amp.",
-        },
-      ],
-      theme: "sunset",
-      layoutStyle: "spotlight",
-      transitions: {
-        correct: "check-sizing-2",
-        mastered: "intro-protection",
-        incorrect: "review-sizing",
-        retry: "review-sizing",
+        stats: [
+          { label: "15-amp", value: "14 AWG" },
+          { label: "20-amp", value: "12 AWG" },
+        ],
+        theme: "ocean",
+        layoutStyle: "split",
       },
-    },
-    {
-      id: "review-sizing",
-      objectiveId: "sizing",
-      type: "remediation",
-      title: "Sizing Review",
-      summary: "The student is routed to a simpler recovery slide when the first check shows a gap.",
-      body:
-        "When a circuit rating increases, the conductor must still carry that current safely without overheating. For the common residential pairings in this lesson, 15-amp matches 14 AWG copper and 20-amp matches 12 AWG copper.",
-      bullets: [
-        "Do not guess based on the outlet alone.",
-        "Think about what conductor size the breaker is protecting.",
-        "Return to the checkpoint and test the rule again.",
-      ],
-      callout: {
-        label: "Recovery move",
-        text: "If the student missed the question, we reteach the rule in simpler language and then test again.",
+      {
+        id: "block-2",
+        type: "bullet-slide",
+        title: "What the Student Should Notice",
+        summary: "This slide slows down and frames the rule as a safety relationship.",
+        body:
+          "A higher circuit rating demands a conductor that can safely carry more current. If students memorize the pairings without understanding the protection relationship, they usually struggle in scenarios.",
+        bullets: [
+          "Think about overheating risk.",
+          "Think about what the breaker allows before opening.",
+          "Think about conductor size as part of the safety system.",
+        ],
+        theme: "slate",
+        layoutStyle: "bullet-focus",
       },
-      theme: "forest",
-      layoutStyle: "bullet-focus",
-      transitions: {
-        next: "check-sizing-2",
+      {
+        id: "block-3",
+        type: "multiple-choice",
+        title: "Checkpoint One",
+        summary: "The student applies the rule immediately after the content slides.",
+        body:
+          "A standard 20-amp residential branch circuit should normally use which copper conductor size?",
+        choices: [
+          {
+            id: "a",
+            text: "10 AWG",
+            feedback: "10 AWG is larger than needed for this standard pairing.",
+          },
+          {
+            id: "b",
+            text: "12 AWG",
+            isCorrect: true,
+            feedback: "Correct. 12 AWG copper is the common pairing for a standard 20-amp circuit.",
+          },
+          {
+            id: "c",
+            text: "14 AWG",
+            feedback: "14 AWG is commonly paired with a 15-amp circuit, not 20-amp.",
+          },
+        ],
+        theme: "sunset",
+        layoutStyle: "spotlight",
       },
-    },
-    {
-      id: "check-sizing-2",
-      objectiveId: "sizing",
-      type: "mastery-check",
-      title: "Mastery Check: Sizing",
-      summary: "A second successful response confirms the student can move forward.",
-      body: "True or false: A standard 15-amp breaker is commonly paired with 14 AWG copper conductors.",
-      choices: [
-        {
-          id: "true",
-          text: "True",
-          isCorrect: true,
-          feedback: "Correct. That is the standard pairing taught in this path.",
-        },
-        {
-          id: "false",
-          text: "False",
-          feedback: "This is false only if the lesson had taught a different common pairing, but it did not.",
-        },
-      ],
-      theme: "slate",
-      layoutStyle: "spotlight",
-      transitions: {
-        correct: "intro-protection",
-        mastered: "intro-protection",
-        incorrect: "review-sizing",
-        retry: "review-sizing",
+      {
+        id: "block-4",
+        type: "review",
+        title: "Quick Review",
+        summary: "This is the kind of review block we can revisit during a retake.",
+        body:
+          "When a circuit rating increases, the conductor must still carry the allowed current safely. That is why the common pairing changes from 14 AWG copper at 15 amps to 12 AWG copper at 20 amps.",
+        bullets: [
+          "Do not guess based only on the outlet or room.",
+          "Ask what the breaker is allowing.",
+          "Ask what conductor size safely matches that limit.",
+        ],
+        theme: "forest",
+        layoutStyle: "bullet-focus",
       },
-    },
-    {
-      id: "intro-protection",
-      objectiveId: "protection",
-      type: "lesson",
-      title: "Protection Depends on the Hazard",
-      summary: "Students move into the next objective only after mastering the first.",
-      body:
-        "GFCI protection reduces shock hazard in wet or damp environments. AFCI protection addresses a different hazard: arc-fault fire risk in many habitable spaces.",
-      bullets: [
-        "GFCI is strongly tied to shock-risk locations.",
-        "AFCI is tied to arc-fault fire protection.",
-        "Do not treat GFCI and AFCI as interchangeable.",
-      ],
-      callout: {
-        label: "Core distinction",
-        text: "The location matters, but the hazard behind the rule matters more.",
+      {
+        id: "block-5",
+        type: "true-false",
+        title: "Checkpoint Two",
+        summary: "A second interaction confirms whether the student can state the matching rule correctly.",
+        body: "True or false: A standard 15-amp breaker is commonly paired with 14 AWG copper conductors.",
+        choices: [
+          {
+            id: "true",
+            text: "True",
+            isCorrect: true,
+            feedback: "Correct. That is the standard pairing taught in this objective.",
+          },
+          {
+            id: "false",
+            text: "False",
+            feedback: "Not quite. 14 AWG copper commonly pairs with a 15-amp breaker.",
+          },
+        ],
+        theme: "sunset",
+        layoutStyle: "spotlight",
       },
-      stats: [
-        { label: "GFCI", value: "Shock risk" },
-        { label: "AFCI", value: "Arc-fault risk" },
-      ],
-      theme: "sunset",
-      layoutStyle: "media-left",
-      transitions: {
-        next: "check-protection-1",
+      {
+        id: "block-6",
+        type: "reflection",
+        title: "Explain the Rule Back",
+        summary: "A reflection block gives the objective some depth before the student exits.",
+        body:
+          "In one or two sentences, explain why breaker size and conductor size need to be paired correctly in a residential branch circuit.",
+        placeholder: "Type your explanation here...",
+        theme: "ocean",
+        layoutStyle: "split",
       },
-    },
-    {
-      id: "check-protection-1",
-      objectiveId: "protection",
-      type: "question",
-      title: "Protection Check",
-      summary: "The student identifies the location that most clearly signals GFCI use.",
-      body: "Which location most clearly calls for GFCI protection?",
-      choices: [
-        {
-          id: "bathroom",
-          text: "Bathroom receptacle",
-          isCorrect: true,
-          feedback: "Correct. Bathrooms are classic GFCI locations because shock risk is elevated by moisture.",
-        },
-        {
-          id: "bedroom",
-          text: "Bedroom ceiling fan box",
-          feedback: "That choice does not most clearly signal GFCI shock protection.",
-        },
-        {
-          id: "closet",
-          text: "Closet luminaire",
-          feedback: "That is not the clearest GFCI example in this set.",
-        },
-      ],
-      theme: "ocean",
-      layoutStyle: "spotlight",
-      transitions: {
-        correct: "check-protection-2",
-        mastered: "completion",
-        incorrect: "review-protection",
-        retry: "review-protection",
-      },
-    },
-    {
-      id: "review-protection",
-      objectiveId: "protection",
-      type: "remediation",
-      title: "Protection Review",
-      summary: "If the student confuses the safety purpose, the path slows down and reteaches.",
-      body:
-        "When moisture and grounded contact raise the shock hazard, GFCI protection is a strong clue. AFCI addresses a different problem and should not replace hazard-based reasoning.",
-      bullets: [
-        "Ask what hazard the device addresses.",
-        "Bathrooms, garages, kitchens, and outdoor areas are common GFCI discussion points.",
-        "Return to the check and apply the rule again.",
-      ],
-      theme: "forest",
-      layoutStyle: "bullet-focus",
-      transitions: {
-        next: "check-protection-2",
-      },
-    },
-    {
-      id: "check-protection-2",
-      objectiveId: "protection",
-      type: "mastery-check",
-      title: "Mastery Check: Protection",
-      summary: "A second successful decision closes the loop and exits the path.",
-      body: "True or false: GFCI protection is intended to reduce shock hazard in wet or damp locations.",
-      choices: [
-        {
-          id: "true",
-          text: "True",
-          isCorrect: true,
-          feedback: "Correct. That is the main safety purpose emphasized in this path.",
-        },
-        {
-          id: "false",
-          text: "False",
-          feedback: "The lesson specifically tied GFCI to shock-risk environments.",
-        },
-      ],
-      theme: "slate",
-      layoutStyle: "spotlight",
-      transitions: {
-        correct: "completion",
-        mastered: "completion",
-        incorrect: "review-protection",
-        retry: "review-protection",
-      },
-    },
-    {
-      id: "completion",
-      type: "completion",
-      title: "Mastery Path Complete",
-      summary: "The student exits after demonstrating enough correct performance to satisfy the mastery rules.",
-      body:
-        "You reached the end of this path by moving through instruction, checks, remediation when needed, and mastery verification.",
-      bullets: [
-        "You were routed based on your answers, not a fixed slide order.",
-        "Different students can finish through different paths.",
-        "This is the structure the full product should use.",
-      ],
-      theme: "sunset",
-      layoutStyle: "split",
-    },
-  ],
+    ],
+  },
 };
 
 export function buildObjectiveSuggestions(content: string) {
   const text = content.trim();
 
   if (!text) {
-    return [
-      "Identify the central concept students need to remember.",
-      "Apply the concept in a realistic scenario.",
-      "Explain the most common mistake and how to avoid it.",
-    ];
+    return {
+      title: "Identify the main skill students need to demonstrate.",
+      goal: "Describe the concrete evidence that would show students mastered the skill.",
+    };
   }
 
   const sentences = text
     .split(/[.!?]/)
     .map((sentence) => sentence.trim())
-    .filter(Boolean)
-    .slice(0, 3);
+    .filter(Boolean);
 
-  return sentences.map((sentence, index) => {
-    const trimmed = sentence.length > 78 ? `${sentence.slice(0, 75)}...` : sentence;
-    if (index === 0) return `Explain: ${trimmed}`;
-    if (index === 1) return `Apply: ${trimmed}`;
-    return `Evaluate: ${trimmed}`;
-  });
+  const titleSeed = sentences[0] || "Core skill";
+  const goalSeed = sentences.slice(0, 2).join(". ");
+
+  return {
+    title: titleSeed.length > 68 ? `${titleSeed.slice(0, 65)}...` : titleSeed,
+    goal: goalSeed || titleSeed,
+  };
 }
 
-export function buildInteractionSuggestions(objectives: string[], difficulty: string) {
-  const baseObjectives = objectives.filter(Boolean);
+export function buildInteractionSuggestions(objectiveGoal: string, difficulty: string) {
+  if (!objectiveGoal.trim()) {
+    return [
+      {
+        id: "suggestion-1",
+        title: "Stack content and checks together",
+        content:
+          "Build a long sequence of teaching slides and interactions so the student can practice, review, and retake the same objective.",
+        interactions: ["Content slides", "Checkpoint", "Review", "Reflection"],
+      },
+    ];
+  }
 
-  return baseObjectives.map((objective, index) => ({
-    id: `suggestion-${index + 1}`,
-    title: objective,
-    content:
-      difficulty === "Advanced"
-        ? "Build a short teach-check-remediate-mastery sequence with branching after each response."
-        : difficulty === "Intermediate"
-          ? "Build a polished lesson slide, a question, a recovery slide, and a mastery check."
-          : "Build a supportive lesson slide, one simple check, and an easy review path before mastery.",
-    interactions:
-      difficulty === "Advanced"
-        ? ["Teach", "Checkpoint", "Reteach", "Mastery gate"]
-        : ["Lesson", "Question", "Review", "Mastery check"],
-  }));
+  return [
+    {
+      id: "suggestion-1",
+      title: "Teach the rule before the decision",
+      content:
+        difficulty === "Advanced"
+          ? "Open with polished teaching slides, comparison visuals, and scenario framing before the first check."
+          : "Open with polished teaching slides, key bullets, and one simple visual anchor before the first check.",
+      interactions: ["Content slide", "Bullet slide", "Visual cue"],
+    },
+    {
+      id: "suggestion-2",
+      title: "Layer interactive checks throughout",
+      content:
+        difficulty === "Advanced"
+          ? "Use several checks, corrective review, and a final mastery gate so students prove the objective more than once."
+          : "Use multiple checks and review blocks so students can practice the same objective from different angles.",
+      interactions: ["Multiple choice", "True / false", "Review", "Checkpoint"],
+    },
+    {
+      id: "suggestion-3",
+      title: "End with explanation or reflection",
+      content:
+        "Close the objective with a reflection or explanation prompt so students restate the rule in their own words before they finish.",
+      interactions: ["Reflection", "Short response", "Retake-ready section"],
+    },
+  ];
 }

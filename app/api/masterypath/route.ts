@@ -46,14 +46,16 @@ export async function POST(req: Request) {
       sourceMode: body.sourceMode,
       sourceUrl: body.sourceUrl,
       content: body.content,
-      objectives: Array.isArray(body.objectives) ? body.objectives : [],
-      nodes: Array.isArray(body.nodes) ? body.nodes : undefined,
-      masteryRules: Array.isArray(body.masteryRules) ? body.masteryRules : undefined,
+      objectiveTitle: body.objectiveTitle,
+      objectiveGoal: body.objectiveGoal,
+      blocks: Array.isArray(body.blocks) ? body.blocks : undefined,
+      completionCriteria:
+        body.completionCriteria && typeof body.completionCriteria === "object"
+          ? body.completionCriteria
+          : undefined,
       difficulty: body.difficulty,
       layout: body.layout,
       learningSuggestionsAccepted: Boolean(body.learningSuggestionsAccepted),
-      masteryTarget:
-        typeof body.masteryTarget === "number" ? body.masteryTarget : undefined,
     });
 
     return Response.json(assignment, { status: 201 });

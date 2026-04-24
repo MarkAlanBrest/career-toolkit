@@ -2,10 +2,10 @@ import { type RowDataPacket } from "mysql2";
 import {
   buildInteractionSuggestions,
   sampleAssignment,
-  type LearningNode,
+  type AssignmentObjective,
+  type CompletionCriteria,
   type MasteryAssignment,
-  type MasteryRule,
-  type Objective,
+  type ObjectiveBlock,
   type SlideLayoutStyle,
   type SlideTheme,
 } from "../app/masterypath/data";
@@ -22,13 +22,13 @@ export type SaveMasteryAssignmentInput = {
   sourceMode: MasterySourceMode;
   sourceUrl?: string;
   content: string;
-  objectives: string[];
-  nodes?: LearningNode[];
-  masteryRules?: MasteryRule[];
+  objectiveTitle: string;
+  objectiveGoal: string;
+  blocks?: ObjectiveBlock[];
+  completionCriteria?: CompletionCriteria;
   difficulty: MasteryDifficulty;
   layout: MasteryLayout;
   learningSuggestionsAccepted: boolean;
-  masteryTarget?: number;
 };
 
 export type StoredMasteryAssignment = MasteryAssignment & {
@@ -67,16 +67,6 @@ function truncateText(value: string, maxLength: number) {
   return `${value.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function buildObjectives(objectives: string[]) {
-  const cleaned = objectives.map((objective) => objective.trim()).filter(Boolean);
-
-  return cleaned.map<Objective>((objective, index) => ({
-    id: slugify(objective, `objective-${index + 1}`),
-    title: truncateText(objective, 80),
-    goal: objective,
-  }));
-}
-
 function themeForIndex(index: number): SlideTheme {
   const themes: SlideTheme[] = ["ocean", "sunset", "forest", "slate"];
   return themes[index % themes.length];
@@ -87,192 +77,147 @@ function layoutForIndex(index: number): SlideLayoutStyle {
   return layouts[index % layouts.length];
 }
 
-function buildGeneratedNodes(objectives: Objective[], difficulty: MasteryDifficulty) {
-  const interactionSuggestions = buildInteractionSuggestions(
-    objectives.map((objective) => objective.goal),
-    difficulty
-  );
+function buildGeneratedBlocks(objectiveGoal: string, difficulty: MasteryDifficulty) {
+  const suggestions = buildInteractionSuggestions(objectiveGoal, difficulty);
 
-  const nodes: LearningNode[] = [];
-
-  objectives.forEach((objective, index) => {
-    const lessonId = `${objective.id}-lesson`;
-    const questionId = `${objective.id}-check-1`;
-    const reviewId = `${objective.id}-review`;
-    const masteryId = `${objective.id}-mastery`;
-    const nextObjective = objectives[index + 1];
-    const successTarget = nextObjective ? `${nextObjective.id}-lesson` : "completion";
-    const suggestion = interactionSuggestions[index];
-
-    nodes.push(
-      {
-        id: lessonId,
-        objectiveId: objective.id,
-        type: "lesson",
-        title: objective.title,
-        summary: objective.goal,
-        body: `Teach the student the core idea for ${objective.title.toLowerCase()} before asking them to make a decision.`,
-        bullets: [
-          objective.goal,
-          suggestion?.content || "Teach the concept in one focused slide.",
-          "Route the student based on what they demonstrate next.",
-        ],
-        callout: {
-          label: "Adaptive intent",
-          text: "The lesson is brief because the routing engine decides whether the student needs more support or can move on.",
+  return [
+    {
+      id: "block-1",
+      type: "content-slide" as const,
+      title: "Open With the Core Idea",
+      summary: "Start the objective with a strong teaching slide before asking the student to respond.",
+      body:
+        objectiveGoal ||
+        "Teach the central idea in plain language before the first interaction appears.",
+      bullets: [
+        "State the rule clearly.",
+        "Show the pattern students should notice.",
+        "Anchor the objective before the first checkpoint.",
+      ],
+      theme: themeForIndex(0),
+      layoutStyle: layoutForIndex(0),
+    },
+    {
+      id: "block-2",
+      type: "bullet-slide" as const,
+      title: "Key Details Students Must Keep",
+      summary: suggestions[0]?.content || "Turn the objective into memorable, scannable teaching points.",
+      body: "Slow down the rule and highlight the details students often miss.",
+      bullets: suggestions[0]?.interactions || ["Content slide", "Bullet slide", "Visual cue"],
+      theme: themeForIndex(1),
+      layoutStyle: "bullet-focus" as const,
+    },
+    {
+      id: "block-3",
+      type: "multiple-choice" as const,
+      title: "Checkpoint One",
+      summary: "Ask a direct question right after the teaching stack.",
+      body: `Checkpoint for: ${objectiveGoal || "the objective"}`,
+      choices: [
+        {
+          id: "correct",
+          text: "Correct answer placeholder",
+          isCorrect: true,
+          feedback: "Correct. The student is applying the objective successfully.",
         },
-        theme: themeForIndex(index),
-        layoutStyle: layoutForIndex(index),
-        transitions: {
-          next: questionId,
+        {
+          id: "distractor-1",
+          text: "Distractor option",
+          feedback: "Not yet. This should send the student back into the content stack.",
         },
-      },
-      {
-        id: questionId,
-        objectiveId: objective.id,
-        type: "question",
-        title: `${objective.title} Check`,
-        summary: "The student answers a checkpoint question immediately after the teaching slide.",
-        body: `Checkpoint for objective: ${objective.goal}`,
-        choices: [
-          {
-            id: "correct",
-            text: "Correct answer placeholder",
-            isCorrect: true,
-            feedback: "Correct. Move the student closer to mastery for this objective.",
-          },
-          {
-            id: "distractor-1",
-            text: "Distractor option",
-            feedback: "Not yet. Route the student to review and reteach the concept.",
-          },
-          {
-            id: "distractor-2",
-            text: "Another distractor",
-            feedback: "This response shows the student still needs support.",
-          },
-        ],
-        theme: themeForIndex(index + 1),
-        layoutStyle: "spotlight",
-        transitions: {
-          correct: masteryId,
-          incorrect: reviewId,
-          retry: reviewId,
-          mastered: successTarget,
+        {
+          id: "distractor-2",
+          text: "Another distractor",
+          feedback: "This response shows the student still needs support.",
         },
-      },
-      {
-        id: reviewId,
-        objectiveId: objective.id,
-        type: "remediation",
-        title: `${objective.title} Review`,
-        summary: "The student gets a simplified reteach slide before returning to a stronger check.",
-        body: `Reteach the concept behind ${objective.goal} in simpler language, then return to a mastery checkpoint.`,
-        bullets: [
-          "Reframe the rule in simpler language.",
-          "Use one quick example and one caution.",
-          "Send the student back into a mastery check.",
-        ],
-        theme: "forest",
-        layoutStyle: "bullet-focus",
-        transitions: {
-          next: masteryId,
+      ],
+      theme: themeForIndex(2),
+      layoutStyle: "spotlight" as const,
+    },
+    {
+      id: "block-4",
+      type: "review" as const,
+      title: "Review the Rule",
+      summary: suggestions[1]?.content || "Use a short review block that students can revisit during a retake.",
+      body: "Restate the rule in simpler language and connect it back to the decision students just made.",
+      bullets: [
+        "Rephrase the concept.",
+        "Show what the wrong answer overlooked.",
+        "Prepare the student for the next checkpoint.",
+      ],
+      theme: themeForIndex(3),
+      layoutStyle: "bullet-focus" as const,
+    },
+    {
+      id: "block-5",
+      type: "true-false" as const,
+      title: "Checkpoint Two",
+      summary: "Confirm the rule again with a fast second interaction.",
+      body: "True or false: the rule from this objective still applies when the student sees it in a slightly different form.",
+      choices: [
+        {
+          id: "true",
+          text: "True",
+          isCorrect: true,
+          feedback: "Correct. This supports completion for the objective.",
         },
-      },
-      {
-        id: masteryId,
-        objectiveId: objective.id,
-        type: "mastery-check",
-        title: `${objective.title} Mastery Check`,
-        summary: "A second correct response can move the student onward, while an error loops them back into support.",
-        body: `Mastery gate for ${objective.goal}`,
-        choices: [
-          {
-            id: "mastery-correct",
-            text: "Mastery answer placeholder",
-            isCorrect: true,
-            feedback: "Correct. The student is ready to move forward.",
-          },
-          {
-            id: "mastery-incorrect",
-            text: "Incorrect answer placeholder",
-            feedback: "Not yet. Return to support before another attempt.",
-          },
-        ],
-        theme: "slate",
-        layoutStyle: "spotlight",
-        transitions: {
-          correct: successTarget,
-          mastered: successTarget,
-          incorrect: reviewId,
-          retry: reviewId,
+        {
+          id: "false",
+          text: "False",
+          feedback: "Not yet. The student should return to the earlier content and review slides.",
         },
-      }
-    );
-  });
-
-  nodes.push({
-    id: "completion",
-    type: "completion",
-    title: "Mastery Path Complete",
-    summary: "The student exits once they have demonstrated enough correct performance to satisfy the mastery rules.",
-    body: "This completion node marks the end of the adaptive path for this course.",
-    bullets: [
-      "Each student can arrive here through a different route.",
-      "Mastery was earned through response-driven branching.",
-      "The path can now report which objectives were mastered.",
-    ],
-    theme: "sunset",
-    layoutStyle: "split",
-  });
-
-  return nodes;
+      ],
+      theme: themeForIndex(4),
+      layoutStyle: "spotlight" as const,
+    },
+    {
+      id: "block-6",
+      type: "reflection" as const,
+      title: "Explain the Objective Back",
+      summary: suggestions[2]?.content || "End with a short explanation or reflection to consolidate understanding.",
+      body: "Write a short explanation of the rule or process in your own words.",
+      placeholder: "Type your explanation here...",
+      theme: themeForIndex(5),
+      layoutStyle: layoutForIndex(5),
+    },
+  ];
 }
 
-function buildMasteryRules(objectives: Objective[], masteryTarget: number) {
-  return objectives.map<MasteryRule>((objective) => ({
-    objectiveId: objective.id,
-    masteryStreak: masteryTarget,
-    remediationThreshold: 1,
-  }));
-}
-
-function normalizeNode(node: LearningNode, index: number): LearningNode {
+function normalizeBlock(block: ObjectiveBlock, index: number): ObjectiveBlock {
   return {
-    id: node.id || `node-${index + 1}`,
-    objectiveId: node.objectiveId || null,
-    type: node.type || "lesson",
-    title: node.title || `Node ${index + 1}`,
-    summary: node.summary || "",
-    body: node.body || "",
-    bullets: Array.isArray(node.bullets) ? node.bullets.filter(Boolean) : [],
+    id: block.id || `block-${index + 1}`,
+    type: block.type || "content-slide",
+    title: block.title || `Block ${index + 1}`,
+    summary: block.summary || "",
+    body: block.body || "",
+    bullets: Array.isArray(block.bullets) ? block.bullets.filter(Boolean) : [],
     callout:
-      node.callout && (node.callout.label || node.callout.text)
+      block.callout && (block.callout.label || block.callout.text)
         ? {
-            label: node.callout.label || "Key Point",
-            text: node.callout.text || "",
+            label: block.callout.label || "Key point",
+            text: block.callout.text || "",
           }
         : null,
     media:
-      node.media && node.media.url
+      block.media && block.media.url
         ? {
-            type: node.media.type === "video" ? "video" : "image",
-            url: node.media.url,
-            caption: node.media.caption || "",
+            type: block.media.type === "video" ? "video" : "image",
+            url: block.media.url,
+            caption: block.media.caption || "",
           }
         : null,
-    stats: Array.isArray(node.stats)
-      ? node.stats
+    stats: Array.isArray(block.stats)
+      ? block.stats
           .filter((stat) => stat?.label || stat?.value)
           .map((stat) => ({
             label: stat.label || "Label",
             value: stat.value || "",
           }))
       : [],
-    theme: node.theme || themeForIndex(index),
-    layoutStyle: node.layoutStyle || layoutForIndex(index),
-    choices: Array.isArray(node.choices)
-      ? node.choices
+    theme: block.theme || themeForIndex(index),
+    layoutStyle: block.layoutStyle || layoutForIndex(index),
+    choices: Array.isArray(block.choices)
+      ? block.choices
           .filter((choice) => choice?.text)
           .map((choice, choiceIndex) => ({
             id: choice.id || `choice-${choiceIndex + 1}`,
@@ -281,7 +226,7 @@ function normalizeNode(node: LearningNode, index: number): LearningNode {
             feedback: choice.feedback || "",
           }))
       : [],
-    transitions: node.transitions || {},
+    placeholder: block.placeholder || "",
   };
 }
 
@@ -290,40 +235,42 @@ function buildStoredAssignment(
 ): StoredMasteryAssignment {
   const title = input.title.trim() || sampleAssignment.title;
   const course = input.course.trim() || sampleAssignment.course;
-  const objectives = buildObjectives(input.objectives);
-  const content = input.content.trim();
-  const masteryTarget = input.masteryTarget ?? sampleAssignment.masteryTarget;
-  const description = truncateText(
-    content || "AI-built mastery path saved from the teacher builder.",
-    220
-  );
-  const nodes =
-    input.nodes && input.nodes.length
-      ? input.nodes.map(normalizeNode)
-      : buildGeneratedNodes(objectives, input.difficulty);
-  const masteryRules =
-    input.masteryRules && input.masteryRules.length
-      ? input.masteryRules
-      : buildMasteryRules(objectives, masteryTarget);
+  const objectiveTitle = input.objectiveTitle.trim() || sampleAssignment.objective.title;
+  const objectiveGoal = input.objectiveGoal.trim() || sampleAssignment.objective.goal;
+  const blocks =
+    input.blocks && input.blocks.length
+      ? input.blocks.map(normalizeBlock)
+      : buildGeneratedBlocks(objectiveGoal, input.difficulty);
+  const completionCriteria = input.completionCriteria || {
+    minBlocksComplete: Math.min(blocks.length, 6),
+    minCorrectInteractions: 2,
+    allowRetake: true,
+  };
+  const objective: AssignmentObjective = {
+    id: slugify(objectiveTitle, sampleAssignment.objective.id),
+    title: objectiveTitle,
+    goal: objectiveGoal,
+    completionCriteria,
+    blocks,
+  };
 
   return {
     id: slugify(title, sampleAssignment.id),
     courseId: slugify(course, sampleAssignment.courseId),
     title,
     course,
-    description,
-    masteryTarget,
-    startNodeId: nodes[0]?.id || "completion",
+    description: truncateText(
+      input.content.trim() || objectiveGoal || sampleAssignment.description,
+      220
+    ),
+    objective,
     sourceMode: input.sourceMode,
     sourceUrl: input.sourceUrl?.trim() || "",
-    content,
+    content: input.content.trim(),
     difficulty: input.difficulty,
     layout: input.layout,
     learningSuggestionsAccepted: input.learningSuggestionsAccepted,
     publishState: "draft",
-    objectives,
-    nodes,
-    masteryRules,
   };
 }
 
