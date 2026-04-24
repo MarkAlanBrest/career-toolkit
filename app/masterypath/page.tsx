@@ -1,4 +1,5 @@
 import MasteryPathStudentClient from "./student-client";
+import { sampleAssignment } from "./data";
 import {
   getLatestMasteryAssignment,
   getMasteryAssignment,
@@ -28,5 +29,5 @@ export default async function MasteryPathPage({
     console.error("Unable to load MasteryPath assignment from the database.", error);
   }
 
-  return <MasteryPathStudentClient assignment={assignment} />;
+  return <MasteryPathStudentClient assignment={assignment || sampleAssignment} />;
 }

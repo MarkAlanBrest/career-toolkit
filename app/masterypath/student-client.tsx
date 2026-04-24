@@ -64,8 +64,9 @@ export default function MasteryPathStudentClient({
 }: {
   assignment: MasteryAssignment | null;
 }) {
-  const blocks = useMemo(() => assignment?.objective.blocks ?? [], [assignment]);
-  const criteria = assignment?.objective.completionCriteria;
+  const objective = assignment?.objective ?? null;
+  const blocks = useMemo(() => objective?.blocks ?? [], [objective]);
+  const criteria = objective?.completionCriteria;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -74,7 +75,7 @@ export default function MasteryPathStudentClient({
   const [reflectionText, setReflectionText] = useState<Record<string, string>>({});
 
   const currentBlock = blocks[currentIndex] ?? null;
-  const hasAssignment = Boolean(assignment && currentBlock);
+  const hasAssignment = Boolean(assignment && objective && currentBlock);
   const completedCount = Object.values(completedBlocks).filter(Boolean).length;
   const correctCount = Object.values(correctInteractions).filter(Boolean).length;
   const interactiveCount = blocks.filter(isInteractiveBlock).length;
@@ -708,10 +709,10 @@ export default function MasteryPathStudentClient({
                       <span className="pill">
                         Block {currentIndex + 1} of {blocks.length}
                       </span>
-                      <span className="pill">{assignment.objective.title}</span>
+                      <span className="pill">{objective.title}</span>
                     </div>
                     <h1>{currentBlock.title}</h1>
-                    <p>{currentBlock.summary || assignment.objective.goal}</p>
+                    <p>{currentBlock.summary || objective.goal}</p>
                   </div>
 
                   <div className="content-grid">
@@ -838,7 +839,7 @@ export default function MasteryPathStudentClient({
                 <div className="summary-bar">
                   <div>
                     <strong>{objectiveComplete ? "Objective Complete" : "Objective Progress"}</strong>
-                    <p>{assignment.objective.goal}</p>
+                    <p>{objective.goal}</p>
                   </div>
                   <div className="dots">
                     {blocks.map((block, index) => (
