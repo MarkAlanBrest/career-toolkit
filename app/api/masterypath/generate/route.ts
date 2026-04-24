@@ -37,7 +37,24 @@ If stage is "flow", return:
       "kind": "lesson" | "chart" | "video" | "interactive",
       "summary": "...",
       "body": "...",
-      "interactions": ["...", "..."]
+      "bullets": ["...", "..."],
+      "callout": {
+        "label": "...",
+        "text": "..."
+      },
+      "stats": [
+        {
+          "label": "...",
+          "value": "..."
+        }
+      ],
+      "media": {
+        "type": "image" | "video",
+        "url": "...",
+        "caption": "..."
+      },
+      "theme": "ocean" | "sunset" | "forest" | "slate",
+      "layoutStyle": "split" | "spotlight" | "bullet-focus" | "media-left"
     }
   ]
 }
@@ -46,11 +63,14 @@ Requirements:
 - Keep everything teacher-friendly, accurate, and practical.
 - Base the output on the provided source content.
 - Objectives should be clear, measurable, and classroom-ready.
-- Sections should feel like real instructional content, not placeholders.
+- Sections should feel like real instructional slides, not placeholders.
 - For "flow", generate 3 to 5 sections.
 - Keep each section body concise but substantive.
 - Match rigor to the requested difficulty.
 - Match structure to the requested layout.
+- Use bullets, callouts, stats, and layout variety to make the slides feel designed.
+- Include a video media block only when the source URL or source content already contains a real video URL.
+- Include an image media block only when a real image URL is provided in the source material. Otherwise leave media out.
 
 Input:
 stage: ${stage}

@@ -18,9 +18,7 @@ const steps: Array<{ id: Step; label: string }> = [
   { id: 5, label: "Save" },
 ];
 
-type GeneratedSection = ContentSection & {
-  interactions: string[];
-};
+type GeneratedSection = ContentSection;
 
 export default function MasteryPathBuilderPage() {
   const [step, setStep] = useState<Step>(1);
@@ -40,7 +38,7 @@ export default function MasteryPathBuilderPage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [savedAssignmentId, setSavedAssignmentId] = useState("");
+  const [savedCourseId, setSavedCourseId] = useState("");
   const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
   const [aiError, setAiError] = useState("");
   const [aiBusyStep, setAiBusyStep] = useState<Step | null>(null);
@@ -138,11 +136,61 @@ export default function MasteryPathBuilderPage() {
               summary:
                 typeof section?.summary === "string" ? section.summary.trim() : "",
               body: typeof section?.body === "string" ? section.body.trim() : "",
-              interactions: Array.isArray(section?.interactions)
-                ? section.interactions
+              bullets: Array.isArray(section?.bullets)
+                ? section.bullets
                     .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
                     .filter(Boolean)
                 : [],
+              callout:
+                section?.callout &&
+                (typeof section.callout.label === "string" ||
+                  typeof section.callout.text === "string")
+                  ? {
+                      label:
+                        typeof section.callout.label === "string"
+                          ? section.callout.label.trim()
+                          : "",
+                      text:
+                        typeof section.callout.text === "string"
+                          ? section.callout.text.trim()
+                          : "",
+                    }
+                  : null,
+              stats: Array.isArray(section?.stats)
+                ? section.stats
+                    .map((item: any) => ({
+                      label: typeof item?.label === "string" ? item.label.trim() : "",
+                      value: typeof item?.value === "string" ? item.value.trim() : "",
+                    }))
+                    .filter((item: { label: string; value: string }) => item.label || item.value)
+                : [],
+              media:
+                section?.media &&
+                typeof section.media.url === "string" &&
+                section.media.url.trim()
+                  ? {
+                      type: section.media.type === "video" ? "video" : "image",
+                      url: section.media.url.trim(),
+                      caption:
+                        typeof section.media.caption === "string"
+                          ? section.media.caption.trim()
+                          : "",
+                    }
+                  : null,
+              theme:
+                section?.theme === "ocean" ||
+                section?.theme === "sunset" ||
+                section?.theme === "forest" ||
+                section?.theme === "slate"
+                  ? section.theme
+                  : "ocean",
+              layoutStyle:
+                section?.layoutStyle === "split" ||
+                section?.layoutStyle === "spotlight" ||
+                section?.layoutStyle === "bullet-focus" ||
+                section?.layoutStyle === "media-left"
+                  ? section.layoutStyle
+                  : "split",
             }))
             .filter((section: GeneratedSection) => section.title || section.body)
         : [];
@@ -179,7 +227,7 @@ export default function MasteryPathBuilderPage() {
           sourceUrl,
           content,
           objectives,
-          sections: generatedSections.map(({ interactions: _interactions, ...section }) => section),
+          sections: generatedSections,
           difficulty,
           layout,
           learningSuggestionsAccepted,
@@ -193,7 +241,7 @@ export default function MasteryPathBuilderPage() {
       }
 
       setSaved(true);
-      setSavedAssignmentId(payload.id);
+      setSavedCourseId(payload.courseId);
     } catch (error) {
       setSaveError(
         error instanceof Error ? error.message : "Unable to save assignment."
@@ -858,18 +906,26 @@ export default function MasteryPathBuilderPage() {
                               id: section.id || `generated-${index + 1}`,
                               title: section.title,
                               content: section.body || section.summary,
-                              interactions:
-                                section.interactions.length
-                                  ? section.interactions
-                                  : [section.kind, section.summary].filter(Boolean),
+                              chips: [
+                                section.kind,
+                                section.theme,
+                                section.layoutStyle,
+                                ...(section.bullets ?? []).slice(0, 2),
+                                ...(section.media ? [section.media.type] : []),
+                              ].filter(Boolean) as string[],
                             }))
-                          : interactionSuggestions
+                          : interactionSuggestions.map((suggestion) => ({
+                              id: suggestion.id,
+                              title: suggestion.title,
+                              content: suggestion.content,
+                              chips: suggestion.interactions,
+                            }))
                         ).map((suggestion) => (
                           <div className="card" key={suggestion.id}>
                             <strong>{suggestion.title}</strong>
                             <p>{suggestion.content}</p>
                             <div className="chips">
-                              {suggestion.interactions.map((item) => (
+                              {suggestion.chips.map((item) => (
                                 <span className="chip" key={item}>
                                   {item}
                                 </span>
@@ -927,16 +983,16 @@ export default function MasteryPathBuilderPage() {
 
                     {saved ? (
                       <div className="save-ok">
-                        Saved to MySQL. The student player can now load this assignment by
-                        ID from Railway.
-                        {savedAssignmentId ? (
+                        Saved as a course JSON payload. The student player can now load it
+                        by course ID.
+                        {savedCourseId ? (
                           <>
                             {" "}
                             <Link
                               className="btn"
-                              href={`/masterypath?assignmentId=${savedAssignmentId}`}
+                              href={`/masterypath?courseId=${savedCourseId}`}
                             >
-                              Open saved assignment
+                              Open saved course
                             </Link>
                           </>
                         ) : null}

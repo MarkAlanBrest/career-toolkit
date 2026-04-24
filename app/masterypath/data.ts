@@ -4,12 +4,42 @@ export type Objective = {
   goal: string;
 };
 
+export type SlideTheme = "ocean" | "sunset" | "forest" | "slate";
+
+export type SlideLayoutStyle =
+  | "split"
+  | "spotlight"
+  | "bullet-focus"
+  | "media-left";
+
+export type SlideMedia = {
+  type: "image" | "video";
+  url: string;
+  caption: string;
+};
+
+export type SlideCallout = {
+  label: string;
+  text: string;
+};
+
+export type SlideStat = {
+  label: string;
+  value: string;
+};
+
 export type ContentSection = {
   id: string;
   title: string;
   kind: "lesson" | "chart" | "video" | "interactive";
   summary: string;
   body: string;
+  bullets?: string[];
+  callout?: SlideCallout | null;
+  media?: SlideMedia | null;
+  stats?: SlideStat[];
+  theme?: SlideTheme;
+  layoutStyle?: SlideLayoutStyle;
 };
 
 export type AssignmentQuestion =
@@ -57,7 +87,7 @@ export const sampleAssignment: MasteryAssignment = {
   title: "Residential Wiring Mastery Path",
   course: "Electrical Technology",
   description:
-    "A guided unit that teaches branch-circuit sizing, conductor roles, and protective devices through short lessons, media moments, and adaptive checks.",
+    "A guided unit that teaches branch-circuit sizing, conductor roles, and protective devices through short lessons, visual references, and mastery checks.",
   masteryTarget: 3,
   objectives: [
     {
@@ -79,109 +109,68 @@ export const sampleAssignment: MasteryAssignment = {
   sections: [
     {
       id: "lesson-1",
-      title: "Core lesson",
+      title: "Branch-Circuit Pairings",
       kind: "lesson",
-      summary: "The student gets the main concept in plain language before trying a check.",
-      body: "",
+      summary: "Start with the rule students need to remember before they make any decisions.",
+      body:
+        "Residential branch circuits are built around safe conductor and breaker pairings. The pairing matters because undersized conductors can overheat before protective devices trip.",
+      bullets: [
+        "15-amp branch circuits commonly use 14 AWG copper.",
+        "20-amp branch circuits commonly use 12 AWG copper.",
+        "The breaker protects the conductor, not just the device on the end.",
+      ],
+      callout: {
+        label: "Why it matters",
+        text: "Students need a clean visual rule first so later scenario questions feel obvious instead of random.",
+      },
+      stats: [
+        { label: "15-amp", value: "14 AWG" },
+        { label: "20-amp", value: "12 AWG" },
+      ],
+      theme: "ocean",
+      layoutStyle: "split",
     },
     {
       id: "chart-1",
-      title: "Quick reference chart",
+      title: "Conductor Roles at a Glance",
       kind: "chart",
-      summary: "A visual lookup keeps the student from losing the thread.",
+      summary: "A clean visual board keeps the roles of each conductor easy to compare.",
       body:
-        "15-amp -> 14 AWG copper | 20-amp -> 12 AWG copper | GFCI -> wet or damp shock-risk locations | AFCI -> many habitable areas to reduce arc-fault fire risk.",
+        "Students should be able to name the purpose of the hot, neutral, and grounding conductor without confusing current flow with fault protection.",
+      bullets: [
+        "Hot carries energized current to the load.",
+        "Neutral returns current to the source.",
+        "Equipment ground provides a fault path for safety.",
+      ],
+      stats: [
+        { label: "Hot", value: "To load" },
+        { label: "Neutral", value: "Return path" },
+        { label: "Ground", value: "Fault safety" },
+      ],
+      theme: "slate",
+      layoutStyle: "bullet-focus",
     },
     {
       id: "video-1",
-      title: "Short video moment",
+      title: "Protection by Location",
       kind: "video",
-      summary: "A 90-second clip can reinforce safety workflow before the next activity.",
+      summary: "Use a media-style slide when the student should notice pattern and place.",
       body:
-        "Video placeholder: show lockout, verification of de-energized equipment, conductor identification, and post-install testing.",
-    },
-    {
-      id: "interactive-1",
-      title: "Guided interactive check",
-      kind: "interactive",
-      summary: "The student makes a choice, receives feedback, and either moves forward or loops back to the weak objective.",
-      body:
-        "Interactive placeholder: choose the right breaker-conductor pair, then explain why a different pairing would be unsafe.",
+        "GFCI protection is used where shock risk is higher, especially in wet or damp environments. AFCI protection is used more broadly to help reduce arc-fault fire risk in many habitable spaces.",
+      bullets: [
+        "Bathrooms, garages, kitchens, and outdoor locations often trigger GFCI discussions.",
+        "AFCI decisions are tied to different safety goals than GFCI decisions.",
+      ],
+      callout: {
+        label: "Watch for",
+        text: "Students should connect each protection method to its hazard, not memorize a disconnected list.",
+      },
+      theme: "sunset",
+      layoutStyle: "media-left",
     },
   ],
-  questions: [
-    {
-      id: "q1",
-      objectiveId: "sizing",
-      type: "multiple-choice",
-      prompt:
-        "A standard 20-amp residential branch circuit should normally use which copper conductor size?",
-      options: ["10 AWG", "12 AWG", "14 AWG", "16 AWG"],
-      correctIndex: 1,
-      explanation:
-        "12 AWG copper is the typical pairing for a 20-amp residential branch circuit.",
-    },
-    {
-      id: "q2",
-      objectiveId: "sizing",
-      type: "true-false",
-      prompt:
-        "True or false: a 15-amp breaker is commonly paired with 14 AWG copper conductors.",
-      correct: true,
-      explanation:
-        "True. That is the common residential pairing for a standard 15-amp circuit.",
-    },
-    {
-      id: "q3",
-      objectiveId: "conductors",
-      type: "matching",
-      prompt: "Match each conductor to its primary job.",
-      pairs: [
-        { left: "Hot", right: "Carries energized current to the load" },
-        { left: "Neutral", right: "Returns current to the source" },
-        { left: "Equipment ground", right: "Provides a fault path for safety" },
-      ],
-      explanation:
-        "Each conductor has a distinct role. Keeping those roles straight is basic electrical safety.",
-    },
-    {
-      id: "q4",
-      objectiveId: "protection",
-      type: "multiple-choice",
-      prompt: "Which location most clearly calls for GFCI protection?",
-      options: [
-        "Bathroom receptacle",
-        "Bedroom ceiling fan box",
-        "Hallway light switch",
-        "Closet luminaire",
-      ],
-      correctIndex: 0,
-      explanation:
-        "Bathrooms are classic GFCI locations because the shock hazard is elevated by moisture.",
-    },
-    {
-      id: "q5",
-      objectiveId: "protection",
-      type: "true-false",
-      prompt:
-        "True or false: GFCI protection is intended to reduce shock hazard in wet or damp locations.",
-      correct: true,
-      explanation:
-        "True. GFCI devices are used to reduce shock hazard where moisture and grounded contact risks are higher.",
-    },
-  ],
+  questions: [],
 };
-
-const assignmentsByCourseId: Record<string, MasteryAssignment> = {
-  [sampleAssignment.courseId]: sampleAssignment,
-  [sampleAssignment.id]: sampleAssignment,
-  "electrical-technology": sampleAssignment,
-};
-
-export function getAssignmentForCourseId(courseId?: string | null) {
-  if (!courseId) return sampleAssignment;
-  return assignmentsByCourseId[courseId] ?? sampleAssignment;
-}
 
 export function buildObjectiveSuggestions(content: string) {
   const text = content.trim();
@@ -216,13 +205,13 @@ export function buildInteractionSuggestions(objectives: string[], difficulty: st
     title: objective,
     content:
       difficulty === "Advanced"
-        ? "Start with a compact concept brief, then branch into scenario-based feedback, a distractor-heavy checkpoint, and a mastery loop if the student misses the reasoning."
+        ? "Turn this into a high-rigor slide with contrast, scenario framing, and a visible reasoning checkpoint."
         : difficulty === "Intermediate"
-          ? "Start with a short teaching card, add a guided interactive check, then follow with a confidence boost and a second check if needed."
-          : "Start with a simple lesson card, one quick interactive check, and a supportive review hint before the next attempt.",
+          ? "Use a polished teaching slide, a compact comparison block, and a clear checkpoint before moving on."
+          : "Use a supportive teaching slide with simple bullets, a visual anchor, and one low-friction check.",
     interactions:
       difficulty === "Advanced"
-        ? ["Scenario question", "Matching", "Reflection prompt", "Targeted retry"]
-        : ["Micro lesson", "Multiple choice", "True / false", "Progress nudge"],
+        ? ["Scenario slide", "Comparison frame", "Decision checkpoint", "Targeted retry"]
+        : ["Visual slide", "Bullet list", "Callout", "Quick check"],
   }));
 }

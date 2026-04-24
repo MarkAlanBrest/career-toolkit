@@ -6,6 +6,8 @@ import {
   type ContentSection,
   type MasteryAssignment,
   type Objective,
+  type SlideLayoutStyle,
+  type SlideTheme,
 } from "../app/masterypath/data";
 import { getDbPool, hasDatabaseConfig } from "./db";
 
@@ -38,23 +40,10 @@ export type StoredMasteryAssignment = MasteryAssignment & {
   publishState: MasteryPublishState;
 };
 
-type MasteryAssignmentRow = RowDataPacket & {
-  id: string;
+type MasteryCoursePayloadRow = RowDataPacket & {
   course_id: string;
   title: string;
-  course: string;
-  description: string;
-  source_mode: MasterySourceMode;
-  source_url: string | null;
-  source_content: string;
-  difficulty: MasteryDifficulty;
-  layout_type: MasteryLayout;
-  mastery_target: number;
-  learning_suggestions_accepted: number;
-  publish_state: MasteryPublishState;
-  objectives_json: unknown;
-  sections_json: unknown;
-  questions_json: unknown;
+  payload_json: unknown;
 };
 
 let schemaReady = false;
@@ -87,16 +76,37 @@ function buildObjectives(objectives: string[]) {
   }));
 }
 
+function themeForIndex(index: number): SlideTheme {
+  const themes: SlideTheme[] = ["ocean", "sunset", "forest", "slate"];
+  return themes[index % themes.length];
+}
+
+function layoutForKind(kind: ContentSection["kind"]): SlideLayoutStyle {
+  if (kind === "video") {
+    return "media-left";
+  }
+
+  if (kind === "chart") {
+    return "bullet-focus";
+  }
+
+  if (kind === "interactive") {
+    return "spotlight";
+  }
+
+  return "split";
+}
+
 function pickSectionKind(layout: MasteryLayout, index: number): ContentSection["kind"] {
   if (layout === "Scenario path") {
-    return "interactive";
+    return index === 0 ? "lesson" : "interactive";
   }
 
   if (layout === "Guided path") {
-    return "lesson";
+    return index % 2 === 0 ? "lesson" : "chart";
   }
 
-  const kinds: ContentSection["kind"][] = ["chart", "video", "interactive"];
+  const kinds: ContentSection["kind"][] = ["lesson", "chart", "video", "interactive"];
   return kinds[index % kinds.length];
 }
 
@@ -107,36 +117,88 @@ function buildSections(
   layout: MasteryLayout
 ) {
   const sourceBody = content.trim() || "Source content will appear here.";
+  const sentences = sourceBody
+    .split(/[.!?]/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
   const interactionSuggestions = buildInteractionSuggestions(
     objectives.map((objective) => objective.goal),
     difficulty
   );
 
-  const sections: ContentSection[] = [
-    {
-      id: "lesson-1",
-      title: "Source lesson",
-      kind: "lesson",
-      summary: "Imported source content from the teacher builder.",
-      body: sourceBody,
-    },
-  ];
+  return objectives.map<ContentSection>((objective, index) => {
+    const kind = pickSectionKind(layout, index);
+    const sourceChunk =
+      sentences.slice(index, index + 3).join(". ") ||
+      sentences.slice(0, 2).join(". ") ||
+      sourceBody;
+    const relatedSuggestion = interactionSuggestions[index];
 
-  interactionSuggestions.forEach((suggestion, index) => {
-    sections.push({
-      id: `section-${index + 2}`,
-      title: suggestion.title,
-      kind: pickSectionKind(layout, index),
-      summary: suggestion.interactions.join(" | "),
-      body: suggestion.content,
-    });
+    return {
+      id: `slide-${index + 1}`,
+      title: objective.title,
+      kind,
+      summary: objective.goal,
+      body: sourceChunk.endsWith(".") ? sourceChunk : `${sourceChunk}.`,
+      bullets: [
+        objective.goal,
+        relatedSuggestion?.content || "Use the slide to reinforce the central rule.",
+        `Difficulty target: ${difficulty}`,
+      ],
+      callout: {
+        label: "Teaching move",
+        text:
+          relatedSuggestion?.interactions.join(" | ") ||
+          "Introduce the concept, compare examples, then check for understanding.",
+      },
+      stats: [
+        { label: "Objective", value: `${index + 1}` },
+        { label: "Difficulty", value: difficulty },
+      ],
+      theme: themeForIndex(index),
+      layoutStyle: layoutForKind(kind),
+    };
   });
-
-  return sections;
 }
 
 function buildQuestions(): AssignmentQuestion[] {
   return [];
+}
+
+function normalizeSection(section: ContentSection, index: number): ContentSection {
+  return {
+    id: section.id || `slide-${index + 1}`,
+    title: section.title || `Slide ${index + 1}`,
+    kind: section.kind || "lesson",
+    summary: section.summary || "",
+    body: section.body || "",
+    bullets: Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [],
+    callout:
+      section.callout && (section.callout.label || section.callout.text)
+        ? {
+            label: section.callout.label || "Key point",
+            text: section.callout.text || "",
+          }
+        : null,
+    media:
+      section.media && section.media.url
+        ? {
+            type: section.media.type === "video" ? "video" : "image",
+            url: section.media.url,
+            caption: section.media.caption || "",
+          }
+        : null,
+    stats: Array.isArray(section.stats)
+      ? section.stats
+          .filter((stat) => stat?.label || stat?.value)
+          .map((stat) => ({
+            label: stat.label || "Label",
+            value: stat.value || "",
+          }))
+      : [],
+    theme: section.theme || themeForIndex(index),
+    layoutStyle: section.layoutStyle || layoutForKind(section.kind || "lesson"),
+  };
 }
 
 function buildStoredAssignment(
@@ -150,6 +212,10 @@ function buildStoredAssignment(
     content || "AI-built mastery path saved from the teacher builder.",
     220
   );
+  const sections =
+    input.sections && input.sections.length
+      ? input.sections.map(normalizeSection)
+      : buildSections(content, objectives, input.difficulty, input.layout);
 
   return {
     id: slugify(title, sampleAssignment.id),
@@ -166,10 +232,7 @@ function buildStoredAssignment(
     learningSuggestionsAccepted: input.learningSuggestionsAccepted,
     publishState: "draft",
     objectives,
-    sections:
-      input.sections && input.sections.length
-        ? input.sections
-        : buildSections(content, objectives, input.difficulty, input.layout),
+    sections,
     questions: buildQuestions(),
   };
 }
@@ -198,27 +261,6 @@ function parseJsonField<T>(value: unknown, fallback: T): T {
   return fallback;
 }
 
-function mapRowToAssignment(row: MasteryAssignmentRow): StoredMasteryAssignment {
-  return {
-    id: row.id,
-    courseId: row.course_id,
-    title: row.title,
-    course: row.course,
-    description: row.description,
-    masteryTarget: row.mastery_target,
-    sourceMode: row.source_mode,
-    sourceUrl: row.source_url ?? "",
-    content: row.source_content,
-    difficulty: row.difficulty,
-    layout: row.layout_type,
-    learningSuggestionsAccepted: Boolean(row.learning_suggestions_accepted),
-    publishState: row.publish_state,
-    objectives: parseJsonField<Objective[]>(row.objectives_json, []),
-    sections: parseJsonField<ContentSection[]>(row.sections_json, []),
-    questions: parseJsonField<AssignmentQuestion[]>(row.questions_json, []),
-  };
-}
-
 async function ensureMasteryAssignmentsTable() {
   if (schemaReady || !hasDatabaseConfig()) {
     return;
@@ -227,26 +269,11 @@ async function ensureMasteryAssignmentsTable() {
   const db = getDbPool();
 
   await db.query(`
-    CREATE TABLE IF NOT EXISTS MasteryAssignments (
-      id VARCHAR(191) NOT NULL PRIMARY KEY,
-      course_id VARCHAR(191) NOT NULL,
+    CREATE TABLE IF NOT EXISTS MasteryPathCoursePayloads (
+      course_id VARCHAR(191) NOT NULL PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
-      course VARCHAR(255) NOT NULL,
-      description TEXT NOT NULL,
-      source_mode VARCHAR(32) NOT NULL,
-      source_url TEXT NULL,
-      source_content LONGTEXT NOT NULL,
-      difficulty VARCHAR(32) NOT NULL,
-      layout_type VARCHAR(64) NOT NULL,
-      mastery_target INT NOT NULL DEFAULT 3,
-      learning_suggestions_accepted TINYINT(1) NOT NULL DEFAULT 0,
-      publish_state VARCHAR(32) NOT NULL DEFAULT 'draft',
-      objectives_json JSON NOT NULL,
-      sections_json JSON NOT NULL,
-      questions_json JSON NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      KEY idx_mastery_assignments_course_id (course_id)
+      payload_json JSON NOT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
   `);
 
@@ -261,62 +288,24 @@ export async function saveMasteryAssignment(input: SaveMasteryAssignmentInput) {
 
   await db.query(
     `
-      INSERT INTO MasteryAssignments (
-        id,
+      INSERT INTO MasteryPathCoursePayloads (
         course_id,
         title,
-        course,
-        description,
-        source_mode,
-        source_url,
-        source_content,
-        difficulty,
-        layout_type,
-        mastery_target,
-        learning_suggestions_accepted,
-        publish_state,
-        objectives_json,
-        sections_json,
-        questions_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        payload_json
+      ) VALUES (?, ?, ?)
       ON DUPLICATE KEY UPDATE
-        course_id = VALUES(course_id),
         title = VALUES(title),
-        course = VALUES(course),
-        description = VALUES(description),
-        source_mode = VALUES(source_mode),
-        source_url = VALUES(source_url),
-        source_content = VALUES(source_content),
-        difficulty = VALUES(difficulty),
-        layout_type = VALUES(layout_type),
-        mastery_target = VALUES(mastery_target),
-        learning_suggestions_accepted = VALUES(learning_suggestions_accepted),
-        publish_state = VALUES(publish_state),
-        objectives_json = VALUES(objectives_json),
-        sections_json = VALUES(sections_json),
-        questions_json = VALUES(questions_json)
+        payload_json = VALUES(payload_json)
     `,
-    [
-      assignment.id,
-      assignment.courseId,
-      assignment.title,
-      assignment.course,
-      assignment.description,
-      assignment.sourceMode,
-      assignment.sourceUrl || null,
-      assignment.content,
-      assignment.difficulty,
-      assignment.layout,
-      assignment.masteryTarget,
-      assignment.learningSuggestionsAccepted ? 1 : 0,
-      assignment.publishState,
-      JSON.stringify(assignment.objectives),
-      JSON.stringify(assignment.sections),
-      JSON.stringify(assignment.questions),
-    ]
+    [assignment.courseId, assignment.title, JSON.stringify(assignment)]
   );
 
   return assignment;
+}
+
+function mapRowToAssignment(row: MasteryCoursePayloadRow) {
+  const payload = parseJsonField<StoredMasteryAssignment | null>(row.payload_json, null);
+  return payload;
 }
 
 export async function getMasteryAssignment({
@@ -338,18 +327,23 @@ export async function getMasteryAssignment({
 
   const db = getDbPool();
 
-  if (assignmentId) {
-    const [rows] = await db.query<MasteryAssignmentRow[]>(
-      "SELECT * FROM MasteryAssignments WHERE id = ? LIMIT 1",
-      [assignmentId]
+  if (courseId) {
+    const [rows] = await db.query<MasteryCoursePayloadRow[]>(
+      "SELECT * FROM MasteryPathCoursePayloads WHERE course_id = ? LIMIT 1",
+      [courseId]
     );
 
     return rows[0] ? mapRowToAssignment(rows[0]) : null;
   }
 
-  const [rows] = await db.query<MasteryAssignmentRow[]>(
-    "SELECT * FROM MasteryAssignments WHERE course_id = ? ORDER BY updated_at DESC LIMIT 1",
-    [courseId]
+  const [rows] = await db.query<MasteryCoursePayloadRow[]>(
+    `
+      SELECT *
+      FROM MasteryPathCoursePayloads
+      WHERE JSON_UNQUOTE(JSON_EXTRACT(payload_json, '$.id')) = ?
+      LIMIT 1
+    `,
+    [assignmentId]
   );
 
   return rows[0] ? mapRowToAssignment(rows[0]) : null;
@@ -363,8 +357,8 @@ export async function getLatestMasteryAssignment() {
   await ensureMasteryAssignmentsTable();
 
   const db = getDbPool();
-  const [rows] = await db.query<MasteryAssignmentRow[]>(
-    "SELECT * FROM MasteryAssignments ORDER BY updated_at DESC LIMIT 1"
+  const [rows] = await db.query<MasteryCoursePayloadRow[]>(
+    "SELECT * FROM MasteryPathCoursePayloads ORDER BY updated_at DESC LIMIT 1"
   );
 
   return rows[0] ? mapRowToAssignment(rows[0]) : null;
