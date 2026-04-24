@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import {
   buildInteractionSuggestions,
   buildObjectiveSuggestions,
-  type ContentSection,
+  type LearningNode,
+  type MasteryRule,
 } from "../data";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -17,8 +18,6 @@ const steps: Array<{ id: Step; label: string }> = [
   { id: 4, label: "Learning Flow" },
   { id: 5, label: "Save" },
 ];
-
-type GeneratedSection = ContentSection;
 
 export default function MasteryPathBuilderPage() {
   const [step, setStep] = useState<Step>(1);
@@ -39,7 +38,9 @@ export default function MasteryPathBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [savedCourseId, setSavedCourseId] = useState("");
-  const [generatedSections, setGeneratedSections] = useState<GeneratedSection[]>([]);
+  const [generatedNodes, setGeneratedNodes] = useState<LearningNode[]>([]);
+  const [generatedMasteryRules, setGeneratedMasteryRules] = useState<MasteryRule[]>([]);
+  const [generatedStartNodeId, setGeneratedStartNodeId] = useState("");
   const [aiError, setAiError] = useState("");
   const [aiBusyStep, setAiBusyStep] = useState<Step | null>(null);
 
@@ -71,7 +72,7 @@ export default function MasteryPathBuilderPage() {
     setObjectives(objectiveSuggestions);
   }
 
-  async function generateWithAi(stage: "objectives" | "flow") {
+  async function generateWithAi(stage: "objectives" | "graph") {
     setAiError("");
     setAiBusyStep(stage === "objectives" ? 2 : 4);
 
@@ -115,49 +116,53 @@ export default function MasteryPathBuilderPage() {
         return;
       }
 
-      const nextSections = Array.isArray(payload.sections)
-        ? payload.sections
-            .map((section: any, index: number) => ({
+      const nextNodes = Array.isArray(payload.nodes)
+        ? payload.nodes
+            .map((node: any, index: number) => ({
               id:
-                typeof section?.id === "string" && section.id.trim()
-                  ? section.id.trim()
-                  : `generated-section-${index + 1}`,
-              title:
-                typeof section?.title === "string" && section.title.trim()
-                  ? section.title.trim()
-                  : `Learning block ${index + 1}`,
-              kind:
-                section?.kind === "lesson" ||
-                section?.kind === "chart" ||
-                section?.kind === "video" ||
-                section?.kind === "interactive"
-                  ? section.kind
+                typeof node?.id === "string" && node.id.trim()
+                  ? node.id.trim()
+                  : `generated-node-${index + 1}`,
+              objectiveId:
+                typeof node?.objectiveId === "string" && node.objectiveId.trim()
+                  ? node.objectiveId.trim()
+                  : null,
+              type:
+                node?.type === "lesson" ||
+                node?.type === "question" ||
+                node?.type === "remediation" ||
+                node?.type === "mastery-check" ||
+                node?.type === "completion"
+                  ? node.type
                   : "lesson",
-              summary:
-                typeof section?.summary === "string" ? section.summary.trim() : "",
-              body: typeof section?.body === "string" ? section.body.trim() : "",
-              bullets: Array.isArray(section?.bullets)
-                ? section.bullets
+              title:
+                typeof node?.title === "string" && node.title.trim()
+                  ? node.title.trim()
+                  : `Node ${index + 1}`,
+              summary: typeof node?.summary === "string" ? node.summary.trim() : "",
+              body: typeof node?.body === "string" ? node.body.trim() : "",
+              bullets: Array.isArray(node?.bullets)
+                ? node.bullets
                     .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
                     .filter(Boolean)
                 : [],
               callout:
-                section?.callout &&
-                (typeof section.callout.label === "string" ||
-                  typeof section.callout.text === "string")
+                node?.callout &&
+                (typeof node.callout.label === "string" ||
+                  typeof node.callout.text === "string")
                   ? {
                       label:
-                        typeof section.callout.label === "string"
-                          ? section.callout.label.trim()
+                        typeof node.callout.label === "string"
+                          ? node.callout.label.trim()
                           : "",
                       text:
-                        typeof section.callout.text === "string"
-                          ? section.callout.text.trim()
+                        typeof node.callout.text === "string"
+                          ? node.callout.text.trim()
                           : "",
                     }
                   : null,
-              stats: Array.isArray(section?.stats)
-                ? section.stats
+              stats: Array.isArray(node?.stats)
+                ? node.stats
                     .map((item: any) => ({
                       label: typeof item?.label === "string" ? item.label.trim() : "",
                       value: typeof item?.value === "string" ? item.value.trim() : "",
@@ -165,41 +170,78 @@ export default function MasteryPathBuilderPage() {
                     .filter((item: { label: string; value: string }) => item.label || item.value)
                 : [],
               media:
-                section?.media &&
-                typeof section.media.url === "string" &&
-                section.media.url.trim()
+                node?.media &&
+                typeof node.media.url === "string" &&
+                node.media.url.trim()
                   ? {
-                      type: section.media.type === "video" ? "video" : "image",
-                      url: section.media.url.trim(),
+                      type: node.media.type === "video" ? "video" : "image",
+                      url: node.media.url.trim(),
                       caption:
-                        typeof section.media.caption === "string"
-                          ? section.media.caption.trim()
-                          : "",
+                        typeof node.media.caption === "string" ? node.media.caption.trim() : "",
                     }
                   : null,
               theme:
-                section?.theme === "ocean" ||
-                section?.theme === "sunset" ||
-                section?.theme === "forest" ||
-                section?.theme === "slate"
-                  ? section.theme
+                node?.theme === "ocean" ||
+                node?.theme === "sunset" ||
+                node?.theme === "forest" ||
+                node?.theme === "slate"
+                  ? node.theme
                   : "ocean",
               layoutStyle:
-                section?.layoutStyle === "split" ||
-                section?.layoutStyle === "spotlight" ||
-                section?.layoutStyle === "bullet-focus" ||
-                section?.layoutStyle === "media-left"
-                  ? section.layoutStyle
+                node?.layoutStyle === "split" ||
+                node?.layoutStyle === "spotlight" ||
+                node?.layoutStyle === "bullet-focus" ||
+                node?.layoutStyle === "media-left"
+                  ? node.layoutStyle
                   : "split",
+              choices: Array.isArray(node?.choices)
+                ? node.choices
+                    .map((choice: any, choiceIndex: number) => ({
+                      id:
+                        typeof choice?.id === "string" && choice.id.trim()
+                          ? choice.id.trim()
+                          : `choice-${choiceIndex + 1}`,
+                      text: typeof choice?.text === "string" ? choice.text.trim() : "",
+                      isCorrect: Boolean(choice?.isCorrect),
+                      feedback:
+                        typeof choice?.feedback === "string" ? choice.feedback.trim() : "",
+                    }))
+                    .filter((choice: { text: string }) => choice.text)
+                : [],
+              transitions:
+                typeof node?.transitions === "object" && node.transitions
+                  ? node.transitions
+                  : {},
             }))
-            .filter((section: GeneratedSection) => section.title || section.body)
+            .filter((node: LearningNode) => node.title || node.body)
         : [];
 
-      if (!nextSections.length) {
-        throw new Error("AI did not return any learning sections.");
+      if (!nextNodes.length) {
+        throw new Error("AI did not return any adaptive nodes.");
       }
 
-      setGeneratedSections(nextSections);
+      setGeneratedNodes(nextNodes);
+      setGeneratedStartNodeId(
+        typeof payload.startNodeId === "string" && payload.startNodeId.trim()
+          ? payload.startNodeId.trim()
+          : nextNodes[0]?.id || ""
+      );
+      setGeneratedMasteryRules(
+        Array.isArray(payload.masteryRules)
+          ? payload.masteryRules
+              .map((rule: any) => ({
+                objectiveId:
+                  typeof rule?.objectiveId === "string" ? rule.objectiveId.trim() : "",
+                masteryStreak:
+                  typeof rule?.masteryStreak === "number" ? rule.masteryStreak : 2,
+                remediationThreshold:
+                  typeof rule?.remediationThreshold === "number"
+                    ? rule.remediationThreshold
+                    : 1,
+              }))
+              .filter((rule: MasteryRule) => rule.objectiveId)
+          : []
+      );
     } catch (error) {
       setAiError(
         error instanceof Error ? error.message : "Unable to generate AI content."
@@ -227,7 +269,8 @@ export default function MasteryPathBuilderPage() {
           sourceUrl,
           content,
           objectives,
-          sections: generatedSections,
+          nodes: generatedNodes,
+          masteryRules: generatedMasteryRules,
           difficulty,
           layout,
           learningSuggestionsAccepted,
@@ -677,7 +720,7 @@ export default function MasteryPathBuilderPage() {
                         : item.id === 3
                           ? "Choose rigor, structure, and presentation."
                           : item.id === 4
-                            ? "Review AI-proposed content and interactions."
+                        ? "Review AI-proposed adaptive path."
                             : "Store the finished assignment and publish it."}
                   </span>
                 </div>
@@ -696,7 +739,7 @@ export default function MasteryPathBuilderPage() {
                       : step === 3
                         ? "Set difficulty and layout"
                         : step === 4
-                          ? "Review suggested learning flow"
+                          ? "Review adaptive learning graph"
                           : "Save the assignment"}
                 </h2>
                 <p>
@@ -707,7 +750,7 @@ export default function MasteryPathBuilderPage() {
                       : step === 3
                         ? "Difficulty and layout shape how dense, supportive, or scenario-based the student path becomes."
                         : step === 4
-                          ? "Once the structure is set, AI proposes lesson content blocks and interactions that can still be revised before publishing."
+                          ? "Once the structure is set, AI proposes an adaptive graph of lesson, question, review, and mastery nodes."
                           : "The last step stores the assignment definition so the student player can load it from the database and track outcomes."}
                 </p>
               </div>
@@ -889,29 +932,29 @@ export default function MasteryPathBuilderPage() {
                 {step === 4 ? (
                   <>
                     <div className="field">
-                      <label>AI-suggested learning content and interactions</label>
+                      <label>AI-suggested adaptive path</label>
                       <div className="segmented">
                         <button
                           className="active"
                           disabled={!content.trim() || aiBusyStep === 4}
-                          onClick={() => generateWithAi("flow")}
+                          onClick={() => generateWithAi("graph")}
                           type="button"
                         >
-                          {aiBusyStep === 4 ? "Generating..." : "Generate with AI"}
+                          {aiBusyStep === 4 ? "Generating..." : "Generate adaptive path"}
                         </button>
                       </div>
                       <div className="list">
-                        {(generatedSections.length
-                          ? generatedSections.map((section, index) => ({
-                              id: section.id || `generated-${index + 1}`,
-                              title: section.title,
-                              content: section.body || section.summary,
+                        {(generatedNodes.length
+                          ? generatedNodes.map((node, index) => ({
+                              id: node.id || `generated-${index + 1}`,
+                              title: node.title,
+                              content: node.body || node.summary,
                               chips: [
-                                section.kind,
-                                section.theme,
-                                section.layoutStyle,
-                                ...(section.bullets ?? []).slice(0, 2),
-                                ...(section.media ? [section.media.type] : []),
+                                node.type,
+                                node.theme,
+                                node.layoutStyle,
+                                node.objectiveId || "",
+                                ...(node.choices?.length ? [`${node.choices.length} choices`] : []),
                               ].filter(Boolean) as string[],
                             }))
                           : interactionSuggestions.map((suggestion) => ({
@@ -937,6 +980,13 @@ export default function MasteryPathBuilderPage() {
                     </div>
 
                     {aiError && step === 4 ? <div className="save-error">{aiError}</div> : null}
+
+                    {generatedStartNodeId ? (
+                      <div className="card">
+                        <strong>Start node</strong>
+                        <p>{generatedStartNodeId}</p>
+                      </div>
+                    ) : null}
 
                     <div className="field">
                       <label>Teacher approval</label>

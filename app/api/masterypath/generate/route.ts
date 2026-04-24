@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 
-type GenerateStage = "objectives" | "flow";
+type GenerateStage = "objectives" | "graph";
 
 type GenerateRequestBody = {
   stage?: GenerateStage;
@@ -17,10 +17,10 @@ type GenerateRequestBody = {
 const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
-  const stage = body.stage === "flow" ? "flow" : "objectives";
+  const stage = body.stage === "graph" ? "graph" : "objectives";
 
   return `
-You are helping a teacher build a mastery-based learning assignment.
+You are helping a teacher build an adaptive mastery-based learning experience.
 
 Return JSON only. Do not wrap the response in markdown fences.
 
@@ -29,12 +29,22 @@ If stage is "objectives", return:
   "objectives": ["...", "...", "..."]
 }
 
-If stage is "flow", return:
+If stage is "graph", return:
 {
-  "sections": [
+  "startNodeId": "...",
+  "masteryRules": [
     {
+      "objectiveId": "...",
+      "masteryStreak": 2,
+      "remediationThreshold": 1
+    }
+  ],
+  "nodes": [
+    {
+      "id": "...",
+      "objectiveId": "...",
+      "type": "lesson" | "question" | "remediation" | "mastery-check" | "completion",
       "title": "...",
-      "kind": "lesson" | "chart" | "video" | "interactive",
       "summary": "...",
       "body": "...",
       "bullets": ["...", "..."],
@@ -54,23 +64,35 @@ If stage is "flow", return:
         "caption": "..."
       },
       "theme": "ocean" | "sunset" | "forest" | "slate",
-      "layoutStyle": "split" | "spotlight" | "bullet-focus" | "media-left"
+      "layoutStyle": "split" | "spotlight" | "bullet-focus" | "media-left",
+      "choices": [
+        {
+          "id": "...",
+          "text": "...",
+          "isCorrect": true,
+          "feedback": "..."
+        }
+      ],
+      "transitions": {
+        "next": "...",
+        "correct": "...",
+        "incorrect": "...",
+        "mastered": "...",
+        "retry": "..."
+      }
     }
   ]
 }
 
 Requirements:
-- Keep everything teacher-friendly, accurate, and practical.
-- Base the output on the provided source content.
-- Objectives should be clear, measurable, and classroom-ready.
-- Sections should feel like real instructional slides, not placeholders.
-- For "flow", generate 3 to 5 sections.
-- Keep each section body concise but substantive.
-- Match rigor to the requested difficulty.
-- Match structure to the requested layout.
-- Use bullets, callouts, stats, and layout variety to make the slides feel designed.
-- Include a video media block only when the source URL or source content already contains a real video URL.
-- Include an image media block only when a real image URL is provided in the source material. Otherwise leave media out.
+- Build an adaptive path, not a linear slideshow.
+- For each objective, create a teach -> question -> remediation -> mastery-check pattern.
+- Different answers should lead to different next nodes.
+- The student should be able to recover from errors and loop until mastery.
+- Make the content feel polished and visual, with bullets, callouts, and stats where useful.
+- Keep the student stage focused: one main node at a time.
+- Use real media URLs only if the input already includes real URLs. Otherwise omit media.
+- Keep IDs stable and machine-friendly.
 
 Input:
 stage: ${stage}
@@ -136,9 +158,9 @@ export async function POST(req: Request) {
     );
   }
 
-  if (body.stage === "flow" && !(body.objectives || []).filter(Boolean).length) {
+  if (body.stage === "graph" && !(body.objectives || []).filter(Boolean).length) {
     return Response.json(
-      { error: "Add or generate at least one objective before generating learning flow." },
+      { error: "Add or generate at least one objective before generating the adaptive graph." },
       { status: 400 }
     );
   }
@@ -153,7 +175,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1400,
+        max_tokens: 2200,
         messages: [
           {
             role: "user",
@@ -171,13 +193,12 @@ export async function POST(req: Request) {
       return Response.json({ error: errorMessage }, { status: 500 });
     }
 
-    const parsed = parseJsonFromModel(extractText(data));
-    return Response.json(parsed);
+    return Response.json(parseJsonFromModel(extractText(data)));
   } catch (error) {
     return Response.json(
       {
         error:
-          error instanceof Error ? error.message : "Unable to generate mastery content.",
+          error instanceof Error ? error.message : "Unable to generate mastery graph.",
       },
       { status: 500 }
     );

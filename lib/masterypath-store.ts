@@ -2,9 +2,9 @@ import { type RowDataPacket } from "mysql2";
 import {
   buildInteractionSuggestions,
   sampleAssignment,
-  type AssignmentQuestion,
-  type ContentSection,
+  type LearningNode,
   type MasteryAssignment,
+  type MasteryRule,
   type Objective,
   type SlideLayoutStyle,
   type SlideTheme,
@@ -23,7 +23,8 @@ export type SaveMasteryAssignmentInput = {
   sourceUrl?: string;
   content: string;
   objectives: string[];
-  sections?: ContentSection[];
+  nodes?: LearningNode[];
+  masteryRules?: MasteryRule[];
   difficulty: MasteryDifficulty;
   layout: MasteryLayout;
   learningSuggestionsAccepted: boolean;
@@ -81,123 +82,206 @@ function themeForIndex(index: number): SlideTheme {
   return themes[index % themes.length];
 }
 
-function layoutForKind(kind: ContentSection["kind"]): SlideLayoutStyle {
-  if (kind === "video") {
-    return "media-left";
-  }
-
-  if (kind === "chart") {
-    return "bullet-focus";
-  }
-
-  if (kind === "interactive") {
-    return "spotlight";
-  }
-
-  return "split";
+function layoutForIndex(index: number): SlideLayoutStyle {
+  const layouts: SlideLayoutStyle[] = ["split", "spotlight", "bullet-focus", "media-left"];
+  return layouts[index % layouts.length];
 }
 
-function pickSectionKind(layout: MasteryLayout, index: number): ContentSection["kind"] {
-  if (layout === "Scenario path") {
-    return index === 0 ? "lesson" : "interactive";
-  }
-
-  if (layout === "Guided path") {
-    return index % 2 === 0 ? "lesson" : "chart";
-  }
-
-  const kinds: ContentSection["kind"][] = ["lesson", "chart", "video", "interactive"];
-  return kinds[index % kinds.length];
-}
-
-function buildSections(
-  content: string,
-  objectives: Objective[],
-  difficulty: MasteryDifficulty,
-  layout: MasteryLayout
-) {
-  const sourceBody = content.trim() || "Source content will appear here.";
-  const sentences = sourceBody
-    .split(/[.!?]/)
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
+function buildGeneratedNodes(objectives: Objective[], difficulty: MasteryDifficulty) {
   const interactionSuggestions = buildInteractionSuggestions(
     objectives.map((objective) => objective.goal),
     difficulty
   );
 
-  return objectives.map<ContentSection>((objective, index) => {
-    const kind = pickSectionKind(layout, index);
-    const sourceChunk =
-      sentences.slice(index, index + 3).join(". ") ||
-      sentences.slice(0, 2).join(". ") ||
-      sourceBody;
-    const relatedSuggestion = interactionSuggestions[index];
+  const nodes: LearningNode[] = [];
 
-    return {
-      id: `slide-${index + 1}`,
-      title: objective.title,
-      kind,
-      summary: objective.goal,
-      body: sourceChunk.endsWith(".") ? sourceChunk : `${sourceChunk}.`,
-      bullets: [
-        objective.goal,
-        relatedSuggestion?.content || "Use the slide to reinforce the central rule.",
-        `Difficulty target: ${difficulty}`,
-      ],
-      callout: {
-        label: "Teaching move",
-        text:
-          relatedSuggestion?.interactions.join(" | ") ||
-          "Introduce the concept, compare examples, then check for understanding.",
+  objectives.forEach((objective, index) => {
+    const lessonId = `${objective.id}-lesson`;
+    const questionId = `${objective.id}-check-1`;
+    const reviewId = `${objective.id}-review`;
+    const masteryId = `${objective.id}-mastery`;
+    const nextObjective = objectives[index + 1];
+    const successTarget = nextObjective ? `${nextObjective.id}-lesson` : "completion";
+    const suggestion = interactionSuggestions[index];
+
+    nodes.push(
+      {
+        id: lessonId,
+        objectiveId: objective.id,
+        type: "lesson",
+        title: objective.title,
+        summary: objective.goal,
+        body: `Teach the student the core idea for ${objective.title.toLowerCase()} before asking them to make a decision.`,
+        bullets: [
+          objective.goal,
+          suggestion?.content || "Teach the concept in one focused slide.",
+          "Route the student based on what they demonstrate next.",
+        ],
+        callout: {
+          label: "Adaptive intent",
+          text: "The lesson is brief because the routing engine decides whether the student needs more support or can move on.",
+        },
+        theme: themeForIndex(index),
+        layoutStyle: layoutForIndex(index),
+        transitions: {
+          next: questionId,
+        },
       },
-      stats: [
-        { label: "Objective", value: `${index + 1}` },
-        { label: "Difficulty", value: difficulty },
-      ],
-      theme: themeForIndex(index),
-      layoutStyle: layoutForKind(kind),
-    };
+      {
+        id: questionId,
+        objectiveId: objective.id,
+        type: "question",
+        title: `${objective.title} Check`,
+        summary: "The student answers a checkpoint question immediately after the teaching slide.",
+        body: `Checkpoint for objective: ${objective.goal}`,
+        choices: [
+          {
+            id: "correct",
+            text: "Correct answer placeholder",
+            isCorrect: true,
+            feedback: "Correct. Move the student closer to mastery for this objective.",
+          },
+          {
+            id: "distractor-1",
+            text: "Distractor option",
+            feedback: "Not yet. Route the student to review and reteach the concept.",
+          },
+          {
+            id: "distractor-2",
+            text: "Another distractor",
+            feedback: "This response shows the student still needs support.",
+          },
+        ],
+        theme: themeForIndex(index + 1),
+        layoutStyle: "spotlight",
+        transitions: {
+          correct: masteryId,
+          incorrect: reviewId,
+          retry: reviewId,
+          mastered: successTarget,
+        },
+      },
+      {
+        id: reviewId,
+        objectiveId: objective.id,
+        type: "remediation",
+        title: `${objective.title} Review`,
+        summary: "The student gets a simplified reteach slide before returning to a stronger check.",
+        body: `Reteach the concept behind ${objective.goal} in simpler language, then return to a mastery checkpoint.`,
+        bullets: [
+          "Reframe the rule in simpler language.",
+          "Use one quick example and one caution.",
+          "Send the student back into a mastery check.",
+        ],
+        theme: "forest",
+        layoutStyle: "bullet-focus",
+        transitions: {
+          next: masteryId,
+        },
+      },
+      {
+        id: masteryId,
+        objectiveId: objective.id,
+        type: "mastery-check",
+        title: `${objective.title} Mastery Check`,
+        summary: "A second correct response can move the student onward, while an error loops them back into support.",
+        body: `Mastery gate for ${objective.goal}`,
+        choices: [
+          {
+            id: "mastery-correct",
+            text: "Mastery answer placeholder",
+            isCorrect: true,
+            feedback: "Correct. The student is ready to move forward.",
+          },
+          {
+            id: "mastery-incorrect",
+            text: "Incorrect answer placeholder",
+            feedback: "Not yet. Return to support before another attempt.",
+          },
+        ],
+        theme: "slate",
+        layoutStyle: "spotlight",
+        transitions: {
+          correct: successTarget,
+          mastered: successTarget,
+          incorrect: reviewId,
+          retry: reviewId,
+        },
+      }
+    );
   });
+
+  nodes.push({
+    id: "completion",
+    type: "completion",
+    title: "Mastery Path Complete",
+    summary: "The student exits once they have demonstrated enough correct performance to satisfy the mastery rules.",
+    body: "This completion node marks the end of the adaptive path for this course.",
+    bullets: [
+      "Each student can arrive here through a different route.",
+      "Mastery was earned through response-driven branching.",
+      "The path can now report which objectives were mastered.",
+    ],
+    theme: "sunset",
+    layoutStyle: "split",
+  });
+
+  return nodes;
 }
 
-function buildQuestions(): AssignmentQuestion[] {
-  return [];
+function buildMasteryRules(objectives: Objective[], masteryTarget: number) {
+  return objectives.map<MasteryRule>((objective) => ({
+    objectiveId: objective.id,
+    masteryStreak: masteryTarget,
+    remediationThreshold: 1,
+  }));
 }
 
-function normalizeSection(section: ContentSection, index: number): ContentSection {
+function normalizeNode(node: LearningNode, index: number): LearningNode {
   return {
-    id: section.id || `slide-${index + 1}`,
-    title: section.title || `Slide ${index + 1}`,
-    kind: section.kind || "lesson",
-    summary: section.summary || "",
-    body: section.body || "",
-    bullets: Array.isArray(section.bullets) ? section.bullets.filter(Boolean) : [],
+    id: node.id || `node-${index + 1}`,
+    objectiveId: node.objectiveId || null,
+    type: node.type || "lesson",
+    title: node.title || `Node ${index + 1}`,
+    summary: node.summary || "",
+    body: node.body || "",
+    bullets: Array.isArray(node.bullets) ? node.bullets.filter(Boolean) : [],
     callout:
-      section.callout && (section.callout.label || section.callout.text)
+      node.callout && (node.callout.label || node.callout.text)
         ? {
-            label: section.callout.label || "Key point",
-            text: section.callout.text || "",
+            label: node.callout.label || "Key Point",
+            text: node.callout.text || "",
           }
         : null,
     media:
-      section.media && section.media.url
+      node.media && node.media.url
         ? {
-            type: section.media.type === "video" ? "video" : "image",
-            url: section.media.url,
-            caption: section.media.caption || "",
+            type: node.media.type === "video" ? "video" : "image",
+            url: node.media.url,
+            caption: node.media.caption || "",
           }
         : null,
-    stats: Array.isArray(section.stats)
-      ? section.stats
+    stats: Array.isArray(node.stats)
+      ? node.stats
           .filter((stat) => stat?.label || stat?.value)
           .map((stat) => ({
             label: stat.label || "Label",
             value: stat.value || "",
           }))
       : [],
-    theme: section.theme || themeForIndex(index),
-    layoutStyle: section.layoutStyle || layoutForKind(section.kind || "lesson"),
+    theme: node.theme || themeForIndex(index),
+    layoutStyle: node.layoutStyle || layoutForIndex(index),
+    choices: Array.isArray(node.choices)
+      ? node.choices
+          .filter((choice) => choice?.text)
+          .map((choice, choiceIndex) => ({
+            id: choice.id || `choice-${choiceIndex + 1}`,
+            text: choice.text,
+            isCorrect: Boolean(choice.isCorrect),
+            feedback: choice.feedback || "",
+          }))
+      : [],
+    transitions: node.transitions || {},
   };
 }
 
@@ -208,14 +292,19 @@ function buildStoredAssignment(
   const course = input.course.trim() || sampleAssignment.course;
   const objectives = buildObjectives(input.objectives);
   const content = input.content.trim();
+  const masteryTarget = input.masteryTarget ?? sampleAssignment.masteryTarget;
   const description = truncateText(
     content || "AI-built mastery path saved from the teacher builder.",
     220
   );
-  const sections =
-    input.sections && input.sections.length
-      ? input.sections.map(normalizeSection)
-      : buildSections(content, objectives, input.difficulty, input.layout);
+  const nodes =
+    input.nodes && input.nodes.length
+      ? input.nodes.map(normalizeNode)
+      : buildGeneratedNodes(objectives, input.difficulty);
+  const masteryRules =
+    input.masteryRules && input.masteryRules.length
+      ? input.masteryRules
+      : buildMasteryRules(objectives, masteryTarget);
 
   return {
     id: slugify(title, sampleAssignment.id),
@@ -223,7 +312,8 @@ function buildStoredAssignment(
     title,
     course,
     description,
-    masteryTarget: input.masteryTarget ?? sampleAssignment.masteryTarget,
+    masteryTarget,
+    startNodeId: nodes[0]?.id || "completion",
     sourceMode: input.sourceMode,
     sourceUrl: input.sourceUrl?.trim() || "",
     content,
@@ -232,20 +322,14 @@ function buildStoredAssignment(
     learningSuggestionsAccepted: input.learningSuggestionsAccepted,
     publishState: "draft",
     objectives,
-    sections,
-    questions: buildQuestions(),
+    nodes,
+    masteryRules,
   };
 }
 
 function parseJsonField<T>(value: unknown, fallback: T): T {
-  if (value == null) {
-    return fallback;
-  }
-
-  if (Buffer.isBuffer(value)) {
-    return parseJsonField(value.toString("utf8"), fallback);
-  }
-
+  if (value == null) return fallback;
+  if (Buffer.isBuffer(value)) return parseJsonField(value.toString("utf8"), fallback);
   if (typeof value === "string") {
     try {
       return JSON.parse(value) as T;
@@ -253,21 +337,14 @@ function parseJsonField<T>(value: unknown, fallback: T): T {
       return fallback;
     }
   }
-
-  if (typeof value === "object") {
-    return value as T;
-  }
-
+  if (typeof value === "object") return value as T;
   return fallback;
 }
 
 async function ensureMasteryAssignmentsTable() {
-  if (schemaReady || !hasDatabaseConfig()) {
-    return;
-  }
+  if (schemaReady || !hasDatabaseConfig()) return;
 
   const db = getDbPool();
-
   await db.query(`
     CREATE TABLE IF NOT EXISTS MasteryPathCoursePayloads (
       course_id VARCHAR(191) NOT NULL PRIMARY KEY,
@@ -304,8 +381,7 @@ export async function saveMasteryAssignment(input: SaveMasteryAssignmentInput) {
 }
 
 function mapRowToAssignment(row: MasteryCoursePayloadRow) {
-  const payload = parseJsonField<StoredMasteryAssignment | null>(row.payload_json, null);
-  return payload;
+  return parseJsonField<StoredMasteryAssignment | null>(row.payload_json, null);
 }
 
 export async function getMasteryAssignment({
@@ -315,16 +391,10 @@ export async function getMasteryAssignment({
   assignmentId?: string | null;
   courseId?: string | null;
 }) {
-  if (!assignmentId && !courseId) {
-    return null;
-  }
-
-  if (!hasDatabaseConfig()) {
-    return null;
-  }
+  if (!assignmentId && !courseId) return null;
+  if (!hasDatabaseConfig()) return null;
 
   await ensureMasteryAssignmentsTable();
-
   const db = getDbPool();
 
   if (courseId) {
@@ -350,12 +420,9 @@ export async function getMasteryAssignment({
 }
 
 export async function getLatestMasteryAssignment() {
-  if (!hasDatabaseConfig()) {
-    return null;
-  }
+  if (!hasDatabaseConfig()) return null;
 
   await ensureMasteryAssignmentsTable();
-
   const db = getDbPool();
   const [rows] = await db.query<MasteryCoursePayloadRow[]>(
     "SELECT * FROM MasteryPathCoursePayloads ORDER BY updated_at DESC LIMIT 1"

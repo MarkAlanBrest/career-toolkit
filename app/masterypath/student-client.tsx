@@ -1,18 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { type ContentSection, type MasteryAssignment } from "./data";
+import { type LearningNode, type MasteryAssignment } from "./data";
 
-function themeClass(section?: ContentSection | null) {
-  if (!section?.theme) return "theme-ocean";
-  return `theme-${section.theme}`;
+type ObjectiveState = {
+  streak: number;
+  attempts: number;
+  mastered: boolean;
+};
+
+function themeClass(node?: LearningNode | null) {
+  if (!node?.theme) return "theme-ocean";
+  return `theme-${node.theme}`;
 }
 
-function sectionLabel(kind: ContentSection["kind"]) {
-  if (kind === "chart") return "Visual Reference";
-  if (kind === "video") return "Media Slide";
-  if (kind === "interactive") return "Interactive Moment";
-  return "Lesson Slide";
+function nodeLabel(type: LearningNode["type"]) {
+  if (type === "question") return "Checkpoint";
+  if (type === "remediation") return "Review";
+  if (type === "mastery-check") return "Mastery Check";
+  if (type === "completion") return "Completion";
+  return "Lesson";
 }
 
 function videoEmbedUrl(url: string) {
@@ -40,15 +47,17 @@ function videoEmbedUrl(url: string) {
   }
 }
 
-function objectiveForSection(
-  assignment: MasteryAssignment,
-  sectionIndex: number
-) {
-  if (!assignment.objectives.length) {
-    return null;
-  }
+function getObjectiveStateMap(assignment: MasteryAssignment | null) {
+  if (!assignment) return {};
 
-  return assignment.objectives[Math.min(sectionIndex, assignment.objectives.length - 1)];
+  return assignment.objectives.reduce<Record<string, ObjectiveState>>((acc, objective) => {
+    acc[objective.id] = {
+      streak: 0,
+      attempts: 0,
+      mastered: false,
+    };
+    return acc;
+  }, {});
 }
 
 export default function MasteryPathStudentClient({
@@ -56,23 +65,52 @@ export default function MasteryPathStudentClient({
 }: {
   assignment: MasteryAssignment | null;
 }) {
-  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
-  const [showSummary, setShowSummary] = useState(false);
-  const [completedSlides, setCompletedSlides] = useState<Record<string, boolean>>({});
+  const nodeMap = useMemo(() => {
+    return (assignment?.nodes ?? []).reduce<Record<string, LearningNode>>((acc, node) => {
+      acc[node.id] = node;
+      return acc;
+    }, {});
+  }, [assignment]);
 
-  const hasAssignment = Boolean(assignment);
-  const sections = assignment?.sections ?? [];
-  const currentSection = sections[currentSectionIndex] ?? null;
-  const currentObjective = assignment
-    ? objectiveForSection(assignment, currentSectionIndex)
-    : null;
-  const completedCount = useMemo(
-    () => sections.filter((section) => completedSlides[section.id]).length,
-    [completedSlides, sections]
+  const [currentNodeId, setCurrentNodeId] = useState(assignment?.startNodeId || "");
+  const [history, setHistory] = useState<string[]>(
+    assignment?.startNodeId ? [assignment.startNodeId] : []
   );
-  const completionPercent = sections.length
-    ? Math.round((completedCount / sections.length) * 100)
-    : 0;
+  const [selectedChoiceId, setSelectedChoiceId] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [pendingNextNodeId, setPendingNextNodeId] = useState("");
+  const [objectiveState, setObjectiveState] = useState<Record<string, ObjectiveState>>(() =>
+    getObjectiveStateMap(assignment)
+  );
+  const [visitedNodes, setVisitedNodes] = useState<Record<string, boolean>>(() =>
+    assignment?.startNodeId ? { [assignment.startNodeId]: true } : {}
+  );
+
+  const currentNode = currentNodeId ? nodeMap[currentNodeId] : null;
+  const hasAssignment = Boolean(assignment && currentNode);
+
+  const progressSummary = useMemo(() => {
+    const rows = assignment?.objectives.map((objective) => {
+      const state = objectiveState[objective.id] || {
+        streak: 0,
+        attempts: 0,
+        mastered: false,
+      };
+
+      return {
+        title: objective.title,
+        goal: objective.goal,
+        mastered: state.mastered,
+        attempts: state.attempts,
+        streak: state.streak,
+      };
+    }) ?? [];
+
+    return {
+      rows,
+      masteredCount: rows.filter((row) => row.mastered).length,
+    };
+  }, [assignment, objectiveState]);
 
   function handleClose() {
     if (window.history.length > 1) {
@@ -83,65 +121,151 @@ export default function MasteryPathStudentClient({
     window.close();
   }
 
-  function markCurrentComplete() {
-    if (!currentSection) {
+  function moveToNode(nextNodeId: string) {
+    if (!nextNodeId || !nodeMap[nextNodeId]) {
       return;
     }
 
-    setCompletedSlides((previous) => ({
+    setCurrentNodeId(nextNodeId);
+    setHistory((previous) => [...previous, nextNodeId]);
+    setVisitedNodes((previous) => ({
       ...previous,
-      [currentSection.id]: true,
+      [nextNodeId]: true,
     }));
+    setSelectedChoiceId("");
+    setFeedback("");
+    setPendingNextNodeId("");
   }
 
-  function goBack() {
-    if (showSummary) {
-      setShowSummary(false);
+  function resolveQuestionTransition() {
+    if (!assignment || !currentNode || !currentNode.choices?.length) {
       return;
     }
 
-    if (currentSectionIndex === 0) {
+    const choice = currentNode.choices.find((item) => item.id === selectedChoiceId);
+
+    if (!choice) {
+      setFeedback("Choose an answer before continuing.");
       return;
     }
 
-    setCurrentSectionIndex((previous) => previous - 1);
+    const objectiveId = currentNode.objectiveId;
+    const masteryRule = assignment.masteryRules.find(
+      (rule) => rule.objectiveId === objectiveId
+    );
+    const currentObjectiveState = objectiveId
+      ? objectiveState[objectiveId] || { streak: 0, attempts: 0, mastered: false }
+      : { streak: 0, attempts: 0, mastered: false };
+    const isCorrect = Boolean(choice.isCorrect);
+    const nextObjectiveState: ObjectiveState = {
+      attempts: currentObjectiveState.attempts + 1,
+      streak: isCorrect ? currentObjectiveState.streak + 1 : 0,
+      mastered:
+        currentObjectiveState.mastered ||
+        Boolean(
+          isCorrect &&
+            masteryRule &&
+            currentObjectiveState.streak + 1 >= masteryRule.masteryStreak
+        ),
+    };
+
+    if (objectiveId) {
+      setObjectiveState((previous) => ({
+        ...previous,
+        [objectiveId]: nextObjectiveState,
+      }));
+    }
+
+    let nextNodeId =
+      isCorrect && nextObjectiveState.mastered
+        ? currentNode.transitions?.mastered || currentNode.transitions?.correct
+        : isCorrect
+          ? currentNode.transitions?.correct
+          : currentNode.transitions?.incorrect;
+
+    if (!isCorrect && masteryRule) {
+      const shouldRetryInline =
+        nextObjectiveState.attempts < masteryRule.remediationThreshold &&
+        currentNode.transitions?.retry;
+
+      if (shouldRetryInline) {
+        nextNodeId = currentNode.transitions?.retry;
+      }
+    }
+
+    setFeedback(
+      choice.feedback ||
+        (isCorrect ? "Correct. Move forward." : "Not yet. Review and try again.")
+    );
+    setPendingNextNodeId(nextNodeId || "");
   }
 
-  function goNext() {
-    if (!currentSection) {
+  function handlePrimaryAction() {
+    if (!currentNode) return;
+
+    if (feedback && pendingNextNodeId) {
+      moveToNode(pendingNextNodeId);
       return;
     }
 
-    markCurrentComplete();
-
-    if (currentSectionIndex >= sections.length - 1) {
-      setShowSummary(true);
+    if (currentNode.type === "question" || currentNode.type === "mastery-check") {
+      resolveQuestionTransition();
       return;
     }
 
-    setCurrentSectionIndex((previous) => previous + 1);
+    if (currentNode.transitions?.next) {
+      moveToNode(currentNode.transitions.next);
+    }
+  }
+
+  function handleBack() {
+    if (history.length <= 1) {
+      return;
+    }
+
+    const nextHistory = history.slice(0, -1);
+    const previousNodeId = nextHistory[nextHistory.length - 1];
+    setHistory(nextHistory);
+    setCurrentNodeId(previousNodeId);
+    setSelectedChoiceId("");
+    setFeedback("");
+    setPendingNextNodeId("");
+  }
+
+  function primaryLabel() {
+    if (feedback && pendingNextNodeId) {
+      return currentNode?.type === "completion" ? "Done" : "Continue";
+    }
+
+    if (currentNode?.type === "question" || currentNode?.type === "mastery-check") {
+      return "Submit Answer";
+    }
+
+    if (currentNode?.type === "completion") {
+      return "Path Complete";
+    }
+
+    return "Next";
   }
 
   return (
     <>
       <style>{`
         :root{
-          --bg:#0d1f36;
-          --shell:rgba(11, 22, 39, .72);
-          --panel:#f6f0e8;
-          --ink:#15253b;
-          --muted:#5f6d80;
-          --line:rgba(21,37,59,.10);
-          --light:#ffffff;
+          --shell:rgba(9, 18, 34, .72);
+          --panel:#f5efe8;
+          --ink:#16263e;
+          --muted:#5e6d80;
+          --line:rgba(22,38,62,.10);
         }
 
         body{
           margin:0;
           font-family:"Avenir Next","Segoe UI",Arial,sans-serif;
           background:
-            radial-gradient(circle at top left, rgba(79,132,255,.22), transparent 28%),
-            radial-gradient(circle at bottom right, rgba(252,150,102,.18), transparent 28%),
-            linear-gradient(145deg, #081525, #153156);
+            radial-gradient(circle at top left, rgba(94,138,255,.24), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(255,158,108,.18), transparent 28%),
+            linear-gradient(145deg, #081321, #163459);
           color:var(--ink);
         }
 
@@ -152,8 +276,8 @@ export default function MasteryPathStudentClient({
           padding:20px;
         }
 
-        .frame{
-          width:min(1240px, 100%);
+        .shell{
+          width:min(1240px,100%);
           min-height:calc(100vh - 40px);
           display:grid;
           grid-template-rows:auto 1fr auto;
@@ -162,17 +286,25 @@ export default function MasteryPathStudentClient({
           border:1px solid rgba(255,255,255,.10);
           background:var(--shell);
           backdrop-filter:blur(18px);
-          box-shadow:0 28px 90px rgba(0,0,0,.32);
+          box-shadow:0 28px 90px rgba(0,0,0,.34);
+        }
+
+        .topbar,
+        .bottombar{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:16px;
+          padding:18px 22px;
+          color:rgba(255,255,255,.88);
         }
 
         .topbar{
-          display:flex;
-          justify-content:space-between;
-          gap:16px;
-          align-items:center;
-          padding:18px 22px;
           border-bottom:1px solid rgba(255,255,255,.08);
-          color:rgba(255,255,255,.86);
+        }
+
+        .bottombar{
+          border-top:1px solid rgba(255,255,255,.08);
         }
 
         .topbar strong{
@@ -189,8 +321,7 @@ export default function MasteryPathStudentClient({
           color:rgba(255,255,255,.70);
         }
 
-        .topbar button,
-        .nav-btn{
+        .action-btn{
           min-height:42px;
           padding:0 18px;
           border-radius:999px;
@@ -203,8 +334,12 @@ export default function MasteryPathStudentClient({
           cursor:pointer;
         }
 
-        .topbar button:disabled,
-        .nav-btn:disabled{
+        .action-btn.primary{
+          background:linear-gradient(135deg, #244f96, #2a9d8f);
+          border-color:transparent;
+        }
+
+        .action-btn:disabled{
           opacity:.45;
           cursor:not-allowed;
         }
@@ -215,10 +350,9 @@ export default function MasteryPathStudentClient({
           place-items:center;
         }
 
-        .slide-shell,
-        .empty-shell,
-        .summary-shell{
-          width:min(1100px, 100%);
+        .canvas,
+        .empty-state{
+          width:min(1100px,100%);
           min-height:100%;
           border-radius:28px;
           overflow:hidden;
@@ -227,30 +361,48 @@ export default function MasteryPathStudentClient({
           box-shadow:0 24px 60px rgba(6,15,28,.24);
         }
 
-        .empty-shell,
-        .summary-shell{
+        .empty-state{
           padding:32px;
-          display:grid;
-          align-content:start;
-          gap:18px;
         }
 
-        .slide-shell{
-          display:grid;
-          grid-template-columns:minmax(0, 1.2fr) minmax(320px, .8fr);
+        .theme-ocean .canvas-main{
+          background:
+            radial-gradient(circle at top left, rgba(88,143,255,.20), transparent 26%),
+            linear-gradient(145deg, #fbfcff, #e9f3ff);
         }
 
-        .slide-main{
+        .theme-sunset .canvas-main{
+          background:
+            radial-gradient(circle at top left, rgba(255,157,108,.20), transparent 26%),
+            linear-gradient(145deg, #fffaf4, #ffe7d6);
+        }
+
+        .theme-forest .canvas-main{
+          background:
+            radial-gradient(circle at top left, rgba(91,176,123,.18), transparent 26%),
+            linear-gradient(145deg, #fafdf9, #e8f4ea);
+        }
+
+        .theme-slate .canvas-main{
+          background:
+            radial-gradient(circle at top left, rgba(108,132,177,.18), transparent 26%),
+            linear-gradient(145deg, #fafbfe, #ebf0f8);
+        }
+
+        .canvas{
+          display:grid;
+          grid-template-rows:auto 1fr auto;
+        }
+
+        .canvas-main{
           min-width:0;
-          padding:34px 34px 26px;
+          padding:34px;
           display:grid;
-          grid-template-rows:auto auto 1fr;
           gap:22px;
           position:relative;
-          overflow:hidden;
         }
 
-        .slide-main::before{
+        .canvas-main::before{
           content:"";
           position:absolute;
           inset:0;
@@ -260,35 +412,17 @@ export default function MasteryPathStudentClient({
             linear-gradient(180deg, rgba(255,255,255,.18), transparent 56%);
         }
 
-        .theme-ocean .slide-main{
-          background:
-            radial-gradient(circle at top left, rgba(84,142,255,.24), transparent 28%),
-            linear-gradient(145deg, #fbfcff, #e9f3ff);
+        .hero{
+          position:relative;
+          z-index:1;
+          display:grid;
+          gap:16px;
         }
 
-        .theme-sunset .slide-main{
-          background:
-            radial-gradient(circle at top left, rgba(255,153,102,.22), transparent 28%),
-            linear-gradient(145deg, #fffaf4, #ffe8d8);
-        }
-
-        .theme-forest .slide-main{
-          background:
-            radial-gradient(circle at top left, rgba(88,171,124,.20), transparent 28%),
-            linear-gradient(145deg, #fbfdf9, #e6f4ea);
-        }
-
-        .theme-slate .slide-main{
-          background:
-            radial-gradient(circle at top left, rgba(102,127,173,.20), transparent 28%),
-            linear-gradient(145deg, #fafbfe, #ebf0f8);
-        }
-
-        .slide-kicker{
+        .pill-row{
           display:flex;
           gap:10px;
           flex-wrap:wrap;
-          align-items:center;
         }
 
         .pill{
@@ -306,47 +440,47 @@ export default function MasteryPathStudentClient({
           color:#264164;
         }
 
-        .slide-title{
-          position:relative;
-          z-index:1;
-        }
-
-        .slide-title h1{
+        .hero h1{
           margin:0;
           font-family:Georgia,"Times New Roman",serif;
           font-size:44px;
           line-height:1.02;
-          color:#17293f;
+          color:#15263d;
         }
 
-        .slide-title p{
-          margin:14px 0 0;
+        .hero p{
+          margin:0;
           max-width:760px;
           font-size:17px;
           line-height:1.75;
-          color:#4c5d72;
+          color:#4f6075;
         }
 
-        .slide-grid{
+        .content-grid{
           position:relative;
           z-index:1;
           display:grid;
-          grid-template-columns:minmax(0,1fr) minmax(280px,.72fr);
+          grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);
           gap:18px;
           align-content:start;
         }
 
-        .block{
+        .stack{
+          display:grid;
+          gap:18px;
+          align-content:start;
+        }
+
+        .card{
           border-radius:24px;
           border:1px solid var(--line);
-          background:rgba(255,255,255,.78);
-          padding:20px 20px 18px;
+          background:rgba(255,255,255,.82);
+          padding:20px;
           box-shadow:0 14px 28px rgba(21,37,59,.08);
         }
 
-        .block h3,
-        .summary-shell h3,
-        .empty-shell h3{
+        .card h3,
+        .empty-state h3{
           margin:0 0 10px;
           font-size:13px;
           letter-spacing:.08em;
@@ -354,12 +488,11 @@ export default function MasteryPathStudentClient({
           color:#365173;
         }
 
-        .block p,
-        .summary-shell p,
-        .empty-shell p{
+        .card p,
+        .empty-state p{
           margin:0;
-          color:#415265;
           line-height:1.75;
+          color:#425266;
         }
 
         .bullet-list{
@@ -374,79 +507,43 @@ export default function MasteryPathStudentClient({
           display:grid;
           grid-template-columns:18px 1fr;
           gap:12px;
-          align-items:start;
-          color:#1e3149;
           line-height:1.7;
+          color:#1d3048;
         }
 
         .bullet-list li::before{
           content:"";
           width:10px;
           height:10px;
-          border-radius:999px;
           margin-top:8px;
-          background:linear-gradient(135deg, #265ca8, #2ca38e);
-          box-shadow:0 0 0 5px rgba(44,163,142,.10);
-        }
-
-        .visual-stack{
-          display:grid;
-          gap:18px;
-          align-content:start;
-        }
-
-        .graphic-card{
-          min-height:220px;
-          display:grid;
-          place-items:center;
-          border-radius:24px;
-          border:1px solid var(--line);
-          background:
-            linear-gradient(140deg, rgba(255,255,255,.9), rgba(241,245,250,.86));
-          position:relative;
-          overflow:hidden;
-        }
-
-        .graphic-card::before,
-        .graphic-card::after{
-          content:"";
-          position:absolute;
           border-radius:999px;
-          background:linear-gradient(135deg, rgba(38,92,168,.20), rgba(44,163,142,.12));
+          background:linear-gradient(135deg, #285daa, #2ea48d);
+          box-shadow:0 0 0 5px rgba(46,164,141,.10);
         }
 
-        .graphic-card::before{
-          width:220px;
-          height:220px;
-          top:-80px;
-          right:-60px;
+        .choice-list{
+          display:grid;
+          gap:12px;
         }
 
-        .graphic-card::after{
-          width:180px;
-          height:180px;
-          bottom:-70px;
-          left:-40px;
-        }
-
-        .graphic-lines{
+        .choice{
           width:100%;
-          display:grid;
-          gap:16px;
-          position:relative;
-          z-index:1;
-          padding:0 24px;
+          text-align:left;
+          border-radius:18px;
+          border:1px solid var(--line);
+          background:#fff;
+          padding:16px 16px 16px 18px;
+          color:#22354d;
+          font-size:15px;
+          line-height:1.55;
+          cursor:pointer;
         }
 
-        .graphic-line{
-          height:12px;
-          border-radius:999px;
-          background:linear-gradient(90deg, rgba(32,73,131,.88), rgba(50,169,145,.56));
+        .choice.selected{
+          border-color:#255da9;
+          background:linear-gradient(145deg, #eef5ff, #f6fbff);
+          box-shadow:0 10px 22px rgba(37,93,169,.12);
         }
-
-        .graphic-line:nth-child(2){ width:78%; }
-        .graphic-line:nth-child(3){ width:62%; }
-        .graphic-line:nth-child(4){ width:86%; }
 
         .stats{
           display:grid;
@@ -457,7 +554,7 @@ export default function MasteryPathStudentClient({
         .stat{
           border-radius:20px;
           padding:16px;
-          background:rgba(255,255,255,.88);
+          background:#fff;
           border:1px solid var(--line);
         }
 
@@ -478,20 +575,20 @@ export default function MasteryPathStudentClient({
           font-weight:800;
         }
 
-        .media-card{
+        .media{
           overflow:hidden;
           border-radius:24px;
           border:1px solid var(--line);
-          background:#0f2036;
+          background:#102038;
           min-height:220px;
         }
 
-        .media-card iframe,
-        .media-card img{
+        .media iframe,
+        .media img{
           display:block;
           width:100%;
-          height:100%;
           min-height:220px;
+          height:100%;
           border:0;
           object-fit:cover;
         }
@@ -499,44 +596,96 @@ export default function MasteryPathStudentClient({
         .media-caption{
           padding:12px 14px;
           background:#fff;
-          color:#4d5f76;
           font-size:13px;
           line-height:1.6;
+          color:#4f6176;
           border-top:1px solid var(--line);
         }
 
-        .objective-strip{
+        .placeholder-graphic{
+          min-height:220px;
+          border-radius:24px;
+          border:1px solid var(--line);
+          background:
+            linear-gradient(145deg, rgba(255,255,255,.90), rgba(240,244,250,.88));
+          display:grid;
+          place-items:center;
+          position:relative;
+          overflow:hidden;
+        }
+
+        .placeholder-graphic::before,
+        .placeholder-graphic::after{
+          content:"";
+          position:absolute;
+          border-radius:999px;
+          background:linear-gradient(135deg, rgba(38,92,168,.20), rgba(44,163,142,.12));
+        }
+
+        .placeholder-graphic::before{
+          width:220px;
+          height:220px;
+          top:-80px;
+          right:-50px;
+        }
+
+        .placeholder-graphic::after{
+          width:180px;
+          height:180px;
+          bottom:-70px;
+          left:-40px;
+        }
+
+        .graphic-lines{
+          width:100%;
+          display:grid;
+          gap:16px;
+          padding:0 26px;
+          position:relative;
+          z-index:1;
+        }
+
+        .graphic-line{
+          height:12px;
+          border-radius:999px;
+          background:linear-gradient(90deg, rgba(33,74,132,.88), rgba(51,171,147,.56));
+        }
+
+        .graphic-line:nth-child(2){ width:78%; }
+        .graphic-line:nth-child(3){ width:62%; }
+        .graphic-line:nth-child(4){ width:86%; }
+
+        .feedback{
+          border-radius:20px;
+          padding:16px 18px;
+          background:linear-gradient(145deg, #fff8ea, #fff1d6);
+          border:1px solid rgba(207,155,47,.24);
+          color:#6f5112;
+          line-height:1.7;
+        }
+
+        .summary-bar{
           display:flex;
           justify-content:space-between;
           gap:16px;
           align-items:center;
-          padding:24px 24px 24px 18px;
-          background:linear-gradient(180deg, rgba(13,28,49,.98), rgba(11,22,39,.98));
-          color:#f4f8ff;
+          padding:18px 24px;
+          background:linear-gradient(180deg, rgba(12,25,44,.98), rgba(10,19,35,.98));
+          color:#eef5ff;
         }
 
-        .objective-strip strong{
+        .summary-bar strong{
           display:block;
           font-size:12px;
           letter-spacing:.08em;
           text-transform:uppercase;
-          color:#8ab8ff;
+          color:#8cbcff;
         }
 
-        .objective-strip p{
+        .summary-bar p{
           margin:8px 0 0;
           line-height:1.65;
-          color:rgba(244,248,255,.82);
-        }
-
-        .bottombar{
-          display:flex;
-          justify-content:space-between;
-          gap:16px;
-          align-items:center;
-          padding:18px 22px;
-          border-top:1px solid rgba(255,255,255,.08);
-          color:#fff;
+          color:rgba(238,245,255,.82);
         }
 
         .dots{
@@ -553,51 +702,16 @@ export default function MasteryPathStudentClient({
         }
 
         .dot.active{
-          background:#f7d57d;
-          box-shadow:0 0 0 4px rgba(247,213,125,.18);
+          background:#f6d57e;
+          box-shadow:0 0 0 4px rgba(246,213,126,.18);
         }
 
-        .dot.done{
-          background:#67cbb1;
-        }
-
-        .summary-grid{
-          display:grid;
-          gap:16px;
-          grid-template-columns:repeat(3, minmax(0,1fr));
-        }
-
-        .summary-card{
-          border-radius:24px;
-          border:1px solid var(--line);
-          background:#fff;
-          padding:20px;
-          box-shadow:0 14px 28px rgba(21,37,59,.08);
-        }
-
-        .summary-card strong{
-          display:block;
-          font-size:28px;
-          color:#183253;
-        }
-
-        .summary-card span{
-          display:block;
-          margin-top:10px;
-          font-size:12px;
-          color:#5e6c80;
-          text-transform:uppercase;
-          letter-spacing:.06em;
-          font-weight:800;
+        .dot.visited{
+          background:#69ccb1;
         }
 
         @media (max-width: 980px){
-          .slide-shell{
-            grid-template-columns:1fr;
-          }
-
-          .slide-grid,
-          .summary-grid{
+          .content-grid{
             grid-template-columns:1fr;
           }
         }
@@ -607,7 +721,7 @@ export default function MasteryPathStudentClient({
             padding:0;
           }
 
-          .frame{
+          .shell{
             width:100%;
             min-height:100vh;
             border-radius:0;
@@ -617,42 +731,39 @@ export default function MasteryPathStudentClient({
             padding:10px;
           }
 
-          .slide-main,
-          .summary-shell,
-          .empty-shell{
+          .topbar,
+          .bottombar,
+          .summary-bar{
+            flex-direction:column;
+            align-items:flex-start;
+          }
+
+          .canvas-main,
+          .empty-state{
             padding:22px;
           }
 
-          .slide-title h1{
+          .hero h1{
             font-size:34px;
-          }
-
-          .bottombar,
-          .topbar,
-          .objective-strip{
-            flex-direction:column;
-            align-items:flex-start;
           }
         }
       `}</style>
 
       <div className="page">
-        <div className={`frame ${themeClass(currentSection)}`}>
+        <div className={`shell ${themeClass(currentNode)}`}>
           <div className="topbar">
             <div>
               <strong>{assignment?.title || "MasteryPath"}</strong>
-              <span>
-                {assignment?.course || "No course loaded"} {hasAssignment ? `| ${completionPercent}% complete` : ""}
-              </span>
+              <span>{assignment?.course || "No course loaded"}</span>
             </div>
-            <button onClick={handleClose} type="button">
+            <button className="action-btn" onClick={handleClose} type="button">
               Close
             </button>
           </div>
 
           <div className="stage">
             {!hasAssignment ? (
-              <div className="empty-shell">
+              <div className="empty-state">
                 <h3>No Saved Course Found</h3>
                 <p>
                   Save a MasteryPath from the builder first, then open the player with a
@@ -661,36 +772,33 @@ export default function MasteryPathStudentClient({
               </div>
             ) : null}
 
-            {hasAssignment && !showSummary && currentSection ? (
-              <div className="slide-shell">
-                <div className="slide-main">
-                  <div className="slide-kicker">
-                    <span className="pill">{sectionLabel(currentSection.kind)}</span>
-                    <span className="pill">
-                      Slide {currentSectionIndex + 1} of {sections.length}
-                    </span>
-                    {currentSection.layoutStyle ? (
-                      <span className="pill">{currentSection.layoutStyle}</span>
-                    ) : null}
+            {hasAssignment && currentNode ? (
+              <div className="canvas">
+                <div className="canvas-main">
+                  <div className="hero">
+                    <div className="pill-row">
+                      <span className="pill">{nodeLabel(currentNode.type)}</span>
+                      <span className="pill">{currentNode.layoutStyle || "split"}</span>
+                      {currentNode.objectiveId ? (
+                        <span className="pill">{currentNode.objectiveId}</span>
+                      ) : null}
+                    </div>
+                    <h1>{currentNode.title}</h1>
+                    <p>{currentNode.summary || assignment.description}</p>
                   </div>
 
-                  <div className="slide-title">
-                    <h1>{currentSection.title}</h1>
-                    <p>{currentSection.summary || assignment.description}</p>
-                  </div>
-
-                  <div className="slide-grid">
-                    <div className="visual-stack">
-                      <div className="block">
-                        <h3>Slide Narrative</h3>
-                        <p>{currentSection.body}</p>
+                  <div className="content-grid">
+                    <div className="stack">
+                      <div className="card">
+                        <h3>Current Node</h3>
+                        <p>{currentNode.body}</p>
                       </div>
 
-                      {(currentSection.bullets ?? []).length ? (
-                        <div className="block">
+                      {(currentNode.bullets ?? []).length ? (
+                        <div className="card">
                           <h3>Key Points</h3>
                           <ul className="bullet-list">
-                            {(currentSection.bullets ?? []).map((bullet) => (
+                            {(currentNode.bullets ?? []).map((bullet) => (
                               <li key={bullet}>
                                 <span>{bullet}</span>
                               </li>
@@ -699,33 +807,57 @@ export default function MasteryPathStudentClient({
                         </div>
                       ) : null}
 
-                      {currentSection.callout ? (
-                        <div className="block">
-                          <h3>{currentSection.callout.label}</h3>
-                          <p>{currentSection.callout.text}</p>
+                      {currentNode.callout ? (
+                        <div className="card">
+                          <h3>{currentNode.callout.label}</h3>
+                          <p>{currentNode.callout.text}</p>
                         </div>
                       ) : null}
+
+                      {(currentNode.type === "question" ||
+                        currentNode.type === "mastery-check") &&
+                      currentNode.choices?.length ? (
+                        <div className="card">
+                          <h3>Choose Your Answer</h3>
+                          <div className="choice-list">
+                            {currentNode.choices.map((choice) => (
+                              <button
+                                className={`choice ${
+                                  selectedChoiceId === choice.id ? "selected" : ""
+                                }`}
+                                key={choice.id}
+                                onClick={() => setSelectedChoiceId(choice.id)}
+                                type="button"
+                              >
+                                {choice.text}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {feedback ? <div className="feedback">{feedback}</div> : null}
                     </div>
 
-                    <div className="visual-stack">
-                      {currentSection.media?.url ? (
-                        <div className="media-card">
-                          {currentSection.media.type === "video" ? (
+                    <div className="stack">
+                      {currentNode.media?.url ? (
+                        <div className="media">
+                          {currentNode.media.type === "video" ? (
                             <iframe
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
-                              src={videoEmbedUrl(currentSection.media.url)}
-                              title={currentSection.title}
+                              src={videoEmbedUrl(currentNode.media.url)}
+                              title={currentNode.title}
                             />
                           ) : (
-                            <img alt={currentSection.media.caption || currentSection.title} src={currentSection.media.url} />
+                            <img alt={currentNode.media.caption || currentNode.title} src={currentNode.media.url} />
                           )}
-                          {currentSection.media.caption ? (
-                            <div className="media-caption">{currentSection.media.caption}</div>
+                          {currentNode.media.caption ? (
+                            <div className="media-caption">{currentNode.media.caption}</div>
                           ) : null}
                         </div>
                       ) : (
-                        <div className="graphic-card">
+                        <div className="placeholder-graphic">
                           <div className="graphic-lines">
                             <div className="graphic-line" />
                             <div className="graphic-line" />
@@ -735,9 +867,9 @@ export default function MasteryPathStudentClient({
                         </div>
                       )}
 
-                      {(currentSection.stats ?? []).length ? (
+                      {(currentNode.stats ?? []).length ? (
                         <div className="stats">
-                          {(currentSection.stats ?? []).map((stat) => (
+                          {(currentNode.stats ?? []).map((stat) => (
                             <div className="stat" key={`${stat.label}-${stat.value}`}>
                               <strong>{stat.value}</strong>
                               <span>{stat.label}</span>
@@ -749,96 +881,51 @@ export default function MasteryPathStudentClient({
                   </div>
                 </div>
 
-                <div className="objective-strip">
+                <div className="summary-bar">
                   <div>
-                    <strong>Current Objective</strong>
+                    <strong>Adaptive Progress</strong>
                     <p>
-                      {currentObjective?.title || "No objective mapped yet"}
-                      {currentObjective?.goal ? `: ${currentObjective.goal}` : ""}
+                      Mastered {progressSummary.masteredCount} of{" "}
+                      {assignment.objectives.length} objectives. This path changes based on
+                      the student&apos;s answers.
                     </p>
                   </div>
-                  <button className="nav-btn" onClick={markCurrentComplete} type="button">
-                    Mark Slide Complete
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {hasAssignment && showSummary ? (
-              <div className="summary-shell">
-                <h3>Course Summary</h3>
-                <p>
-                  This summary is based on the actual slides completed in this session,
-                  not placeholder report values.
-                </p>
-
-                <div className="summary-grid">
-                  <div className="summary-card">
-                    <strong>{completedCount}</strong>
-                    <span>Slides completed</span>
-                  </div>
-                  <div className="summary-card">
-                    <strong>{sections.length}</strong>
-                    <span>Total slides</span>
-                  </div>
-                  <div className="summary-card">
-                    <strong>{completionPercent}%</strong>
-                    <span>Course completion</span>
-                  </div>
-                </div>
-
-                <div className="block">
-                  <h3>Objectives Covered</h3>
-                  <ul className="bullet-list">
-                    {assignment.objectives.map((objective) => (
-                      <li key={objective.id}>
-                        <span>{objective.goal}</span>
-                      </li>
+                  <div className="dots">
+                    {assignment.nodes.map((node) => (
+                      <span
+                        className={`dot ${
+                          node.id === currentNode.id
+                            ? "active"
+                            : visitedNodes[node.id]
+                              ? "visited"
+                              : ""
+                        }`}
+                        key={node.id}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               </div>
             ) : null}
           </div>
 
           <div className="bottombar">
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button
-                className="nav-btn"
-                disabled={!showSummary && currentSectionIndex === 0}
-                onClick={goBack}
-                type="button"
-              >
-                Back
-              </button>
-              <button
-                className="nav-btn"
-                disabled={!hasAssignment || !currentSection || showSummary}
-                onClick={goNext}
-                type="button"
-              >
-                {currentSectionIndex >= sections.length - 1 ? "Finish" : "Next"}
-              </button>
-            </div>
-
-            <div className="dots">
-              {sections.map((section, index) => (
-                <span
-                  className={`dot ${
-                    showSummary
-                      ? completedSlides[section.id]
-                        ? "done"
-                        : ""
-                      : index === currentSectionIndex
-                        ? "active"
-                        : completedSlides[section.id]
-                          ? "done"
-                          : ""
-                  }`}
-                  key={section.id}
-                />
-              ))}
-            </div>
+            <button
+              className="action-btn"
+              disabled={history.length <= 1}
+              onClick={handleBack}
+              type="button"
+            >
+              Back
+            </button>
+            <button
+              className="action-btn primary"
+              disabled={currentNode?.type === "completion" && !pendingNextNodeId}
+              onClick={handlePrimaryAction}
+              type="button"
+            >
+              {primaryLabel()}
+            </button>
           </div>
         </div>
       </div>
