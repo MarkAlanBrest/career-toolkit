@@ -43,7 +43,7 @@ If stage is "graph", return:
     {
       "id": "...",
       "objectiveId": "...",
-      "type": "lesson" | "question" | "remediation" | "mastery-check" | "completion",
+      "type": "lesson",
       "title": "...",
       "summary": "...",
       "body": "...",
@@ -59,12 +59,12 @@ If stage is "graph", return:
         }
       ],
       "media": {
-        "type": "image" | "video",
+        "type": "image",
         "url": "...",
         "caption": "..."
       },
-      "theme": "ocean" | "sunset" | "forest" | "slate",
-      "layoutStyle": "split" | "spotlight" | "bullet-focus" | "media-left",
+      "theme": "ocean",
+      "layoutStyle": "split",
       "choices": [
         {
           "id": "...",
@@ -93,6 +93,11 @@ Requirements:
 - Keep the student stage focused: one main node at a time.
 - Use real media URLs only if the input already includes real URLs. Otherwise omit media.
 - Keep IDs stable and machine-friendly.
+- Allowed node types: "lesson", "question", "remediation", "mastery-check", "completion".
+- Allowed media types: "image", "video".
+- Allowed themes: "ocean", "sunset", "forest", "slate".
+- Allowed layoutStyle values: "split", "spotlight", "bullet-focus", "media-left".
+- Output strict JSON only with double-quoted keys and string values.
 
 Input:
 stage: ${stage}
@@ -127,7 +132,19 @@ function parseJsonFromModel(text: string) {
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "");
 
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
+
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      const extracted = cleaned.slice(firstBrace, lastBrace + 1);
+      return JSON.parse(extracted);
+    }
+
+    throw new Error("AI returned invalid JSON.");
+  }
 }
 
 export async function POST(req: Request) {
