@@ -1,25 +1,37 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { type LearningNode, type MasteryAssignment } from "./data";
+import { type MasteryAssignment, type ObjectiveBlock } from "./data";
 
-type ObjectiveState = {
-  streak: number;
-  attempts: number;
-  mastered: boolean;
-};
-
-function themeClass(node?: LearningNode | null) {
-  if (!node?.theme) return "theme-ocean";
-  return `theme-${node.theme}`;
+function themeClass(block?: ObjectiveBlock | null) {
+  if (!block?.theme) return "theme-ocean";
+  return `theme-${block.theme}`;
 }
 
-function nodeLabel(type: LearningNode["type"]) {
-  if (type === "question") return "Checkpoint";
-  if (type === "remediation") return "Review";
-  if (type === "mastery-check") return "Mastery Check";
-  if (type === "completion") return "Completion";
-  return "Lesson";
+function blockLabel(type: ObjectiveBlock["type"]) {
+  if (type === "multiple-choice") return "Multiple Choice";
+  if (type === "true-false") return "True / False";
+  if (type === "checkpoint") return "Checkpoint";
+  if (type === "review") return "Review";
+  if (type === "reflection") return "Reflection";
+  if (type === "image-slide") return "Image";
+  if (type === "video-slide") return "Video";
+  if (type === "bullet-slide") return "Key Points";
+  return "Content";
+}
+
+function isInteractiveBlock(block?: ObjectiveBlock | null) {
+  return Boolean(
+    block &&
+      (block.type === "multiple-choice" ||
+        block.type === "true-false" ||
+        block.type === "checkpoint" ||
+        block.type === "reflection")
+  );
+}
+
+function hasChoices(block?: ObjectiveBlock | null) {
+  return Boolean(block?.choices?.length);
 }
 
 function videoEmbedUrl(url: string) {
@@ -47,70 +59,30 @@ function videoEmbedUrl(url: string) {
   }
 }
 
-function getObjectiveStateMap(assignment: MasteryAssignment | null) {
-  if (!assignment) return {};
-
-  return assignment.objectives.reduce<Record<string, ObjectiveState>>((acc, objective) => {
-    acc[objective.id] = {
-      streak: 0,
-      attempts: 0,
-      mastered: false,
-    };
-    return acc;
-  }, {});
-}
-
 export default function MasteryPathStudentClient({
   assignment,
 }: {
   assignment: MasteryAssignment | null;
 }) {
-  const nodeMap = useMemo(() => {
-    return (assignment?.nodes ?? []).reduce<Record<string, LearningNode>>((acc, node) => {
-      acc[node.id] = node;
-      return acc;
-    }, {});
-  }, [assignment]);
-
-  const [currentNodeId, setCurrentNodeId] = useState(assignment?.startNodeId || "");
-  const [history, setHistory] = useState<string[]>(
-    assignment?.startNodeId ? [assignment.startNodeId] : []
-  );
+  const blocks = useMemo(() => assignment?.objective.blocks ?? [], [assignment]);
+  const criteria = assignment?.objective.completionCriteria;
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedChoiceId, setSelectedChoiceId] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [pendingNextNodeId, setPendingNextNodeId] = useState("");
-  const [objectiveState, setObjectiveState] = useState<Record<string, ObjectiveState>>(() =>
-    getObjectiveStateMap(assignment)
-  );
-  const [visitedNodes, setVisitedNodes] = useState<Record<string, boolean>>(() =>
-    assignment?.startNodeId ? { [assignment.startNodeId]: true } : {}
-  );
+  const [completedBlocks, setCompletedBlocks] = useState<Record<string, boolean>>({});
+  const [correctInteractions, setCorrectInteractions] = useState<Record<string, boolean>>({});
+  const [reflectionText, setReflectionText] = useState<Record<string, string>>({});
 
-  const currentNode = currentNodeId ? nodeMap[currentNodeId] : null;
-  const hasAssignment = Boolean(assignment && currentNode);
-
-  const progressSummary = useMemo(() => {
-    const rows = assignment?.objectives.map((objective) => {
-      const state = objectiveState[objective.id] || {
-        streak: 0,
-        attempts: 0,
-        mastered: false,
-      };
-
-      return {
-        title: objective.title,
-        goal: objective.goal,
-        mastered: state.mastered,
-        attempts: state.attempts,
-        streak: state.streak,
-      };
-    }) ?? [];
-
-    return {
-      rows,
-      masteredCount: rows.filter((row) => row.mastered).length,
-    };
-  }, [assignment, objectiveState]);
+  const currentBlock = blocks[currentIndex] ?? null;
+  const hasAssignment = Boolean(assignment && currentBlock);
+  const completedCount = Object.values(completedBlocks).filter(Boolean).length;
+  const correctCount = Object.values(correctInteractions).filter(Boolean).length;
+  const interactiveCount = blocks.filter(isInteractiveBlock).length;
+  const requiredBlocks = Math.min(criteria?.minBlocksComplete ?? blocks.length, blocks.length);
+  const requiredCorrect = Math.min(criteria?.minCorrectInteractions ?? 0, interactiveCount);
+  const isLastBlock = currentIndex >= blocks.length - 1;
+  const objectiveComplete =
+    completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
 
   function handleClose() {
     if (window.history.length > 1) {
@@ -121,130 +93,109 @@ export default function MasteryPathStudentClient({
     window.close();
   }
 
-  function moveToNode(nextNodeId: string) {
-    if (!nextNodeId || !nodeMap[nextNodeId]) {
-      return;
-    }
-
-    setCurrentNodeId(nextNodeId);
-    setHistory((previous) => [...previous, nextNodeId]);
-    setVisitedNodes((previous) => ({
+  function markBlockComplete(block: ObjectiveBlock, correct?: boolean) {
+    setCompletedBlocks((previous) => ({
       ...previous,
-      [nextNodeId]: true,
+      [block.id]: true,
     }));
-    setSelectedChoiceId("");
-    setFeedback("");
-    setPendingNextNodeId("");
+
+    if (correct) {
+      setCorrectInteractions((previous) => ({
+        ...previous,
+        [block.id]: true,
+      }));
+    }
   }
 
-  function resolveQuestionTransition() {
-    if (!assignment || !currentNode || !currentNode.choices?.length) {
-      return;
-    }
+  function moveToIndex(nextIndex: number) {
+    setCurrentIndex(Math.max(0, Math.min(blocks.length - 1, nextIndex)));
+    setSelectedChoiceId("");
+    setFeedback("");
+  }
 
-    const choice = currentNode.choices.find((item) => item.id === selectedChoiceId);
+  function submitChoice(block: ObjectiveBlock) {
+    const choice = block.choices?.find((item) => item.id === selectedChoiceId);
 
     if (!choice) {
       setFeedback("Choose an answer before continuing.");
-      return;
+      return false;
     }
 
-    const objectiveId = currentNode.objectiveId;
-    const masteryRule = assignment.masteryRules.find(
-      (rule) => rule.objectiveId === objectiveId
-    );
-    const currentObjectiveState = objectiveId
-      ? objectiveState[objectiveId] || { streak: 0, attempts: 0, mastered: false }
-      : { streak: 0, attempts: 0, mastered: false };
     const isCorrect = Boolean(choice.isCorrect);
-    const nextObjectiveState: ObjectiveState = {
-      attempts: currentObjectiveState.attempts + 1,
-      streak: isCorrect ? currentObjectiveState.streak + 1 : 0,
-      mastered:
-        currentObjectiveState.mastered ||
-        Boolean(
-          isCorrect &&
-            masteryRule &&
-            currentObjectiveState.streak + 1 >= masteryRule.masteryStreak
-        ),
-    };
-
-    if (objectiveId) {
-      setObjectiveState((previous) => ({
-        ...previous,
-        [objectiveId]: nextObjectiveState,
-      }));
-    }
-
-    let nextNodeId =
-      isCorrect && nextObjectiveState.mastered
-        ? currentNode.transitions?.mastered || currentNode.transitions?.correct
-        : isCorrect
-          ? currentNode.transitions?.correct
-          : currentNode.transitions?.incorrect;
-
-    if (!isCorrect && masteryRule) {
-      const shouldRetryInline =
-        nextObjectiveState.attempts < masteryRule.remediationThreshold &&
-        currentNode.transitions?.retry;
-
-      if (shouldRetryInline) {
-        nextNodeId = currentNode.transitions?.retry;
-      }
-    }
-
+    markBlockComplete(block, isCorrect);
     setFeedback(
       choice.feedback ||
-        (isCorrect ? "Correct. Move forward." : "Not yet. Review and try again.")
+        (isCorrect ? "Correct. Keep going." : "Not quite. Review the feedback, then continue.")
     );
-    setPendingNextNodeId(nextNodeId || "");
+    return true;
+  }
+
+  function submitReflection(block: ObjectiveBlock) {
+    const value = reflectionText[block.id]?.trim() || "";
+
+    if (!value) {
+      setFeedback("Add a short response before continuing.");
+      return false;
+    }
+
+    markBlockComplete(block, true);
+    setFeedback("Response saved. Keep going.");
+    return true;
   }
 
   function handlePrimaryAction() {
-    if (!currentNode) return;
+    if (!currentBlock) return;
 
-    if (feedback && pendingNextNodeId) {
-      moveToNode(pendingNextNodeId);
+    if (feedback) {
+      if (!isLastBlock) {
+        moveToIndex(currentIndex + 1);
+        return;
+      }
+
+      if (!objectiveComplete) {
+        moveToIndex(0);
+      }
+
       return;
     }
 
-    if (currentNode.type === "question" || currentNode.type === "mastery-check") {
-      resolveQuestionTransition();
+    if (hasChoices(currentBlock)) {
+      submitChoice(currentBlock);
       return;
     }
 
-    if (currentNode.transitions?.next) {
-      moveToNode(currentNode.transitions.next);
+    if (currentBlock.type === "reflection") {
+      submitReflection(currentBlock);
+      return;
     }
+
+    markBlockComplete(currentBlock);
+
+    if (!isLastBlock) {
+      moveToIndex(currentIndex + 1);
+      return;
+    }
+
+    setFeedback("Block complete. Review your progress or retake the objective.");
   }
 
-  function handleBack() {
-    if (history.length <= 1) {
-      return;
-    }
+  function handleRetake() {
+    if (!criteria?.allowRetake) return;
 
-    const nextHistory = history.slice(0, -1);
-    const previousNodeId = nextHistory[nextHistory.length - 1];
-    setHistory(nextHistory);
-    setCurrentNodeId(previousNodeId);
+    setCurrentIndex(0);
     setSelectedChoiceId("");
     setFeedback("");
-    setPendingNextNodeId("");
+    setCompletedBlocks({});
+    setCorrectInteractions({});
+    setReflectionText({});
   }
 
   function primaryLabel() {
-    if (feedback && pendingNextNodeId) {
-      return currentNode?.type === "completion" ? "Done" : "Continue";
-    }
-
-    if (currentNode?.type === "question" || currentNode?.type === "mastery-check") {
-      return "Submit Answer";
-    }
-
-    if (currentNode?.type === "completion") {
-      return "Path Complete";
-    }
-
+    if (feedback && !isLastBlock) return "Continue";
+    if (feedback && isLastBlock) return objectiveComplete ? "Objective Complete" : "Review Blocks";
+    if (hasChoices(currentBlock)) return "Submit Answer";
+    if (currentBlock?.type === "reflection") return "Save Response";
+    if (isLastBlock) return "Complete Block";
     return "Next";
   }
 
@@ -253,7 +204,7 @@ export default function MasteryPathStudentClient({
       <style>{`
         :root{
           --shell:rgba(9, 18, 34, .72);
-          --panel:#f5efe8;
+          --panel:#f7f4ef;
           --ink:#16263e;
           --muted:#5e6d80;
           --line:rgba(22,38,62,.10);
@@ -262,10 +213,7 @@ export default function MasteryPathStudentClient({
         body{
           margin:0;
           font-family:"Avenir Next","Segoe UI",Arial,sans-serif;
-          background:
-            radial-gradient(circle at top left, rgba(94,138,255,.24), transparent 28%),
-            radial-gradient(circle at bottom right, rgba(255,158,108,.18), transparent 28%),
-            linear-gradient(145deg, #081321, #163459);
+          background:linear-gradient(145deg, #0b1726, #183653);
           color:var(--ink);
         }
 
@@ -281,7 +229,7 @@ export default function MasteryPathStudentClient({
           min-height:calc(100vh - 40px);
           display:grid;
           grid-template-rows:auto 1fr auto;
-          border-radius:28px;
+          border-radius:24px;
           overflow:hidden;
           border:1px solid rgba(255,255,255,.10);
           background:var(--shell);
@@ -310,7 +258,7 @@ export default function MasteryPathStudentClient({
         .topbar strong{
           display:block;
           font-size:15px;
-          letter-spacing:.06em;
+          letter-spacing:0;
           text-transform:uppercase;
         }
 
@@ -319,6 +267,13 @@ export default function MasteryPathStudentClient({
           margin-top:6px;
           font-size:12px;
           color:rgba(255,255,255,.70);
+        }
+
+        .action-row{
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          justify-content:flex-end;
         }
 
         .action-btn{
@@ -330,7 +285,7 @@ export default function MasteryPathStudentClient({
           color:#fff;
           font-size:12px;
           font-weight:800;
-          letter-spacing:.05em;
+          letter-spacing:0;
           cursor:pointer;
         }
 
@@ -354,7 +309,7 @@ export default function MasteryPathStudentClient({
         .empty-state{
           width:min(1100px,100%);
           min-height:100%;
-          border-radius:28px;
+          border-radius:24px;
           overflow:hidden;
           background:var(--panel);
           border:1px solid rgba(255,255,255,.12);
@@ -366,27 +321,19 @@ export default function MasteryPathStudentClient({
         }
 
         .theme-ocean .canvas-main{
-          background:
-            radial-gradient(circle at top left, rgba(88,143,255,.20), transparent 26%),
-            linear-gradient(145deg, #fbfcff, #e9f3ff);
+          background:linear-gradient(145deg, #fbfcff, #e9f3ff);
         }
 
         .theme-sunset .canvas-main{
-          background:
-            radial-gradient(circle at top left, rgba(255,157,108,.20), transparent 26%),
-            linear-gradient(145deg, #fffaf4, #ffe7d6);
+          background:linear-gradient(145deg, #fffaf4, #ffe7d6);
         }
 
         .theme-forest .canvas-main{
-          background:
-            radial-gradient(circle at top left, rgba(91,176,123,.18), transparent 26%),
-            linear-gradient(145deg, #fafdf9, #e8f4ea);
+          background:linear-gradient(145deg, #fafdf9, #e8f4ea);
         }
 
         .theme-slate .canvas-main{
-          background:
-            radial-gradient(circle at top left, rgba(108,132,177,.18), transparent 26%),
-            linear-gradient(145deg, #fafbfe, #ebf0f8);
+          background:linear-gradient(145deg, #fafbfe, #ebf0f8);
         }
 
         .canvas{
@@ -402,19 +349,7 @@ export default function MasteryPathStudentClient({
           position:relative;
         }
 
-        .canvas-main::before{
-          content:"";
-          position:absolute;
-          inset:0;
-          pointer-events:none;
-          background:
-            linear-gradient(115deg, rgba(255,255,255,.44), transparent 42%),
-            linear-gradient(180deg, rgba(255,255,255,.18), transparent 56%);
-        }
-
         .hero{
-          position:relative;
-          z-index:1;
           display:grid;
           gap:16px;
         }
@@ -435,7 +370,7 @@ export default function MasteryPathStudentClient({
           border:1px solid var(--line);
           font-size:11px;
           font-weight:900;
-          letter-spacing:.06em;
+          letter-spacing:0;
           text-transform:uppercase;
           color:#264164;
         }
@@ -457,8 +392,6 @@ export default function MasteryPathStudentClient({
         }
 
         .content-grid{
-          position:relative;
-          z-index:1;
           display:grid;
           grid-template-columns:minmax(0,1.12fr) minmax(300px,.88fr);
           gap:18px;
@@ -472,9 +405,9 @@ export default function MasteryPathStudentClient({
         }
 
         .card{
-          border-radius:24px;
+          border-radius:8px;
           border:1px solid var(--line);
-          background:rgba(255,255,255,.82);
+          background:rgba(255,255,255,.84);
           padding:20px;
           box-shadow:0 14px 28px rgba(21,37,59,.08);
         }
@@ -483,7 +416,7 @@ export default function MasteryPathStudentClient({
         .empty-state h3{
           margin:0 0 10px;
           font-size:13px;
-          letter-spacing:.08em;
+          letter-spacing:0;
           text-transform:uppercase;
           color:#365173;
         }
@@ -529,7 +462,7 @@ export default function MasteryPathStudentClient({
         .choice{
           width:100%;
           text-align:left;
-          border-radius:18px;
+          border-radius:8px;
           border:1px solid var(--line);
           background:#fff;
           padding:16px 16px 16px 18px;
@@ -545,6 +478,19 @@ export default function MasteryPathStudentClient({
           box-shadow:0 10px 22px rgba(37,93,169,.12);
         }
 
+        .response-box{
+          min-height:150px;
+          width:100%;
+          resize:vertical;
+          border-radius:8px;
+          border:1px solid var(--line);
+          padding:16px;
+          color:#22354d;
+          font:inherit;
+          line-height:1.6;
+          box-sizing:border-box;
+        }
+
         .stats{
           display:grid;
           grid-template-columns:repeat(2, minmax(0,1fr));
@@ -552,7 +498,7 @@ export default function MasteryPathStudentClient({
         }
 
         .stat{
-          border-radius:20px;
+          border-radius:8px;
           padding:16px;
           background:#fff;
           border:1px solid var(--line);
@@ -569,7 +515,7 @@ export default function MasteryPathStudentClient({
           display:block;
           margin-top:8px;
           font-size:11px;
-          letter-spacing:.06em;
+          letter-spacing:0;
           text-transform:uppercase;
           color:#607086;
           font-weight:800;
@@ -577,7 +523,7 @@ export default function MasteryPathStudentClient({
 
         .media{
           overflow:hidden;
-          border-radius:24px;
+          border-radius:8px;
           border:1px solid var(--line);
           background:#102038;
           min-height:220px;
@@ -604,36 +550,12 @@ export default function MasteryPathStudentClient({
 
         .placeholder-graphic{
           min-height:220px;
-          border-radius:24px;
+          border-radius:8px;
           border:1px solid var(--line);
-          background:
-            linear-gradient(145deg, rgba(255,255,255,.90), rgba(240,244,250,.88));
+          background:linear-gradient(145deg, rgba(255,255,255,.92), rgba(237,244,241,.90));
           display:grid;
           place-items:center;
-          position:relative;
           overflow:hidden;
-        }
-
-        .placeholder-graphic::before,
-        .placeholder-graphic::after{
-          content:"";
-          position:absolute;
-          border-radius:999px;
-          background:linear-gradient(135deg, rgba(38,92,168,.20), rgba(44,163,142,.12));
-        }
-
-        .placeholder-graphic::before{
-          width:220px;
-          height:220px;
-          top:-80px;
-          right:-50px;
-        }
-
-        .placeholder-graphic::after{
-          width:180px;
-          height:180px;
-          bottom:-70px;
-          left:-40px;
         }
 
         .graphic-lines{
@@ -641,8 +563,6 @@ export default function MasteryPathStudentClient({
           display:grid;
           gap:16px;
           padding:0 26px;
-          position:relative;
-          z-index:1;
         }
 
         .graphic-line{
@@ -656,7 +576,7 @@ export default function MasteryPathStudentClient({
         .graphic-line:nth-child(4){ width:86%; }
 
         .feedback{
-          border-radius:20px;
+          border-radius:8px;
           padding:16px 18px;
           background:linear-gradient(145deg, #fff8ea, #fff1d6);
           border:1px solid rgba(207,155,47,.24);
@@ -665,8 +585,8 @@ export default function MasteryPathStudentClient({
         }
 
         .summary-bar{
-          display:flex;
-          justify-content:space-between;
+          display:grid;
+          grid-template-columns:minmax(0,1fr) auto;
           gap:16px;
           align-items:center;
           padding:18px 24px;
@@ -677,7 +597,7 @@ export default function MasteryPathStudentClient({
         .summary-bar strong{
           display:block;
           font-size:12px;
-          letter-spacing:.08em;
+          letter-spacing:0;
           text-transform:uppercase;
           color:#8cbcff;
         }
@@ -692,6 +612,8 @@ export default function MasteryPathStudentClient({
           display:flex;
           gap:8px;
           flex-wrap:wrap;
+          justify-content:flex-end;
+          max-width:360px;
         }
 
         .dot{
@@ -734,8 +656,13 @@ export default function MasteryPathStudentClient({
           .topbar,
           .bottombar,
           .summary-bar{
+            grid-template-columns:1fr;
             flex-direction:column;
             align-items:flex-start;
+          }
+
+          .action-row{
+            justify-content:flex-start;
           }
 
           .canvas-main,
@@ -750,7 +677,7 @@ export default function MasteryPathStudentClient({
       `}</style>
 
       <div className="page">
-        <div className={`shell ${themeClass(currentNode)}`}>
+        <div className={`shell ${themeClass(currentBlock)}`}>
           <div className="topbar">
             <div>
               <strong>{assignment?.title || "MasteryPath"}</strong>
@@ -767,38 +694,38 @@ export default function MasteryPathStudentClient({
                 <h3>No Saved Course Found</h3>
                 <p>
                   Save a MasteryPath from the builder first, then open the player with a
-                  `courseId` in the URL so the course JSON can load.
+                  courseId in the URL so the course JSON can load.
                 </p>
               </div>
             ) : null}
 
-            {hasAssignment && currentNode ? (
+            {hasAssignment && currentBlock && assignment ? (
               <div className="canvas">
                 <div className="canvas-main">
                   <div className="hero">
                     <div className="pill-row">
-                      <span className="pill">{nodeLabel(currentNode.type)}</span>
-                      <span className="pill">{currentNode.layoutStyle || "split"}</span>
-                      {currentNode.objectiveId ? (
-                        <span className="pill">{currentNode.objectiveId}</span>
-                      ) : null}
+                      <span className="pill">{blockLabel(currentBlock.type)}</span>
+                      <span className="pill">
+                        Block {currentIndex + 1} of {blocks.length}
+                      </span>
+                      <span className="pill">{assignment.objective.title}</span>
                     </div>
-                    <h1>{currentNode.title}</h1>
-                    <p>{currentNode.summary || assignment.description}</p>
+                    <h1>{currentBlock.title}</h1>
+                    <p>{currentBlock.summary || assignment.objective.goal}</p>
                   </div>
 
                   <div className="content-grid">
                     <div className="stack">
                       <div className="card">
-                        <h3>Current Node</h3>
-                        <p>{currentNode.body}</p>
+                        <h3>Current Block</h3>
+                        <p>{currentBlock.body}</p>
                       </div>
 
-                      {(currentNode.bullets ?? []).length ? (
+                      {(currentBlock.bullets ?? []).length ? (
                         <div className="card">
                           <h3>Key Points</h3>
                           <ul className="bullet-list">
-                            {(currentNode.bullets ?? []).map((bullet) => (
+                            {(currentBlock.bullets ?? []).map((bullet) => (
                               <li key={bullet}>
                                 <span>{bullet}</span>
                               </li>
@@ -807,20 +734,18 @@ export default function MasteryPathStudentClient({
                         </div>
                       ) : null}
 
-                      {currentNode.callout ? (
+                      {currentBlock.callout ? (
                         <div className="card">
-                          <h3>{currentNode.callout.label}</h3>
-                          <p>{currentNode.callout.text}</p>
+                          <h3>{currentBlock.callout.label}</h3>
+                          <p>{currentBlock.callout.text}</p>
                         </div>
                       ) : null}
 
-                      {(currentNode.type === "question" ||
-                        currentNode.type === "mastery-check") &&
-                      currentNode.choices?.length ? (
+                      {hasChoices(currentBlock) ? (
                         <div className="card">
                           <h3>Choose Your Answer</h3>
                           <div className="choice-list">
-                            {currentNode.choices.map((choice) => (
+                            {currentBlock.choices?.map((choice) => (
                               <button
                                 className={`choice ${
                                   selectedChoiceId === choice.id ? "selected" : ""
@@ -836,24 +761,44 @@ export default function MasteryPathStudentClient({
                         </div>
                       ) : null}
 
+                      {currentBlock.type === "reflection" ? (
+                        <div className="card">
+                          <h3>Response</h3>
+                          <textarea
+                            className="response-box"
+                            onChange={(event) =>
+                              setReflectionText((previous) => ({
+                                ...previous,
+                                [currentBlock.id]: event.target.value,
+                              }))
+                            }
+                            placeholder={currentBlock.placeholder || "Type your response here..."}
+                            value={reflectionText[currentBlock.id] || ""}
+                          />
+                        </div>
+                      ) : null}
+
                       {feedback ? <div className="feedback">{feedback}</div> : null}
                     </div>
 
                     <div className="stack">
-                      {currentNode.media?.url ? (
+                      {currentBlock.media?.url ? (
                         <div className="media">
-                          {currentNode.media.type === "video" ? (
+                          {currentBlock.media.type === "video" ? (
                             <iframe
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
-                              src={videoEmbedUrl(currentNode.media.url)}
-                              title={currentNode.title}
+                              src={videoEmbedUrl(currentBlock.media.url)}
+                              title={currentBlock.title}
                             />
                           ) : (
-                            <img alt={currentNode.media.caption || currentNode.title} src={currentNode.media.url} />
+                            <img
+                              alt={currentBlock.media.caption || currentBlock.title}
+                              src={currentBlock.media.url}
+                            />
                           )}
-                          {currentNode.media.caption ? (
-                            <div className="media-caption">{currentNode.media.caption}</div>
+                          {currentBlock.media.caption ? (
+                            <div className="media-caption">{currentBlock.media.caption}</div>
                           ) : null}
                         </div>
                       ) : (
@@ -867,9 +812,9 @@ export default function MasteryPathStudentClient({
                         </div>
                       )}
 
-                      {(currentNode.stats ?? []).length ? (
+                      {(currentBlock.stats ?? []).length ? (
                         <div className="stats">
-                          {(currentNode.stats ?? []).map((stat) => (
+                          {(currentBlock.stats ?? []).map((stat) => (
                             <div className="stat" key={`${stat.label}-${stat.value}`}>
                               <strong>{stat.value}</strong>
                               <span>{stat.label}</span>
@@ -877,30 +822,35 @@ export default function MasteryPathStudentClient({
                           ))}
                         </div>
                       ) : null}
+
+                      <div className="card">
+                        <h3>Completion Target</h3>
+                        <p>
+                          Complete {requiredBlocks} blocks and answer {requiredCorrect}
+                          interactive blocks correctly. Current progress: {completedCount}
+                          blocks, {correctCount} correct.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="summary-bar">
                   <div>
-                    <strong>Adaptive Progress</strong>
-                    <p>
-                      Mastered {progressSummary.masteredCount} of{" "}
-                      {assignment.objectives.length} objectives. This path changes based on
-                      the student&apos;s answers.
-                    </p>
+                    <strong>{objectiveComplete ? "Objective Complete" : "Objective Progress"}</strong>
+                    <p>{assignment.objective.goal}</p>
                   </div>
                   <div className="dots">
-                    {assignment.nodes.map((node) => (
+                    {blocks.map((block, index) => (
                       <span
                         className={`dot ${
-                          node.id === currentNode.id
+                          index === currentIndex
                             ? "active"
-                            : visitedNodes[node.id]
+                            : completedBlocks[block.id]
                               ? "visited"
                               : ""
                         }`}
-                        key={node.id}
+                        key={block.id}
                       />
                     ))}
                   </div>
@@ -912,20 +862,32 @@ export default function MasteryPathStudentClient({
           <div className="bottombar">
             <button
               className="action-btn"
-              disabled={history.length <= 1}
-              onClick={handleBack}
+              disabled={currentIndex <= 0}
+              onClick={() => moveToIndex(currentIndex - 1)}
               type="button"
             >
               Back
             </button>
-            <button
-              className="action-btn primary"
-              disabled={currentNode?.type === "completion" && !pendingNextNodeId}
-              onClick={handlePrimaryAction}
-              type="button"
-            >
-              {primaryLabel()}
-            </button>
+            <div className="action-row">
+              {criteria?.allowRetake ? (
+                <button
+                  className="action-btn"
+                  disabled={!completedCount && currentIndex === 0}
+                  onClick={handleRetake}
+                  type="button"
+                >
+                  Retake
+                </button>
+              ) : null}
+              <button
+                className="action-btn primary"
+                disabled={isLastBlock && Boolean(feedback) && objectiveComplete}
+                onClick={handlePrimaryAction}
+                type="button"
+              >
+                {primaryLabel()}
+              </button>
+            </div>
           </div>
         </div>
       </div>
