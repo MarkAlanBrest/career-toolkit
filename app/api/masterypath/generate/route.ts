@@ -64,6 +64,21 @@ Return:
           "feedback": "..."
         }
       ],
+      "activityItems": [
+        {
+          "id": "...",
+          "text": "...",
+          "targetId": "...",
+          "order": 1
+        }
+      ],
+      "activityTargets": [
+        {
+          "id": "...",
+          "label": "...",
+          "accepts": ["..."]
+        }
+      ],
       "placeholder": "..."
     }
   ]
@@ -71,7 +86,8 @@ Return:
 
 Allowed block types:
 "content-slide", "bullet-slide", "image-slide", "video-slide", "multiple-choice",
-"true-false", "checkpoint", "review", "reflection"
+"true-false", "checkpoint", "drag-drop", "matching", "sequencing", "sorting",
+"scenario", "review", "reflection"
 
 Allowed theme values:
 "ocean", "sunset", "forest", "slate"
@@ -82,10 +98,11 @@ Allowed layoutStyle values:
 Requirements:
 - Do not create or rewrite the teacher's objective.
 - Use the teacher's assignment title as the objective label.
-- Keep the learner experience simple: interactions first, study tips second.
-- Do not build long teaching slides or dense content sections.
-- Use most blocks for multiple-choice, true-false, checkpoint, or reflection interactions.
-- Use review blocks as short study tips, such as "Please review [topic] again; you could improve here."
+- Recommend and build a varied activity set from the uploaded content.
+- Include drag-drop, matching, sequencing, sorting, scenario decisions, reflection, and quick checks where appropriate.
+- For drag-drop, matching, and sorting, provide activityItems with targetId values and activityTargets with matching ids.
+- For sequencing, provide activityItems with order values starting at 1.
+- Use review blocks as short study tips after harder interactions, such as "Please review [topic] again; you could improve here."
 - Keep any body text brief and question-like or study-tip-like.
 - Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.

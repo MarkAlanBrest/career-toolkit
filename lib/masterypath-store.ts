@@ -225,6 +225,25 @@ function normalizeBlock(block: ObjectiveBlock, index: number): ObjectiveBlock {
             feedback: choice.feedback || "",
           }))
       : [],
+    activityItems: Array.isArray(block.activityItems)
+      ? block.activityItems
+          .filter((item) => item?.text)
+          .map((item, itemIndex) => ({
+            id: item.id || `item-${itemIndex + 1}`,
+            text: item.text,
+            targetId: item.targetId || "",
+            order: item.order || itemIndex + 1,
+          }))
+      : [],
+    activityTargets: Array.isArray(block.activityTargets)
+      ? block.activityTargets
+          .filter((target) => target?.label)
+          .map((target, targetIndex) => ({
+            id: target.id || `target-${targetIndex + 1}`,
+            label: target.label,
+            accepts: Array.isArray(target.accepts) ? target.accepts : [],
+          }))
+      : [],
     placeholder: block.placeholder || "",
   };
 }

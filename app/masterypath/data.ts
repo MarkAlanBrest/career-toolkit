@@ -29,6 +29,19 @@ export type BlockChoice = {
   feedback?: string;
 };
 
+export type ActivityItem = {
+  id: string;
+  text: string;
+  targetId?: string;
+  order?: number;
+};
+
+export type ActivityTarget = {
+  id: string;
+  label: string;
+  accepts?: string[];
+};
+
 export type ObjectiveBlockType =
   | "content-slide"
   | "bullet-slide"
@@ -37,6 +50,11 @@ export type ObjectiveBlockType =
   | "multiple-choice"
   | "true-false"
   | "checkpoint"
+  | "drag-drop"
+  | "matching"
+  | "sequencing"
+  | "sorting"
+  | "scenario"
   | "review"
   | "reflection";
 
@@ -53,6 +71,8 @@ export type ObjectiveBlock = {
   theme?: SlideTheme;
   layoutStyle?: SlideLayoutStyle;
   choices?: BlockChoice[];
+  activityItems?: ActivityItem[];
+  activityTargets?: ActivityTarget[];
   placeholder?: string;
 };
 

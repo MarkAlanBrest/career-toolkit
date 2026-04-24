@@ -24,6 +24,31 @@ const interactionTypes = [
     description: "Ask students to apply the content to a small real-world decision.",
   },
   {
+    type: "drag-drop",
+    title: "Drag and drop",
+    description: "Students move terms, tools, or ideas into the correct category.",
+  },
+  {
+    type: "matching",
+    title: "Matching",
+    description: "Students connect related terms, definitions, examples, or rules.",
+  },
+  {
+    type: "sequencing",
+    title: "Sequencing",
+    description: "Students place steps, events, or procedures in the correct order.",
+  },
+  {
+    type: "sorting",
+    title: "Sorting",
+    description: "Students classify examples into the right group.",
+  },
+  {
+    type: "scenario",
+    title: "Scenario decisions",
+    description: "Students choose what to do in a realistic situation.",
+  },
+  {
     type: "reflection",
     title: "Reflection prompts",
     description: "Ask students to explain the concept in their own words before mastery.",
@@ -174,6 +199,68 @@ function buildInteractionBlocks({
         });
       }
 
+      if (type === "drag-drop" || type === "matching" || type === "sorting") {
+        blocks.push({
+          id,
+          type,
+          title: `${type === "drag-drop" ? "Drag" : type === "matching" ? "Match" : "Sort"}: ${topicLabel}`,
+          summary: "Students place each item in the correct target.",
+          body: `Move each item to the best target based on this content: ${topicLabel}`,
+          activityItems: [
+            { id: "item-1", text: "Key idea from the content", targetId: "target-1" },
+            { id: "item-2", text: "Common distractor or related idea", targetId: "target-2" },
+          ],
+          activityTargets: [
+            { id: "target-1", label: "Best match", accepts: ["item-1"] },
+            { id: "target-2", label: "Review again", accepts: ["item-2"] },
+          ],
+          theme: "forest",
+          layoutStyle: "spotlight",
+        });
+      }
+
+      if (type === "sequencing") {
+        blocks.push({
+          id,
+          type,
+          title: `Order the steps: ${topicLabel}`,
+          summary: "Students place steps in the correct sequence.",
+          body: `Put these steps in the best order for this content: ${topicLabel}`,
+          activityItems: [
+            { id: "step-1", text: "First important step", order: 1 },
+            { id: "step-2", text: "Second important step", order: 2 },
+            { id: "step-3", text: "Final check or result", order: 3 },
+          ],
+          theme: "slate",
+          layoutStyle: "spotlight",
+        });
+      }
+
+      if (type === "scenario") {
+        blocks.push({
+          id,
+          type,
+          title: `Decision: ${topicLabel}`,
+          summary: "Students choose the strongest next action.",
+          body: `You are using this content in a real situation: ${topicLabel}. What should you do next?`,
+          choices: [
+            {
+              id: "best",
+              text: "Use the rule or process described in the content.",
+              isCorrect: true,
+              feedback: "Correct. Keep going.",
+            },
+            {
+              id: "review",
+              text: "Skip the content and guess.",
+              feedback: `Please review ${topicLabel} again; you could improve here.`,
+            },
+          ],
+          theme: "sunset",
+          layoutStyle: "spotlight",
+        });
+      }
+
       if (type === "reflection") {
         blocks.push({
           id,
@@ -199,7 +286,8 @@ export default function MasteryPathBuilderPage() {
   const [content, setContent] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<string[]>([
     "multiple-choice",
-    "true-false",
+    "drag-drop",
+    "matching",
     "reflection",
   ]);
   const [loopLevel, setLoopLevel] = useState<LoopLevel>("Practice");
@@ -207,14 +295,18 @@ export default function MasteryPathBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [savedCourseId, setSavedCourseId] = useState("");
+  const [aiBlocks, setAiBlocks] = useState<ObjectiveBlock[]>([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const selectedLevel = loopLevels.find((level) => level.id === loopLevel) || loopLevels[1];
   const interactionBlocks = useMemo(
     () => buildInteractionBlocks({ title, content, selectedTypes }),
     [content, selectedTypes, title]
   );
+  const finalBlocks = aiBlocks.length ? aiBlocks : interactionBlocks;
   const completionCriteria: CompletionCriteria = {
-    minBlocksComplete: interactionBlocks.length,
+    minBlocksComplete: finalBlocks.length,
     minCorrectInteractions: selectedLevel.correct,
     allowRetake: true,
     repeatLoopsRequired: selectedLevel.loops,
@@ -227,6 +319,125 @@ export default function MasteryPathBuilderPage() {
         ? previous.filter((item) => item !== type)
         : [...previous, type]
     );
+  }
+
+  async function handleFileUpload(file?: File) {
+    if (!file) return;
+    const text = await file.text();
+    setContent(text);
+  }
+
+  async function generateWithAi() {
+    setAiBusy(true);
+    setAiError("");
+
+    try {
+      const response = await fetch("/api/masterypath/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          stage: "blocks",
+          title,
+          course,
+          sourceMode: "paste",
+          content,
+          desiredBlockCount: 12,
+        }),
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to generate activities.");
+      }
+
+      const nextBlocks = Array.isArray(payload.blocks)
+        ? payload.blocks
+            .map((block: any, index: number) => ({
+              id:
+                typeof block?.id === "string" && block.id.trim()
+                  ? block.id.trim()
+                  : `ai-activity-${index + 1}`,
+              type:
+                block?.type === "multiple-choice" ||
+                block?.type === "true-false" ||
+                block?.type === "checkpoint" ||
+                block?.type === "drag-drop" ||
+                block?.type === "matching" ||
+                block?.type === "sequencing" ||
+                block?.type === "sorting" ||
+                block?.type === "scenario" ||
+                block?.type === "reflection" ||
+                block?.type === "review"
+                  ? block.type
+                  : "checkpoint",
+              title:
+                typeof block?.title === "string" && block.title.trim()
+                  ? block.title.trim()
+                  : `Activity ${index + 1}`,
+              summary: typeof block?.summary === "string" ? block.summary.trim() : "",
+              body: typeof block?.body === "string" ? block.body.trim() : "",
+              choices: Array.isArray(block?.choices)
+                ? block.choices
+                    .map((choice: any, choiceIndex: number) => ({
+                      id:
+                        typeof choice?.id === "string" && choice.id.trim()
+                          ? choice.id.trim()
+                          : `choice-${choiceIndex + 1}`,
+                      text: typeof choice?.text === "string" ? choice.text.trim() : "",
+                      isCorrect: Boolean(choice?.isCorrect),
+                      feedback:
+                        typeof choice?.feedback === "string" ? choice.feedback.trim() : "",
+                    }))
+                    .filter((choice: { text: string }) => choice.text)
+                : [],
+              activityItems: Array.isArray(block?.activityItems)
+                ? block.activityItems
+                    .map((item: any, itemIndex: number) => ({
+                      id:
+                        typeof item?.id === "string" && item.id.trim()
+                          ? item.id.trim()
+                          : `item-${itemIndex + 1}`,
+                      text: typeof item?.text === "string" ? item.text.trim() : "",
+                      targetId:
+                        typeof item?.targetId === "string" ? item.targetId.trim() : "",
+                      order: typeof item?.order === "number" ? item.order : itemIndex + 1,
+                    }))
+                    .filter((item: { text: string }) => item.text)
+                : [],
+              activityTargets: Array.isArray(block?.activityTargets)
+                ? block.activityTargets
+                    .map((target: any, targetIndex: number) => ({
+                      id:
+                        typeof target?.id === "string" && target.id.trim()
+                          ? target.id.trim()
+                          : `target-${targetIndex + 1}`,
+                      label: typeof target?.label === "string" ? target.label.trim() : "",
+                      accepts: Array.isArray(target?.accepts)
+                        ? target.accepts.filter((item: unknown) => typeof item === "string")
+                        : [],
+                    }))
+                    .filter((target: { label: string }) => target.label)
+                : [],
+              placeholder:
+                typeof block?.placeholder === "string" ? block.placeholder.trim() : "",
+              theme: "ocean" as const,
+              layoutStyle: "spotlight" as const,
+            }))
+            .filter((block: ObjectiveBlock) => block.title || block.body)
+        : [];
+
+      if (!nextBlocks.length) {
+        throw new Error("AI did not return activities.");
+      }
+
+      setAiBlocks(nextBlocks);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "Unable to generate activities.");
+    } finally {
+      setAiBusy(false);
+    }
   }
 
   async function saveDraft() {
@@ -248,7 +459,7 @@ export default function MasteryPathBuilderPage() {
           content,
           objectiveTitle: title,
           objectiveGoal: title,
-          blocks: interactionBlocks,
+          blocks: finalBlocks,
           completionCriteria,
           difficulty: "Intermediate",
           layout: "Guided path",
@@ -621,7 +832,16 @@ export default function MasteryPathBuilderPage() {
                   </div>
 
                   <div className="field">
-                    <label>Content to use</label>
+                    <label>Upload content</label>
+                    <input
+                      accept=".txt,.md,.csv,.json"
+                      onChange={(event) => handleFileUpload(event.target.files?.[0])}
+                      type="file"
+                    />
+                  </div>
+
+                  <div className="field">
+                    <label>Paste or edit content</label>
                     <textarea
                       onChange={(event) => setContent(event.target.value)}
                       placeholder="Paste the source content students should be checked on."
@@ -633,6 +853,26 @@ export default function MasteryPathBuilderPage() {
 
               {step === 2 ? (
                 <>
+                  <div className="card">
+                    <strong>AI activity builder</strong>
+                    <p>
+                      Let AI recommend and build a mixed set of drag/drop, matching, sequencing,
+                      sorting, scenario, reflection, and check activities from the content.
+                    </p>
+                    <button
+                      className="btn primary"
+                      disabled={aiBusy || !title.trim() || !content.trim()}
+                      onClick={generateWithAi}
+                      type="button"
+                    >
+                      {aiBusy ? "Building activities..." : "Build activities with AI"}
+                    </button>
+                    {aiBlocks.length ? (
+                      <p>Using {aiBlocks.length} AI-built activities. Manual cards remain available as a fallback.</p>
+                    ) : null}
+                    {aiError ? <div className="save-error">{aiError}</div> : null}
+                  </div>
+
                   <div className="grid">
                     {interactionTypes.map((interaction) => (
                       <button
@@ -652,11 +892,11 @@ export default function MasteryPathBuilderPage() {
                   <div className="card">
                     <strong>Generated interaction preview</strong>
                     <p>
-                      {interactionBlocks.length} interactions will be created from{" "}
+                      {finalBlocks.length} interactions will be created from{" "}
                       {contentTopics(content, title).length} content topics.
                     </p>
                     <div className="chips">
-                      {interactionBlocks.slice(0, 12).map((block) => (
+                      {finalBlocks.slice(0, 16).map((block) => (
                         <span className="chip" key={block.id}>
                           {block.type}
                         </span>
@@ -689,14 +929,14 @@ export default function MasteryPathBuilderPage() {
                   <div className="card">
                     <strong>Save summary</strong>
                     <p>
-                      {title || "Untitled assignment"} will save with {interactionBlocks.length}{" "}
+                      {title || "Untitled assignment"} will save with {finalBlocks.length}{" "}
                       interactions and a {loopLevel.toLowerCase()} loop requirement.
                     </p>
                   </div>
 
                   <button
                     className="btn primary"
-                    disabled={saving || !title.trim() || !content.trim() || !interactionBlocks.length}
+                    disabled={saving || !title.trim() || !content.trim() || !finalBlocks.length}
                     onClick={saveDraft}
                     type="button"
                   >

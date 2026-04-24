@@ -12,6 +12,11 @@ function blockLabel(type: ObjectiveBlock["type"]) {
   if (type === "multiple-choice") return "Multiple Choice";
   if (type === "true-false") return "True / False";
   if (type === "checkpoint") return "Checkpoint";
+  if (type === "drag-drop") return "Drag / Drop";
+  if (type === "matching") return "Matching";
+  if (type === "sequencing") return "Sequencing";
+  if (type === "sorting") return "Sorting";
+  if (type === "scenario") return "Scenario";
   if (type === "review") return "Review";
   if (type === "reflection") return "Reflection";
   if (type === "image-slide") return "Image";
@@ -26,12 +31,21 @@ function isInteractiveBlock(block?: ObjectiveBlock | null) {
       (block.type === "multiple-choice" ||
         block.type === "true-false" ||
         block.type === "checkpoint" ||
+        block.type === "drag-drop" ||
+        block.type === "matching" ||
+        block.type === "sequencing" ||
+        block.type === "sorting" ||
+        block.type === "scenario" ||
         block.type === "reflection")
   );
 }
 
 function hasChoices(block?: ObjectiveBlock | null) {
   return Boolean(block?.choices?.length);
+}
+
+function hasActivityItems(block?: ObjectiveBlock | null) {
+  return Boolean(block?.activityItems?.length);
 }
 
 function studyTopic(block: ObjectiveBlock, objectiveTitle?: string) {
@@ -66,6 +80,8 @@ export default function MasteryPathStudentClient({
   const [completedBlocks, setCompletedBlocks] = useState<Record<string, boolean>>({});
   const [correctInteractions, setCorrectInteractions] = useState<Record<string, number>>({});
   const [reflectionText, setReflectionText] = useState<Record<string, string>>({});
+  const [activityResponses, setActivityResponses] = useState<Record<string, Record<string, string>>>({});
+  const [draggedItemId, setDraggedItemId] = useState("");
 
   const currentBlock = blocks[currentIndex] ?? null;
   const hasAssignment = Boolean(assignment && objective && currentBlock);
@@ -73,7 +89,7 @@ export default function MasteryPathStudentClient({
   const correctCount = Object.values(correctInteractions).reduce((total, count) => total + count, 0);
   const interactiveCount = blocks.filter(isInteractiveBlock).length;
   const requiredBlocks = Math.min(criteria?.minBlocksComplete ?? blocks.length, blocks.length);
-  const requiredCorrect = Math.min(criteria?.minCorrectInteractions ?? 0, interactiveCount);
+  const requiredCorrect = criteria?.minCorrectInteractions ?? interactiveCount;
   const isLastBlock = currentIndex >= blocks.length - 1;
   const objectiveComplete =
     completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
@@ -107,6 +123,7 @@ export default function MasteryPathStudentClient({
     setCurrentIndex(Math.max(0, Math.min(blocks.length - 1, nextIndex)));
     setSelectedChoiceId("");
     setFeedback("");
+    setDraggedItemId("");
   }
 
   function submitChoice(block: ObjectiveBlock) {
@@ -140,6 +157,50 @@ export default function MasteryPathStudentClient({
     return true;
   }
 
+  function setActivityResponse(blockId: string, itemId: string, value: string) {
+    setActivityResponses((previous) => ({
+      ...previous,
+      [blockId]: {
+        ...(previous[blockId] || {}),
+        [itemId]: value,
+      },
+    }));
+  }
+
+  function submitActivity(block: ObjectiveBlock) {
+    const responses = activityResponses[block.id] || {};
+    const items = block.activityItems || [];
+
+    if (!items.length) {
+      markBlockComplete(block);
+      setFeedback("Activity complete. Keep going.");
+      return true;
+    }
+
+    const answeredAll = items.every((item) => responses[item.id]);
+
+    if (!answeredAll) {
+      setFeedback("Place every item before continuing.");
+      return false;
+    }
+
+    const isCorrect = items.every((item) => {
+      if (block.type === "sequencing") {
+        return responses[item.id] === String(item.order || 1);
+      }
+
+      return responses[item.id] === item.targetId;
+    });
+
+    markBlockComplete(block, isCorrect);
+    setFeedback(
+      isCorrect
+        ? "Correct. Keep going."
+        : `Please review ${studyTopic(block, objective?.title)} again; you could improve here.`
+    );
+    return true;
+  }
+
   function handlePrimaryAction() {
     if (!currentBlock) return;
 
@@ -158,6 +219,11 @@ export default function MasteryPathStudentClient({
 
     if (hasChoices(currentBlock)) {
       submitChoice(currentBlock);
+      return;
+    }
+
+    if (hasActivityItems(currentBlock)) {
+      submitActivity(currentBlock);
       return;
     }
 
@@ -185,12 +251,15 @@ export default function MasteryPathStudentClient({
     setCompletedBlocks({});
     setCorrectInteractions({});
     setReflectionText({});
+    setActivityResponses({});
+    setDraggedItemId("");
   }
 
   function primaryLabel() {
     if (feedback && !isLastBlock) return "Continue";
     if (feedback && isLastBlock) return objectiveComplete ? "Objective Complete" : "Review Blocks";
     if (hasChoices(currentBlock)) return "Submit Answer";
+    if (hasActivityItems(currentBlock)) return "Check Activity";
     if (currentBlock?.type === "reflection") return "Save Response";
     if (isLastBlock) return "Complete Block";
     return "Next";
@@ -454,6 +523,67 @@ export default function MasteryPathStudentClient({
         .choice-list{
           display:grid;
           gap:12px;
+        }
+
+        .activity-board{
+          display:grid;
+          gap:14px;
+        }
+
+        .activity-items,
+        .drop-zones{
+          display:grid;
+          gap:10px;
+        }
+
+        .activity-item,
+        .drop-zone{
+          border-radius:8px;
+          border:1px solid var(--line);
+          background:#fff;
+          padding:14px;
+          color:#22354d;
+          font-size:14px;
+          line-height:1.5;
+        }
+
+        .activity-item{
+          cursor:grab;
+        }
+
+        .drop-zone{
+          display:grid;
+          gap:8px;
+          min-height:72px;
+        }
+
+        .drop-zone strong{
+          color:#365173;
+          font-size:12px;
+          text-transform:uppercase;
+        }
+
+        .placed-item{
+          border-radius:8px;
+          background:#eef5ff;
+          border:1px solid rgba(37,93,169,.16);
+          padding:10px;
+        }
+
+        .sequence-row{
+          display:grid;
+          grid-template-columns:80px minmax(0,1fr);
+          gap:10px;
+          align-items:center;
+        }
+
+        .sequence-row select{
+          width:100%;
+          border:1px solid var(--line);
+          border-radius:8px;
+          padding:10px;
+          background:#fff;
+          color:#22354d;
         }
 
         .choice{
@@ -739,6 +869,84 @@ export default function MasteryPathStudentClient({
                               </button>
                             ))}
                           </div>
+                        </div>
+                      ) : null}
+
+                      {hasActivityItems(currentBlock) ? (
+                        <div className="card">
+                          <h3>{currentBlock.type === "sequencing" ? "Order the Items" : "Place the Items"}</h3>
+                          {currentBlock.type === "sequencing" ? (
+                            <div className="activity-board">
+                              {currentBlock.activityItems?.map((item) => (
+                                <div className="sequence-row" key={item.id}>
+                                  <select
+                                    onChange={(event) =>
+                                      setActivityResponse(
+                                        currentBlock.id,
+                                        item.id,
+                                        event.target.value
+                                      )
+                                    }
+                                    value={activityResponses[currentBlock.id]?.[item.id] || ""}
+                                  >
+                                    <option value="">Order</option>
+                                    {currentBlock.activityItems?.map((_, index) => (
+                                      <option key={index + 1} value={String(index + 1)}>
+                                        {index + 1}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <div className="activity-item">{item.text}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="activity-board">
+                              <div className="activity-items">
+                                {currentBlock.activityItems?.map((item) => (
+                                  <div
+                                    className="activity-item"
+                                    draggable
+                                    key={item.id}
+                                    onDragStart={() => setDraggedItemId(item.id)}
+                                  >
+                                    {item.text}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="drop-zones">
+                                {currentBlock.activityTargets?.map((target) => (
+                                  <div
+                                    className="drop-zone"
+                                    key={target.id}
+                                    onDragOver={(event) => event.preventDefault()}
+                                    onDrop={() => {
+                                      if (draggedItemId) {
+                                        setActivityResponse(
+                                          currentBlock.id,
+                                          draggedItemId,
+                                          target.id
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <strong>{target.label}</strong>
+                                    {currentBlock.activityItems
+                                      ?.filter(
+                                        (item) =>
+                                          activityResponses[currentBlock.id]?.[item.id] ===
+                                          target.id
+                                      )
+                                      .map((item) => (
+                                        <div className="placed-item" key={item.id}>
+                                          {item.text}
+                                        </div>
+                                      ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : null}
 
