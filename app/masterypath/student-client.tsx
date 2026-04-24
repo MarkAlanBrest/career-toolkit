@@ -3,6 +3,15 @@
 import { useMemo, useState } from "react";
 import { type MasteryAssignment, type ObjectiveBlock } from "./data";
 
+type SubmissionEntry = {
+  blockId: string;
+  title: string;
+  type: ObjectiveBlock["type"];
+  isCorrect: boolean;
+  response: unknown;
+  submittedAt: string;
+};
+
 function themeClass(block?: ObjectiveBlock | null) {
   if (!block?.theme) return "theme-ocean";
   return `theme-${block.theme}`;
@@ -64,6 +73,7 @@ export default function MasteryPathStudentClient({
   const [reflectionText, setReflectionText] = useState<Record<string, string>>({});
   const [activityResponses, setActivityResponses] = useState<Record<string, Record<string, string>>>({});
   const [draggedItemId, setDraggedItemId] = useState("");
+  const [submissionEntries, setSubmissionEntries] = useState<Record<string, SubmissionEntry>>({});
 
   const currentBlock = blocks[currentIndex] ?? null;
   const hasAssignment = Boolean(assignment && objective && currentBlock);
@@ -99,6 +109,20 @@ export default function MasteryPathStudentClient({
     }
   }
 
+  function recordSubmission(block: ObjectiveBlock, isCorrect: boolean, response: unknown) {
+    setSubmissionEntries((previous) => ({
+      ...previous,
+      [block.id]: {
+        blockId: block.id,
+        title: block.title,
+        type: block.type,
+        isCorrect,
+        response,
+        submittedAt: new Date().toISOString(),
+      },
+    }));
+  }
+
   function moveToIndex(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(blocks.length - 1, nextIndex)));
     setSelectedChoiceId("");
@@ -116,6 +140,10 @@ export default function MasteryPathStudentClient({
 
     const isCorrect = Boolean(choice.isCorrect);
     markBlockComplete(block, isCorrect);
+    recordSubmission(block, isCorrect, {
+      choiceId: choice.id,
+      choiceText: choice.text,
+    });
     setFeedback(
       isCorrect
         ? choice.feedback || "Correct. Keep going."
@@ -133,6 +161,9 @@ export default function MasteryPathStudentClient({
     }
 
     markBlockComplete(block, true);
+    recordSubmission(block, true, {
+      text: value,
+    });
     setFeedback("Response saved. Keep going.");
     return true;
   }
@@ -153,6 +184,7 @@ export default function MasteryPathStudentClient({
 
     if (!items.length) {
       markBlockComplete(block);
+      recordSubmission(block, true, {});
       setFeedback("Activity complete. Keep going.");
       return true;
     }
@@ -173,6 +205,16 @@ export default function MasteryPathStudentClient({
     });
 
     markBlockComplete(block, isCorrect);
+    recordSubmission(block, isCorrect, {
+      placements: responses,
+      items: items.map((item) => ({
+        id: item.id,
+        text: item.text,
+        expectedTargetId: item.targetId || null,
+        expectedOrder: item.order || null,
+        submittedValue: responses[item.id] || null,
+      })),
+    });
     setFeedback(
       isCorrect
         ? "Correct. Keep going."
@@ -232,7 +274,55 @@ export default function MasteryPathStudentClient({
     setCorrectInteractions({});
     setReflectionText({});
     setActivityResponses({});
+    setSubmissionEntries({});
     setDraggedItemId("");
+  }
+
+  function buildSubmissionReport() {
+    const entries = blocks.map((block) => submissionEntries[block.id]).filter(Boolean);
+
+    return {
+      submittedAt: new Date().toISOString(),
+      assignment: {
+        id: assignment?.id || "",
+        courseId: assignment?.courseId || "",
+        title: assignment?.title || "",
+        course: assignment?.course || "",
+      },
+      objective: {
+        id: objective?.id || "",
+        title: objective?.title || "",
+        goal: objective?.goal || "",
+      },
+      result: {
+        completed: objectiveComplete,
+        completedBlocks: completedCount,
+        totalBlocks: blocks.length,
+        correctInteractionAttempts: correctCount,
+        requiredCorrectInteractionAttempts: requiredCorrect,
+      },
+      responses: entries,
+    };
+  }
+
+  function downloadResults() {
+    const report = buildSubmissionReport();
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const filenameBase = (assignment?.title || "masterypath-results")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    link.href = url;
+    link.download = `${filenameBase || "masterypath-results"}-submission.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   function primaryLabel() {
@@ -951,8 +1041,11 @@ export default function MasteryPathStudentClient({
 
                 <div className="summary-bar">
                   <div>
-                    <strong>{objectiveComplete ? "Objective Complete" : "Objective Progress"}</strong>
-                    <p>{objective.goal}</p>
+                    <strong>{objectiveComplete ? "Ready To Submit" : "In Progress"}</strong>
+                    <p>
+                      {completedCount} of {blocks.length} activities completed. Download your
+                      results when you are ready to submit.
+                    </p>
                   </div>
                   <div className="dots">
                     {blocks.map((block, index) => (
@@ -993,6 +1086,14 @@ export default function MasteryPathStudentClient({
                   Retake
                 </button>
               ) : null}
+              <button
+                className="action-btn"
+                disabled={!completedCount}
+                onClick={downloadResults}
+                type="button"
+              >
+                Download Results
+              </button>
               <button
                 className="action-btn primary"
                 disabled={isLastBlock && Boolean(feedback) && objectiveComplete}
