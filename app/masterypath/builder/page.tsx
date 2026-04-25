@@ -836,8 +836,11 @@ function xmlEscape(value: string) {
 }
 
 function normalizeVideoUrl(value?: string) {
-  const url = (value || "").trim();
+  let url = (value || "").trim();
   if (!url) return "";
+  if (/^(www\.|youtube\.com|youtu\.be|vimeo\.com)/i.test(url)) {
+    url = `https://${url}`;
+  }
 
   try {
     const parsed = new URL(url);
@@ -850,6 +853,10 @@ function normalizeVideoUrl(value?: string) {
         const videoIdFromShort = parsed.pathname.split("/").filter(Boolean)[1];
         if (videoIdFromShort) return `https://www.youtube.com/embed/${videoIdFromShort}`;
       }
+      if (parsed.pathname.startsWith("/embed/")) return url;
+    }
+
+    if (host === "youtube-nocookie.com") {
       if (parsed.pathname.startsWith("/embed/")) return url;
     }
 
