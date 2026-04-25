@@ -5,8 +5,8 @@ import { useMemo, useState } from "react";
 import { type CompletionCriteria, type ObjectiveBlock, type SlideTheme } from "../data";
 
 type Step = 1 | 2 | 3;
-type LoopLevel = "Support" | "Practice" | "Mastery";
 type InteractionType = ObjectiveBlock["type"];
+type ActivityCounts = Partial<Record<InteractionType, number>>;
 
 const interactionTypes: Array<{
   type: InteractionType;
@@ -60,32 +60,6 @@ const interactionTypes: Array<{
   },
 ];
 
-const loopLevels: Array<{
-  id: LoopLevel;
-  loops: number;
-  correct: number;
-  description: string;
-}> = [
-  {
-    id: "Support",
-    loops: 1,
-    correct: 2,
-    description: "One successful pass through the interactions.",
-  },
-  {
-    id: "Practice",
-    loops: 2,
-    correct: 4,
-    description: "Two successful loops before the objective is considered mastered.",
-  },
-  {
-    id: "Mastery",
-    loops: 3,
-    correct: 6,
-    description: "Three successful loops for stronger retention.",
-  },
-];
-
 const themes: Array<{
   id: SlideTheme;
   label: string;
@@ -116,17 +90,19 @@ function shortTopic(topic: string) {
 function buildInteractionBlocks({
   title,
   content,
-  selectedTypes,
+  activityCounts,
 }: {
   title: string;
   content: string;
-  selectedTypes: InteractionType[];
+  activityCounts: ActivityCounts;
 }) {
   const topics = contentTopics(content, title);
   const blocks: ObjectiveBlock[] = [];
 
-  selectedTypes.forEach((type) => {
-    topics.slice(0, 3).forEach((topic, index) => {
+  interactionTypes.forEach(({ type }) => {
+    const count = Math.max(0, activityCounts[type] || 0);
+    Array.from({ length: count }).forEach((_, index) => {
+      const topic = topics[index % topics.length] || title || "the uploaded content";
       const topicLabel = shortTopic(topic);
       const id = `${type}-${index + 1}`;
 
@@ -260,6 +236,32 @@ function buildInteractionBlocks({
   return blocks;
 }
 
+function defaultActivityCounts(): ActivityCounts {
+  return interactionTypes.reduce((counts, interaction) => {
+    counts[interaction.type] =
+      interaction.type === "multiple-choice" ||
+      interaction.type === "drag-drop" ||
+      interaction.type === "matching" ||
+      interaction.type === "reflection"
+        ? 1
+        : 0;
+    return counts;
+  }, {} as ActivityCounts);
+}
+
+function countGradableInteractions(blocks: ObjectiveBlock[]) {
+  return blocks.filter((block) =>
+    block.type === "multiple-choice" ||
+    block.type === "true-false" ||
+    block.type === "checkpoint" ||
+    block.type === "drag-drop" ||
+    block.type === "matching" ||
+    block.type === "sequencing" ||
+    block.type === "sorting" ||
+    block.type === "scenario"
+  ).length;
+}
+
 function normalizeAiBlocks(blocks: unknown): ObjectiveBlock[] {
   if (!Array.isArray(blocks)) return [];
 
@@ -328,13 +330,7 @@ export default function MasteryPathBuilderPage() {
   const [title, setTitle] = useState("");
   const [course, setCourse] = useState("");
   const [content, setContent] = useState("");
-  const [selectedTypes, setSelectedTypes] = useState<InteractionType[]>([
-    "multiple-choice",
-    "drag-drop",
-    "matching",
-    "reflection",
-  ]);
-  const [loopLevel, setLoopLevel] = useState<LoopLevel>("Practice");
+  const [activityCounts, setActivityCounts] = useState<ActivityCounts>(() => defaultActivityCounts());
   const [selectedTheme, setSelectedTheme] = useState<SlideTheme>("ocean");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -345,10 +341,9 @@ export default function MasteryPathBuilderPage() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
-  const selectedLevel = loopLevels.find((level) => level.id === loopLevel) || loopLevels[1];
   const interactionBlocks = useMemo(
-    () => buildInteractionBlocks({ title, content, selectedTypes }),
-    [content, selectedTypes, title]
+    () => buildInteractionBlocks({ title, content, activityCounts }),
+    [activityCounts, content, title]
   );
   const finalBlocks = useMemo(
     () =>
@@ -358,20 +353,21 @@ export default function MasteryPathBuilderPage() {
       })),
     [aiBlocks, interactionBlocks, selectedTheme]
   );
+  const requiredCorrectInteractions = Math.max(1, countGradableInteractions(finalBlocks));
   const completionCriteria: CompletionCriteria = {
     minBlocksComplete: finalBlocks.length,
-    minCorrectInteractions: selectedLevel.correct,
+    minCorrectInteractions: requiredCorrectInteractions,
     allowRetake: true,
-    repeatLoopsRequired: selectedLevel.loops,
-    loopLevel,
+    repeatLoopsRequired: 1,
+    loopLevel: "Practice",
   };
 
-  function toggleType(type: InteractionType) {
-    setSelectedTypes((previous) =>
-      previous.includes(type)
-        ? previous.filter((item) => item !== type)
-        : [...previous, type]
-    );
+  function setActivityCount(type: InteractionType, count: number) {
+    setAiBlocks([]);
+    setActivityCounts((previous) => ({
+      ...previous,
+      [type]: Math.max(0, Math.min(12, count)),
+    }));
   }
 
   async function handleFileUpload(file?: File) {
@@ -413,7 +409,8 @@ export default function MasteryPathBuilderPage() {
           course,
           sourceMode: "paste",
           content,
-          desiredBlockCount: 12,
+          desiredBlockCount: Object.values(activityCounts).reduce((sum, count) => sum + count, 0),
+          activityCounts,
         }),
       });
       const payload = await response.json();
@@ -536,6 +533,36 @@ export default function MasteryPathBuilderPage() {
         .step.active, .card.selected { border-color: #5B45E0; background: #EDEAFC; }
         .step strong, .card strong { display: block; color: #1A1528; font-size: 14px; margin-bottom: 5px; }
         .step span, .card p { color: #7068A0; font-size: 12px; line-height: 1.55; }
+        .activity-count-card {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          cursor: default;
+        }
+        .counter {
+          display: grid;
+          grid-template-columns: 32px 42px 32px;
+          gap: 6px;
+          align-items: center;
+        }
+        .counter button {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          border: 1px solid #E2DCF0;
+          background: #fff;
+          color: #3D29B8;
+          cursor: pointer;
+          font: inherit;
+          font-weight: 700;
+        }
+        .counter input {
+          height: 32px;
+          padding: 0;
+          text-align: center;
+          font-weight: 700;
+        }
         .panel { border: 1px solid #E8E2F5; border-radius: 8px; background: #fff; overflow: hidden; }
         .panel-head { padding: 18px; border-bottom: 1px solid #E8E2F5; display: grid; gap: 8px; }
         .panel-head h2 { font-size: 22px; }
@@ -596,7 +623,7 @@ export default function MasteryPathBuilderPage() {
         <header className="topbar">
           <div className="brand">
             <h1>MasteryPath Builder</h1>
-            <p>Upload or paste content, choose interaction types, then set repeat loops until mastery.</p>
+            <p>Upload or paste content, then set how many of each activity students should complete.</p>
           </div>
           <div className="toolbar">
             <Link className="btn" href="/masterypath/assignments">Assignments</Link>
@@ -609,8 +636,8 @@ export default function MasteryPathBuilderPage() {
           <div className="steps">
             {[
               ["1", "Content", "Title and source material"],
-              ["2", "Interactions", "Choose possible checks"],
-              ["3", "Loops", "Set mastery repeats"],
+              ["2", "Activities", "Set activity counts"],
+              ["3", "Save", "Review and publish"],
             ].map(([id, label, description]) => (
               <button
                 className={`step ${step === Number(id) ? "active" : ""}`}
@@ -630,15 +657,15 @@ export default function MasteryPathBuilderPage() {
                 {step === 1
                   ? "Add Assignment Content"
                   : step === 2
-                    ? "Possible Interactions"
-                    : "Repeat Loops Until Mastered"}
+                    ? "Activity Counts"
+                    : "Save Assignment"}
               </h2>
               <p>
                 {step === 1
                   ? "The teacher writes the title and provides the material."
                   : step === 2
-                    ? "Select the interaction patterns this content should use."
-                    : "Choose how many successful loops students need before the assignment is mastered."}
+                    ? "Set how many of each activity type this assignment should include."
+                    : "Review the activity mix, then save the assignment."}
               </p>
             </div>
 
@@ -726,15 +753,39 @@ export default function MasteryPathBuilderPage() {
 
                   <div className="grid">
                     {interactionTypes.map((interaction) => (
-                      <button
-                        className={`card ${selectedTypes.includes(interaction.type) ? "selected" : ""}`}
+                      <div
+                        className={`card activity-count-card ${activityCounts[interaction.type] ? "selected" : ""}`}
                         key={interaction.type}
-                        onClick={() => toggleType(interaction.type)}
-                        type="button"
                       >
-                        <strong>{interaction.title}</strong>
-                        <p>{interaction.description}</p>
-                      </button>
+                        <div>
+                          <strong>{interaction.title}</strong>
+                          <p>{interaction.description}</p>
+                        </div>
+                        <div className="counter" aria-label={`${interaction.title} count`}>
+                          <button
+                            onClick={() => setActivityCount(interaction.type, (activityCounts[interaction.type] || 0) - 1)}
+                            type="button"
+                          >
+                            -
+                          </button>
+                          <input
+                            aria-label={`${interaction.title} count`}
+                            min={0}
+                            max={12}
+                            onChange={(event) =>
+                              setActivityCount(interaction.type, Number(event.target.value) || 0)
+                            }
+                            type="number"
+                            value={activityCounts[interaction.type] || 0}
+                          />
+                          <button
+                            onClick={() => setActivityCount(interaction.type, (activityCounts[interaction.type] || 0) + 1)}
+                            type="button"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
 
@@ -755,30 +806,21 @@ export default function MasteryPathBuilderPage() {
 
               {step === 3 ? (
                 <>
-                  <div className="grid">
-                    {loopLevels.map((level) => (
-                      <button
-                        className={`card ${loopLevel === level.id ? "selected" : ""}`}
-                        key={level.id}
-                        onClick={() => setLoopLevel(level.id)}
-                        type="button"
-                      >
-                        <strong>{level.id}</strong>
-                        <p>{level.description}</p>
-                        <div className="chips">
-                          <span className="chip">{level.loops} loop(s)</span>
-                          <span className="chip">{level.correct} correct</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
                   <div className="card">
                     <strong>Save summary</strong>
                     <p>
                       {title || "Untitled assignment"} will save with {finalBlocks.length}{" "}
-                      interactions, the {selectedTheme} theme, and a {loopLevel.toLowerCase()} loop requirement.
+                      activities, the {selectedTheme} theme, and {requiredCorrectInteractions} required correct interactions.
                     </p>
+                    <div className="chips">
+                      {interactionTypes
+                        .filter((interaction) => activityCounts[interaction.type] > 0)
+                        .map((interaction) => (
+                          <span className="chip" key={interaction.type}>
+                            {activityCounts[interaction.type]} {interaction.title}
+                          </span>
+                        ))}
+                    </div>
                   </div>
 
                   <button

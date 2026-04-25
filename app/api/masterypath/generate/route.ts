@@ -14,11 +14,17 @@ type GenerateRequestBody = {
   difficulty?: "Foundational" | "Intermediate" | "Advanced";
   layout?: "Guided path" | "Mixed media path" | "Scenario path";
   desiredBlockCount?: number;
+  activityCounts?: Record<string, number>;
 };
 
 const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
+  const requestedCounts = Object.entries(body.activityCounts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(", ");
+
   return `
 You are helping a teacher build possible student interactions from uploaded content.
 
@@ -99,6 +105,7 @@ Requirements:
 - Do not create or rewrite the teacher's objective.
 - Use the teacher's assignment title as the objective label.
 - Recommend and build a varied activity set from the uploaded content.
+- Match these requested activity counts when provided: ${requestedCounts || "use your best mix"}.
 - Include drag-drop, matching, sequencing, sorting, scenario decisions, reflection, and quick checks where appropriate.
 - For drag-drop, matching, and sorting, provide activityItems with targetId values and activityTargets with matching ids.
 - For sequencing, provide activityItems with order values starting at 1.
