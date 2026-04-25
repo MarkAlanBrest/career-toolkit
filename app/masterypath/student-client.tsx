@@ -15,7 +15,6 @@ type SubmissionEntry = {
 type SubmissionReport = {
   submittedAt: string;
   submissionCode: string;
-  studentName: string;
   timeSpentSeconds: number;
   assignment: {
     id: string;
@@ -293,14 +292,16 @@ function createSubmissionPdf(report: SubmissionReport) {
   add("MasteryPath Final Submission");
   add("");
   add(`Unique code: ${report.submissionCode}`);
-  add(`Student name: ${report.studentName}`);
   add(`Assignment: ${report.assignment.title}`);
   add(`Course: ${report.assignment.course}`);
   add(`Submitted: ${new Date(report.submittedAt).toLocaleString()}`);
   add(`Time spent: ${formatDuration(report.timeSpentSeconds)}`);
   add(`Score: ${report.result.scorePercent}%`);
   add(
-    `Progress: ${report.result.completedBlocks}/${report.result.totalBlocks} blocks, ${report.result.correctInteractionAttempts}/${report.result.requiredCorrectInteractionAttempts} required correct interactions`
+    `Progress: ${report.result.completedBlocks}/${report.result.totalBlocks} blocks completed`
+  );
+  add(
+    `Correct answers: ${report.result.correctInteractionAttempts}/${report.result.requiredCorrectInteractionAttempts} scored interactions`
   );
   add("");
   add("Teacher review note:");
@@ -355,7 +356,6 @@ export default function MasteryPathStudentClient({
   const [activityResponses, setActivityResponses] = useState<Record<string, Record<string, string>>>({});
   const [draggedItemId, setDraggedItemId] = useState("");
   const [submissionEntries, setSubmissionEntries] = useState<Record<string, SubmissionEntry>>({});
-  const [studentName, setStudentName] = useState("");
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [submissionCode, setSubmissionCode] = useState(() => createSubmissionCode());
 
@@ -364,11 +364,23 @@ export default function MasteryPathStudentClient({
   const completedCount = Object.values(completedBlocks).filter(Boolean).length;
   const correctCount = Object.values(correctInteractions).reduce((total, count) => total + count, 0);
   const interactiveCount = blocks.filter(isInteractiveBlock).length;
-  const requiredBlocks = Math.min(criteria?.minBlocksComplete ?? blocks.length, blocks.length);
+  const requiredBlocks = Math.max(
+    1,
+    Math.min(
+      criteria?.minBlocksComplete ?? blocks.filter((block) => !block.showWhenPreviousIncorrect).length,
+      blocks.length
+    )
+  );
   const requiredCorrect = criteria?.minCorrectInteractions ?? interactiveCount;
-  const isLastBlock = currentIndex >= blocks.length - 1;
-  const objectiveComplete =
-    completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
+  const nextReachableIndex = reachableIndex(currentIndex + 1, 1);
+  const previousReachableIndex = reachableIndex(currentIndex - 1, -1);
+  const isLastBlock = nextReachableIndex == null;
+  const objectiveComplete = completedCount >= requiredBlocks && blocks.length > 0;
+  const progressCount = Math.min(completedCount, requiredBlocks);
+  const currentStepNumber = Math.min(
+    requiredBlocks,
+    progressCount + (currentBlock && completedBlocks[currentBlock.id] ? 0 : 1)
+  );
   const scorePercent = requiredCorrect > 0 ? Math.min(100, Math.round((correctCount / requiredCorrect) * 100)) : 100;
 
   const color = blockColor(currentBlock?.type ?? "multiple-choice");
@@ -413,16 +425,18 @@ export default function MasteryPathStudentClient({
   }
 
   function reachableIndex(nextIndex: number, direction: 1 | -1) {
-    let candidate = Math.max(0, Math.min(blocks.length - 1, nextIndex));
+    let candidate = nextIndex;
     while (candidate >= 0 && candidate < blocks.length && shouldSkipBlock(candidate)) {
       candidate += direction;
     }
-    return Math.max(0, Math.min(blocks.length - 1, candidate));
+    return candidate >= 0 && candidate < blocks.length ? candidate : null;
   }
 
   function moveToIndex(nextIndex: number) {
     const direction = nextIndex >= currentIndex ? 1 : -1;
-    setCurrentIndex(reachableIndex(nextIndex, direction));
+    const next = reachableIndex(nextIndex, direction);
+    if (next == null) return;
+    setCurrentIndex(next);
     setSelectedChoiceId("");
     setFeedback("");
     setDraggedItemId("");
@@ -504,7 +518,6 @@ export default function MasteryPathStudentClient({
     if (!currentBlock) return;
     if (feedback) {
       if (!isLastBlock) { moveToIndex(currentIndex + 1); return; }
-      if (!objectiveComplete) { moveToIndex(0); }
       return;
     }
     if (hasChoices(currentBlock)) { submitChoice(currentBlock); return; }
@@ -539,7 +552,6 @@ export default function MasteryPathStudentClient({
     return {
       submittedAt,
       submissionCode,
-      studentName: studentName.trim() || "Student name not provided",
       timeSpentSeconds,
       assignment: {
         id: assignment?.id || "",
@@ -554,8 +566,8 @@ export default function MasteryPathStudentClient({
       },
       result: {
         completed: objectiveComplete,
-        completedBlocks: completedCount,
-        totalBlocks: blocks.length,
+        completedBlocks: progressCount,
+        totalBlocks: requiredBlocks,
         correctInteractionAttempts: correctCount,
         requiredCorrectInteractionAttempts: requiredCorrect,
         scorePercent,
@@ -579,11 +591,6 @@ export default function MasteryPathStudentClient({
       setFeedbackType("info");
       return;
     }
-    if (!studentName.trim()) {
-      setFeedback("Enter your name before downloading the final submission PDF.");
-      setFeedbackType("info");
-      return;
-    }
     const report = buildSubmissionReport();
     const blob = createSubmissionPdf(report);
     const url = URL.createObjectURL(blob);
@@ -600,7 +607,7 @@ export default function MasteryPathStudentClient({
 
   function primaryLabel() {
     if (feedback && !isLastBlock) return "Continue";
-    if (feedback && isLastBlock) return objectiveComplete ? "Objective Complete" : "Review Blocks";
+    if (feedback && isLastBlock) return "Objective Complete";
     if (hasChoices(currentBlock)) return "Submit Answer";
     if (hasActivityItems(currentBlock)) return "Check Activity";
     if (currentBlock?.type === "reflection") return "Save Response";
@@ -662,27 +669,6 @@ export default function MasteryPathStudentClient({
           color: #7068A0;
           margin-top: 2px;
         }
-
-        .mp-student-box {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 210px;
-        }
-
-        .mp-student-name {
-          width: 100%;
-          min-width: 0;
-          border: 1px solid #E2DCF0;
-          border-radius: 8px;
-          padding: 7px 10px;
-          color: #1A1528;
-          font: inherit;
-          font-size: 12px;
-          outline: none;
-        }
-        .mp-student-name:focus { border-color: #5B45E0; }
-        .mp-student-name::placeholder { color: #A89EC8; }
 
         .mp-close-btn {
           font-size: 12px;
@@ -1096,7 +1082,6 @@ export default function MasteryPathStudentClient({
           .mp-page { padding: 0; }
           .mp-shell { border-radius: 0; min-height: 100vh; border: none; box-shadow: none; }
           .mp-topbar { align-items: flex-start; flex-direction: column; }
-          .mp-student-box { width: 100%; min-width: 0; }
           .mp-question { font-size: 17px; }
           .mp-tf-row { grid-template-columns: 1fr; }
           .mp-sort-cols { grid-template-columns: 1fr; }
@@ -1117,16 +1102,7 @@ export default function MasteryPathStudentClient({
               <div className="mp-topbar-title">{assignment?.title || "MasteryPath"}</div>
               <div className="mp-topbar-sub">{assignment?.course || "No course loaded"}</div>
             </div>
-            <div className="mp-student-box">
-              <input
-                className="mp-student-name"
-                value={studentName}
-                onChange={(event) => setStudentName(event.target.value)}
-                placeholder="Student name"
-                aria-label="Student name"
-              />
-              <button className="mp-close-btn" onClick={handleClose} type="button">Close</button>
-            </div>
+            <button className="mp-close-btn" onClick={handleClose} type="button">Close</button>
           </div>
 
           {/* Empty state */}
@@ -1147,7 +1123,7 @@ export default function MasteryPathStudentClient({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span className="mp-badge">{blockLabel(currentBlock.type)}</span>
-                  <span className="mp-block-counter">Block {currentIndex + 1} of {blocks.length}</span>
+                  <span className="mp-block-counter">Step {currentStepNumber} of {requiredBlocks}</span>
                 </div>
                 <div className="mp-dots">
                   {blocks.map((block, i) => (
@@ -1408,12 +1384,12 @@ export default function MasteryPathStudentClient({
                 {objectiveComplete && (
                   <div className="mp-stats">
                     <div className="mp-stat">
-                      <strong>{completedCount}/{blocks.length}</strong>
+                      <strong>{progressCount}/{requiredBlocks}</strong>
                       <span>Blocks completed</span>
                     </div>
                     <div className="mp-stat">
-                      <strong>{correctCount}/{requiredCorrect}</strong>
-                      <span>Correct interactions</span>
+                      <strong>{scorePercent}%</strong>
+                      <span>Score</span>
                     </div>
                   </div>
                 )}
@@ -1424,14 +1400,14 @@ export default function MasteryPathStudentClient({
                 <div className="mp-footer-left">
                   <button
                     className="mp-btn"
-                    disabled={currentIndex <= 0}
+                    disabled={previousReachableIndex == null}
                     onClick={() => moveToIndex(currentIndex - 1)}
                     type="button"
                   >
                     Back
                   </button>
                   <span className="mp-progress-text">
-                    {completedCount} of {blocks.length} done
+                    {progressCount} of {requiredBlocks} done
                   </span>
                 </div>
 
@@ -1453,7 +1429,7 @@ export default function MasteryPathStudentClient({
                   )}
                   <button
                     className="mp-btn"
-                    disabled={!objectiveComplete || !studentName.trim()}
+                    disabled={!objectiveComplete}
                     onClick={downloadResults}
                     type="button"
                   >
