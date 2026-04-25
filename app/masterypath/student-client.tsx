@@ -12,6 +12,40 @@ type SubmissionEntry = {
   submittedAt: string;
 };
 
+type SubmissionReport = {
+  submittedAt: string;
+  submissionCode: string;
+  studentName: string;
+  timeSpentSeconds: number;
+  assignment: {
+    id: string;
+    courseId: string;
+    title: string;
+    course: string;
+  };
+  objective: {
+    id: string;
+    title: string;
+    goal: string;
+  };
+  result: {
+    completed: boolean;
+    completedBlocks: number;
+    totalBlocks: number;
+    correctInteractionAttempts: number;
+    requiredCorrectInteractionAttempts: number;
+    scorePercent: number;
+  };
+  recommendations: string[];
+  responses: Array<
+    SubmissionEntry & {
+      question: string;
+      responseSummary: string[];
+      teacherReviewRequired: boolean;
+    }
+  >;
+};
+
 const BLOCK_COLORS: Record<string, { header: string; dot: string }> = {
   "multiple-choice": { header: "#5B45E0", dot: "#A899F5" },
   "true-false":      { header: "#0F9B6B", dot: "#7DE2CC" },
@@ -69,6 +103,232 @@ function isInteractiveBlock(block?: ObjectiveBlock | null) {
   );
 }
 
+function createSubmissionCode() {
+  const randomPart = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `MP-${Date.now().toString(36).toUpperCase()}-${randomPart}`;
+}
+
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours} hr ${remainingMinutes} min`;
+  }
+  if (minutes > 0) return `${minutes} min ${seconds} sec`;
+  return `${seconds} sec`;
+}
+
+function isTeacherReviewedType(type: ObjectiveBlock["type"]) {
+  return (
+    type === "reflection" ||
+    type === "drag-drop" ||
+    type === "matching" ||
+    type === "sequencing" ||
+    type === "sorting" ||
+    type === "scenario"
+  );
+}
+
+function summarizeResponse(block: ObjectiveBlock | undefined, entry: SubmissionEntry) {
+  const response = entry.response as Record<string, unknown>;
+  if (!block) return ["Response saved."];
+
+  if (typeof response.text === "string") {
+    return [response.text || "No written response."];
+  }
+
+  if (typeof response.choiceText === "string") {
+    return [`Selected: ${response.choiceText}`];
+  }
+
+  if (Array.isArray(response.items)) {
+    return response.items.map((item) => {
+      const activityItem = item as {
+        text?: string;
+        submittedValue?: string | null;
+        expectedTargetId?: string | null;
+        expectedOrder?: number | null;
+      };
+      const targetLabel =
+        block.activityTargets?.find((target) => target.id === activityItem.submittedValue)?.label ||
+        activityItem.submittedValue ||
+        "No response";
+      const expectedLabel =
+        activityItem.expectedOrder ||
+        block.activityTargets?.find((target) => target.id === activityItem.expectedTargetId)?.label ||
+        activityItem.expectedTargetId ||
+        "Manual review";
+      return `${activityItem.text || "Item"} -> ${targetLabel} (expected: ${expectedLabel})`;
+    });
+  }
+
+  return ["Response saved."];
+}
+
+function buildRecommendations(report: {
+  entries: SubmissionEntry[];
+  blocks: ObjectiveBlock[];
+  objectiveComplete: boolean;
+}) {
+  const recommendations = report.entries
+    .filter((entry) => !entry.isCorrect)
+    .map((entry) => {
+      const block = report.blocks.find((item) => item.id === entry.blockId);
+      const choiceId = (entry.response as { choiceId?: string }).choiceId;
+      const selectedFeedback = block?.choices?.find((choice) => choice.id === choiceId)?.feedback;
+      return selectedFeedback || `Review ${entry.title} and try the related practice again.`;
+    });
+
+  if (!report.objectiveComplete) {
+    recommendations.push("Complete the remaining required blocks before submitting for a final grade.");
+  }
+
+  return Array.from(new Set(recommendations));
+}
+
+function sanitizePdfText(value: string) {
+  return value
+    .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapePdfText(value: string) {
+  return sanitizePdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function wrapText(value: string, maxLength = 92) {
+  const words = sanitizePdfText(value).split(" ").filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  words.forEach((word) => {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLength && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  });
+
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+function createPdfBlob(lines: string[]) {
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const marginX = 54;
+  const topY = 742;
+  const lineHeight = 15;
+  const pages: string[][] = [[]];
+  let y = topY;
+
+  lines.forEach((line) => {
+    if (y < 54) {
+      pages.push([]);
+      y = topY;
+    }
+    pages[pages.length - 1].push(line);
+    y -= lineHeight;
+  });
+
+  const objects: string[] = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  const pageObjectIds: number[] = [];
+
+  pages.forEach((pageLines) => {
+    const content = [
+      "BT",
+      "/F1 11 Tf",
+      "14 TL",
+      `${marginX} ${topY} Td`,
+      ...pageLines.map((line, index) =>
+        index === 0 ? `(${escapePdfText(line)}) Tj` : `T* (${escapePdfText(line)}) Tj`
+      ),
+      "ET",
+    ].join("\n");
+    const contentObjectId = objects.length + 1;
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    const pageObjectId = objects.length + 1;
+    pageObjectIds.push(pageObjectId);
+    objects.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`
+    );
+  });
+
+  objects[1] = `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageObjectIds.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function createSubmissionPdf(report: SubmissionReport) {
+  const lines: string[] = [];
+  const add = (value = "") => lines.push(value);
+  const addWrapped = (value: string, prefix = "") => {
+    wrapText(value, prefix ? 86 : 92).forEach((line, index) => {
+      add(index === 0 ? `${prefix}${line}` : `${" ".repeat(prefix.length)}${line}`);
+    });
+  };
+
+  add("MasteryPath Final Submission");
+  add("");
+  add(`Unique code: ${report.submissionCode}`);
+  add(`Student name: ${report.studentName}`);
+  add(`Assignment: ${report.assignment.title}`);
+  add(`Course: ${report.assignment.course}`);
+  add(`Submitted: ${new Date(report.submittedAt).toLocaleString()}`);
+  add(`Time spent: ${formatDuration(report.timeSpentSeconds)}`);
+  add(`Score: ${report.result.scorePercent}%`);
+  add(
+    `Progress: ${report.result.completedBlocks}/${report.result.totalBlocks} blocks, ${report.result.correctInteractionAttempts}/${report.result.requiredCorrectInteractionAttempts} required correct interactions`
+  );
+  add("");
+  add("Teacher review note:");
+  addWrapped(
+    "Responses to activities and written prompts are included for teacher review. The final grade may vary based on the teacher's evaluation of those responses.",
+    "- "
+  );
+  add("");
+  add("Recommendations:");
+  if (report.recommendations.length) {
+    report.recommendations.forEach((recommendation) => addWrapped(recommendation, "- "));
+  } else {
+    add("- No recommendations at this time.");
+  }
+  add("");
+  add("Responses:");
+  report.responses.forEach((response, index) => {
+    add(`${index + 1}. ${response.title} (${blockLabel(response.type)})`);
+    addWrapped(`Question: ${response.question}`, "   ");
+    add(`   Status: ${response.isCorrect ? "Correct or completed" : "Needs review"}`);
+    if (response.teacherReviewRequired) add("   Teacher grading: Required; grade may vary.");
+    response.responseSummary.forEach((summary) => addWrapped(summary, "   Response: "));
+    add("");
+  });
+
+  return createPdfBlob(lines);
+}
+
 function hasChoices(block?: ObjectiveBlock | null) {
   return Boolean(block?.choices?.length);
 }
@@ -95,6 +355,9 @@ export default function MasteryPathStudentClient({
   const [activityResponses, setActivityResponses] = useState<Record<string, Record<string, string>>>({});
   const [draggedItemId, setDraggedItemId] = useState("");
   const [submissionEntries, setSubmissionEntries] = useState<Record<string, SubmissionEntry>>({});
+  const [studentName, setStudentName] = useState("");
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [submissionCode, setSubmissionCode] = useState(() => createSubmissionCode());
 
   const currentBlock = blocks[currentIndex] ?? null;
   const hasAssignment = Boolean(assignment && objective && currentBlock);
@@ -106,6 +369,7 @@ export default function MasteryPathStudentClient({
   const isLastBlock = currentIndex >= blocks.length - 1;
   const objectiveComplete =
     completedCount >= requiredBlocks && correctCount >= requiredCorrect && blocks.length > 0;
+  const scorePercent = requiredCorrect > 0 ? Math.min(100, Math.round((correctCount / requiredCorrect) * 100)) : 100;
 
   const color = blockColor(currentBlock?.type ?? "multiple-choice");
 
@@ -247,12 +511,20 @@ export default function MasteryPathStudentClient({
     setActivityResponses({});
     setSubmissionEntries({});
     setDraggedItemId("");
+    setStartedAt(Date.now());
+    setSubmissionCode(createSubmissionCode());
   }
 
-  function buildSubmissionReport() {
+  function buildSubmissionReport(): SubmissionReport {
     const entries = blocks.map((block) => submissionEntries[block.id]).filter(Boolean);
+    const submittedAt = new Date().toISOString();
+    const timeSpentSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    const recommendations = buildRecommendations({ entries, blocks, objectiveComplete });
     return {
-      submittedAt: new Date().toISOString(),
+      submittedAt,
+      submissionCode,
+      studentName: studentName.trim() || "Student name not provided",
+      timeSpentSeconds,
       assignment: {
         id: assignment?.id || "",
         courseId: assignment?.courseId || "",
@@ -270,20 +542,40 @@ export default function MasteryPathStudentClient({
         totalBlocks: blocks.length,
         correctInteractionAttempts: correctCount,
         requiredCorrectInteractionAttempts: requiredCorrect,
+        scorePercent,
       },
-      responses: entries,
+      recommendations,
+      responses: entries.map((entry) => {
+        const block = blocks.find((item) => item.id === entry.blockId);
+        return {
+          ...entry,
+          question: block?.body || block?.summary || entry.title,
+          responseSummary: summarizeResponse(block, entry),
+          teacherReviewRequired: isTeacherReviewedType(entry.type),
+        };
+      }),
     };
   }
 
   function downloadResults() {
+    if (!objectiveComplete) {
+      setFeedback("Complete the objective before downloading the final submission PDF.");
+      setFeedbackType("info");
+      return;
+    }
+    if (!studentName.trim()) {
+      setFeedback("Enter your name before downloading the final submission PDF.");
+      setFeedbackType("info");
+      return;
+    }
     const report = buildSubmissionReport();
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const blob = createSubmissionPdf(report);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const filenameBase = (assignment?.title || "masterypath-results")
       .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     link.href = url;
-    link.download = `${filenameBase || "masterypath-results"}-submission.json`;
+    link.download = `${filenameBase || "masterypath-results"}-submission.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -354,6 +646,27 @@ export default function MasteryPathStudentClient({
           color: #7068A0;
           margin-top: 2px;
         }
+
+        .mp-student-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 210px;
+        }
+
+        .mp-student-name {
+          width: 100%;
+          min-width: 0;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 7px 10px;
+          color: #1A1528;
+          font: inherit;
+          font-size: 12px;
+          outline: none;
+        }
+        .mp-student-name:focus { border-color: #5B45E0; }
+        .mp-student-name::placeholder { color: #A89EC8; }
 
         .mp-close-btn {
           font-size: 12px;
@@ -729,6 +1042,13 @@ export default function MasteryPathStudentClient({
           color: #7068A0;
         }
 
+        .mp-download-note {
+          font-size: 11px;
+          color: #7068A0;
+          line-height: 1.4;
+          max-width: 240px;
+        }
+
         .mp-btn {
           font-size: 13px;
           font-weight: 500;
@@ -759,11 +1079,16 @@ export default function MasteryPathStudentClient({
         @media (max-width: 600px) {
           .mp-page { padding: 0; }
           .mp-shell { border-radius: 0; min-height: 100vh; border: none; box-shadow: none; }
+          .mp-topbar { align-items: flex-start; flex-direction: column; }
+          .mp-student-box { width: 100%; min-width: 0; }
           .mp-question { font-size: 17px; }
           .mp-tf-row { grid-template-columns: 1fr; }
           .mp-sort-cols { grid-template-columns: 1fr; }
           .mp-match-row { grid-template-columns: 1fr; }
           .mp-match-arrow { display: none; }
+          .mp-footer { align-items: flex-start; flex-direction: column; }
+          .mp-footer-left, .mp-footer-right { width: 100%; flex-wrap: wrap; }
+          .mp-download-note { max-width: none; }
         }
       `}</style>
 
@@ -776,7 +1101,16 @@ export default function MasteryPathStudentClient({
               <div className="mp-topbar-title">{assignment?.title || "MasteryPath"}</div>
               <div className="mp-topbar-sub">{assignment?.course || "No course loaded"}</div>
             </div>
-            <button className="mp-close-btn" onClick={handleClose} type="button">Close</button>
+            <div className="mp-student-box">
+              <input
+                className="mp-student-name"
+                value={studentName}
+                onChange={(event) => setStudentName(event.target.value)}
+                placeholder="Student name"
+                aria-label="Student name"
+              />
+              <button className="mp-close-btn" onClick={handleClose} type="button">Close</button>
+            </div>
           </div>
 
           {/* Empty state */}
@@ -1086,6 +1420,11 @@ export default function MasteryPathStudentClient({
                 </div>
 
                 <div className="mp-footer-right">
+                  {objectiveComplete && (
+                    <span className="mp-download-note">
+                      Final PDF includes responses for teacher review; grade may vary.
+                    </span>
+                  )}
                   {criteria?.allowRetake && (
                     <button
                       className="mp-btn"
@@ -1098,11 +1437,11 @@ export default function MasteryPathStudentClient({
                   )}
                   <button
                     className="mp-btn"
-                    disabled={!completedCount}
+                    disabled={!objectiveComplete || !studentName.trim()}
                     onClick={downloadResults}
                     type="button"
                   >
-                    Download
+                    Download PDF
                   </button>
                   <button
                     className="mp-btn primary"
