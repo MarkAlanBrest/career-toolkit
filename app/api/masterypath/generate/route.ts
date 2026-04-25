@@ -15,6 +15,8 @@ type GenerateRequestBody = {
   layout?: "Guided path" | "Mixed media path" | "Scenario path";
   desiredBlockCount?: number;
   activityCounts?: Record<string, number>;
+  slideCounts?: Record<string, number>;
+  deckStyle?: "trade" | "clinical" | "bold" | "minimal";
   includeContentSlides?: boolean;
   includeMissedExplanationSlides?: boolean;
 };
@@ -23,6 +25,10 @@ const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
   const requestedCounts = Object.entries(body.activityCounts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(", ");
+  const requestedSlides = Object.entries(body.slideCounts || {})
     .filter(([, count]) => Number(count) > 0)
     .map(([type, count]) => `${type}: ${count}`)
     .join(", ");
@@ -102,17 +108,21 @@ Allowed theme values:
 "ocean", "sunset", "forest", "slate"
 
 Allowed layoutStyle values:
-"split", "spotlight", "bullet-focus", "media-left"
+"split", "spotlight", "bullet-focus", "media-left", "stat-grid", "callout", "process"
 
 Requirements:
 - Do not create or rewrite the teacher's objective.
 - Use the teacher's assignment title as the objective label.
-- Recommend and build a varied activity set from the uploaded content.
-- Match these requested activity counts when provided: ${requestedCounts || "use your best mix"}.
+- Build the output like a polished slide deck, not a worksheet.
+- Use concise slide titles, strong summaries, useful callouts, stats, bullets, and visual/media slides where the source supports them.
+- Deck visual style: ${body.deckStyle || "trade"}.
+- Match these requested content slide counts when provided: ${requestedSlides || "use your best mix"}.
+- Match these requested activity slide counts when provided: ${requestedCounts || "use your best mix"}.
 - Content slides before each activity: ${body.includeContentSlides ? "yes" : "no"}.
 - Explanation slides after missed activities: ${body.includeMissedExplanationSlides ? "yes" : "no"}.
 - If content slides are enabled, add one brief "content-slide" immediately before each activity block.
 - If missed explanation slides are enabled, add one "review" block immediately after each activity block and set "showWhenPreviousIncorrect": true on that review block.
+- For content-slide, bullet-slide, review, and image-slide blocks, make them feel like presentation slides: use bullets, callout, stats, layoutStyle, captions, and media fields when relevant.
 - Include drag-drop, matching, sequencing, sorting, scenario decisions, reflection, and quick checks where appropriate.
 - For drag-drop, matching, and sorting, provide activityItems with targetId values and activityTargets with matching ids.
 - For sequencing, provide activityItems with order values starting at 1.
@@ -122,7 +132,7 @@ Requirements:
 - Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.
-- Generate about ${body.desiredBlockCount || 14} activity blocks when stage is "blocks", plus any requested content or missed-explanation slides.
+- Generate about ${body.desiredBlockCount || 14} activity blocks when stage is "blocks", plus requested content and missed-explanation slides.
 
 Input:
 assignmentTitle: ${body.title || ""}

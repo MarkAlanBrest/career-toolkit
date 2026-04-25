@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { type CompletionCriteria, type ObjectiveBlock, type SlideTheme } from "../data";
+import { type ObjectiveBlock, type SlideTheme } from "../data";
 
 type Step = 1 | 2 | 3;
 type InteractionType = ObjectiveBlock["type"];
 type ActivityCounts = Partial<Record<InteractionType, number>>;
+type SlideCounts = Partial<Record<ObjectiveBlock["type"], number>>;
+type DeckStyle = "trade" | "clinical" | "bold" | "minimal";
 
 const interactionTypes: Array<{
   type: InteractionType;
@@ -72,6 +74,44 @@ const themes: Array<{
   { id: "slate", label: "Slate", description: "Neutral assessment style.", color: "#5B45E0" },
 ];
 
+const contentSlideTypes: Array<{
+  type: ObjectiveBlock["type"];
+  title: string;
+  description: string;
+}> = [
+  {
+    type: "content-slide",
+    title: "Teaching slides",
+    description: "A polished concept slide with a clear explanation and callout.",
+  },
+  {
+    type: "bullet-slide",
+    title: "Key-point slides",
+    description: "A scan-friendly slide with short bullets students can remember.",
+  },
+  {
+    type: "review",
+    title: "Review slides",
+    description: "A recap slide that reinforces the most important takeaway.",
+  },
+  {
+    type: "image-slide",
+    title: "Visual slides",
+    description: "A media-style slide. Uses image URLs found in the source when available.",
+  },
+];
+
+const deckStyles: Array<{
+  id: DeckStyle;
+  title: string;
+  description: string;
+}> = [
+  { id: "trade", title: "Trade school", description: "Bold headings, practical callouts, strong contrast." },
+  { id: "clinical", title: "Clean classroom", description: "Calm spacing, clear hierarchy, restrained colors." },
+  { id: "bold", title: "High energy", description: "Large type, vivid panels, punchy activity moments." },
+  { id: "minimal", title: "Minimal", description: "Simple slides with less decoration and tighter reading flow." },
+];
+
 function contentTopics(content: string, title: string) {
   const sentences = content
     .split(/[.!?]/)
@@ -85,6 +125,111 @@ function contentTopics(content: string, title: string) {
 
 function shortTopic(topic: string) {
   return topic.length > 90 ? `${topic.slice(0, 87)}...` : topic;
+}
+
+function defaultSlideCounts(): SlideCounts {
+  return {
+    "content-slide": 1,
+    "bullet-slide": 1,
+    review: 1,
+    "image-slide": 0,
+  };
+}
+
+function imageUrlsFromContent(content: string) {
+  return content.match(/https?:\/\/[^\s)"']+\.(?:png|jpe?g|webp|gif)/gi) || [];
+}
+
+function buildContentBlocks({
+  title,
+  content,
+  slideCounts,
+}: {
+  title: string;
+  content: string;
+  slideCounts: SlideCounts;
+}) {
+  const topics = contentTopics(content, title);
+  const images = imageUrlsFromContent(content);
+  const blocks: ObjectiveBlock[] = [];
+
+  contentSlideTypes.forEach(({ type }) => {
+    const count = Math.max(0, slideCounts[type] || 0);
+    Array.from({ length: count }).forEach((_, index) => {
+      const topic = topics[index % topics.length] || title || "the uploaded content";
+      const topicLabel = shortTopic(topic);
+      const id = `${type}-${index + 1}`;
+
+      if (type === "content-slide") {
+        blocks.push({
+          id,
+          type,
+          title: `Learn: ${topicLabel}`,
+          summary: "A short teaching slide that frames the idea before practice.",
+          body: topic,
+          callout: {
+            label: "Remember",
+            text: "Use the source content as the rule for the activity questions.",
+          },
+          stats: [
+            { label: "Focus", value: "Key idea" },
+            { label: "Use", value: "Practice" },
+          ],
+          theme: "ocean",
+          layoutStyle: "split",
+        });
+      }
+
+      if (type === "bullet-slide") {
+        blocks.push({
+          id,
+          type,
+          title: `Key points: ${topicLabel}`,
+          summary: "A fast review of what students should notice.",
+          body: "Use these points to check your understanding.",
+          bullets: [
+            topicLabel,
+            "Look for the rule, term, tool, or step being described.",
+            "Apply the idea before moving into the activity.",
+          ],
+          theme: "slate",
+          layoutStyle: "bullet-focus",
+        });
+      }
+
+      if (type === "review") {
+        blocks.push({
+          id,
+          type,
+          title: `Review: ${topicLabel}`,
+          summary: "A recap slide before the scored activities.",
+          body: `The key idea is: ${topic}`,
+          bullets: [
+            "Check the wording carefully.",
+            "Connect the idea to the examples in the activity.",
+          ],
+          theme: "forest",
+          layoutStyle: "callout",
+        });
+      }
+
+      if (type === "image-slide") {
+        blocks.push({
+          id,
+          type,
+          title: `Visual: ${topicLabel}`,
+          summary: "A visual support slide for the concept.",
+          body: topic,
+          imageUrl: images[index % images.length] || "",
+          caption: images.length ? "Source visual from the provided content." : "Add an image URL to the source content for this slide.",
+          theme: "sunset",
+          layoutStyle: "media-left",
+        });
+      }
+    });
+  });
+
+  return blocks;
 }
 
 function buildInteractionBlocks({
@@ -332,6 +477,24 @@ function normalizeAiBlocks(blocks: unknown): ObjectiveBlock[] {
           : `Activity ${index + 1}`,
       summary: typeof block?.summary === "string" ? block.summary.trim() : "",
       body: typeof block?.body === "string" ? block.body.trim() : "",
+      bullets: Array.isArray(block?.bullets)
+        ? block.bullets.filter((item: unknown) => typeof item === "string" && item.trim())
+        : [],
+      callout:
+        block?.callout && typeof block.callout === "object"
+          ? {
+              label: typeof block.callout.label === "string" ? block.callout.label.trim() : "Key idea",
+              text: typeof block.callout.text === "string" ? block.callout.text.trim() : "",
+            }
+          : null,
+      stats: Array.isArray(block?.stats)
+        ? block.stats
+            .map((stat: any) => ({
+              label: typeof stat?.label === "string" ? stat.label.trim() : "",
+              value: typeof stat?.value === "string" ? stat.value.trim() : "",
+            }))
+            .filter((stat: { label: string; value: string }) => stat.label || stat.value)
+        : [],
       choices: Array.isArray(block?.choices)
         ? block.choices
             .map((choice: any, choiceIndex: number) => ({
@@ -373,11 +536,271 @@ function normalizeAiBlocks(blocks: unknown): ObjectiveBlock[] {
             .filter((target: { label: string }) => target.label)
         : [],
       placeholder: typeof block?.placeholder === "string" ? block.placeholder.trim() : "",
+      imageUrl:
+        typeof block?.imageUrl === "string"
+          ? block.imageUrl.trim()
+          : typeof block?.media?.url === "string" && block.media.type === "image"
+            ? block.media.url.trim()
+            : "",
+      imageAlt: typeof block?.imageAlt === "string" ? block.imageAlt.trim() : "",
+      videoUrl:
+        typeof block?.videoUrl === "string"
+          ? block.videoUrl.trim()
+          : typeof block?.media?.url === "string" && block.media.type === "video"
+            ? block.media.url.trim()
+            : "",
+      caption:
+        typeof block?.caption === "string"
+          ? block.caption.trim()
+          : typeof block?.media?.caption === "string"
+            ? block.media.caption.trim()
+            : "",
       showWhenPreviousIncorrect: Boolean(block?.showWhenPreviousIncorrect),
       theme: "ocean" as const,
-      layoutStyle: "spotlight" as const,
+      layoutStyle:
+        block?.layoutStyle === "split" ||
+        block?.layoutStyle === "spotlight" ||
+        block?.layoutStyle === "bullet-focus" ||
+        block?.layoutStyle === "media-left" ||
+        block?.layoutStyle === "stat-grid" ||
+        block?.layoutStyle === "callout" ||
+        block?.layoutStyle === "process"
+          ? block.layoutStyle
+          : ("spotlight" as const),
     }))
     .filter((block: ObjectiveBlock) => block.title || block.body);
+}
+
+function slugify(value: string, fallback = "masterypath-scorm") {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug || fallback;
+}
+
+function xmlEscape(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function crc32(bytes: Uint8Array) {
+  let crc = -1;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc ^= bytes[i];
+    for (let j = 0; j < 8; j += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function write16(value: number) {
+  return [value & 255, (value >>> 8) & 255];
+}
+
+function write32(value: number) {
+  return [value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255];
+}
+
+function concatBytes(parts: Uint8Array[]) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+  parts.forEach((part) => {
+    output.set(part, offset);
+    offset += part.length;
+  });
+  return output;
+}
+
+function createZip(files: Record<string, string>) {
+  const encoder = new TextEncoder();
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
+  let offset = 0;
+
+  Object.entries(files).forEach(([filename, content]) => {
+    const nameBytes = encoder.encode(filename);
+    const contentBytes = encoder.encode(content);
+    const checksum = crc32(contentBytes);
+    const localHeader = new Uint8Array([
+      ...write32(0x04034b50),
+      ...write16(20),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write32(checksum),
+      ...write32(contentBytes.length),
+      ...write32(contentBytes.length),
+      ...write16(nameBytes.length),
+      ...write16(0),
+    ]);
+    localParts.push(localHeader, nameBytes, contentBytes);
+
+    const centralHeader = new Uint8Array([
+      ...write32(0x02014b50),
+      ...write16(20),
+      ...write16(20),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write32(checksum),
+      ...write32(contentBytes.length),
+      ...write32(contentBytes.length),
+      ...write16(nameBytes.length),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write16(0),
+      ...write32(0),
+      ...write32(offset),
+    ]);
+    centralParts.push(centralHeader, nameBytes);
+    offset += localHeader.length + nameBytes.length + contentBytes.length;
+  });
+
+  const centralDirectory = concatBytes(centralParts);
+  const centralOffset = offset;
+  const endRecord = new Uint8Array([
+    ...write32(0x06054b50),
+    ...write16(0),
+    ...write16(0),
+    ...write16(Object.keys(files).length),
+    ...write16(Object.keys(files).length),
+    ...write32(centralDirectory.length),
+    ...write32(centralOffset),
+    ...write16(0),
+  ]);
+
+  return new Blob([concatBytes([...localParts, centralDirectory, endRecord])], {
+    type: "application/zip",
+  });
+}
+
+function buildManifest(title: string) {
+  const safeTitle = xmlEscape(title || "MasteryPath SCORM Activity");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="masterypath-scorm" version="1.0"
+  xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+  xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+  <organizations default="masterypath-org">
+    <organization identifier="masterypath-org">
+      <title>${safeTitle}</title>
+      <item identifier="masterypath-item" identifierref="masterypath-resource">
+        <title>${safeTitle}</title>
+      </item>
+    </organization>
+  </organizations>
+  <resources>
+    <resource identifier="masterypath-resource" type="webcontent" adlcp:scormtype="sco" href="index.html">
+      <file href="index.html" />
+    </resource>
+  </resources>
+</manifest>`;
+}
+
+function buildScormHtml({
+  title,
+  course,
+  blocks,
+  deckStyle,
+}: {
+  title: string;
+  course: string;
+  blocks: ObjectiveBlock[];
+  deckStyle: DeckStyle;
+}) {
+  const data = JSON.stringify({ title, course, blocks }).replace(/</g, "\\u003c");
+  const accent =
+    deckStyle === "bold" ? "#C0185C" : deckStyle === "clinical" ? "#1585C0" : deckStyle === "minimal" ? "#2D2548" : "#5B45E0";
+  const background =
+    deckStyle === "minimal" ? "#F7F7FA" : deckStyle === "clinical" ? "#EEF7FA" : deckStyle === "bold" ? "#FFF0F5" : "#F0EDF8";
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${xmlEscape(title || "MasteryPath SCORM Activity")}</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:${background};color:#1a1528}.wrap{min-height:100vh;display:grid;place-items:center;padding:18px}.card{width:min(860px,100%);background:#fff;border:1px solid #e2dcf0;border-radius:10px;overflow:hidden;box-shadow:0 18px 50px rgba(91,69,224,.12)}.top{padding:16px 18px;border-bottom:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:12px}.title{font-weight:700}.course{font-size:12px;color:#7068a0;margin-top:3px}.head{background:${accent};color:#fff;padding:16px 18px;display:flex;justify-content:space-between;gap:12px}.badge{font-size:11px;background:rgba(255,255,255,.2);border-radius:999px;padding:4px 10px}.body{padding:24px 22px;display:grid;gap:16px}.body h1{font-size:28px;line-height:1.12;margin:0}.summary,.body p{font-size:15px;line-height:1.65;color:#51496e;margin:0}.choices,.stack{display:grid;gap:8px}.choice,.btn{border:1px solid #e2dcf0;background:#fff;border-radius:8px;padding:12px 14px;font:inherit;cursor:pointer;text-align:left}.choice.selected{border-color:${accent};background:#edeafc}.choice.correct{border-color:#0f9b6b;background:#e6faf4}.choice.wrong{border-color:#e03a5b;background:#fee8ed}.select-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}.select-row select,textarea{width:100%;border:1px solid #e2dcf0;border-radius:8px;padding:10px;font:inherit}textarea{min-height:120px}.feedback{padding:12px;border-radius:8px;background:#fef5e0;color:#8a5200}.final{background:#e6faf4;color:#0a7050;padding:14px;border-radius:8px}.footer{padding:14px 18px;border-top:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.btn{font-weight:700;color:${accent};text-align:center}.btn.primary{background:${accent};border-color:${accent};color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}.muted{font-size:12px;color:#7068a0}.pill{display:inline-flex;padding:4px 9px;border-radius:999px;background:#f4f1fb;color:${accent};font-size:12px;font-weight:700}ul{margin:0;padding-left:20px;line-height:1.7}.callout{border-left:5px solid ${accent};background:#f8f6fd;padding:14px;border-radius:8px}.callout b{display:block;margin-bottom:4px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#f4f1fb;border:1px solid #e2dcf0;border-radius:8px;padding:12px}.stat strong{display:block;font-size:22px}.media{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center}.media img{width:100%;border-radius:8px;border:1px solid #e2dcf0}.caption{font-size:12px;color:#7068a0}@media(max-width:600px){.select-row,.media,.stats{grid-template-columns:1fr}.wrap{padding:0}.card{min-height:100vh;border-radius:0}.body h1{font-size:23px}}
+  </style>
+</head>
+<body>
+<div class="wrap"><main class="card">
+  <div class="top"><div><div class="title" id="appTitle"></div><div class="course" id="appCourse"></div></div><div class="pill" id="scorePill">Score 0%</div></div>
+  <div id="screen"></div>
+</main></div>
+<script>
+const DATA = ${data};
+let index = 0;
+let feedback = "";
+let selected = "";
+let responses = {};
+let completed = {};
+let correct = {};
+let initialized = false;
+
+function findAPI(win){let tries=0;while(win&&tries<8){if(win.API)return win.API;tries++;win=win.parent}return null}
+const API = findAPI(window) || (window.opener ? findAPI(window.opener) : null);
+function scormInit(){if(API&&!initialized){API.LMSInitialize("");initialized=true}}
+function scormSet(k,v){if(API){API.LMSSetValue(k,String(v));}}
+function scormCommit(){if(API){API.LMSCommit("");}}
+function scormFinish(score){scormInit();scormSet("cmi.core.score.raw",score);scormSet("cmi.core.score.min",0);scormSet("cmi.core.score.max",100);scormSet("cmi.core.lesson_status",score>=70?"passed":"completed");scormCommit();}
+
+function isInteractive(block){return ["multiple-choice","true-false","checkpoint","drag-drop","matching","sequencing","sorting","scenario","reflection"].includes(block.type)}
+function hasChoices(block){return Array.isArray(block.choices)&&block.choices.length}
+function hasItems(block){return Array.isArray(block.activityItems)&&block.activityItems.length}
+function label(type){return ({ "multiple-choice":"Multiple Choice","true-false":"True / False","checkpoint":"Checkpoint","drag-drop":"Drag / Drop","matching":"Matching","sequencing":"Sequencing","sorting":"Sorting","scenario":"Scenario","review":"Review","reflection":"Reflection","content-slide":"Content","bullet-slide":"Key Points" }[type]||"Activity")}
+function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPreviousIncorrect)return false;const previous=DATA.blocks[i-1];return Boolean(previous&&correct[previous.id])}
+function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
+function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
+function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn primary" onclick="retry()">Retry</button></div>'}
+function retry(){index=0;feedback="";selected="";responses={};completed={};correct={};render()}
+function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
+function mark(block,isCorrect){completed[block.id]=true;if(isCorrect)correct[block.id]=true}
+function submit(block){
+ if(feedback){move(1);return}
+ if(hasChoices(block)){const choice=(block.choices||[]).find(c=>c.id===selected);if(!choice){feedback="Choose an answer before continuing.";render();return}const ok=Boolean(choice.isCorrect);mark(block,ok);feedback=ok?(choice.feedback||"Correct. Keep going."):"Not quite. Review and continue.";render();return}
+ if(block.type==="reflection"){const text=(responses[block.id]||"").trim();if(!text){feedback="Add a short response before continuing.";render();return}mark(block,true);feedback="Response saved. Keep going.";render();return}
+ if(hasItems(block)){const values=responses[block.id]||{};if(!(block.activityItems||[]).every(item=>values[item.id])){feedback="Answer every item before continuing.";render();return}const ok=(block.activityItems||[]).every(item=>block.type==="sequencing"?values[item.id]===String(item.order||1):values[item.id]===item.targetId);mark(block,ok);feedback=ok?"Correct. Keep going.":"Not quite. Review and continue.";render();return}
+ mark(block,true);move(1);
+}
+function renderActivity(block){
+ if(hasChoices(block)){return '<div class="choices">'+block.choices.map(choice=>'<button class="choice '+(selected===choice.id?'selected':'')+'" onclick="selected=\\''+choice.id+'\\';render()">'+choice.text+'</button>').join('')+'</div>'}
+ if(block.type==="reflection"){return '<textarea placeholder="'+(block.placeholder||"Type your response here...")+'" oninput="responses[\\''+block.id+'\\']=this.value">'+(responses[block.id]||"")+'</textarea>'}
+ if(hasItems(block)){const targets=block.activityTargets||[];const values=responses[block.id]||{};return '<div class="stack">'+block.activityItems.map(item=>'<div class="select-row"><div>'+item.text+'</div><select onchange="responses[\\''+block.id+'\\']={...(responses[\\''+block.id+'\\']||{}),[\\''+item.id+'\\']:this.value};render()"><option value="">Select...</option>'+(block.type==="sequencing"?block.activityItems.map((_,i)=>'<option '+(values[item.id]===String(i+1)?'selected':'')+' value="'+(i+1)+'">'+(i+1)+'</option>').join(''):targets.map(t=>'<option '+(values[item.id]===t.id?'selected':'')+' value="'+t.id+'">'+t.label+'</option>').join(''))+'</select></div>').join('')+'</div>'}
+ let html='';
+ if(block.imageUrl){html+='<div class="media"><img src="'+block.imageUrl+'" alt="'+(block.imageAlt||block.title)+'"><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
+ if(Array.isArray(block.bullets)&&block.bullets.length){html+='<ul>'+block.bullets.map(b=>'<li>'+b+'</li>').join('')+'</ul>'}
+ if(block.callout&&block.callout.text){html+='<div class="callout"><b>'+block.callout.label+'</b><span>'+block.callout.text+'</span></div>'}
+ if(Array.isArray(block.stats)&&block.stats.length){html+='<div class="stats">'+block.stats.map(s=>'<div class="stat"><strong>'+s.value+'</strong><span>'+s.label+'</span></div>').join('')+'</div>'}
+ if(html)return html;
+ return ''
+}
+function render(){
+ scormInit();
+ const block=DATA.blocks[index];
+ appTitle.textContent=DATA.title||"MasteryPath SCORM";
+ appCourse.textContent=DATA.course||"SCORM package";
+ scorePill.textContent="Score "+score()+"%";
+ const next=reachable(index+1,1);
+ const primary=feedback?(next==null?"Finish":"Continue"):(isInteractive(block)?"Submit":"Next");
+ screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Step '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' onclick="move(-1)">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" onclick="submit(DATA.blocks[index])">'+primary+'</button></div>';
+}
+render();
+window.addEventListener("beforeunload",()=>{if(API&&initialized){API.LMSFinish("");}});
+</script>
+</body>
+</html>`;
 }
 
 export default function MasteryPathBuilderPage() {
@@ -385,15 +808,15 @@ export default function MasteryPathBuilderPage() {
   const [title, setTitle] = useState("");
   const [course, setCourse] = useState("");
   const [content, setContent] = useState("");
+  const [slideCounts, setSlideCounts] = useState<SlideCounts>(() => defaultSlideCounts());
   const [activityCounts, setActivityCounts] = useState<ActivityCounts>(() => defaultActivityCounts());
   const [includeContentSlides, setIncludeContentSlides] = useState(false);
   const [includeMissedExplanationSlides, setIncludeMissedExplanationSlides] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<SlideTheme>("ocean");
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
-  const [savedCourseId, setSavedCourseId] = useState("");
-  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [deckStyle, setDeckStyle] = useState<DeckStyle>("trade");
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportError, setExportError] = useState("");
   const [aiBlocks, setAiBlocks] = useState<ObjectiveBlock[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -409,23 +832,19 @@ export default function MasteryPathBuilderPage() {
       }),
     [activityCounts, content, includeContentSlides, includeMissedExplanationSlides, title]
   );
+  const contentBlocks = useMemo(
+    () => buildContentBlocks({ title, content, slideCounts }),
+    [content, slideCounts, title]
+  );
   const finalBlocks = useMemo(
     () =>
-      (aiBlocks.length ? aiBlocks : interactionBlocks).map((block) => ({
+      (aiBlocks.length ? aiBlocks : [...contentBlocks, ...interactionBlocks]).map((block) => ({
         ...block,
         theme: selectedTheme,
       })),
-    [aiBlocks, interactionBlocks, selectedTheme]
+    [aiBlocks, contentBlocks, interactionBlocks, selectedTheme]
   );
   const requiredCorrectInteractions = Math.max(1, countGradableInteractions(finalBlocks));
-  const requiredBlocksComplete = finalBlocks.filter((block) => !block.showWhenPreviousIncorrect).length;
-  const completionCriteria: CompletionCriteria = {
-    minBlocksComplete: requiredBlocksComplete,
-    minCorrectInteractions: requiredCorrectInteractions,
-    allowRetake: true,
-    repeatLoopsRequired: 1,
-    loopLevel: "Practice",
-  };
 
   function setActivityCount(type: InteractionType, count: number) {
     setAiBlocks([]);
@@ -435,29 +854,17 @@ export default function MasteryPathBuilderPage() {
     }));
   }
 
+  function setSlideCount(type: ObjectiveBlock["type"], count: number) {
+    setAiBlocks([]);
+    setSlideCounts((previous) => ({
+      ...previous,
+      [type]: Math.max(0, Math.min(12, count)),
+    }));
+  }
+
   async function handleFileUpload(file?: File) {
     if (!file) return;
     setContent(await file.text());
-  }
-
-  function savedAssignmentUrl() {
-    if (!savedCourseId) return "";
-    const path = `/masterypath?courseId=${savedCourseId}`;
-    if (typeof window === "undefined") return path;
-    return `${window.location.origin}${path}`;
-  }
-
-  async function copySavedUrl() {
-    const url = savedAssignmentUrl();
-    if (!url) return;
-
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedUrl(true);
-      window.setTimeout(() => setCopiedUrl(false), 1800);
-    } catch {
-      setSaveError("Unable to copy the URL. Open Preview and copy it from the address bar.");
-    }
   }
 
   async function generateWithAi() {
@@ -476,6 +883,8 @@ export default function MasteryPathBuilderPage() {
           content,
           desiredBlockCount: Object.values(activityCounts).reduce((sum, count) => sum + count, 0),
           activityCounts,
+          slideCounts,
+          deckStyle,
           includeContentSlides,
           includeMissedExplanationSlides,
         }),
@@ -496,43 +905,34 @@ export default function MasteryPathBuilderPage() {
     }
   }
 
-  async function saveDraft() {
-    setSaving(true);
-    setSaved(false);
-    setSaveError("");
-
+  async function exportScormPackage() {
+    setExporting(true);
+    setExportMessage("");
+    setExportError("");
     try {
-      const response = await fetch("/api/masterypath", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          course,
-          sourceMode: "paste",
-          sourceUrl: "",
-          content,
-          objectiveTitle: title,
-          objectiveGoal: title,
+      const packageTitle = title.trim() || "MasteryPath SCORM Activity";
+      const zip = createZip({
+        "imsmanifest.xml": buildManifest(packageTitle),
+        "index.html": buildScormHtml({
+          title: packageTitle,
+          course: course.trim() || "Course",
           blocks: finalBlocks,
-          completionCriteria,
-          difficulty: "Intermediate",
-          layout: "Guided path",
-          learningSuggestionsAccepted: true,
+          deckStyle,
         }),
       });
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Unable to save assignment.");
-      }
-
-      setSaved(true);
-      setSavedCourseId(payload.courseId || "");
-      setCopiedUrl(false);
+      const url = URL.createObjectURL(zip);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${slugify(packageTitle)}-scorm.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setExportMessage("SCORM package exported. Upload the ZIP to Canvas as a SCORM assignment.");
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save assignment.");
+      setExportError(error instanceof Error ? error.message : "Unable to export SCORM package.");
     } finally {
-      setSaving(false);
+      setExporting(false);
     }
   }
 
@@ -685,6 +1085,13 @@ export default function MasteryPathBuilderPage() {
           border-radius: 999px;
           margin-bottom: 8px;
         }
+        .section-label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #4D456C;
+          text-transform: uppercase;
+          letter-spacing: .04em;
+        }
         .chip {
           min-height: 26px;
           display: inline-flex;
@@ -721,12 +1128,10 @@ export default function MasteryPathBuilderPage() {
       <div className="page">
         <header className="topbar">
           <div className="brand">
-            <h1>MasteryPath Builder</h1>
-            <p>Upload or paste content, then set how many of each activity students should complete.</p>
+            <h1>SCORM Package Builder</h1>
+            <p>Use AI to build an interactive SCORM package that Canvas can score automatically.</p>
           </div>
           <div className="toolbar">
-            <Link className="btn" href="/masterypath/assignments">Assignments</Link>
-            <Link className="btn" href="/masterypath">Student View</Link>
             <Link className="btn" href="/">Dashboard</Link>
           </div>
         </header>
@@ -736,7 +1141,7 @@ export default function MasteryPathBuilderPage() {
             {[
               ["1", "Content", "Title and source material"],
               ["2", "Activities", "Set activity counts"],
-              ["3", "Save", "Review and publish"],
+              ["3", "Export", "Download SCORM ZIP"],
             ].map(([id, label, description]) => (
               <button
                 className={`step ${step === Number(id) ? "active" : ""}`}
@@ -757,14 +1162,14 @@ export default function MasteryPathBuilderPage() {
                   ? "Add Assignment Content"
                   : step === 2
                     ? "Activity Counts"
-                    : "Save Assignment"}
+                    : "Export SCORM Package"}
               </h2>
               <p>
                 {step === 1
                   ? "The teacher writes the title and provides the material."
                   : step === 2
                     ? "Set how many of each activity type this assignment should include."
-                    : "Review the activity mix, then save the assignment."}
+                    : "Review the activity mix, then download the SCORM ZIP for Canvas."}
               </p>
             </div>
 
@@ -793,7 +1198,7 @@ export default function MasteryPathBuilderPage() {
                   <div className="field">
                     <label>Upload content</label>
                     <input
-                      accept=".txt,.md,.csv,.json"
+                      accept=".txt,.md,.csv"
                       onChange={(event) => handleFileUpload(event.target.files?.[0])}
                       type="file"
                     />
@@ -809,7 +1214,7 @@ export default function MasteryPathBuilderPage() {
                   </div>
 
                   <div className="field">
-                    <label>Student activity theme</label>
+                    <label>Deck theme</label>
                     <div className="grid">
                       {themes.map((theme) => (
                         <button
@@ -825,6 +1230,23 @@ export default function MasteryPathBuilderPage() {
                       ))}
                     </div>
                   </div>
+
+                  <div className="field">
+                    <label>Slide style</label>
+                    <div className="grid">
+                      {deckStyles.map((style) => (
+                        <button
+                          className={`card ${deckStyle === style.id ? "selected" : ""}`}
+                          key={style.id}
+                          onClick={() => setDeckStyle(style.id)}
+                          type="button"
+                        >
+                          <strong>{style.title}</strong>
+                          <p>{style.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : null}
 
@@ -833,8 +1255,8 @@ export default function MasteryPathBuilderPage() {
                   <div className="card">
                     <strong>AI activity builder</strong>
                     <p>
-                      Let AI recommend and build a mixed set of drag/drop, matching, sequencing,
-                      sorting, scenario, reflection, and check activities from the content.
+                      Let AI build a polished slide deck with teaching slides, visual moments,
+                      checks, matching, sequencing, scenario, reflection, and review slides.
                     </p>
                     <button
                       className="btn primary"
@@ -848,6 +1270,43 @@ export default function MasteryPathBuilderPage() {
                       <p>Using {aiBlocks.length} AI-built activities. Manual cards remain available as a fallback.</p>
                     ) : null}
                     {aiError ? <div className="save-error">{aiError}</div> : null}
+                  </div>
+
+                  <div className="section-label">Content slides</div>
+                  <div className="grid">
+                    {contentSlideTypes.map((slide) => (
+                      <div
+                        className={`card activity-count-card ${slideCounts[slide.type] ? "selected" : ""}`}
+                        key={slide.type}
+                      >
+                        <div>
+                          <strong>{slide.title}</strong>
+                          <p>{slide.description}</p>
+                        </div>
+                        <div className="counter" aria-label={`${slide.title} count`}>
+                          <button
+                            onClick={() => setSlideCount(slide.type, (slideCounts[slide.type] || 0) - 1)}
+                            type="button"
+                          >
+                            -
+                          </button>
+                          <input
+                            aria-label={`${slide.title} count`}
+                            min={0}
+                            max={12}
+                            onChange={(event) => setSlideCount(slide.type, Number(event.target.value) || 0)}
+                            type="number"
+                            value={slideCounts[slide.type] || 0}
+                          />
+                          <button
+                            onClick={() => setSlideCount(slide.type, (slideCounts[slide.type] || 0) + 1)}
+                            type="button"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="toggle-row">
@@ -881,6 +1340,7 @@ export default function MasteryPathBuilderPage() {
                     </button>
                   </div>
 
+                  <div className="section-label">Activity slides</div>
                   <div className="grid">
                     {interactionTypes.map((interaction) => (
                       <div
@@ -937,12 +1397,19 @@ export default function MasteryPathBuilderPage() {
               {step === 3 ? (
                 <>
                   <div className="card">
-                    <strong>Save summary</strong>
+                    <strong>Export summary</strong>
                     <p>
-                      {title || "Untitled assignment"} will save with {finalBlocks.length}{" "}
-                      activities, the {selectedTheme} theme, and {requiredCorrectInteractions} required correct interactions.
+                      {title || "Untitled assignment"} will export with {finalBlocks.length}{" "}
+                      student-facing slides, the {selectedTheme} theme, the {deckStyle} style, and {requiredCorrectInteractions} scored interactions.
                     </p>
                     <div className="chips">
+                      {contentSlideTypes
+                        .filter((slide) => slideCounts[slide.type] > 0)
+                        .map((slide) => (
+                          <span className="chip" key={slide.type}>
+                            {slideCounts[slide.type]} {slide.title}
+                          </span>
+                        ))}
                       {interactionTypes
                         .filter((interaction) => activityCounts[interaction.type] > 0)
                         .map((interaction) => (
@@ -955,29 +1422,16 @@ export default function MasteryPathBuilderPage() {
 
                   <button
                     className="btn primary"
-                    disabled={saving || !title.trim() || !content.trim() || !finalBlocks.length}
-                    onClick={saveDraft}
+                    disabled={exporting || !title.trim() || !content.trim() || !finalBlocks.length}
+                    onClick={exportScormPackage}
                     type="button"
                   >
-                    {saving ? "Saving..." : "Save Assignment"}
+                    {exporting ? "Exporting..." : "Export SCORM ZIP"}
                   </button>
 
-                  {saved ? (
-                    <div className="save-ok">
-                      Saved.{" "}
-                      <Link className="btn" href="/masterypath/assignments">Manage assignments</Link>{" "}
-                      {savedCourseId ? (
-                        <>
-                          <Link className="btn" href={`/masterypath?courseId=${savedCourseId}`}>Preview</Link>{" "}
-                          <button className="btn" onClick={copySavedUrl} type="button">
-                            {copiedUrl ? "URL copied" : "Copy URL"}
-                          </button>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
+                  {exportMessage ? <div className="save-ok">{exportMessage}</div> : null}
 
-                  {saveError ? <div className="save-error">{saveError}</div> : null}
+                  {exportError ? <div className="save-error">{exportError}</div> : null}
                 </>
               ) : null}
             </div>

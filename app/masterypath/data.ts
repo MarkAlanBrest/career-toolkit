@@ -4,7 +4,10 @@ export type SlideLayoutStyle =
   | "split"
   | "spotlight"
   | "bullet-focus"
-  | "media-left";
+  | "media-left"
+  | "stat-grid"
+  | "callout"
+  | "process";
 
 export type SlideMedia = {
   type: "image" | "video";
