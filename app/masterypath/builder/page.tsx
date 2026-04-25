@@ -1152,6 +1152,7 @@ export default function MasteryPathBuilderPage() {
   ]);
   const [draggedTileId, setDraggedTileId] = useState("");
   const [helpTileType, setHelpTileType] = useState<ObjectiveBlock["type"] | null>(null);
+  const [previewTileId, setPreviewTileId] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
@@ -1164,6 +1165,7 @@ export default function MasteryPathBuilderPage() {
     [deckBlocks, selectedTheme]
   );
   const requiredCorrectInteractions = Math.max(1, countGradableInteractions(finalBlocks));
+  const previewBlock = finalBlocks.find((block) => block.id === previewTileId) || null;
 
   function addTile(type: ObjectiveBlock["type"]) {
     setDeckBlocks((previous) => [
@@ -1352,6 +1354,111 @@ export default function MasteryPathBuilderPage() {
         })
         .filter((target) => target.label),
     });
+  }
+
+  function renderPreviewActivity(block: ObjectiveBlock) {
+    if (block.choices?.length) {
+      return (
+        <div className="preview-choices">
+          {block.choices.map((choice) => (
+            <button className={choice.isCorrect ? "preview-choice correct" : "preview-choice"} key={choice.id} type="button">
+              {choice.text}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (block.type === "reflection") {
+      return <textarea className="preview-response" placeholder={block.placeholder || "Type your response here..."} readOnly />;
+    }
+
+    if (block.activityItems?.length) {
+      return (
+        <div className="preview-stack">
+          {block.activityItems.map((item, index) => (
+            <div className="preview-select-row" key={item.id}>
+              <span>{item.text}</span>
+              <span>{block.type === "sequencing" ? `Step ${item.order || index + 1}` : block.activityTargets?.find((target) => target.id === item.targetId)?.label || item.targetId || "Target"}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (block.videoUrl) {
+      const videoUrl = normalizeVideoUrl(block.videoUrl);
+      return (
+        <div className="preview-video">
+          {videoUrl ? (
+            <iframe
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              src={videoUrl}
+              title={block.title || "Video preview"}
+            />
+          ) : null}
+          {block.caption ? <p>{block.caption}</p> : null}
+        </div>
+      );
+    }
+
+    if (block.imageUrl) {
+      return (
+        <div className="preview-media">
+          <img alt={block.imageAlt || block.title} src={block.imageUrl} />
+          {block.caption ? <p>{block.caption}</p> : null}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {block.bullets?.length ? (
+          <ul className="preview-bullets">
+            {block.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
+          </ul>
+        ) : null}
+        {block.callout?.text ? (
+          <div className="preview-callout">
+            <strong>{block.callout.label}</strong>
+            <span>{block.callout.text}</span>
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+  function renderPreviewSlide(block: ObjectiveBlock) {
+    const layout = block.layoutStyle || "spotlight";
+    const titleBlock = (
+      <div className="preview-title-block">
+        <h1>{block.title || "Untitled tile"}</h1>
+        {block.summary ? <p>{block.summary}</p> : null}
+        {block.body ? <p className="preview-body-text">{block.body}</p> : null}
+      </div>
+    );
+    const activity = renderPreviewActivity(block);
+
+    if (block.videoUrl && layout === "spotlight") {
+      return <div className="preview-slide spotlight">{titleBlock}<div className="preview-video-full">{activity}</div></div>;
+    }
+
+    if (layout === "split") {
+      return <div className="preview-slide split"><div>{titleBlock}</div><div>{activity}</div></div>;
+    }
+
+    if (layout === "media-left") {
+      return <div className="preview-slide split media-left"><div>{activity}</div><div>{titleBlock}</div></div>;
+    }
+
+    return (
+      <div className={`preview-slide ${layout}`}>
+        {titleBlock}
+        {layout === "callout" ? <div className="preview-feature">{activity}</div> : activity}
+      </div>
+    );
   }
 
   function renderTileSettings(block: ObjectiveBlock) {
@@ -1790,6 +1897,139 @@ export default function MasteryPathBuilderPage() {
           font-size: 12px;
           line-height: 1.5;
         }
+        .preview-panel { width: min(940px, 100%); }
+        .preview-shell {
+          background: #F0EDF8;
+          border: 1px solid #E2DCF0;
+          border-radius: 10px;
+          padding: 14px;
+        }
+        .preview-card {
+          background: #fff;
+          border: 1px solid #E2DCF0;
+          border-radius: 10px;
+          overflow: hidden;
+          box-shadow: 0 14px 34px rgba(91,69,224,.12);
+        }
+        .preview-top {
+          padding: 12px 14px;
+          border-bottom: 1px solid #E8E2F5;
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          color: #7068A0;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .preview-head {
+          background: #5B45E0;
+          color: #fff;
+          padding: 12px 14px;
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .preview-slide {
+          min-height: 420px;
+          padding: 22px;
+          display: grid;
+          gap: 16px;
+          align-content: start;
+        }
+        .preview-slide h1 { margin: 0; font-size: 30px; line-height: 1.1; color: #1A1528; }
+        .preview-title-block { display: grid; gap: 8px; }
+        .preview-title-block p, .preview-body-text { margin: 0; color: #51496E; line-height: 1.55; }
+        .preview-body-text { max-width: 72ch; }
+        .preview-slide.spotlight { text-align: center; justify-items: center; }
+        .preview-slide.split {
+          grid-template-columns: minmax(0, 1fr) minmax(260px, .9fr);
+          align-items: start;
+          gap: 22px;
+        }
+        .preview-slide.split > div:last-child,
+        .preview-slide.split.media-left > div:first-child {
+          background: #F8F6FD;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .preview-slide.split.media-left { grid-template-columns: minmax(280px, .9fr) minmax(0, 1fr); }
+        .preview-slide.split.media-left > div:last-child {
+          background: transparent;
+          border: 0;
+          padding: 0;
+        }
+        .preview-feature, .preview-callout {
+          background: #F8F6FD;
+          border: 1px solid #E2DCF0;
+          border-left: 6px solid #5B45E0;
+          border-radius: 8px;
+          padding: 16px;
+        }
+        .preview-callout { display: grid; gap: 5px; }
+        .preview-bullets { margin: 0; line-height: 1.7; }
+        .preview-slide.bullet-focus .preview-bullets,
+        .preview-slide.bullet-focus .preview-choices,
+        .preview-slide.bullet-focus .preview-stack {
+          background: #F8F6FD;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 18px;
+          font-size: 16px;
+        }
+        .preview-slide.process .preview-bullets { list-style: decimal; }
+        .preview-slide.stat-grid .preview-bullets,
+        .preview-slide.stat-grid .preview-choices {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+          padding: 0;
+          list-style: none;
+        }
+        .preview-slide.stat-grid .preview-bullets li,
+        .preview-slide.stat-grid .preview-choice {
+          background: #F4F1FB;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 14px;
+        }
+        .preview-choices, .preview-stack { display: grid; gap: 8px; }
+        .preview-choice {
+          border: 1px solid #E2DCF0;
+          background: #fff;
+          border-radius: 8px;
+          padding: 12px 14px;
+          text-align: left;
+          font: inherit;
+        }
+        .preview-choice.correct { border-color: #0F9B6B; background: #E6FAF4; }
+        .preview-select-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 12px;
+        }
+        .preview-select-row span:last-child { color: #3D29B8; font-weight: 700; }
+        .preview-response {
+          width: 100%;
+          min-height: 120px;
+          border: 1px solid #E2DCF0;
+          border-radius: 8px;
+          padding: 12px;
+          font: inherit;
+        }
+        .preview-video iframe {
+          width: 100%;
+          min-height: 300px;
+          border: 0;
+          border-radius: 8px;
+        }
+        .preview-video-full .preview-video iframe { min-height: 420px; }
+        .preview-media img { width: 100%; border-radius: 8px; border: 1px solid #E2DCF0; }
         .footer {
           padding: 16px 18px;
           border-top: 1px solid #E8E2F5;
@@ -1810,6 +2050,10 @@ export default function MasteryPathBuilderPage() {
           .steps, .grid, .grid.compact, .toggle-row { grid-template-columns: 1fr; }
           .tile-head { grid-template-columns: auto minmax(0, 1fr); }
           .tile-actions { grid-column: 1 / -1; justify-content: flex-start; }
+          .preview-slide.split,
+          .preview-slide.split.media-left,
+          .preview-slide.stat-grid .preview-bullets,
+          .preview-slide.stat-grid .preview-choices { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -1994,6 +2238,7 @@ export default function MasteryPathBuilderPage() {
                           </div>
                           <div className="tile-actions">
                             <button className="btn" onClick={() => duplicateTile(block)} type="button">Duplicate</button>
+                            <button className="btn" onClick={() => setPreviewTileId(block.id)} type="button">Preview</button>
                             <button className="btn" onClick={() => setHelpTileType(block.type)} type="button">?</button>
                             <button className="btn" disabled={deckBlocks.length <= 1} onClick={() => deleteTile(block.id)} type="button">Delete</button>
                           </div>
@@ -2105,6 +2350,33 @@ export default function MasteryPathBuilderPage() {
                   </>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {previewBlock ? (
+        <div className="help-modal" onClick={() => setPreviewTileId("")}>
+          <div className="help-panel preview-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="help-head">
+              <strong>Preview: {previewBlock.title || "Untitled tile"}</strong>
+              <button className="btn" onClick={() => setPreviewTileId("")} type="button">Close</button>
+            </div>
+            <div className="help-body">
+              <div className="preview-shell">
+                <div className="preview-card">
+                  <div className="preview-top">
+                    <span>{title || "SCORM Package"}</span>
+                    <span>{course || "Course"}</span>
+                  </div>
+                  <div className="preview-head">
+                    <span>{tileTypes.find((tile) => tile.type === previewBlock.type)?.title || previewBlock.type}</span>
+                    <span>{previewBlock.layoutStyle || "spotlight"}</span>
+                  </div>
+                  {renderPreviewSlide(previewBlock)}
+                </div>
+              </div>
+              <p className="muted">Preview is approximate. Canvas and SCORM player sizing can vary slightly.</p>
             </div>
           </div>
         </div>
