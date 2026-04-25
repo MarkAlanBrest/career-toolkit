@@ -733,6 +733,40 @@ function xmlEscape(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function normalizeVideoUrl(value?: string) {
+  const url = (value || "").trim();
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+
+    if (host === "youtube.com" || host === "m.youtube.com") {
+      const videoId = parsed.searchParams.get("v");
+      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const videoIdFromShort = parsed.pathname.split("/").filter(Boolean)[1];
+        if (videoIdFromShort) return `https://www.youtube.com/embed/${videoIdFromShort}`;
+      }
+      if (parsed.pathname.startsWith("/embed/")) return url;
+    }
+
+    if (host === "youtu.be") {
+      const videoId = parsed.pathname.split("/").filter(Boolean)[0];
+      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    if (host === "vimeo.com") {
+      const videoId = parsed.pathname.split("/").filter(Boolean)[0];
+      if (videoId) return `https://player.vimeo.com/video/${videoId}`;
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 function crc32(bytes: Uint8Array) {
   let crc = -1;
   for (let i = 0; i < bytes.length; i += 1) {
@@ -941,7 +975,7 @@ function renderActivity(block){
  if(hasItems(block)){const targets=block.activityTargets||[];const values=responses[block.id]||{};return '<div class="stack">'+block.activityItems.map(item=>'<div class="select-row"><div>'+item.text+'</div><select data-block="'+block.id+'" data-item="'+item.id+'"><option value="">Select...</option>'+(block.type==="sequencing"?block.activityItems.map((_,i)=>'<option '+(values[item.id]===String(i+1)?'selected':'')+' value="'+(i+1)+'">'+(i+1)+'</option>').join(''):targets.map(t=>'<option '+(values[item.id]===t.id?'selected':'')+' value="'+t.id+'">'+t.label+'</option>').join(''))+'</select></div>').join('')+'</div>'}
  let html='';
  if(block.imageUrl){html+='<div class="media"><img src="'+block.imageUrl+'" alt="'+(block.imageAlt||block.title)+'"><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
- if(block.videoUrl){html+='<div class="media"><iframe src="'+block.videoUrl+'" title="'+block.title+'" style="width:100%;min-height:260px;border:0;border-radius:8px" allowfullscreen></iframe><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
+ if(block.videoUrl){html+='<div class="media"><iframe src="'+block.videoUrl+'" title="'+block.title+'" style="width:100%;min-height:260px;border:0;border-radius:8px" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
  if(Array.isArray(block.bullets)&&block.bullets.length){html+='<ul>'+block.bullets.map(b=>'<li>'+b+'</li>').join('')+'</ul>'}
  if(block.callout&&block.callout.text){html+='<div class="callout"><b>'+block.callout.label+'</b><span>'+block.callout.text+'</span></div>'}
  if(Array.isArray(block.stats)&&block.stats.length){html+='<div class="stats">'+block.stats.map(s=>'<div class="stat"><strong>'+s.value+'</strong><span>'+s.label+'</span></div>').join('')+'</div>'}
@@ -1108,7 +1142,10 @@ export default function MasteryPathBuilderPage() {
         "index.html": buildScormHtml({
           title: packageTitle,
           course: course.trim() || "Course",
-          blocks: finalBlocks,
+          blocks: finalBlocks.map((block) => ({
+            ...block,
+            videoUrl: normalizeVideoUrl(block.videoUrl),
+          })),
           deckStyle,
         }),
       });
