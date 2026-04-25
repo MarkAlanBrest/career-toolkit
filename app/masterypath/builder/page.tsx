@@ -829,10 +829,11 @@ function createZip(files: Record<string, string>) {
   });
 }
 
-function buildManifest(title: string) {
+function buildManifest(title: string, identifier: string) {
   const safeTitle = xmlEscape(title || "MasteryPath SCORM Activity");
+  const safeIdentifier = xmlEscape(identifier || "masterypath-scorm");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="masterypath-scorm" version="1.0"
+<manifest identifier="${safeIdentifier}" version="1.0"
   xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
   xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -841,16 +842,16 @@ function buildManifest(title: string) {
     <schema>ADL SCORM</schema>
     <schemaversion>1.2</schemaversion>
   </metadata>
-  <organizations default="masterypath-org">
-    <organization identifier="masterypath-org">
+  <organizations default="${safeIdentifier}-org">
+    <organization identifier="${safeIdentifier}-org">
       <title>${safeTitle}</title>
-      <item identifier="masterypath-item" identifierref="masterypath-resource">
+      <item identifier="${safeIdentifier}-item" identifierref="${safeIdentifier}-resource">
         <title>${safeTitle}</title>
       </item>
     </organization>
   </organizations>
   <resources>
-    <resource identifier="masterypath-resource" type="webcontent" adlcp:scormtype="sco" href="index.html">
+    <resource identifier="${safeIdentifier}-resource" type="webcontent" adlcp:scormtype="sco" href="index.html">
       <file href="index.html" />
     </resource>
   </resources>
@@ -880,7 +881,7 @@ function buildScormHtml({
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${xmlEscape(title || "MasteryPath SCORM Activity")}</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:${background};color:#1a1528}.wrap{min-height:100vh;display:grid;place-items:center;padding:18px}.card{width:min(860px,100%);background:#fff;border:1px solid #e2dcf0;border-radius:10px;overflow:hidden;box-shadow:0 18px 50px rgba(91,69,224,.12)}.top{padding:16px 18px;border-bottom:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:12px}.title{font-weight:700}.course{font-size:12px;color:#7068a0;margin-top:3px}.head{background:${accent};color:#fff;padding:16px 18px;display:flex;justify-content:space-between;gap:12px}.badge{font-size:11px;background:rgba(255,255,255,.2);border-radius:999px;padding:4px 10px}.body{padding:24px 22px;display:grid;gap:16px}.body h1{font-size:28px;line-height:1.12;margin:0}.summary,.body p{font-size:15px;line-height:1.65;color:#51496e;margin:0}.choices,.stack{display:grid;gap:8px}.choice,.btn{border:1px solid #e2dcf0;background:#fff;border-radius:8px;padding:12px 14px;font:inherit;cursor:pointer;text-align:left}.choice.selected{border-color:${accent};background:#edeafc}.choice.correct{border-color:#0f9b6b;background:#e6faf4}.choice.wrong{border-color:#e03a5b;background:#fee8ed}.select-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}.select-row select,textarea{width:100%;border:1px solid #e2dcf0;border-radius:8px;padding:10px;font:inherit}textarea{min-height:120px}.feedback{padding:12px;border-radius:8px;background:#fef5e0;color:#8a5200}.final{background:#e6faf4;color:#0a7050;padding:14px;border-radius:8px}.footer{padding:14px 18px;border-top:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.btn{font-weight:700;color:${accent};text-align:center}.btn.primary{background:${accent};border-color:${accent};color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}.muted{font-size:12px;color:#7068a0}.pill{display:inline-flex;padding:4px 9px;border-radius:999px;background:#f4f1fb;color:${accent};font-size:12px;font-weight:700}ul{margin:0;padding-left:20px;line-height:1.7}.callout{border-left:5px solid ${accent};background:#f8f6fd;padding:14px;border-radius:8px}.callout b{display:block;margin-bottom:4px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#f4f1fb;border:1px solid #e2dcf0;border-radius:8px;padding:12px}.stat strong{display:block;font-size:22px}.media{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center}.media img{width:100%;border-radius:8px;border:1px solid #e2dcf0}.caption{font-size:12px;color:#7068a0}@media(max-width:600px){.select-row,.media,.stats{grid-template-columns:1fr}.wrap{padding:0}.card{min-height:100vh;border-radius:0}.body h1{font-size:23px}}
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:${background};color:#1a1528}.wrap{min-height:100vh;display:grid;place-items:center;padding:18px}.card{width:min(980px,100%);background:#fff;border:1px solid #e2dcf0;border-radius:10px;overflow:hidden;box-shadow:0 18px 50px rgba(91,69,224,.12)}.top{padding:16px 18px;border-bottom:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:12px}.title{font-weight:700}.course{font-size:12px;color:#7068a0;margin-top:3px}.head{background:${accent};color:#fff;padding:16px 18px;display:flex;justify-content:space-between;gap:12px}.badge{font-size:11px;background:rgba(255,255,255,.2);border-radius:999px;padding:4px 10px}.layout{display:grid;grid-template-columns:170px minmax(0,1fr)}.nav{border-right:1px solid #e8e2f5;background:#faf9fd;padding:12px;display:grid;align-content:start;gap:6px}.nav button{border:1px solid #e2dcf0;background:#fff;border-radius:8px;padding:8px;text-align:left;font-size:12px;color:#51496e;cursor:pointer}.nav button.active{border-color:${accent};background:#edeafc;color:#1a1528;font-weight:700}.body{padding:24px 22px;display:grid;gap:16px}.body h1{font-size:28px;line-height:1.12;margin:0}.summary,.body p{font-size:15px;line-height:1.65;color:#51496e;margin:0}.choices,.stack{display:grid;gap:8px}.choice,.btn{border:1px solid #e2dcf0;background:#fff;border-radius:8px;padding:12px 14px;font:inherit;cursor:pointer;text-align:left}.choice.selected{border-color:${accent};background:#edeafc}.choice.correct{border-color:#0f9b6b;background:#e6faf4}.choice.wrong{border-color:#e03a5b;background:#fee8ed}.select-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}.select-row select,textarea{width:100%;border:1px solid #e2dcf0;border-radius:8px;padding:10px;font:inherit}textarea{min-height:120px}.feedback{padding:12px;border-radius:8px;background:#fef5e0;color:#8a5200}.final{background:#e6faf4;color:#0a7050;padding:14px;border-radius:8px}.footer{padding:14px 18px;border-top:1px solid #e8e2f5;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.btn{font-weight:700;color:${accent};text-align:center}.btn.primary{background:${accent};border-color:${accent};color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}.muted{font-size:12px;color:#7068a0}.pill{display:inline-flex;padding:4px 9px;border-radius:999px;background:#f4f1fb;color:${accent};font-size:12px;font-weight:700}ul{margin:0;padding-left:20px;line-height:1.7}.callout{border-left:5px solid ${accent};background:#f8f6fd;padding:14px;border-radius:8px}.callout b{display:block;margin-bottom:4px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{background:#f4f1fb;border:1px solid #e2dcf0;border-radius:8px;padding:12px}.stat strong{display:block;font-size:22px}.media{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center}.media img{width:100%;border-radius:8px;border:1px solid #e2dcf0}.caption{font-size:12px;color:#7068a0}@media(max-width:700px){.layout{grid-template-columns:1fr}.nav{grid-template-columns:repeat(4,minmax(0,1fr));border-right:0;border-bottom:1px solid #e8e2f5}.nav button{font-size:11px}.select-row,.media,.stats{grid-template-columns:1fr}.wrap{padding:0}.card{min-height:100vh;border-radius:0}.body h1{font-size:23px}}
   </style>
 </head>
 <body>
@@ -890,6 +891,7 @@ function buildScormHtml({
 </main></div>
 <script>
 const DATA = ${data};
+DATA.blocks = Array.isArray(DATA.blocks) && DATA.blocks.length ? DATA.blocks : [{id:"empty",type:"content-slide",title:"No slides found",summary:"This SCORM package did not include slide data.",body:"Export the package again from the builder."}];
 let index = 0;
 let feedback = "";
 let selected = "";
@@ -901,6 +903,7 @@ let initialized = false;
 function findAPI(win){let tries=0;while(win&&tries<8){if(win.API)return win.API;tries++;win=win.parent}return null}
 const API = findAPI(window) || (window.opener ? findAPI(window.opener) : null);
 function scormInit(){if(API&&!initialized){API.LMSInitialize("");initialized=true}}
+function scormGet(k){if(API){return API.LMSGetValue(k)||""}return ""}
 function scormSet(k,v){if(API){API.LMSSetValue(k,String(v));}}
 function scormCommit(){if(API){API.LMSCommit("");}}
 function scormFinish(score){scormInit();scormSet("cmi.core.score.raw",score);scormSet("cmi.core.score.min",0);scormSet("cmi.core.score.max",100);scormSet("cmi.core.lesson_status",score>=70?"passed":"completed");scormCommit();}
@@ -912,8 +915,9 @@ function label(type){return ({ "multiple-choice":"Multiple Choice","true-false":
 function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPreviousIncorrect)return false;const previous=DATA.blocks[i-1];return Boolean(previous&&correct[previous.id])}
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
 function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
-function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn primary" onclick="retry()">Retry</button></div>'}
+function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" onclick="go(0)">Review slides</button> <button class="btn primary" onclick="retry()">Retry</button></div></section></div>'}
 function retry(){index=0;feedback="";selected="";responses={};completed={};correct={};render()}
+function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
 function mark(block,isCorrect){completed[block.id]=true;if(isCorrect)correct[block.id]=true}
 function submit(block){
@@ -936,15 +940,19 @@ function renderActivity(block){
  if(html)return html;
  return ''
 }
+function renderNav(){return '<nav class="nav" aria-label="Slides">'+DATA.blocks.map((block,i)=>'<button class="'+(i===index?'active':'')+'" onclick="go('+i+')">'+(i+1)+'. '+label(block.type)+'</button>').join('')+'</nav>'}
 function render(){
  scormInit();
  const block=DATA.blocks[index];
+ scormSet("cmi.core.lesson_location",String(index+1));
+ scormSet("cmi.suspend_data",JSON.stringify({index,completed,correct}));
+ scormCommit();
  appTitle.textContent=DATA.title||"MasteryPath SCORM";
  appCourse.textContent=DATA.course||"SCORM package";
  scorePill.textContent="Score "+score()+"%";
  const next=reachable(index+1,1);
  const primary=feedback?(next==null?"Finish":"Continue"):(isInteractive(block)?"Submit":"Next");
- screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Step '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' onclick="move(-1)">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" onclick="submit(DATA.blocks[index])">'+primary+'</button></div>';
+ screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' onclick="move(-1)">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" onclick="submit(DATA.blocks[index])">'+primary+'</button></div></section></div>';
 }
 render();
 window.addEventListener("beforeunload",()=>{if(API&&initialized){API.LMSFinish("");}});
@@ -1076,8 +1084,9 @@ export default function MasteryPathBuilderPage() {
     setExportError("");
     try {
       const packageTitle = title.trim() || "MasteryPath SCORM Activity";
+      const packageId = `${slugify(packageTitle)}-${Date.now().toString(36)}`;
       const zip = createZip({
-        "imsmanifest.xml": buildManifest(packageTitle),
+        "imsmanifest.xml": buildManifest(packageTitle, packageId),
         "index.html": buildScormHtml({
           title: packageTitle,
           course: course.trim() || "Course",
