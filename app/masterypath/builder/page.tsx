@@ -917,7 +917,7 @@ function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPrev
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
 function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
 function startDeck(){started=true;index=0;feedback="";selected="";render()}
-function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" onclick="go(0)">Review slides</button> <button class="btn primary" onclick="retry()">Retry</button></div></section></div>'}
+function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" data-action="review">Review slides</button> <button class="btn primary" data-action="retry">Retry</button></div></section></div>'}
 function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};render()}
 function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
@@ -930,9 +930,9 @@ function submit(block){
  mark(block,true);move(1);
 }
 function renderActivity(block){
- if(hasChoices(block)){return '<div class="choices">'+block.choices.map(choice=>'<button class="choice '+(selected===choice.id?'selected':'')+'" onclick="selected=\\''+choice.id+'\\';render()">'+choice.text+'</button>').join('')+'</div>'}
- if(block.type==="reflection"){return '<textarea placeholder="'+(block.placeholder||"Type your response here...")+'" oninput="responses[\\''+block.id+'\\']=this.value">'+(responses[block.id]||"")+'</textarea>'}
- if(hasItems(block)){const targets=block.activityTargets||[];const values=responses[block.id]||{};return '<div class="stack">'+block.activityItems.map(item=>'<div class="select-row"><div>'+item.text+'</div><select onchange="responses[\\''+block.id+'\\']={...(responses[\\''+block.id+'\\']||{}),[\\''+item.id+'\\']:this.value};render()"><option value="">Select...</option>'+(block.type==="sequencing"?block.activityItems.map((_,i)=>'<option '+(values[item.id]===String(i+1)?'selected':'')+' value="'+(i+1)+'">'+(i+1)+'</option>').join(''):targets.map(t=>'<option '+(values[item.id]===t.id?'selected':'')+' value="'+t.id+'">'+t.label+'</option>').join(''))+'</select></div>').join('')+'</div>'}
+ if(hasChoices(block)){return '<div class="choices">'+block.choices.map(choice=>'<button class="choice '+(selected===choice.id?'selected':'')+'" data-choice="'+choice.id+'">'+choice.text+'</button>').join('')+'</div>'}
+ if(block.type==="reflection"){return '<textarea placeholder="'+(block.placeholder||"Type your response here...")+'" data-reflection="'+block.id+'">'+(responses[block.id]||"")+'</textarea>'}
+ if(hasItems(block)){const targets=block.activityTargets||[];const values=responses[block.id]||{};return '<div class="stack">'+block.activityItems.map(item=>'<div class="select-row"><div>'+item.text+'</div><select data-block="'+block.id+'" data-item="'+item.id+'"><option value="">Select...</option>'+(block.type==="sequencing"?block.activityItems.map((_,i)=>'<option '+(values[item.id]===String(i+1)?'selected':'')+' value="'+(i+1)+'">'+(i+1)+'</option>').join(''):targets.map(t=>'<option '+(values[item.id]===t.id?'selected':'')+' value="'+t.id+'">'+t.label+'</option>').join(''))+'</select></div>').join('')+'</div>'}
  let html='';
  if(block.imageUrl){html+='<div class="media"><img src="'+block.imageUrl+'" alt="'+(block.imageAlt||block.title)+'"><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
  if(block.videoUrl){html+='<div class="media"><iframe src="'+block.videoUrl+'" title="'+block.title+'" style="width:100%;min-height:260px;border:0;border-radius:8px" allowfullscreen></iframe><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
@@ -942,14 +942,14 @@ function renderActivity(block){
  if(html)return html;
  return ''
 }
-function renderNav(){return '<nav class="nav" aria-label="Slides">'+DATA.blocks.map((block,i)=>'<button class="'+(i===index?'active':'')+'" onclick="go('+i+')">'+(i+1)+'. '+label(block.type)+'</button>').join('')+'</nav>'}
+function renderNav(){return '<nav class="nav" aria-label="Slides">'+DATA.blocks.map((block,i)=>'<button class="'+(i===index?'active':'')+'" data-go="'+i+'">'+(i+1)+'. '+label(block.type)+'</button>').join('')+'</nav>'}
 function render(){
  scormInit();
  if(!started){
   appTitle.textContent=DATA.title||"MasteryPath SCORM";
   appCourse.textContent=DATA.course||"SCORM package";
   scorePill.textContent=DATA.blocks.length+" slides";
-  screen.innerHTML='<div class="head"><span class="badge">SCORM Deck</span><span>'+DATA.blocks.length+' slides</span></div><div class="body"><div><h1>'+DATA.title+'</h1><p class="summary">'+(DATA.course||"Interactive SCORM activity")+'</p></div><div class="callout"><b>Ready to begin</b><span>This activity contains '+DATA.blocks.length+' slides. Use Next to move through the deck. Canvas will receive the final score when you finish.</span></div><button class="btn primary" onclick="startDeck()">Start Deck</button></div>';
+  screen.innerHTML='<div class="head"><span class="badge">SCORM Deck</span><span>'+DATA.blocks.length+' slides</span></div><div class="body"><div><h1>'+DATA.title+'</h1><p class="summary">'+(DATA.course||"Interactive SCORM activity")+'</p></div><div class="callout"><b>Ready to begin</b><span>This activity contains '+DATA.blocks.length+' slides. Use Next to move through the deck. Canvas will receive the final score when you finish.</span></div><button class="btn primary" data-action="start">Start Deck</button></div>';
   return;
  }
  const block=DATA.blocks[index];
@@ -961,8 +961,11 @@ function render(){
  scorePill.textContent="Score "+score()+"%";
  const next=reachable(index+1,1);
  const primary=feedback?(next==null?"Finish":"Continue"):(isInteractive(block)?"Submit":"Next");
- screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' onclick="move(-1)">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" onclick="submit(DATA.blocks[index])">'+primary+'</button></div></section></div>';
+ screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' data-action="back">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" data-action="primary">'+primary+'</button></div></section></div>';
 }
+screen.addEventListener("click",function(event){const button=event.target.closest("button");if(!button)return;if(button.dataset.go!==undefined){go(Number(button.dataset.go));return}if(button.dataset.choice){selected=button.dataset.choice;render();return}if(button.dataset.action==="start"){startDeck();return}if(button.dataset.action==="review"){go(0);return}if(button.dataset.action==="retry"){retry();return}if(button.dataset.action==="back"){move(-1);return}if(button.dataset.action==="primary"){submit(DATA.blocks[index]);return}});
+screen.addEventListener("input",function(event){const target=event.target;if(target.dataset&&target.dataset.reflection){responses[target.dataset.reflection]=target.value;}});
+screen.addEventListener("change",function(event){const target=event.target;if(target.dataset&&target.dataset.block&&target.dataset.item){const blockId=target.dataset.block;responses[blockId]=responses[blockId]||{};responses[blockId][target.dataset.item]=target.value;render();}});
 render();
 window.addEventListener("beforeunload",()=>{if(API&&initialized){API.LMSFinish("");}});
 </script>
