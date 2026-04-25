@@ -899,6 +899,7 @@ let responses = {};
 let completed = {};
 let correct = {};
 let initialized = false;
+let started = false;
 
 function findAPI(win){let tries=0;while(win&&tries<8){if(win.API)return win.API;tries++;win=win.parent}return null}
 const API = findAPI(window) || (window.opener ? findAPI(window.opener) : null);
@@ -915,8 +916,9 @@ function label(type){return ({ "multiple-choice":"Multiple Choice","true-false":
 function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPreviousIncorrect)return false;const previous=DATA.blocks[i-1];return Boolean(previous&&correct[previous.id])}
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
 function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
-function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" onclick="go(0)">Review slides</button> <button class="btn primary" onclick="retry()">Retry</button></div></section></div>'}
-function retry(){index=0;feedback="";selected="";responses={};completed={};correct={};render()}
+function startDeck(){started=true;index=0;feedback="";selected="";render()}
+function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" onclick="go(0)">Review slides</button> <button class="btn primary" onclick="retry()">Retry</button></div></section></div>'}
+function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};render()}
 function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
 function mark(block,isCorrect){completed[block.id]=true;if(isCorrect)correct[block.id]=true}
@@ -943,6 +945,13 @@ function renderActivity(block){
 function renderNav(){return '<nav class="nav" aria-label="Slides">'+DATA.blocks.map((block,i)=>'<button class="'+(i===index?'active':'')+'" onclick="go('+i+')">'+(i+1)+'. '+label(block.type)+'</button>').join('')+'</nav>'}
 function render(){
  scormInit();
+ if(!started){
+  appTitle.textContent=DATA.title||"MasteryPath SCORM";
+  appCourse.textContent=DATA.course||"SCORM package";
+  scorePill.textContent=DATA.blocks.length+" slides";
+  screen.innerHTML='<div class="head"><span class="badge">SCORM Deck</span><span>'+DATA.blocks.length+' slides</span></div><div class="body"><div><h1>'+DATA.title+'</h1><p class="summary">'+(DATA.course||"Interactive SCORM activity")+'</p></div><div class="callout"><b>Ready to begin</b><span>This activity contains '+DATA.blocks.length+' slides. Use Next to move through the deck. Canvas will receive the final score when you finish.</span></div><button class="btn primary" onclick="startDeck()">Start Deck</button></div>';
+  return;
+ }
  const block=DATA.blocks[index];
  scormSet("cmi.core.lesson_location",String(index+1));
  scormSet("cmi.suspend_data",JSON.stringify({index,completed,correct}));
