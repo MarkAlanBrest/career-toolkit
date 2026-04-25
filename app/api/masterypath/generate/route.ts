@@ -16,6 +16,7 @@ type GenerateRequestBody = {
   desiredBlockCount?: number;
   activityCounts?: Record<string, number>;
   slideCounts?: Record<string, number>;
+  seedBlocks?: unknown[];
   deckStyle?: "trade" | "clinical" | "bold" | "minimal";
   includeContentSlides?: boolean;
   includeMissedExplanationSlides?: boolean;
@@ -32,6 +33,26 @@ function buildPrompt(body: GenerateRequestBody) {
     .filter(([, count]) => Number(count) > 0)
     .map(([type, count]) => `${type}: ${count}`)
     .join(", ");
+  const seedBlocks = Array.isArray(body.seedBlocks)
+    ? JSON.stringify(
+        body.seedBlocks.map((block: any, index) => ({
+          position: index + 1,
+          id: block?.id,
+          type: block?.type,
+          title: block?.title,
+          body: block?.body,
+          imageUrl: block?.imageUrl,
+          videoUrl: block?.videoUrl,
+          caption: block?.caption,
+          choices: block?.choices,
+          activityItems: block?.activityItems,
+          activityTargets: block?.activityTargets,
+          showWhenPreviousIncorrect: block?.showWhenPreviousIncorrect,
+        })),
+        null,
+        2
+      )
+    : "";
 
   return `
 You are helping a teacher build possible student interactions from uploaded content.
@@ -114,6 +135,7 @@ Requirements:
 - Do not create or rewrite the teacher's objective.
 - Use the teacher's assignment title as the objective label.
 - Build the output like a polished slide deck, not a worksheet.
+- If seed blocks are provided, preserve their order, type, and teacher-entered settings such as media URLs, choices, targets, and conditional display flags.
 - Use concise slide titles, strong summaries, useful callouts, stats, bullets, and visual/media slides where the source supports them.
 - Deck visual style: ${body.deckStyle || "trade"}.
 - Match these requested content slide counts when provided: ${requestedSlides || "use your best mix"}.
@@ -143,6 +165,9 @@ difficulty: ${body.difficulty || "Intermediate"}
 layout: ${body.layout || "Mixed media path"}
 sourceContent:
 ${body.content || ""}
+
+seedBlocks:
+${seedBlocks || "[]"}
 `.trim();
 }
 

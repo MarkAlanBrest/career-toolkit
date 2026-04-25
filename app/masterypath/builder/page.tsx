@@ -112,6 +112,16 @@ const deckStyles: Array<{
   { id: "minimal", title: "Minimal", description: "Simple slides with less decoration and tighter reading flow." },
 ];
 
+const tileTypes: Array<{
+  type: ObjectiveBlock["type"];
+  title: string;
+  description: string;
+}> = [
+  ...contentSlideTypes,
+  { type: "video-slide", title: "Video", description: "Embed a video with a link and caption." },
+  ...interactionTypes,
+];
+
 function contentTopics(content: string, title: string) {
   const sentences = content
     .split(/[.!?]/)
@@ -138,6 +148,130 @@ function defaultSlideCounts(): SlideCounts {
 
 function imageUrlsFromContent(content: string) {
   return content.match(/https?:\/\/[^\s)"']+\.(?:png|jpe?g|webp|gif)/gi) || [];
+}
+
+function createTileBlock(type: ObjectiveBlock["type"], index: number, content: string, title: string): ObjectiveBlock {
+  const topic = contentTopics(content, title)[0] || title || "the source content";
+  const topicLabel = shortTopic(topic);
+  const base = {
+    id: `${type}-${Date.now()}-${index}`,
+    type,
+    title: `${tileTypes.find((tile) => tile.type === type)?.title || "Slide"} ${index}`,
+    summary: "",
+    body: topic,
+    theme: "ocean" as const,
+    layoutStyle: "spotlight" as const,
+  };
+
+  if (type === "content-slide") {
+    return {
+      ...base,
+      title: `Learn: ${topicLabel}`,
+      summary: "Introduce the key idea.",
+      callout: { label: "Key idea", text: "Add the rule, safety note, or takeaway here." },
+      layoutStyle: "split",
+    };
+  }
+
+  if (type === "bullet-slide") {
+    return {
+      ...base,
+      title: `Key Points: ${topicLabel}`,
+      summary: "Review the important details.",
+      bullets: ["First key point", "Second key point", "Third key point"],
+      layoutStyle: "bullet-focus",
+    };
+  }
+
+  if (type === "review") {
+    return {
+      ...base,
+      title: `Review: ${topicLabel}`,
+      summary: "Reinforce the takeaway.",
+      bullets: ["Review the source content.", "Apply it to the next activity."],
+      layoutStyle: "callout",
+    };
+  }
+
+  if (type === "image-slide") {
+    return {
+      ...base,
+      title: "Visual Slide",
+      summary: "Use an image to support the concept.",
+      imageUrl: imageUrlsFromContent(content)[0] || "",
+      caption: "",
+      layoutStyle: "media-left",
+    };
+  }
+
+  if (type === "video-slide") {
+    return {
+      ...base,
+      title: "Video Slide",
+      summary: "Use a video to support the concept.",
+      videoUrl: "",
+      caption: "",
+      layoutStyle: "media-left",
+    };
+  }
+
+  if (type === "multiple-choice" || type === "true-false" || type === "checkpoint" || type === "scenario") {
+    return {
+      ...base,
+      title: type === "true-false" ? "True / False Check" : "Question Slide",
+      summary: "Students select the best answer.",
+      body: type === "true-false" ? `True or false: ${topicLabel}` : `Which answer best matches this content: ${topicLabel}`,
+      choices:
+        type === "true-false"
+          ? [
+              { id: "true", text: "True", isCorrect: true, feedback: "Correct." },
+              { id: "false", text: "False", feedback: "Review the content and try again." },
+            ]
+          : [
+              { id: "correct", text: "Correct answer", isCorrect: true, feedback: "Correct." },
+              { id: "review", text: "Plausible distractor", feedback: "Review the content and try again." },
+              { id: "not-yet", text: "Another distractor", feedback: "Review the content and try again." },
+            ],
+    };
+  }
+
+  if (type === "drag-drop" || type === "matching" || type === "sorting") {
+    return {
+      ...base,
+      title: type === "matching" ? "Matching Activity" : type === "sorting" ? "Sorting Activity" : "Drag and Drop Activity",
+      summary: "Students place each item in the correct target.",
+      activityItems: [
+        { id: "item-1", text: "Item one", targetId: "target-1" },
+        { id: "item-2", text: "Item two", targetId: "target-2" },
+      ],
+      activityTargets: [
+        { id: "target-1", label: "Target one", accepts: ["item-1"] },
+        { id: "target-2", label: "Target two", accepts: ["item-2"] },
+      ],
+    };
+  }
+
+  if (type === "sequencing") {
+    return {
+      ...base,
+      title: "Sequencing Activity",
+      summary: "Students put steps in the correct order.",
+      activityItems: [
+        { id: "step-1", text: "First step", order: 1 },
+        { id: "step-2", text: "Second step", order: 2 },
+        { id: "step-3", text: "Third step", order: 3 },
+      ],
+    };
+  }
+
+  return {
+    ...base,
+    title: "Reflection Prompt",
+    summary: "Students explain the concept in their own words.",
+    body: `Explain this idea in your own words: ${topicLabel}`,
+    placeholder: "Type your response here...",
+    layoutStyle: "split",
+  };
 }
 
 function buildContentBlocks({
@@ -434,15 +568,30 @@ function defaultActivityCounts(): ActivityCounts {
 
 function countGradableInteractions(blocks: ObjectiveBlock[]) {
   return blocks.filter((block) =>
-    block.type === "multiple-choice" ||
-    block.type === "true-false" ||
-    block.type === "checkpoint" ||
-    block.type === "drag-drop" ||
-    block.type === "matching" ||
-    block.type === "sequencing" ||
-    block.type === "sorting" ||
-    block.type === "scenario"
+    isInteractiveBlockType(block.type) && block.type !== "reflection"
   ).length;
+}
+
+function isInteractiveBlockType(type: ObjectiveBlock["type"]) {
+  return (
+    type === "multiple-choice" ||
+    type === "true-false" ||
+    type === "checkpoint" ||
+    type === "drag-drop" ||
+    type === "matching" ||
+    type === "sequencing" ||
+    type === "sorting" ||
+    type === "scenario" ||
+    type === "reflection"
+  );
+}
+
+function hasChoices(block: ObjectiveBlock) {
+  return Boolean(block.choices?.length);
+}
+
+function hasActivityItems(block: ObjectiveBlock) {
+  return Boolean(block.activityItems?.length);
 }
 
 function isAllowedBlockType(type: unknown): type is ObjectiveBlock["type"] {
@@ -780,6 +929,7 @@ function renderActivity(block){
  if(hasItems(block)){const targets=block.activityTargets||[];const values=responses[block.id]||{};return '<div class="stack">'+block.activityItems.map(item=>'<div class="select-row"><div>'+item.text+'</div><select onchange="responses[\\''+block.id+'\\']={...(responses[\\''+block.id+'\\']||{}),[\\''+item.id+'\\']:this.value};render()"><option value="">Select...</option>'+(block.type==="sequencing"?block.activityItems.map((_,i)=>'<option '+(values[item.id]===String(i+1)?'selected':'')+' value="'+(i+1)+'">'+(i+1)+'</option>').join(''):targets.map(t=>'<option '+(values[item.id]===t.id?'selected':'')+' value="'+t.id+'">'+t.label+'</option>').join(''))+'</select></div>').join('')+'</div>'}
  let html='';
  if(block.imageUrl){html+='<div class="media"><img src="'+block.imageUrl+'" alt="'+(block.imageAlt||block.title)+'"><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
+ if(block.videoUrl){html+='<div class="media"><iframe src="'+block.videoUrl+'" title="'+block.title+'" style="width:100%;min-height:260px;border:0;border-radius:8px" allowfullscreen></iframe><div>'+(block.caption?'<p class="caption">'+block.caption+'</p>':'')+'</div></div>'}
  if(Array.isArray(block.bullets)&&block.bullets.length){html+='<ul>'+block.bullets.map(b=>'<li>'+b+'</li>').join('')+'</ul>'}
  if(block.callout&&block.callout.text){html+='<div class="callout"><b>'+block.callout.label+'</b><span>'+block.callout.text+'</span></div>'}
  if(Array.isArray(block.stats)&&block.stats.length){html+='<div class="stats">'+block.stats.map(s=>'<div class="stat"><strong>'+s.value+'</strong><span>'+s.label+'</span></div>').join('')+'</div>'}
@@ -808,58 +958,65 @@ export default function MasteryPathBuilderPage() {
   const [title, setTitle] = useState("");
   const [course, setCourse] = useState("");
   const [content, setContent] = useState("");
-  const [slideCounts, setSlideCounts] = useState<SlideCounts>(() => defaultSlideCounts());
-  const [activityCounts, setActivityCounts] = useState<ActivityCounts>(() => defaultActivityCounts());
-  const [includeContentSlides, setIncludeContentSlides] = useState(false);
-  const [includeMissedExplanationSlides, setIncludeMissedExplanationSlides] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<SlideTheme>("ocean");
   const [deckStyle, setDeckStyle] = useState<DeckStyle>("trade");
   const [exporting, setExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState("");
   const [exportError, setExportError] = useState("");
-  const [aiBlocks, setAiBlocks] = useState<ObjectiveBlock[]>([]);
+  const [deckBlocks, setDeckBlocks] = useState<ObjectiveBlock[]>(() => [
+    createTileBlock("content-slide", 1, "", ""),
+    createTileBlock("multiple-choice", 2, "", ""),
+  ]);
+  const [draggedTileId, setDraggedTileId] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
-  const interactionBlocks = useMemo(
-    () =>
-      buildInteractionBlocks({
-        title,
-        content,
-        activityCounts,
-        includeContentSlides,
-        includeMissedExplanationSlides,
-      }),
-    [activityCounts, content, includeContentSlides, includeMissedExplanationSlides, title]
-  );
-  const contentBlocks = useMemo(
-    () => buildContentBlocks({ title, content, slideCounts }),
-    [content, slideCounts, title]
-  );
   const finalBlocks = useMemo(
     () =>
-      (aiBlocks.length ? aiBlocks : [...contentBlocks, ...interactionBlocks]).map((block) => ({
+      deckBlocks.map((block) => ({
         ...block,
         theme: selectedTheme,
       })),
-    [aiBlocks, contentBlocks, interactionBlocks, selectedTheme]
+    [deckBlocks, selectedTheme]
   );
   const requiredCorrectInteractions = Math.max(1, countGradableInteractions(finalBlocks));
 
-  function setActivityCount(type: InteractionType, count: number) {
-    setAiBlocks([]);
-    setActivityCounts((previous) => ({
+  function addTile(type: ObjectiveBlock["type"]) {
+    setDeckBlocks((previous) => [
       ...previous,
-      [type]: Math.max(0, Math.min(12, count)),
-    }));
+      createTileBlock(type, previous.length + 1, content, title),
+    ]);
   }
 
-  function setSlideCount(type: ObjectiveBlock["type"], count: number) {
-    setAiBlocks([]);
-    setSlideCounts((previous) => ({
+  function updateTile(id: string, patch: Partial<ObjectiveBlock>) {
+    setDeckBlocks((previous) =>
+      previous.map((block) => (block.id === id ? { ...block, ...patch } : block))
+    );
+  }
+
+  function deleteTile(id: string) {
+    setDeckBlocks((previous) => previous.filter((block) => block.id !== id));
+  }
+
+  function duplicateTile(block: ObjectiveBlock) {
+    setDeckBlocks((previous) => [
       ...previous,
-      [type]: Math.max(0, Math.min(12, count)),
-    }));
+      { ...block, id: `${block.type}-${Date.now()}-${previous.length + 1}`, title: `${block.title} Copy` },
+    ]);
+  }
+
+  function moveTile(targetId: string) {
+    if (!draggedTileId || draggedTileId === targetId) return;
+    setDeckBlocks((previous) => {
+      const draggedIndex = previous.findIndex((block) => block.id === draggedTileId);
+      const targetIndex = previous.findIndex((block) => block.id === targetId);
+      if (draggedIndex < 0 || targetIndex < 0) return previous;
+      const next = [...previous];
+      const [dragged] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, dragged);
+      return next;
+    });
+    setDraggedTileId("");
   }
 
   async function handleFileUpload(file?: File) {
@@ -881,12 +1038,17 @@ export default function MasteryPathBuilderPage() {
           course,
           sourceMode: "paste",
           content,
-          desiredBlockCount: Object.values(activityCounts).reduce((sum, count) => sum + count, 0),
-          activityCounts,
-          slideCounts,
+          desiredBlockCount: deckBlocks.filter((block) => isInteractiveBlockType(block.type)).length,
+          activityCounts: deckBlocks.reduce((counts, block) => {
+            counts[block.type] = (counts[block.type] || 0) + 1;
+            return counts;
+          }, {} as Record<string, number>),
+          slideCounts: deckBlocks.reduce((counts, block) => {
+            if (!isInteractiveBlockType(block.type)) counts[block.type] = (counts[block.type] || 0) + 1;
+            return counts;
+          }, {} as Record<string, number>),
+          seedBlocks: deckBlocks,
           deckStyle,
-          includeContentSlides,
-          includeMissedExplanationSlides,
         }),
       });
       const payload = await response.json();
@@ -897,7 +1059,7 @@ export default function MasteryPathBuilderPage() {
 
       const nextBlocks = normalizeAiBlocks(payload.blocks);
       if (!nextBlocks.length) throw new Error("AI did not return activities.");
-      setAiBlocks(nextBlocks);
+      setDeckBlocks(nextBlocks);
     } catch (error) {
       setAiError(error instanceof Error ? error.message : "Unable to generate activities.");
     } finally {
@@ -934,6 +1096,221 @@ export default function MasteryPathBuilderPage() {
     } finally {
       setExporting(false);
     }
+  }
+
+  function updateChoiceText(block: ObjectiveBlock, value: string) {
+    updateTile(block.id, {
+      choices: value
+        .split("\n")
+        .map((line, index) => {
+          const [text = "", correct = "", feedback = ""] = line.split("|");
+          return {
+            id: `choice-${index + 1}`,
+            text: text.trim(),
+            isCorrect: correct.trim().toLowerCase() === "correct",
+            feedback: feedback.trim() || (correct.trim().toLowerCase() === "correct" ? "Correct." : "Review and try again."),
+          };
+        })
+        .filter((choice) => choice.text),
+    });
+  }
+
+  function updateItemsText(block: ObjectiveBlock, value: string) {
+    const lines = value.split("\n").map((line) => line.trim()).filter(Boolean);
+    if (block.type === "sequencing") {
+      updateTile(block.id, {
+        activityItems: lines.map((text, index) => ({
+          id: `step-${index + 1}`,
+          text,
+          order: index + 1,
+        })),
+      });
+      return;
+    }
+
+    const targets = block.activityTargets?.length
+      ? block.activityTargets
+      : [
+          { id: "target-1", label: "Target one", accepts: [] },
+          { id: "target-2", label: "Target two", accepts: [] },
+        ];
+    updateTile(block.id, {
+      activityTargets: targets,
+      activityItems: lines.map((line, index) => {
+        const [text = "", target = "target-1"] = line.split("|");
+        return {
+          id: `item-${index + 1}`,
+          text: text.trim(),
+          targetId: target.trim() || targets[0]?.id || "target-1",
+        };
+      }),
+    });
+  }
+
+  function updateTargetsText(block: ObjectiveBlock, value: string) {
+    updateTile(block.id, {
+      activityTargets: value
+        .split("\n")
+        .map((line, index) => {
+          const [id = `target-${index + 1}`, label = id] = line.split("|");
+          return {
+            id: id.trim() || `target-${index + 1}`,
+            label: label.trim() || id.trim() || `Target ${index + 1}`,
+            accepts: [],
+          };
+        })
+        .filter((target) => target.label),
+    });
+  }
+
+  function renderTileSettings(block: ObjectiveBlock) {
+    return (
+      <div className="tile-settings">
+        <div className="grid compact">
+          <div className="field">
+            <label>Title</label>
+            <input value={block.title} onChange={(event) => updateTile(block.id, { title: event.target.value })} />
+          </div>
+          <div className="field">
+            <label>Layout</label>
+            <select
+              value={block.layoutStyle || "spotlight"}
+              onChange={(event) => updateTile(block.id, { layoutStyle: event.target.value as ObjectiveBlock["layoutStyle"] })}
+            >
+              <option value="spotlight">Spotlight</option>
+              <option value="split">Split</option>
+              <option value="bullet-focus">Bullet focus</option>
+              <option value="media-left">Media left</option>
+              <option value="stat-grid">Stat grid</option>
+              <option value="callout">Callout</option>
+              <option value="process">Process</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="field">
+          <label>Summary</label>
+          <input value={block.summary} onChange={(event) => updateTile(block.id, { summary: event.target.value })} />
+        </div>
+
+        <div className="field">
+          <label>{isInteractiveBlockType(block.type) ? "Prompt" : "Body"}</label>
+          <textarea className="small-textarea" value={block.body} onChange={(event) => updateTile(block.id, { body: event.target.value })} />
+        </div>
+
+        {(block.type === "bullet-slide" || block.type === "review" || block.type === "content-slide") && (
+          <div className="field">
+            <label>Bullets, one per line</label>
+            <textarea
+              className="small-textarea"
+              value={(block.bullets || []).join("\n")}
+              onChange={(event) =>
+                updateTile(block.id, {
+                  bullets: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean),
+                })
+              }
+            />
+          </div>
+        )}
+
+        {block.type === "content-slide" && (
+          <div className="grid compact">
+            <div className="field">
+              <label>Callout label</label>
+              <input
+                value={block.callout?.label || ""}
+                onChange={(event) =>
+                  updateTile(block.id, {
+                    callout: { label: event.target.value, text: block.callout?.text || "" },
+                  })
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Callout text</label>
+              <input
+                value={block.callout?.text || ""}
+                onChange={(event) =>
+                  updateTile(block.id, {
+                    callout: { label: block.callout?.label || "Key idea", text: event.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {(block.type === "image-slide" || block.type === "video-slide") && (
+          <div className="grid compact">
+            <div className="field">
+              <label>{block.type === "video-slide" ? "Video link" : "Image link"}</label>
+              <input
+                value={block.type === "video-slide" ? block.videoUrl || "" : block.imageUrl || ""}
+                onChange={(event) =>
+                  updateTile(block.id, block.type === "video-slide" ? { videoUrl: event.target.value } : { imageUrl: event.target.value })
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Caption</label>
+              <input value={block.caption || ""} onChange={(event) => updateTile(block.id, { caption: event.target.value })} />
+            </div>
+          </div>
+        )}
+
+        {hasChoices(block) && (
+          <div className="field">
+            <label>Choices: text | correct | feedback</label>
+            <textarea
+              className="small-textarea"
+              value={(block.choices || []).map((choice) => `${choice.text}|${choice.isCorrect ? "correct" : ""}|${choice.feedback || ""}`).join("\n")}
+              onChange={(event) => updateChoiceText(block, event.target.value)}
+            />
+          </div>
+        )}
+
+        {hasActivityItems(block) && (
+          <>
+            {block.type !== "sequencing" && (
+              <div className="field">
+                <label>Targets: id | label</label>
+                <textarea
+                  className="small-textarea"
+                  value={(block.activityTargets || []).map((target) => `${target.id}|${target.label}`).join("\n")}
+                  onChange={(event) => updateTargetsText(block, event.target.value)}
+                />
+              </div>
+            )}
+            <div className="field">
+              <label>{block.type === "sequencing" ? "Steps, one per line" : "Items: text | target id"}</label>
+              <textarea
+                className="small-textarea"
+                value={(block.activityItems || [])
+                  .map((item) => (block.type === "sequencing" ? item.text : `${item.text}|${item.targetId || ""}`))
+                  .join("\n")}
+                onChange={(event) => updateItemsText(block, event.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        {block.type === "reflection" && (
+          <div className="field">
+            <label>Placeholder</label>
+            <input value={block.placeholder || ""} onChange={(event) => updateTile(block.id, { placeholder: event.target.value })} />
+          </div>
+        )}
+
+        <label className="inline-check">
+          <input
+            checked={Boolean(block.showWhenPreviousIncorrect)}
+            onChange={(event) => updateTile(block.id, { showWhenPreviousIncorrect: event.target.checked })}
+            type="checkbox"
+          />
+          Show only after previous activity is missed
+        </label>
+      </div>
+    );
   }
 
   return (
@@ -1069,7 +1446,7 @@ export default function MasteryPathBuilderPage() {
         .panel-body { padding: 18px; display: grid; gap: 16px; }
         .field { display: grid; gap: 8px; }
         .field label { color: #4D456C; font-size: 12px; font-weight: 700; }
-        input, textarea {
+        input, textarea, select {
           width: 100%;
           border: 1px solid #E2DCF0;
           border-radius: 8px;
@@ -1079,6 +1456,7 @@ export default function MasteryPathBuilderPage() {
           background: #fff;
         }
         textarea { min-height: 260px; resize: vertical; }
+        .small-textarea { min-height: 84px; }
         .theme-swatch {
           width: 32px;
           height: 6px;
@@ -1104,6 +1482,69 @@ export default function MasteryPathBuilderPage() {
           font-weight: 700;
           border: 1px solid #E2DCF0;
         }
+        .tile-palette {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .tile-palette .btn { min-height: 34px; }
+        .deck-timeline {
+          display: grid;
+          gap: 12px;
+        }
+        .deck-tile {
+          border: 1px solid #E2DCF0;
+          background: #fff;
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .deck-tile.dragging { opacity: .6; }
+        .tile-head {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+          padding: 12px 14px;
+          background: #F8F6FD;
+          border-bottom: 1px solid #E8E2F5;
+        }
+        .tile-handle {
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          border: 1px solid #E2DCF0;
+          display: grid;
+          place-items: center;
+          color: #7068A0;
+          background: #fff;
+          cursor: grab;
+        }
+        .tile-title { min-width: 0; }
+        .tile-title strong {
+          display: block;
+          color: #1A1528;
+          font-size: 14px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .tile-title span { color: #7068A0; font-size: 12px; }
+        .tile-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        .tile-settings {
+          padding: 14px;
+          display: grid;
+          gap: 12px;
+        }
+        .grid.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .inline-check {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          color: #4D456C;
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .inline-check input { width: auto; }
         .footer {
           padding: 16px 18px;
           border-top: 1px solid #E8E2F5;
@@ -1121,7 +1562,9 @@ export default function MasteryPathBuilderPage() {
         @media (max-width: 760px) {
           .topbar { align-items: flex-start; flex-direction: column; }
           .shell { padding: 12px; }
-          .steps, .grid, .toggle-row { grid-template-columns: 1fr; }
+          .steps, .grid, .grid.compact, .toggle-row { grid-template-columns: 1fr; }
+          .tile-head { grid-template-columns: auto minmax(0, 1fr); }
+          .tile-actions { grid-column: 1 / -1; justify-content: flex-start; }
         }
       `}</style>
 
@@ -1140,7 +1583,7 @@ export default function MasteryPathBuilderPage() {
           <div className="steps">
             {[
               ["1", "Content", "Title and source material"],
-              ["2", "Activities", "Set activity counts"],
+              ["2", "Deck", "Add and arrange tiles"],
               ["3", "Export", "Download SCORM ZIP"],
             ].map(([id, label, description]) => (
               <button
@@ -1161,14 +1604,14 @@ export default function MasteryPathBuilderPage() {
                 {step === 1
                   ? "Add Assignment Content"
                   : step === 2
-                    ? "Activity Counts"
+                    ? "Build Deck"
                     : "Export SCORM Package"}
               </h2>
               <p>
                 {step === 1
                   ? "The teacher writes the title and provides the material."
                   : step === 2
-                    ? "Set how many of each activity type this assignment should include."
+                    ? "Add tiles, edit their settings, and drag them into the exact slide order."
                     : "Review the activity mix, then download the SCORM ZIP for Canvas."}
               </p>
             </div>
@@ -1253,10 +1696,9 @@ export default function MasteryPathBuilderPage() {
               {step === 2 ? (
                 <>
                   <div className="card">
-                    <strong>AI activity builder</strong>
+                    <strong>AI deck builder</strong>
                     <p>
-                      Let AI build a polished slide deck with teaching slides, visual moments,
-                      checks, matching, sequencing, scenario, reflection, and review slides.
+                      Start with tiles, arrange them how you want, then let AI fill or improve the deck from the source content.
                     </p>
                     <button
                       className="btn primary"
@@ -1264,129 +1706,54 @@ export default function MasteryPathBuilderPage() {
                       onClick={generateWithAi}
                       type="button"
                     >
-                      {aiBusy ? "Building activities..." : "Build activities with AI"}
+                      {aiBusy ? "Building deck..." : "Fill Deck with AI"}
                     </button>
-                    {aiBlocks.length ? (
-                      <p>Using {aiBlocks.length} AI-built activities. Manual cards remain available as a fallback.</p>
-                    ) : null}
                     {aiError ? <div className="save-error">{aiError}</div> : null}
                   </div>
 
-                  <div className="section-label">Content slides</div>
-                  <div className="grid">
-                    {contentSlideTypes.map((slide) => (
-                      <div
-                        className={`card activity-count-card ${slideCounts[slide.type] ? "selected" : ""}`}
-                        key={slide.type}
-                      >
-                        <div>
-                          <strong>{slide.title}</strong>
-                          <p>{slide.description}</p>
-                        </div>
-                        <div className="counter" aria-label={`${slide.title} count`}>
-                          <button
-                            onClick={() => setSlideCount(slide.type, (slideCounts[slide.type] || 0) - 1)}
-                            type="button"
-                          >
-                            -
-                          </button>
-                          <input
-                            aria-label={`${slide.title} count`}
-                            min={0}
-                            max={12}
-                            onChange={(event) => setSlideCount(slide.type, Number(event.target.value) || 0)}
-                            type="number"
-                            value={slideCounts[slide.type] || 0}
-                          />
-                          <button
-                            onClick={() => setSlideCount(slide.type, (slideCounts[slide.type] || 0) + 1)}
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
+                  <div className="section-label">Add tiles</div>
+                  <div className="tile-palette">
+                    {tileTypes.map((tile) => (
+                      <button className="btn" key={tile.type} onClick={() => addTile(tile.type)} type="button">
+                        + {tile.title}
+                      </button>
                     ))}
                   </div>
 
-                  <div className="toggle-row">
-                    <button
-                      className={`card toggle-card ${includeContentSlides ? "selected" : ""}`}
-                      onClick={() => {
-                        setAiBlocks([]);
-                        setIncludeContentSlides((previous) => !previous);
-                      }}
-                      type="button"
-                    >
-                      <div>
-                        <strong>Content slide before each activity</strong>
-                        <p>Add a quick teaching slide before every generated question or activity.</p>
-                      </div>
-                      <span className="toggle-switch" aria-hidden="true"><span /></span>
-                    </button>
-                    <button
-                      className={`card toggle-card ${includeMissedExplanationSlides ? "selected" : ""}`}
-                      onClick={() => {
-                        setAiBlocks([]);
-                        setIncludeMissedExplanationSlides((previous) => !previous);
-                      }}
-                      type="button"
-                    >
-                      <div>
-                        <strong>Explanation slide after a missed activity</strong>
-                        <p>Show a short explanation only when the student misses the previous activity.</p>
-                      </div>
-                      <span className="toggle-switch" aria-hidden="true"><span /></span>
-                    </button>
-                  </div>
-
-                  <div className="section-label">Activity slides</div>
-                  <div className="grid">
-                    {interactionTypes.map((interaction) => (
-                      <div
-                        className={`card activity-count-card ${activityCounts[interaction.type] ? "selected" : ""}`}
-                        key={interaction.type}
+                  <div className="section-label">Deck timeline</div>
+                  <div className="deck-timeline">
+                    {deckBlocks.map((block, index) => (
+                      <article
+                        className={`deck-tile ${draggedTileId === block.id ? "dragging" : ""}`}
+                        draggable
+                        key={block.id}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDragStart={() => setDraggedTileId(block.id)}
+                        onDrop={() => moveTile(block.id)}
                       >
-                        <div>
-                          <strong>{interaction.title}</strong>
-                          <p>{interaction.description}</p>
+                        <div className="tile-head">
+                          <div className="tile-handle" aria-hidden="true">::</div>
+                          <div className="tile-title">
+                            <strong>{index + 1}. {block.title || "Untitled tile"}</strong>
+                            <span>{tileTypes.find((tile) => tile.type === block.type)?.title || block.type}</span>
+                          </div>
+                          <div className="tile-actions">
+                            <button className="btn" onClick={() => duplicateTile(block)} type="button">Duplicate</button>
+                            <button className="btn" disabled={deckBlocks.length <= 1} onClick={() => deleteTile(block.id)} type="button">Delete</button>
+                          </div>
                         </div>
-                        <div className="counter" aria-label={`${interaction.title} count`}>
-                          <button
-                            onClick={() => setActivityCount(interaction.type, (activityCounts[interaction.type] || 0) - 1)}
-                            type="button"
-                          >
-                            -
-                          </button>
-                          <input
-                            aria-label={`${interaction.title} count`}
-                            min={0}
-                            max={12}
-                            onChange={(event) =>
-                              setActivityCount(interaction.type, Number(event.target.value) || 0)
-                            }
-                            type="number"
-                            value={activityCounts[interaction.type] || 0}
-                          />
-                          <button
-                            onClick={() => setActivityCount(interaction.type, (activityCounts[interaction.type] || 0) + 1)}
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
+                        {renderTileSettings(block)}
+                      </article>
                     ))}
                   </div>
 
                   <div className="card">
-                    <strong>Generated activity preview</strong>
+                    <strong>Deck preview</strong>
                     <p>
-                      {finalBlocks.length} student-facing blocks will be created from{" "}
-                      {contentTopics(content, title).length} content topics.
+                      {finalBlocks.length} tiles will export in this exact order.
                     </p>
                     <div className="chips">
-                      {finalBlocks.slice(0, 16).map((block) => (
+                      {finalBlocks.map((block) => (
                         <span className="chip" key={block.id}>{block.type}</span>
                       ))}
                     </div>
@@ -1403,20 +1770,11 @@ export default function MasteryPathBuilderPage() {
                       student-facing slides, the {selectedTheme} theme, the {deckStyle} style, and {requiredCorrectInteractions} scored interactions.
                     </p>
                     <div className="chips">
-                      {contentSlideTypes
-                        .filter((slide) => slideCounts[slide.type] > 0)
-                        .map((slide) => (
-                          <span className="chip" key={slide.type}>
-                            {slideCounts[slide.type]} {slide.title}
-                          </span>
-                        ))}
-                      {interactionTypes
-                        .filter((interaction) => activityCounts[interaction.type] > 0)
-                        .map((interaction) => (
-                          <span className="chip" key={interaction.type}>
-                            {activityCounts[interaction.type]} {interaction.title}
-                          </span>
-                        ))}
+                      {finalBlocks.map((block, index) => (
+                        <span className="chip" key={block.id}>
+                          {index + 1}. {tileTypes.find((tile) => tile.type === block.type)?.title || block.type}
+                        </span>
+                      ))}
                     </div>
                   </div>
 
