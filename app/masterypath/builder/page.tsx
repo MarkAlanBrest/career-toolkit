@@ -902,6 +902,7 @@ let selected = "";
 let responses = {};
 let completed = {};
 let correct = {};
+let graded = {};
 let initialized = false;
 let started = false;
 
@@ -919,13 +920,14 @@ function hasItems(block){return Array.isArray(block.activityItems)&&block.activi
 function label(type){return ({ "multiple-choice":"Multiple Choice","true-false":"True / False","checkpoint":"Checkpoint","drag-drop":"Drag / Drop","matching":"Matching","sequencing":"Sequencing","sorting":"Sorting","scenario":"Scenario","review":"Review","reflection":"Reflection","content-slide":"Content","bullet-slide":"Key Points" }[type]||"Activity")}
 function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPreviousIncorrect)return false;const previous=DATA.blocks[i-1];return Boolean(previous&&correct[previous.id])}
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
-function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
+function isGraded(block){return isInteractive(block)&&block.type!=="reflection"}
+function score(){const total=DATA.blocks.filter(isGraded).length;const got=DATA.blocks.filter(block=>isGraded(block)&&correct[block.id]).length;return total?Math.min(100,Math.max(0,Math.round((got/total)*100))):100}
 function startDeck(){started=true;index=0;feedback="";selected="";render()}
 function finish(){const s=score();scormFinish(s);screenEl.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" data-action="review">Review slides</button> <button class="btn primary" data-action="retry">Retry</button></div></section></div>'}
-function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};render()}
+function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};graded={};render()}
 function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
-function mark(block,isCorrect){completed[block.id]=true;if(isCorrect)correct[block.id]=true}
+function mark(block,isCorrect){completed[block.id]=true;if(isGraded(block)){graded[block.id]=true;correct[block.id]=Boolean(isCorrect)}else if(isCorrect){correct[block.id]=true}}
 function submit(block){
  if(feedback){move(1);return}
  if(hasChoices(block)){const choice=(block.choices||[]).find(c=>c.id===selected);if(!choice){feedback="Choose an answer before continuing.";render();return}const ok=Boolean(choice.isCorrect);mark(block,ok);feedback=ok?(choice.feedback||"Correct. Keep going."):"Not quite. Review and continue.";render();return}
@@ -958,7 +960,7 @@ function render(){
  }
  const block=DATA.blocks[index];
  scormSet("cmi.core.lesson_location",String(index+1));
- scormSet("cmi.suspend_data",JSON.stringify({index,completed,correct}));
+ scormSet("cmi.suspend_data",JSON.stringify({index,completed,correct,graded}));
  scormCommit();
  appTitleEl.textContent=DATA.title||"MasteryPath SCORM";
  appCourseEl.textContent=DATA.course||"SCORM package";
