@@ -1024,44 +1024,47 @@ export default function MasteryPathBuilderPage() {
     setContent(await file.text());
   }
 
-  async function generateWithAi() {
+  async function generateWithAi(mode: "starter" | "improve") {
     setAiBusy(true);
     setAiError("");
 
     try {
+      const activityCounts = deckBlocks.reduce((counts, block) => {
+        if (isInteractiveBlockType(block.type)) counts[block.type] = (counts[block.type] || 0) + 1;
+        return counts;
+      }, {} as Record<string, number>);
+      const slideCounts = deckBlocks.reduce((counts, block) => {
+        if (!isInteractiveBlockType(block.type)) counts[block.type] = (counts[block.type] || 0) + 1;
+        return counts;
+      }, {} as Record<string, number>);
       const response = await fetch("/api/masterypath/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stage: "blocks",
+          mode,
           title,
           course,
           sourceMode: "paste",
           content,
-          desiredBlockCount: deckBlocks.filter((block) => isInteractiveBlockType(block.type)).length,
-          activityCounts: deckBlocks.reduce((counts, block) => {
-            counts[block.type] = (counts[block.type] || 0) + 1;
-            return counts;
-          }, {} as Record<string, number>),
-          slideCounts: deckBlocks.reduce((counts, block) => {
-            if (!isInteractiveBlockType(block.type)) counts[block.type] = (counts[block.type] || 0) + 1;
-            return counts;
-          }, {} as Record<string, number>),
-          seedBlocks: deckBlocks,
+          desiredBlockCount: mode === "starter" ? 10 : deckBlocks.length,
+          activityCounts: mode === "starter" ? undefined : activityCounts,
+          slideCounts: mode === "starter" ? undefined : slideCounts,
+          seedBlocks: mode === "starter" ? undefined : deckBlocks,
           deckStyle,
         }),
       });
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.error || "Unable to generate activities.");
+        throw new Error(payload.error || "Unable to generate deck.");
       }
 
       const nextBlocks = normalizeAiBlocks(payload.blocks);
-      if (!nextBlocks.length) throw new Error("AI did not return activities.");
+      if (!nextBlocks.length) throw new Error("AI did not return deck tiles.");
       setDeckBlocks(nextBlocks);
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "Unable to generate activities.");
+      setAiError(error instanceof Error ? error.message : "Unable to generate deck.");
     } finally {
       setAiBusy(false);
     }
@@ -1698,16 +1701,26 @@ export default function MasteryPathBuilderPage() {
                   <div className="card">
                     <strong>AI deck builder</strong>
                     <p>
-                      Start with tiles, arrange them how you want, then let AI fill or improve the deck from the source content.
+                      Get a full suggested starting deck, or improve the tiles you already arranged.
                     </p>
-                    <button
-                      className="btn primary"
-                      disabled={aiBusy || !title.trim() || !content.trim()}
-                      onClick={generateWithAi}
-                      type="button"
-                    >
-                      {aiBusy ? "Building deck..." : "Fill Deck with AI"}
-                    </button>
+                    <div className="toolbar">
+                      <button
+                        className="btn primary"
+                        disabled={aiBusy || !title.trim() || !content.trim()}
+                        onClick={() => generateWithAi("starter")}
+                        type="button"
+                      >
+                        {aiBusy ? "Building deck..." : "Recommend Starter Deck"}
+                      </button>
+                      <button
+                        className="btn"
+                        disabled={aiBusy || !title.trim() || !content.trim() || !deckBlocks.length}
+                        onClick={() => generateWithAi("improve")}
+                        type="button"
+                      >
+                        Improve Current Deck
+                      </button>
+                    </div>
                     {aiError ? <div className="save-error">{aiError}</div> : null}
                   </div>
 

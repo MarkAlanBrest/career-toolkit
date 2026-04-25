@@ -4,6 +4,7 @@ type GenerateStage = "blocks";
 
 type GenerateRequestBody = {
   stage?: GenerateStage;
+  mode?: "starter" | "improve";
   title?: string;
   course?: string;
   sourceMode?: "upload" | "url" | "paste";
@@ -25,6 +26,7 @@ type GenerateRequestBody = {
 const MODEL = "claude-sonnet-4-20250514";
 
 function buildPrompt(body: GenerateRequestBody) {
+  const mode = body.mode === "starter" ? "starter" : "improve";
   const requestedCounts = Object.entries(body.activityCounts || {})
     .filter(([, count]) => Number(count) > 0)
     .map(([type, count]) => `${type}: ${count}`)
@@ -135,7 +137,9 @@ Requirements:
 - Do not create or rewrite the teacher's objective.
 - Use the teacher's assignment title as the objective label.
 - Build the output like a polished slide deck, not a worksheet.
-- If seed blocks are provided, preserve their order, type, and teacher-entered settings such as media URLs, choices, targets, and conditional display flags.
+- Generation mode: ${mode}.
+- In starter mode, recommend a complete starter deck sequence from the source content with a sensible mix of teaching slides, visual/review slides, and scored activity slides.
+- In improve mode, preserve the seed block order, type, and teacher-entered settings such as media URLs, choices, targets, and conditional display flags.
 - Use concise slide titles, strong summaries, useful callouts, stats, bullets, and visual/media slides where the source supports them.
 - Deck visual style: ${body.deckStyle || "trade"}.
 - Match these requested content slide counts when provided: ${requestedSlides || "use your best mix"}.
@@ -154,7 +158,7 @@ Requirements:
 - Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.
-- Generate about ${body.desiredBlockCount || 14} activity blocks when stage is "blocks", plus requested content and missed-explanation slides.
+- Generate about ${body.desiredBlockCount || (mode === "starter" ? 10 : 14)} activity/content blocks when stage is "blocks", plus requested content and missed-explanation slides.
 
 Input:
 assignmentTitle: ${body.title || ""}
