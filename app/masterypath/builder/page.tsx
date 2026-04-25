@@ -9,6 +9,12 @@ type InteractionType = ObjectiveBlock["type"];
 type ActivityCounts = Partial<Record<InteractionType, number>>;
 type SlideCounts = Partial<Record<ObjectiveBlock["type"], number>>;
 type DeckStyle = "trade" | "clinical" | "bold" | "minimal";
+type TileHelp = {
+  purpose: string;
+  fields: string[];
+  scoring: string;
+  example: string;
+};
 
 const interactionTypes: Array<{
   type: InteractionType;
@@ -121,6 +127,102 @@ const tileTypes: Array<{
   { type: "video-slide", title: "Video", description: "Embed a video with a link and caption." },
   ...interactionTypes,
 ];
+
+const tileHelp: Partial<Record<ObjectiveBlock["type"], TileHelp>> = {
+  "content-slide": {
+    purpose: "Teach one concept before students practice it.",
+    fields: ["Title: the concept name", "Body: the explanation", "Callout: the key rule or takeaway", "Layout: choose how the slide is presented"],
+    scoring: "Not scored.",
+    example: "Use this for a safety rule, tool introduction, vocabulary concept, or process overview.",
+  },
+  "bullet-slide": {
+    purpose: "Summarize key points in a fast, readable slide.",
+    fields: ["Body: short setup text", "Bullets: one point per line", "Layout: bullet-focus usually works best"],
+    scoring: "Not scored.",
+    example: "Use this for tool lists, PPE reminders, steps to remember, or before/after a video.",
+  },
+  review: {
+    purpose: "Reinforce or explain a concept, often after a missed activity.",
+    fields: ["Body: the explanation", "Bullets: the reminders", "Conditional checkbox: show only when the previous activity is missed"],
+    scoring: "Not scored.",
+    example: "Use this as a correction slide after a question or as a final summary.",
+  },
+  "image-slide": {
+    purpose: "Show a visual example inside the SCORM deck.",
+    fields: ["Image link: direct image URL", "Caption: what students should notice", "Body: short context"],
+    scoring: "Not scored.",
+    example: "Use this for tool photos, diagrams, labeled examples, or job-site visuals.",
+  },
+  "video-slide": {
+    purpose: "Embed a video inside the SCORM deck.",
+    fields: ["Video link: YouTube, youtu.be, Vimeo, or embed URL", "Caption: what students should watch for", "Body: short context"],
+    scoring: "Not scored.",
+    example: "Paste a YouTube watch link. The exporter converts it to an embed link automatically.",
+  },
+  "multiple-choice": {
+    purpose: "Ask a scored question with several answer choices.",
+    fields: ["Prompt: the question", "Choices: text | correct | feedback", "Mark exactly one choice as correct"],
+    scoring: "Scored. One correct/incorrect result is counted for this slide.",
+    example: "Safety glasses|correct|Correct, eye protection is required.",
+  },
+  "true-false": {
+    purpose: "Ask a scored true/false check.",
+    fields: ["Prompt: the statement", "Choices: keep True and False, mark one as correct"],
+    scoring: "Scored. One correct/incorrect result is counted for this slide.",
+    example: "True|correct|Correct. Inspect tools before use.",
+  },
+  checkpoint: {
+    purpose: "Ask a scored mastery check near the end of a deck.",
+    fields: ["Prompt: the checkpoint question", "Choices: text | correct | feedback"],
+    scoring: "Scored. One correct/incorrect result is counted for this slide.",
+    example: "Use this for the final knowledge check before completion.",
+  },
+  scenario: {
+    purpose: "Ask students to choose the best action in a realistic situation.",
+    fields: ["Prompt: the situation", "Choices: possible actions with feedback"],
+    scoring: "Scored. One correct/incorrect result is counted for this slide.",
+    example: "A coworker skips PPE. What should you do next?",
+  },
+  matching: {
+    purpose: "Have students match items to the correct targets.",
+    fields: ["Targets: id | label", "Items: item text | target id"],
+    scoring: "Scored. All items must be matched correctly.",
+    example: "Utility knife | shingles-target",
+  },
+  "drag-drop": {
+    purpose: "Have students place items into the correct categories.",
+    fields: ["Targets: id | label", "Items: item text | target id"],
+    scoring: "Scored. All placements must be correct.",
+    example: "Safety harness | fall-protection",
+  },
+  sorting: {
+    purpose: "Have students sort examples into categories.",
+    fields: ["Targets: category id | category label", "Items: item text | category id"],
+    scoring: "Scored. All items must be sorted correctly.",
+    example: "Tin snips | cutting-tools",
+  },
+  sequencing: {
+    purpose: "Have students put steps in the correct order.",
+    fields: ["Steps: one step per line, in the correct order"],
+    scoring: "Scored. Every step must be in the correct order.",
+    example: "Inspect PPE, check tools, stage materials, begin work.",
+  },
+  reflection: {
+    purpose: "Ask students to explain an idea in their own words.",
+    fields: ["Prompt: the reflection question", "Placeholder: hint text in the response box"],
+    scoring: "Not auto-scored. It is marked complete when the student writes a response.",
+    example: "Describe how you would choose tools for this job.",
+  },
+};
+
+function getTileHelp(type: ObjectiveBlock["type"]) {
+  return tileHelp[type] || {
+    purpose: "Use this slide to support the SCORM deck.",
+    fields: ["Title", "Body", "Layout"],
+    scoring: "Scoring depends on the tile type.",
+    example: "Edit the tile fields to match your lesson.",
+  };
+}
 
 function contentTopics(content: string, title: string) {
   const sentences = content
@@ -1028,6 +1130,7 @@ export default function MasteryPathBuilderPage() {
     createTileBlock("multiple-choice", 2, "", ""),
   ]);
   const [draggedTileId, setDraggedTileId] = useState("");
+  const [helpTileType, setHelpTileType] = useState<ObjectiveBlock["type"] | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
 
@@ -1612,6 +1715,60 @@ export default function MasteryPathBuilderPage() {
           font-weight: 700;
         }
         .inline-check input { width: auto; }
+        .help-modal {
+          position: fixed;
+          inset: 0;
+          z-index: 50;
+          background: rgba(26,21,40,.38);
+          display: grid;
+          place-items: center;
+          padding: 18px;
+        }
+        .help-panel {
+          width: min(560px, 100%);
+          background: #fff;
+          border-radius: 10px;
+          border: 1px solid #E2DCF0;
+          box-shadow: 0 24px 70px rgba(26,21,40,.22);
+          overflow: hidden;
+        }
+        .help-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          align-items: center;
+          padding: 16px 18px;
+          border-bottom: 1px solid #E8E2F5;
+          background: #F8F6FD;
+        }
+        .help-head strong { color: #1A1528; }
+        .help-body {
+          padding: 18px;
+          display: grid;
+          gap: 14px;
+        }
+        .help-body h4 {
+          margin: 0 0 6px;
+          font-size: 12px;
+          color: #4D456C;
+          text-transform: uppercase;
+          letter-spacing: .04em;
+        }
+        .help-body p, .help-body li {
+          color: #5A5278;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+        .help-body ul { margin: 0; padding-left: 18px; }
+        .help-example {
+          border-radius: 8px;
+          background: #F4F1FB;
+          border: 1px solid #E2DCF0;
+          padding: 10px;
+          color: #3D29B8;
+          font-size: 12px;
+          line-height: 1.5;
+        }
         .footer {
           padding: 16px 18px;
           border-top: 1px solid #E8E2F5;
@@ -1816,6 +1973,7 @@ export default function MasteryPathBuilderPage() {
                           </div>
                           <div className="tile-actions">
                             <button className="btn" onClick={() => duplicateTile(block)} type="button">Duplicate</button>
+                            <button className="btn" onClick={() => setHelpTileType(block.type)} type="button">?</button>
                             <button className="btn" disabled={deckBlocks.length <= 1} onClick={() => deleteTile(block.id)} type="button">Delete</button>
                           </div>
                         </div>
@@ -1892,6 +2050,44 @@ export default function MasteryPathBuilderPage() {
           </section>
         </main>
       </div>
+
+      {helpTileType ? (
+        <div className="help-modal" onClick={() => setHelpTileType(null)}>
+          <div className="help-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="help-head">
+              <strong>{tileTypes.find((tile) => tile.type === helpTileType)?.title || helpTileType}</strong>
+              <button className="btn" onClick={() => setHelpTileType(null)} type="button">Close</button>
+            </div>
+            <div className="help-body">
+              {(() => {
+                const help = getTileHelp(helpTileType);
+                return (
+                  <>
+                    <section>
+                      <h4>Purpose</h4>
+                      <p>{help.purpose}</p>
+                    </section>
+                    <section>
+                      <h4>Fields</h4>
+                      <ul>
+                        {help.fields.map((field) => <li key={field}>{field}</li>)}
+                      </ul>
+                    </section>
+                    <section>
+                      <h4>Scoring</h4>
+                      <p>{help.scoring}</p>
+                    </section>
+                    <section>
+                      <h4>Example</h4>
+                      <div className="help-example">{help.example}</div>
+                    </section>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
