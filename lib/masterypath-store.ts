@@ -1,4 +1,4 @@
-import { type RowDataPacket } from "mysql2";
+import { type ResultSetHeader, type RowDataPacket } from "mysql2";
 import {
   buildInteractionSuggestions,
   sampleAssignment,
@@ -490,4 +490,17 @@ export async function updateMasteryAssignmentPublishState({
   );
 
   return nextAssignment;
+}
+
+export async function deleteMasteryAssignment({ courseId }: { courseId: string }) {
+  if (!hasDatabaseConfig()) return false;
+
+  await ensureMasteryAssignmentsTable();
+  const db = getDbPool();
+  const [result] = await db.query<ResultSetHeader>(
+    "DELETE FROM MasteryPathCoursePayloads WHERE course_id = ?",
+    [courseId]
+  );
+
+  return result.affectedRows > 0;
 }

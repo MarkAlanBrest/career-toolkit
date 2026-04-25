@@ -5,6 +5,7 @@ import {
   getMasteryAssignment,
   listMasteryAssignments,
   updateMasteryAssignmentPublishState,
+  deleteMasteryAssignment,
 } from "../../../lib/masterypath-store";
 
 export async function GET(req: Request) {
@@ -102,6 +103,36 @@ export async function PATCH(req: Request) {
       {
         error:
           error instanceof Error ? error.message : "Unable to update mastery assignment.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const courseId = searchParams.get("courseId") || "";
+
+    if (!courseId) {
+      return Response.json({ error: "Provide courseId." }, { status: 400 });
+    }
+
+    const deleted = await deleteMasteryAssignment({ courseId });
+
+    if (!deleted) {
+      return Response.json(
+        { error: "Mastery assignment not found." },
+        { status: 404 }
+      );
+    }
+
+    return Response.json({ ok: true });
+  } catch (error) {
+    return Response.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Unable to delete mastery assignment.",
       },
       { status: 500 }
     );

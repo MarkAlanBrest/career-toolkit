@@ -340,6 +340,7 @@ export default function MasteryPathBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [savedCourseId, setSavedCourseId] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [aiBlocks, setAiBlocks] = useState<ObjectiveBlock[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -376,6 +377,26 @@ export default function MasteryPathBuilderPage() {
   async function handleFileUpload(file?: File) {
     if (!file) return;
     setContent(await file.text());
+  }
+
+  function savedAssignmentUrl() {
+    if (!savedCourseId) return "";
+    const path = `/masterypath?courseId=${savedCourseId}`;
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
+  }
+
+  async function copySavedUrl() {
+    const url = savedAssignmentUrl();
+    if (!url) return;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(true);
+      window.setTimeout(() => setCopiedUrl(false), 1800);
+    } catch {
+      setSaveError("Unable to copy the URL. Open Preview and copy it from the address bar.");
+    }
   }
 
   async function generateWithAi() {
@@ -443,6 +464,7 @@ export default function MasteryPathBuilderPage() {
 
       setSaved(true);
       setSavedCourseId(payload.courseId || "");
+      setCopiedUrl(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Unable to save assignment.");
     } finally {
@@ -773,7 +795,12 @@ export default function MasteryPathBuilderPage() {
                       Saved.{" "}
                       <Link className="btn" href="/masterypath/assignments">Manage assignments</Link>{" "}
                       {savedCourseId ? (
-                        <Link className="btn" href={`/masterypath?courseId=${savedCourseId}`}>Preview</Link>
+                        <>
+                          <Link className="btn" href={`/masterypath?courseId=${savedCourseId}`}>Preview</Link>{" "}
+                          <button className="btn" onClick={copySavedUrl} type="button">
+                            {copiedUrl ? "URL copied" : "Copy URL"}
+                          </button>
+                        </>
                       ) : null}
                     </div>
                   ) : null}

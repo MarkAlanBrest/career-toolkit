@@ -39,6 +39,13 @@ export default function MasteryPathAssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [copiedId, setCopiedId] = useState("");
+
+  function assignmentUrl(courseId: string) {
+    if (typeof window === "undefined") return `/masterypath?courseId=${courseId}`;
+    return `${window.location.origin}/masterypath?courseId=${courseId}`;
+  }
 
   async function loadAssignments() {
     setLoading(true);
@@ -90,6 +97,45 @@ export default function MasteryPathAssignmentsPage() {
       setError(updateError instanceof Error ? updateError.message : "Unable to update assignment.");
     } finally {
       setUpdatingId("");
+    }
+  }
+
+  async function copyAssignmentUrl(courseId: string) {
+    setError("");
+
+    try {
+      await navigator.clipboard.writeText(assignmentUrl(courseId));
+      setCopiedId(courseId);
+      window.setTimeout(() => setCopiedId(""), 1800);
+    } catch {
+      setError("Unable to copy the URL. Open Preview and copy it from the address bar.");
+    }
+  }
+
+  async function deleteAssignment(courseId: string, title: string) {
+    const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingId(courseId);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/masterypath?courseId=${encodeURIComponent(courseId)}`, {
+        method: "DELETE",
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || "Unable to delete assignment.");
+      }
+
+      setAssignments((previous) =>
+        previous.filter((assignment) => assignment.courseId !== courseId)
+      );
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Unable to delete assignment.");
+    } finally {
+      setDeletingId("");
     }
   }
 
@@ -172,6 +218,15 @@ export default function MasteryPathAssignmentsPage() {
           color: #fff;
         }
         .ma-btn.primary:hover { background: #4A36C8; border-color: #4A36C8; }
+        .ma-btn.danger {
+          border-color: #F8A8BB;
+          color: #B01F3D;
+        }
+        .ma-btn.danger:hover {
+          background: #FEE8ED;
+          border-color: #E66080;
+          color: #8A1230;
+        }
         .ma-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .ma-shell {
@@ -400,8 +455,15 @@ export default function MasteryPathAssignmentsPage() {
                           Preview
                         </Link>
                         <button
+                          className="ma-btn"
+                          onClick={() => copyAssignmentUrl(assignment.courseId)}
+                          type="button"
+                        >
+                          {copiedId === assignment.courseId ? "Copied" : "Copy URL"}
+                        </button>
+                        <button
                           className="ma-btn primary"
-                          disabled={updatingId === assignment.courseId}
+                          disabled={updatingId === assignment.courseId || deletingId === assignment.courseId}
                           onClick={() =>
                             updatePublishState(
                               assignment.courseId,
@@ -412,6 +474,14 @@ export default function MasteryPathAssignmentsPage() {
                           type="button"
                         >
                           {assignment.publishState === "published" ? "Unpublish" : "Publish"}
+                        </button>
+                        <button
+                          className="ma-btn danger"
+                          disabled={deletingId === assignment.courseId || updatingId === assignment.courseId}
+                          onClick={() => deleteAssignment(assignment.courseId, assignment.title)}
+                          type="button"
+                        >
+                          {deletingId === assignment.courseId ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </div>
