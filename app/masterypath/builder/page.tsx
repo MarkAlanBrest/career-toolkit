@@ -1050,7 +1050,6 @@ let completed = {};
 let correct = {};
 let graded = {};
 let initialized = false;
-let started = true;
 
 function findAPI(win){let tries=0;while(win&&tries<8){if(win.API)return win.API;tries++;win=win.parent}return null}
 const API = findAPI(window) || (window.opener ? findAPI(window.opener) : null);
@@ -1069,9 +1068,8 @@ function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPrev
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
 function isGraded(block){return isInteractive(block)&&block.type!=="reflection"}
 function score(){const total=DATA.blocks.filter(isGraded).length;const got=DATA.blocks.filter(block=>isGraded(block)&&correct[block.id]).length;return total?Math.min(100,Math.max(0,Math.round((got/total)*100))):100}
-function startDeck(){started=true;index=0;feedback="";selected="";render()}
 function finish(){const s=score();scormFinish(s);screenEl.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" data-action="review">Review slides</button> <button class="btn primary" data-action="retry">Retry</button></div></section></div>'}
-function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};graded={};render()}
+function retry(){index=0;feedback="";selected="";responses={};completed={};correct={};graded={};render()}
 function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
 function mark(block,isCorrect){completed[block.id]=true;if(isGraded(block)){graded[block.id]=true;correct[block.id]=Boolean(isCorrect)}else if(isCorrect){correct[block.id]=true}}
@@ -1128,7 +1126,7 @@ function render(){
  const primary=feedback?(next==null?"Finish":"Continue"):(isInteractive(block)?"Submit":"Next");
  screenEl.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body layout-'+(block.layoutStyle||"spotlight")+'">'+renderSlideContent(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' data-action="back">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" data-action="primary">'+primary+'</button></div></section></div>';
 }
-screenEl.addEventListener("click",function(event){const button=event.target.closest("button");if(!button)return;if(button.dataset.go!==undefined){go(Number(button.dataset.go));return}if(button.dataset.choice){selected=button.dataset.choice;render();return}if(button.dataset.action==="start"){startDeck();return}if(button.dataset.action==="review"){go(0);return}if(button.dataset.action==="retry"){retry();return}if(button.dataset.action==="back"){move(-1);return}if(button.dataset.action==="primary"){submit(DATA.blocks[index]);return}});
+screenEl.addEventListener("click",function(event){const button=event.target.closest("button");if(!button)return;if(button.dataset.go!==undefined){go(Number(button.dataset.go));return}if(button.dataset.choice){selected=button.dataset.choice;render();return}if(button.dataset.action==="review"){go(0);return}if(button.dataset.action==="retry"){retry();return}if(button.dataset.action==="back"){move(-1);return}if(button.dataset.action==="primary"){submit(DATA.blocks[index]);return}});
 screenEl.addEventListener("input",function(event){const target=event.target;if(target.dataset&&target.dataset.reflection){responses[target.dataset.reflection]=target.value;}});
 screenEl.addEventListener("change",function(event){const target=event.target;if(target.dataset&&target.dataset.block&&target.dataset.item){const blockId=target.dataset.block;responses[blockId]=responses[blockId]||{};responses[blockId][target.dataset.item]=target.value;render();}});
 render();
