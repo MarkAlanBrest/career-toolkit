@@ -892,6 +892,10 @@ function buildScormHtml({
 <script>
 const DATA = ${data};
 DATA.blocks = Array.isArray(DATA.blocks) && DATA.blocks.length ? DATA.blocks : [{id:"empty",type:"content-slide",title:"No slides found",summary:"This SCORM package did not include slide data.",body:"Export the package again from the builder."}];
+const screenEl = document.getElementById("screen");
+const appTitleEl = document.getElementById("appTitle");
+const appCourseEl = document.getElementById("appCourse");
+const scorePillEl = document.getElementById("scorePill");
 let index = 0;
 let feedback = "";
 let selected = "";
@@ -917,7 +921,7 @@ function shouldSkip(i){const block=DATA.blocks[i];if(!block||!block.showWhenPrev
 function reachable(i,dir){let next=i;while(next>=0&&next<DATA.blocks.length&&shouldSkip(next)){next+=dir}return next>=0&&next<DATA.blocks.length?next:null}
 function score(){const graded=DATA.blocks.filter(b=>isInteractive(b)&&b.type!=="reflection").length;const got=Object.values(correct).filter(Boolean).length;return graded?Math.round((got/graded)*100):100}
 function startDeck(){started=true;index=0;feedback="";selected="";render()}
-function finish(){const s=score();scormFinish(s);screen.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" data-action="review">Review slides</button> <button class="btn primary" data-action="retry">Retry</button></div></section></div>'}
+function finish(){const s=score();scormFinish(s);screenEl.innerHTML='<div class="head"><span class="badge">Complete</span><span>'+DATA.blocks.length+' slides</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div class="final"><strong>Complete</strong><p>Your score has been sent to the LMS.</p></div><p>Score: '+s+'%</p><button class="btn" data-action="review">Review slides</button> <button class="btn primary" data-action="retry">Retry</button></div></section></div>'}
 function retry(){started=true;index=0;feedback="";selected="";responses={};completed={};correct={};render()}
 function go(i){index=i;feedback="";selected="";render()}
 function move(dir){const next=reachable(index+dir,dir);if(next==null){finish();return}index=next;feedback="";selected="";render()}
@@ -946,26 +950,26 @@ function renderNav(){return '<nav class="nav" aria-label="Slides">'+DATA.blocks.
 function render(){
  scormInit();
  if(!started){
-  appTitle.textContent=DATA.title||"MasteryPath SCORM";
-  appCourse.textContent=DATA.course||"SCORM package";
-  scorePill.textContent=DATA.blocks.length+" slides";
-  screen.innerHTML='<div class="head"><span class="badge">SCORM Deck</span><span>'+DATA.blocks.length+' slides</span></div><div class="body"><div><h1>'+DATA.title+'</h1><p class="summary">'+(DATA.course||"Interactive SCORM activity")+'</p></div><div class="callout"><b>Ready to begin</b><span>This activity contains '+DATA.blocks.length+' slides. Use Next to move through the deck. Canvas will receive the final score when you finish.</span></div><button class="btn primary" data-action="start">Start Deck</button></div>';
+  appTitleEl.textContent=DATA.title||"MasteryPath SCORM";
+  appCourseEl.textContent=DATA.course||"SCORM package";
+  scorePillEl.textContent=DATA.blocks.length+" slides";
+  screenEl.innerHTML='<div class="head"><span class="badge">SCORM Deck</span><span>'+DATA.blocks.length+' slides</span></div><div class="body"><div><h1>'+DATA.title+'</h1><p class="summary">'+(DATA.course||"Interactive SCORM activity")+'</p></div><div class="callout"><b>Ready to begin</b><span>This activity contains '+DATA.blocks.length+' slides. Use Next to move through the deck. Canvas will receive the final score when you finish.</span></div><button class="btn primary" data-action="start">Start Deck</button></div>';
   return;
  }
  const block=DATA.blocks[index];
  scormSet("cmi.core.lesson_location",String(index+1));
  scormSet("cmi.suspend_data",JSON.stringify({index,completed,correct}));
  scormCommit();
- appTitle.textContent=DATA.title||"MasteryPath SCORM";
- appCourse.textContent=DATA.course||"SCORM package";
- scorePill.textContent="Score "+score()+"%";
+ appTitleEl.textContent=DATA.title||"MasteryPath SCORM";
+ appCourseEl.textContent=DATA.course||"SCORM package";
+ scorePillEl.textContent="Score "+score()+"%";
  const next=reachable(index+1,1);
  const primary=feedback?(next==null?"Finish":"Continue"):(isInteractive(block)?"Submit":"Next");
- screen.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' data-action="back">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" data-action="primary">'+primary+'</button></div></section></div>';
+ screenEl.innerHTML='<div class="head"><span class="badge">'+label(block.type)+'</span><span>Slide '+(index+1)+' of '+DATA.blocks.length+'</span></div><div class="layout">'+renderNav()+'<section><div class="body"><div><h1>'+block.title+'</h1>'+(block.summary?'<p class="summary">'+block.summary+'</p>':'')+'</div>'+(block.body?'<p>'+block.body+'</p>':'')+renderActivity(block)+(feedback?'<div class="feedback">'+feedback+'</div>':'')+'</div><div class="footer"><button class="btn" '+(reachable(index-1,-1)==null?'disabled':'')+' data-action="back">Back</button><span class="muted">'+Object.keys(completed).length+' completed</span><button class="btn primary" data-action="primary">'+primary+'</button></div></section></div>';
 }
-screen.addEventListener("click",function(event){const button=event.target.closest("button");if(!button)return;if(button.dataset.go!==undefined){go(Number(button.dataset.go));return}if(button.dataset.choice){selected=button.dataset.choice;render();return}if(button.dataset.action==="start"){startDeck();return}if(button.dataset.action==="review"){go(0);return}if(button.dataset.action==="retry"){retry();return}if(button.dataset.action==="back"){move(-1);return}if(button.dataset.action==="primary"){submit(DATA.blocks[index]);return}});
-screen.addEventListener("input",function(event){const target=event.target;if(target.dataset&&target.dataset.reflection){responses[target.dataset.reflection]=target.value;}});
-screen.addEventListener("change",function(event){const target=event.target;if(target.dataset&&target.dataset.block&&target.dataset.item){const blockId=target.dataset.block;responses[blockId]=responses[blockId]||{};responses[blockId][target.dataset.item]=target.value;render();}});
+screenEl.addEventListener("click",function(event){const button=event.target.closest("button");if(!button)return;if(button.dataset.go!==undefined){go(Number(button.dataset.go));return}if(button.dataset.choice){selected=button.dataset.choice;render();return}if(button.dataset.action==="start"){startDeck();return}if(button.dataset.action==="review"){go(0);return}if(button.dataset.action==="retry"){retry();return}if(button.dataset.action==="back"){move(-1);return}if(button.dataset.action==="primary"){submit(DATA.blocks[index]);return}});
+screenEl.addEventListener("input",function(event){const target=event.target;if(target.dataset&&target.dataset.reflection){responses[target.dataset.reflection]=target.value;}});
+screenEl.addEventListener("change",function(event){const target=event.target;if(target.dataset&&target.dataset.block&&target.dataset.item){const blockId=target.dataset.block;responses[blockId]=responses[blockId]||{};responses[blockId][target.dataset.item]=target.value;render();}});
 render();
 window.addEventListener("beforeunload",()=>{if(API&&initialized){API.LMSFinish("");}});
 </script>
