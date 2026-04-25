@@ -15,6 +15,8 @@ type GenerateRequestBody = {
   layout?: "Guided path" | "Mixed media path" | "Scenario path";
   desiredBlockCount?: number;
   activityCounts?: Record<string, number>;
+  includeContentSlides?: boolean;
+  includeMissedExplanationSlides?: boolean;
 };
 
 const MODEL = "claude-sonnet-4-20250514";
@@ -62,6 +64,7 @@ Return:
       },
       "theme": "ocean",
       "layoutStyle": "split",
+      "showWhenPreviousIncorrect": false,
       "choices": [
         {
           "id": "...",
@@ -106,16 +109,20 @@ Requirements:
 - Use the teacher's assignment title as the objective label.
 - Recommend and build a varied activity set from the uploaded content.
 - Match these requested activity counts when provided: ${requestedCounts || "use your best mix"}.
+- Content slides before each activity: ${body.includeContentSlides ? "yes" : "no"}.
+- Explanation slides after missed activities: ${body.includeMissedExplanationSlides ? "yes" : "no"}.
+- If content slides are enabled, add one brief "content-slide" immediately before each activity block.
+- If missed explanation slides are enabled, add one "review" block immediately after each activity block and set "showWhenPreviousIncorrect": true on that review block.
 - Include drag-drop, matching, sequencing, sorting, scenario decisions, reflection, and quick checks where appropriate.
 - For drag-drop, matching, and sorting, provide activityItems with targetId values and activityTargets with matching ids.
 - For sequencing, provide activityItems with order values starting at 1.
-- Do not create study-tip or review-only blocks.
-- Every block should be an activity the student can interact with.
+- Do not create study-tip or review-only blocks unless missed explanation slides are enabled.
+- Every block should be an activity the student can interact with, except optional content slides and missed-explanation review slides.
 - Keep any body text brief and activity-like.
 - Include enough checks and review tips so the section can be retaken.
 - Use real media URLs only if the input already contains real URLs. Otherwise omit media.
 - Output strict JSON only with double-quoted keys and string values.
-- Generate about ${body.desiredBlockCount || 14} blocks when stage is "blocks".
+- Generate about ${body.desiredBlockCount || 14} activity blocks when stage is "blocks", plus any requested content or missed-explanation slides.
 
 Input:
 assignmentTitle: ${body.title || ""}

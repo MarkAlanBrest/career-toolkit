@@ -226,6 +226,7 @@ function normalizeBlock(block: ObjectiveBlock, index: number): ObjectiveBlock {
       : [],
     theme: block.theme || themeForIndex(index),
     layoutStyle: block.layoutStyle || layoutForIndex(index),
+    showWhenPreviousIncorrect: Boolean(block.showWhenPreviousIncorrect),
     choices: Array.isArray(block.choices)
       ? block.choices
           .filter((choice) => choice?.text)

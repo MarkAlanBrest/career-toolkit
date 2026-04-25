@@ -91,10 +91,14 @@ function buildInteractionBlocks({
   title,
   content,
   activityCounts,
+  includeContentSlides,
+  includeMissedExplanationSlides,
 }: {
   title: string;
   content: string;
   activityCounts: ActivityCounts;
+  includeContentSlides: boolean;
+  includeMissedExplanationSlides: boolean;
 }) {
   const topics = contentTopics(content, title);
   const blocks: ObjectiveBlock[] = [];
@@ -105,6 +109,23 @@ function buildInteractionBlocks({
       const topic = topics[index % topics.length] || title || "the uploaded content";
       const topicLabel = shortTopic(topic);
       const id = `${type}-${index + 1}`;
+      const activityStartIndex = blocks.length;
+
+      if (includeContentSlides) {
+        blocks.push({
+          id: `${id}-content`,
+          type: "content-slide",
+          title: `Review first: ${topicLabel}`,
+          summary: "Students review the key idea before the activity.",
+          body: topic,
+          bullets: [
+            "Read the key idea carefully.",
+            "Use it to answer the activity that follows.",
+          ],
+          theme: "ocean",
+          layoutStyle: "bullet-focus",
+        });
+      }
 
       if (type === "multiple-choice") {
         blocks.push({
@@ -230,6 +251,23 @@ function buildInteractionBlocks({
           layoutStyle: "split",
         });
       }
+
+      if (includeMissedExplanationSlides && blocks.length > activityStartIndex) {
+        blocks.push({
+          id: `${id}-explanation`,
+          type: "review",
+          title: `Explanation: ${topicLabel}`,
+          summary: "This explanation appears when the previous activity is missed.",
+          body: `Review this idea before continuing: ${topic}`,
+          bullets: [
+            "Compare your answer to the source content.",
+            "Look for the specific rule, term, or step the question was checking.",
+          ],
+          theme: "forest",
+          layoutStyle: "bullet-focus",
+          showWhenPreviousIncorrect: true,
+        });
+      }
     });
   });
 
@@ -262,16 +300,32 @@ function countGradableInteractions(blocks: ObjectiveBlock[]) {
   ).length;
 }
 
+function isAllowedBlockType(type: unknown): type is ObjectiveBlock["type"] {
+  return (
+    type === "content-slide" ||
+    type === "bullet-slide" ||
+    type === "image-slide" ||
+    type === "video-slide" ||
+    type === "multiple-choice" ||
+    type === "true-false" ||
+    type === "checkpoint" ||
+    type === "drag-drop" ||
+    type === "matching" ||
+    type === "sequencing" ||
+    type === "sorting" ||
+    type === "scenario" ||
+    type === "review" ||
+    type === "reflection"
+  );
+}
+
 function normalizeAiBlocks(blocks: unknown): ObjectiveBlock[] {
   if (!Array.isArray(blocks)) return [];
 
   return blocks
     .map((block: any, index: number) => ({
       id: typeof block?.id === "string" && block.id.trim() ? block.id.trim() : `ai-activity-${index + 1}`,
-      type:
-        interactionTypes.some((item) => item.type === block?.type) || block?.type === "review"
-          ? block.type
-          : "checkpoint",
+      type: isAllowedBlockType(block?.type) ? block.type : "checkpoint",
       title:
         typeof block?.title === "string" && block.title.trim()
           ? block.title.trim()
@@ -319,6 +373,7 @@ function normalizeAiBlocks(blocks: unknown): ObjectiveBlock[] {
             .filter((target: { label: string }) => target.label)
         : [],
       placeholder: typeof block?.placeholder === "string" ? block.placeholder.trim() : "",
+      showWhenPreviousIncorrect: Boolean(block?.showWhenPreviousIncorrect),
       theme: "ocean" as const,
       layoutStyle: "spotlight" as const,
     }))
@@ -331,6 +386,8 @@ export default function MasteryPathBuilderPage() {
   const [course, setCourse] = useState("");
   const [content, setContent] = useState("");
   const [activityCounts, setActivityCounts] = useState<ActivityCounts>(() => defaultActivityCounts());
+  const [includeContentSlides, setIncludeContentSlides] = useState(false);
+  const [includeMissedExplanationSlides, setIncludeMissedExplanationSlides] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState<SlideTheme>("ocean");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -342,8 +399,15 @@ export default function MasteryPathBuilderPage() {
   const [aiError, setAiError] = useState("");
 
   const interactionBlocks = useMemo(
-    () => buildInteractionBlocks({ title, content, activityCounts }),
-    [activityCounts, content, title]
+    () =>
+      buildInteractionBlocks({
+        title,
+        content,
+        activityCounts,
+        includeContentSlides,
+        includeMissedExplanationSlides,
+      }),
+    [activityCounts, content, includeContentSlides, includeMissedExplanationSlides, title]
   );
   const finalBlocks = useMemo(
     () =>
@@ -354,8 +418,9 @@ export default function MasteryPathBuilderPage() {
     [aiBlocks, interactionBlocks, selectedTheme]
   );
   const requiredCorrectInteractions = Math.max(1, countGradableInteractions(finalBlocks));
+  const requiredBlocksComplete = finalBlocks.filter((block) => !block.showWhenPreviousIncorrect).length;
   const completionCriteria: CompletionCriteria = {
-    minBlocksComplete: finalBlocks.length,
+    minBlocksComplete: requiredBlocksComplete,
     minCorrectInteractions: requiredCorrectInteractions,
     allowRetake: true,
     repeatLoopsRequired: 1,
@@ -411,6 +476,8 @@ export default function MasteryPathBuilderPage() {
           content,
           desiredBlockCount: Object.values(activityCounts).reduce((sum, count) => sum + count, 0),
           activityCounts,
+          includeContentSlides,
+          includeMissedExplanationSlides,
         }),
       });
       const payload = await response.json();
@@ -563,6 +630,38 @@ export default function MasteryPathBuilderPage() {
           text-align: center;
           font-weight: 700;
         }
+        .toggle-row {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .toggle-card {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          cursor: pointer;
+        }
+        .toggle-switch {
+          width: 46px;
+          height: 26px;
+          border-radius: 999px;
+          border: 1px solid #D5CDEC;
+          background: #F4F1FB;
+          padding: 3px;
+          transition: background .15s, border-color .15s;
+        }
+        .toggle-switch span {
+          display: block;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #fff;
+          box-shadow: 0 1px 4px rgba(26,21,40,.18);
+          transition: transform .15s;
+        }
+        .toggle-card.selected .toggle-switch { background: #5B45E0; border-color: #5B45E0; }
+        .toggle-card.selected .toggle-switch span { transform: translateX(20px); }
         .panel { border: 1px solid #E8E2F5; border-radius: 8px; background: #fff; overflow: hidden; }
         .panel-head { padding: 18px; border-bottom: 1px solid #E8E2F5; display: grid; gap: 8px; }
         .panel-head h2 { font-size: 22px; }
@@ -615,7 +714,7 @@ export default function MasteryPathBuilderPage() {
         @media (max-width: 760px) {
           .topbar { align-items: flex-start; flex-direction: column; }
           .shell { padding: 12px; }
-          .steps, .grid { grid-template-columns: 1fr; }
+          .steps, .grid, .toggle-row { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -751,6 +850,37 @@ export default function MasteryPathBuilderPage() {
                     {aiError ? <div className="save-error">{aiError}</div> : null}
                   </div>
 
+                  <div className="toggle-row">
+                    <button
+                      className={`card toggle-card ${includeContentSlides ? "selected" : ""}`}
+                      onClick={() => {
+                        setAiBlocks([]);
+                        setIncludeContentSlides((previous) => !previous);
+                      }}
+                      type="button"
+                    >
+                      <div>
+                        <strong>Content slide before each activity</strong>
+                        <p>Add a quick teaching slide before every generated question or activity.</p>
+                      </div>
+                      <span className="toggle-switch" aria-hidden="true"><span /></span>
+                    </button>
+                    <button
+                      className={`card toggle-card ${includeMissedExplanationSlides ? "selected" : ""}`}
+                      onClick={() => {
+                        setAiBlocks([]);
+                        setIncludeMissedExplanationSlides((previous) => !previous);
+                      }}
+                      type="button"
+                    >
+                      <div>
+                        <strong>Explanation slide after a missed activity</strong>
+                        <p>Show a short explanation only when the student misses the previous activity.</p>
+                      </div>
+                      <span className="toggle-switch" aria-hidden="true"><span /></span>
+                    </button>
+                  </div>
+
                   <div className="grid">
                     {interactionTypes.map((interaction) => (
                       <div
@@ -790,9 +920,9 @@ export default function MasteryPathBuilderPage() {
                   </div>
 
                   <div className="card">
-                    <strong>Generated interaction preview</strong>
+                    <strong>Generated activity preview</strong>
                     <p>
-                      {finalBlocks.length} interactions will be created from{" "}
+                      {finalBlocks.length} student-facing blocks will be created from{" "}
                       {contentTopics(content, title).length} content topics.
                     </p>
                     <div className="chips">

@@ -74,6 +74,7 @@ export type ObjectiveBlock = {
   stats?: SlideStat[];
   theme?: SlideTheme;
   layoutStyle?: SlideLayoutStyle;
+  showWhenPreviousIncorrect?: boolean;
   choices?: BlockChoice[];
   activityItems?: ActivityItem[];
   activityTargets?: ActivityTarget[];

@@ -405,8 +405,24 @@ export default function MasteryPathStudentClient({
     }));
   }
 
+  function shouldSkipBlock(index: number) {
+    const block = blocks[index];
+    if (!block?.showWhenPreviousIncorrect) return false;
+    const previousBlock = blocks[index - 1];
+    return Boolean(previousBlock && correctInteractions[previousBlock.id]);
+  }
+
+  function reachableIndex(nextIndex: number, direction: 1 | -1) {
+    let candidate = Math.max(0, Math.min(blocks.length - 1, nextIndex));
+    while (candidate >= 0 && candidate < blocks.length && shouldSkipBlock(candidate)) {
+      candidate += direction;
+    }
+    return Math.max(0, Math.min(blocks.length - 1, candidate));
+  }
+
   function moveToIndex(nextIndex: number) {
-    setCurrentIndex(Math.max(0, Math.min(blocks.length - 1, nextIndex)));
+    const direction = nextIndex >= currentIndex ? 1 : -1;
+    setCurrentIndex(reachableIndex(nextIndex, direction));
     setSelectedChoiceId("");
     setFeedback("");
     setDraggedItemId("");
