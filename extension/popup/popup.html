@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Canvas Enhancer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 300px;
+      font-family: Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      color: #2d3b45;
+      background: #fff;
+    }
+
+    .header {
+      background: #2d3b45;
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-icon {
+      font-size: 22px;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: #a8bac4;
+      margin-top: 1px;
+    }
+
+    .body {
+      padding: 14px 16px;
+    }
+
+    .status-box {
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+      border: 1px solid;
+    }
+
+    .status-box.trial {
+      background: #e8f4fb;
+      border-color: #b3d5ea;
+    }
+
+    .status-box.expired {
+      background: #fff5f5;
+      border-color: #fca5a5;
+    }
+
+    .status-box.active {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+
+    .status-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .status-label.trial { color: #0770a3; }
+    .status-label.expired { color: #dc2626; }
+    .status-label.active { color: #16a34a; }
+
+    .status-desc {
+      font-size: 13px;
+      color: #444;
+      line-height: 1.4;
+    }
+
+    .progress-bar-wrap {
+      background: #c7d8e8;
+      border-radius: 4px;
+      height: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: #0770a3;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 12px 0;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #2d3b45;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #c7cdd1;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #2d3b45;
+      background: #fff;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: #0770a3;
+      box-shadow: 0 0 0 2px rgba(7,112,163,0.15);
+    }
+
+    .btn-activate {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px 0;
+      background: #0770a3;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .btn-activate:hover { background: #055d87; }
+    .btn-activate:disabled { background: #a8bac4; cursor: default; }
+
+    .feedback {
+      margin-top: 7px;
+      font-size: 12px;
+      min-height: 16px;
+      color: #6b7780;
+    }
+
+    .feedback.error { color: #dc2626; }
+    .feedback.success { color: #16a34a; }
+
+    .upgrade-link {
+      display: block;
+      width: 100%;
+      padding: 9px 0;
+      background: #0770a3;
+      color: #fff;
+      text-align: center;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 4px;
+      transition: background 0.1s;
+    }
+
+    .upgrade-link:hover { background: #055d87; }
+
+    .footer {
+      padding: 8px 16px 12px;
+      text-align: center;
+      font-size: 11px;
+      color: #9da7ae;
+    }
+
+    .footer a { color: #0770a3; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="header-icon">✏️</span>
+    <div>
+      <div class="header-title">Canvas Enhancer</div>
+      <div class="header-sub">Professional Canvas components</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div id="status-box" class="status-box trial">
+      <div id="status-label" class="status-label trial">Free Trial</div>
+      <div id="status-desc" class="status-desc">Loading…</div>
+      <div id="progress-wrap" class="progress-bar-wrap" style="display:none;">
+        <div id="progress-fill" class="progress-bar-fill" style="width:100%;"></div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div id="license-section">
+      <label for="key-input">License Key</label>
+      <input type="text" id="key-input" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" />
+      <button class="btn-activate" id="activate-btn">Activate License</button>
+      <div class="feedback" id="feedback"></div>
+    </div>
+
+    <div id="upgrade-section" style="display:none;">
+      <a class="upgrade-link" href="https://canvasenhancer.com/upgrade" target="_blank" rel="noopener">
+        Upgrade to Pro — $5/month
+      </a>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://canvasenhancer.com" target="_blank" rel="noopener">canvasenhancer.com</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
