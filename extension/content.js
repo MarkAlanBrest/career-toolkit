@@ -10,22 +10,22 @@
     Dividers: [
       {
         label: 'Simple line',
-        pro: false,
+        pro: true,
         html: () => `<hr style="border:none;border-top:1px solid #c7cdd1;margin:16px 0;" />`
       },
       {
         label: 'Bold line',
-        pro: false,
+        pro: true,
         html: () => `<hr style="border:none;border-top:3px solid #2d3b45;margin:16px 0;" />`
       },
       {
         label: 'Dashed line',
-        pro: false,
+        pro: true,
         html: () => `<hr style="border:none;border-top:2px dashed #c7cdd1;margin:16px 0;" />`
       },
       {
         label: 'Double line',
-        pro: false,
+        pro: true,
         html: () => `<div style="border-top:3px double #c7cdd1;margin:16px 0;"></div>`
       },
       {
@@ -42,17 +42,17 @@
     Headers: [
       {
         label: 'Section banner',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#2d3b45;color:#fff;padding:12px 18px;border-radius:4px;font-family:Lato,sans-serif;font-size:18px;font-weight:700;margin:12px 0;">Section Title</div>`
       },
       {
         label: 'Accent bar',
-        pro: false,
+        pro: true,
         html: () => `<div style="border-left:5px solid #0770a3;padding:6px 14px;font-family:Lato,sans-serif;font-size:18px;font-weight:700;color:#2d3b45;margin:12px 0;">Section Title</div>`
       },
       {
         label: 'Underline header',
-        pro: false,
+        pro: true,
         html: () => `<div style="font-family:Lato,sans-serif;font-size:20px;font-weight:700;color:#2d3b45;padding-bottom:6px;border-bottom:2px solid #0770a3;margin:12px 0;">Section Title</div>`
       },
       {
@@ -74,27 +74,27 @@
     Callouts: [
       {
         label: 'Tip',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#e8f4fb;border-left:4px solid #0770a3;border-radius:0 4px 4px 0;padding:12px 16px;margin:12px 0;font-family:Lato,sans-serif;"><strong style="color:#0770a3;">💡 Tip</strong><br/>Add your tip text here.</div>`
       },
       {
         label: 'Warning',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#fff8e1;border-left:4px solid #f59e0b;border-radius:0 4px 4px 0;padding:12px 16px;margin:12px 0;font-family:Lato,sans-serif;"><strong style="color:#b45309;">⚠ Warning</strong><br/>Add your warning text here.</div>`
       },
       {
         label: 'Important',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 4px 4px 0;padding:12px 16px;margin:12px 0;font-family:Lato,sans-serif;"><strong style="color:#dc2626;">❗ Important</strong><br/>Add your important text here.</div>`
       },
       {
         label: 'Note',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:0 4px 4px 0;padding:12px 16px;margin:12px 0;font-family:Lato,sans-serif;"><strong style="color:#16a34a;">📝 Note</strong><br/>Add your note text here.</div>`
       },
       {
         label: 'Do Not',
-        pro: false,
+        pro: true,
         html: () => `<div style="background:#fef2f2;border:2px solid #dc2626;border-radius:4px;padding:12px 16px;margin:12px 0;font-family:Lato,sans-serif;"><strong style="color:#dc2626;">🚫 Do Not</strong><br/>Add your restriction text here.</div>`
       },
       {
@@ -111,7 +111,7 @@
     Lists: [
       {
         label: 'Checklist',
-        pro: false,
+        pro: true,
         html: () => `<ul style="list-style:none;padding-left:0;margin:12px 0;font-family:Lato,sans-serif;">
   <li style="padding:5px 0;">✅ &nbsp;First item</li>
   <li style="padding:5px 0;">✅ &nbsp;Second item</li>
@@ -120,7 +120,7 @@
       },
       {
         label: 'Numbered steps',
-        pro: false,
+        pro: true,
         html: () => `<ol style="margin:12px 0;padding-left:24px;font-family:Lato,sans-serif;">
   <li style="padding:5px 0;font-weight:600;"><span style="font-weight:400;">First step description</span></li>
   <li style="padding:5px 0;font-weight:600;"><span style="font-weight:400;">Second step description</span></li>
@@ -129,7 +129,7 @@
       },
       {
         label: 'Badge labels',
-        pro: false,
+        pro: true,
         html: () => `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-family:Lato,sans-serif;">
   <span style="background:#0770a3;color:#fff;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;">Label One</span>
   <span style="background:#2d3b45;color:#fff;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;">Label Two</span>

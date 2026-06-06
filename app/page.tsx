@@ -143,82 +143,29 @@ export default function HomePage() {
             33 ready-to-use components
           </h2>
           <p style={{ textAlign: "center", color: "#6b7780", marginBottom: 48 }}>
-            Free components work forever. Pro components unlock with a $5/month license.
+            Everything is included — all components unlock the moment you install.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {[
-              {
-                category: "Dividers",
-                free: ["Simple line", "Bold line", "Dashed line", "Double line"],
-                pro: ["Colored bar", "Gradient bar"],
-              },
-              {
-                category: "Headers",
-                free: ["Section banner", "Accent bar", "Underline header"],
-                pro: ["Blue banner", "Gradient banner", "Warning banner"],
-              },
-              {
-                category: "Callouts",
-                free: ["Tip", "Warning", "Important", "Note", "Do Not"],
-                pro: ["Success", "Did You Know"],
-              },
-              {
-                category: "Lists",
-                free: ["Checklist", "Numbered steps", "Badge labels"],
-                pro: ["Progress tracker"],
-              },
-              {
-                category: "Layouts",
-                free: [],
-                pro: ["Two columns", "Three columns", "Image + text card", "Collapsible section"],
-              },
-              {
-                category: "Cards",
-                free: [],
-                pro: ["Icon feature card", "Pull quote", "Button link", "Styled table", "Rubric / grading box"],
-              },
-              {
-                category: "Media",
-                free: [],
-                pro: ["Video embed", "Resource link list"],
-              },
-              {
-                category: "Templates",
-                free: [],
-                pro: ["Weekly Lesson", "Assignment Brief", "Lab Instructions"],
-              },
+              { category: "Dividers", items: ["Simple line", "Bold line", "Dashed line", "Double line", "Colored bar", "Gradient bar"] },
+              { category: "Headers", items: ["Section banner", "Accent bar", "Underline header", "Blue banner", "Gradient banner", "Warning banner"] },
+              { category: "Callouts", items: ["Tip", "Warning", "Important", "Note", "Do Not", "Success", "Did You Know"] },
+              { category: "Lists", items: ["Checklist", "Numbered steps", "Badge labels", "Progress tracker"] },
+              { category: "Layouts", items: ["Two columns", "Three columns", "Image + text card", "Collapsible section"] },
+              { category: "Cards", items: ["Icon feature card", "Pull quote", "Button link", "Styled table", "Rubric / grading box"] },
+              { category: "Media", items: ["Video embed", "Resource link list"] },
+              { category: "Templates", items: ["Weekly Lesson", "Assignment Brief", "Lab Instructions"] },
             ].map(cat => (
-              <div key={cat.category} style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}>
+              <div key={cat.category} style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
                 <div style={{ background: "#2d3b45", color: "#fff", padding: "10px 16px", fontWeight: 700, fontSize: 14 }}>
                   {cat.category}
                 </div>
                 <div style={{ padding: "12px 16px" }}>
-                  {cat.free.map(item => (
-                    <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 13 }}>
-                      <span>{item}</span>
-                      <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 700 }}>FREE</span>
+                  {cat.items.map(item => (
+                    <div key={item} style={{ padding: "4px 0", fontSize: 13, color: "#2d3b45" }}>
+                      ✓ {item}
                     </div>
                   ))}
-                  {cat.pro.map(item => (
-                    <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 13 }}>
-                      <span>{item}</span>
-                      <span style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        background: "#0770a3",
-                        color: "#fff",
-                        padding: "2px 6px",
-                        borderRadius: 3,
-                      }}>PRO</span>
-                    </div>
-                  ))}
-                  {cat.free.length === 0 && (
-                    <p style={{ fontSize: 11, color: "#9da7ae", margin: "4px 0 0" }}>All Pro — unlocked during 14-day trial</p>
-                  )}
                 </div>
               </div>
             ))}
@@ -228,82 +175,47 @@ export default function HomePage() {
 
       {/* ── Pricing ── */}
       <section id="pricing" style={{ padding: "64px 32px", background: "#f8f9fa" }}>
-        <div style={{ maxWidth: 700, margin: "0 auto" }}>
-          <h2 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
+        <div style={{ maxWidth: 420, margin: "0 auto", textAlign: "center" }}>
+          <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
             Simple pricing
           </h2>
-          <p style={{ textAlign: "center", color: "#6b7780", marginBottom: 48 }}>
-            Try everything free for 14 days. No credit card required.
+          <p style={{ color: "#6b7780", marginBottom: 40 }}>
+            14-day free trial — no credit card required. Then $5/month.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            <div style={{
+          <div style={{
+            background: "#0770a3",
+            border: "2px solid #055d87",
+            borderRadius: 12,
+            padding: "36px 32px",
+            color: "#fff",
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Canvas Enhancer</div>
+            <div style={{ fontSize: 48, fontWeight: 800, marginBottom: 2 }}>$5</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 28 }}>/month after trial</div>
+            <ul style={{ listStyle: "none", padding: 0, fontSize: 14, lineHeight: 2.2, textAlign: "left", marginBottom: 28 }}>
+              <li>✅ All 33 components</li>
+              <li>✅ 3 full page templates</li>
+              <li>✅ All future components</li>
+              <li>✅ License key — instant activation</li>
+              <li>✅ No account required</li>
+              <li>✅ No data collected</li>
+            </ul>
+            <a href="#install" style={{
+              display: "block",
               background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              padding: "28px 24px",
+              color: "#0770a3",
+              padding: "12px 0",
+              borderRadius: 6,
+              fontWeight: 700,
+              fontSize: 15,
+              textDecoration: "none",
             }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#6b7780", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Free</div>
-              <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 4 }}>$0</div>
-              <div style={{ fontSize: 13, color: "#9da7ae", marginBottom: 20 }}>forever</div>
-              <ul style={{ listStyle: "none", padding: 0, fontSize: 13, lineHeight: 2 }}>
-                <li>✅ 4 Dividers</li>
-                <li>✅ 3 Headers</li>
-                <li>✅ 5 Callouts</li>
-                <li>✅ 3 Lists</li>
-                <li style={{ color: "#9da7ae" }}>✗ Layouts, Cards, Media</li>
-                <li style={{ color: "#9da7ae" }}>✗ Templates</li>
-              </ul>
-            </div>
-            <div style={{
-              background: "#0770a3",
-              border: "2px solid #055d87",
-              borderRadius: 10,
-              padding: "28px 24px",
-              color: "#fff",
-              position: "relative",
-            }}>
-              <div style={{
-                position: "absolute",
-                top: -12,
-                left: "50%",
-                transform: "translateX(-50%)",
-                background: "#f59e0b",
-                color: "#fff",
-                padding: "3px 12px",
-                borderRadius: 10,
-                fontSize: 11,
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-              }}>MOST POPULAR</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Pro</div>
-              <div style={{ fontSize: 36, fontWeight: 800, marginBottom: 4 }}>$5</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>/month</div>
-              <ul style={{ listStyle: "none", padding: 0, fontSize: 13, lineHeight: 2 }}>
-                <li>✅ All 33 components</li>
-                <li>✅ 3 full page templates</li>
-                <li>✅ All future components</li>
-                <li>✅ License key — instant activation</li>
-                <li>✅ No account required</li>
-              </ul>
-              <a href="#install" style={{
-                display: "block",
-                marginTop: 20,
-                background: "#fff",
-                color: "#0770a3",
-                textAlign: "center",
-                padding: "10px 0",
-                borderRadius: 6,
-                fontWeight: 700,
-                fontSize: 14,
-                textDecoration: "none",
-              }}>
-                Start 14-Day Free Trial
-              </a>
-            </div>
+              Start Free Trial — 14 Days
+            </a>
+            <p style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              Cancel anytime. No surprises.
+            </p>
           </div>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#9da7ae", marginTop: 20 }}>
-            No account. No login. No data collected.
-          </p>
         </div>
       </section>
 
