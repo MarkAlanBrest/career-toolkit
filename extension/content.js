@@ -2,8 +2,11 @@
   'use strict';
 
   // ── Config ────────────────────────────────────────────────────────────────────
-  // UPDATE this URL after deploying to Vercel or your custom domain.
-  const API_BASE = 'https://YOUR-PROJECT.vercel.app';
+  // DEV_MODE = true  → fetches from localhost:3000 (run: npm run dev)
+  // DEV_MODE = false → fetches from PROD_URL (update before publishing to stores)
+  const DEV_MODE = true;
+  const PROD_URL = 'https://YOUR-PROJECT.vercel.app';
+  const API_BASE = DEV_MODE ? 'http://localhost:3000' : PROD_URL;
 
   const TRIAL_DAYS = 14;
   const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour

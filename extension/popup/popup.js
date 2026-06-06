@@ -1,6 +1,8 @@
 (() => {
-  // UPDATE this URL after deploying — must match the value in content.js
-  const API_BASE = 'https://YOUR-PROJECT.vercel.app';
+  // Keep in sync with content.js
+  const DEV_MODE = true;
+  const PROD_URL = 'https://YOUR-PROJECT.vercel.app';
+  const API_BASE = DEV_MODE ? 'http://localhost:3000' : PROD_URL;
   const TRIAL_DAYS = 14;
 
   const statusBox = document.getElementById('status-box');
