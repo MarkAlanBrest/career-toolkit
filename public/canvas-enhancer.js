@@ -1,36 +1,12 @@
-(() => {
+/**
+ * Canvas Enhancer — canvas-enhancer.js
+ * Host this file at the root of your Vercel project.
+ * Update this file to push changes to all users instantly.
+ * Version: 1.0
+ */
+
+(function () {
   'use strict';
-
-  // ── Config ────────────────────────────────────────────────────────────────────
-  // DEV_MODE = true  → fetches from localhost:3000 (run: npm run dev)
-  // DEV_MODE = false → fetches from PROD_URL (update before publishing to stores)
-  const DEV_MODE = true;
-  const PROD_URL = 'https://YOUR-PROJECT.vercel.app';
-  const API_BASE = DEV_MODE ? 'http://localhost:3000' : PROD_URL;
-  const TRIAL_DAYS = 14;
-
-  // ── State ─────────────────────────────────────────────────────────────────────
-  let state = { trialDaysLeft: TRIAL_DAYS, licenseValid: false };
-
-  async function loadState() {
-    return new Promise(resolve => {
-      chrome.storage.sync.get(['installDate', 'licenseValid'], data => {
-        if (!data.installDate) {
-          chrome.storage.sync.set({ installDate: Date.now() });
-          state.trialDaysLeft = TRIAL_DAYS;
-        } else {
-          const elapsed = Math.floor((Date.now() - data.installDate) / 86400000);
-          state.trialDaysLeft = Math.max(0, TRIAL_DAYS - elapsed);
-        }
-        state.licenseValid = !!data.licenseValid;
-        resolve();
-      });
-    });
-  }
-
-  function isUnlocked() {
-    return state.licenseValid || state.trialDaysLeft > 0;
-  }
 
   // ─── Component Definitions ───────────────────────────────────────────────────
 
@@ -122,15 +98,13 @@
     }
   };
 
-  // ─── Toolbar ─────────────────────────────────────────────────────────────────
+  // ─── Inject Toolbar ──────────────────────────────────────────────────────────
 
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
 
     const bar = document.createElement('div');
     bar.id = 'ce-toolbar';
-
-    const unlocked = isUnlocked();
 
     Object.entries(COMPONENTS).forEach(([, cat]) => {
       const wrap = document.createElement('div');
@@ -153,22 +127,15 @@
         entry.type = 'button';
         entry.textContent = item.label;
         entry.setAttribute('role', 'menuitem');
-
-        if (!unlocked) {
-          entry.classList.add('ce-pro-locked');
-          entry.title = 'Start your free trial to unlock all components';
-        } else {
-          entry.addEventListener('click', e => {
-            e.stopPropagation();
-            insertHTML(item.html);
-            closeAllPanels();
-          });
-        }
-
+        entry.addEventListener('click', (e) => {
+          e.stopPropagation();
+          insertHTML(item.html);
+          closeAllPanels();
+        });
         panel.appendChild(entry);
       });
 
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const isOpen = panel.classList.contains('ce-open');
         closeAllPanels();
@@ -182,24 +149,6 @@
       wrap.appendChild(panel);
       bar.appendChild(wrap);
     });
-
-    // Trial / upgrade status
-    if (!state.licenseValid) {
-      const badge = document.createElement('span');
-      badge.className = 'ce-trial-badge' + (state.trialDaysLeft === 0 ? ' ce-trial-expired' : '');
-      badge.textContent = state.trialDaysLeft > 0
-        ? `Trial: ${state.trialDaysLeft}d left`
-        : 'Trial expired';
-      bar.appendChild(badge);
-
-      const upBtn = document.createElement('a');
-      upBtn.className = 'ce-upgrade-btn';
-      upBtn.href = `${API_BASE}/#pricing`;
-      upBtn.target = '_blank';
-      upBtn.rel = 'noopener';
-      upBtn.textContent = 'Upgrade — $5/mo';
-      bar.appendChild(upBtn);
-    }
 
     document.addEventListener('click', closeAllPanels);
 
@@ -234,7 +183,7 @@
           doc.execCommand('insertHTML', false, html);
           return;
         }
-      } catch { /* cross-origin, skip */ }
+      } catch (e) { /* cross-origin, skip */ }
     }
 
     navigator.clipboard.writeText(html).then(() => {
@@ -263,14 +212,8 @@
     }
   }).observe(document.body, { childList: true, subtree: true });
 
-  // ── Init ──────────────────────────────────────────────────────────────────────
-
-  async function init() {
-    await loadState();
-    if (document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce')) {
-      buildToolbar();
-    }
+  if (document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce')) {
+    buildToolbar();
   }
 
-  init();
 })();
