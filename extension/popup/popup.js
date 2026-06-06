@@ -1,4 +1,6 @@
 (() => {
+  // UPDATE this URL after deploying — must match the value in content.js
+  const API_BASE = 'https://YOUR-PROJECT.vercel.app';
   const TRIAL_DAYS = 14;
 
   const statusBox = document.getElementById('status-box');
@@ -69,17 +71,33 @@
     activateBtn.disabled = true;
     activateBtn.textContent = 'Activating…';
 
-    // Local validation for v1.0 — server-side in v2.0
-    // Any correctly formatted key is accepted in the current build.
-    // Replace this block with an API call when server-side validation is added.
-    setTimeout(() => {
-      chrome.storage.sync.set({ licenseValid: true, licenseKey: key }, () => {
-        feedback.textContent = '✅ License activated! Pro components are now unlocked.';
-        feedback.className = 'feedback success';
-        activateBtn.textContent = 'Activated';
-        showState(true, 0);
+    fetch(`${API_BASE}/api/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.valid) {
+          chrome.storage.sync.set({ licenseValid: true, licenseKey: key }, () => {
+            feedback.textContent = '✅ License activated! All components are now unlocked.';
+            feedback.className = 'feedback success';
+            activateBtn.textContent = 'Activated';
+            showState(true, 0);
+          });
+        } else {
+          feedback.textContent = data.error ?? 'Invalid license key.';
+          feedback.className = 'feedback error';
+          activateBtn.disabled = false;
+          activateBtn.textContent = 'Activate License';
+        }
+      })
+      .catch(() => {
+        feedback.textContent = 'Could not reach the server. Check your connection.';
+        feedback.className = 'feedback error';
+        activateBtn.disabled = false;
+        activateBtn.textContent = 'Activate License';
       });
-    }, 400);
   });
 
   // Load state on popup open

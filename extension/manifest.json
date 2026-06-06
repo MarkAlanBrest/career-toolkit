@@ -9,7 +9,9 @@
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://*.canvas.com/*",
-    "https://*.canvaslms.com/*"
+    "https://*.canvaslms.com/*",
+    "https://*.vercel.app/*",
+    "https://canvasenhancer.com/*"
   ],
   "content_scripts": [
     {
