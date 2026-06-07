@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Canvas Enhancer",
-  "version": "1.0.0",
-  "description": "Add professionally styled components to your Canvas LMS pages with one click. No coding required.",
+  "version": "2.4.0",
+  "description": "Add professionally styled components, AI-generated content, and quizzes to your Canvas LMS pages.",
   "permissions": [
-    "storage"
+    "storage",
+    "cookies"
   ],
   "host_permissions": [
     "https://*.instructure.com/*",
@@ -14,6 +15,9 @@
     "https://canvasenhancer.com/*",
     "http://localhost:3000/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [
