@@ -1,117 +1,86 @@
-(() => {
-  // Keep in sync with content.js
-  const DEV_MODE = true;
-  const PROD_URL = 'https://YOUR-PROJECT.vercel.app';
-  const API_BASE = DEV_MODE ? 'http://localhost:3000' : PROD_URL;
-  const TRIAL_DAYS = 14;
+const API_BASE = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app';
 
-  const statusBox = document.getElementById('status-box');
-  const statusLabel = document.getElementById('status-label');
-  const statusDesc = document.getElementById('status-desc');
-  const progressWrap = document.getElementById('progress-wrap');
-  const progressFill = document.getElementById('progress-fill');
-  const licenseSection = document.getElementById('license-section');
-  const upgradeSection = document.getElementById('upgrade-section');
-  const keyInput = document.getElementById('key-input');
-  const activateBtn = document.getElementById('activate-btn');
-  const feedback = document.getElementById('feedback');
+const statusEl       = document.getElementById('status');
+const statusLabel    = document.getElementById('status-label');
+const statusDesc     = document.getElementById('status-desc');
+const keyInput       = document.getElementById('key-input');
+const activateBtn    = document.getElementById('activate-btn');
+const feedback       = document.getElementById('feedback');
+const upgradeSection = document.getElementById('upgrade-section');
 
-  function showState(licenseValid, trialDaysLeft) {
-    if (licenseValid) {
-      statusBox.className = 'status-box active';
-      statusLabel.className = 'status-label active';
-      statusLabel.textContent = 'Pro — Active';
-      statusDesc.textContent = 'All components and templates are unlocked.';
-      progressWrap.style.display = 'none';
-      licenseSection.style.display = 'none';
-      upgradeSection.style.display = 'none';
-      return;
-    }
-
-    if (trialDaysLeft > 0) {
-      statusBox.className = 'status-box trial';
-      statusLabel.className = 'status-label trial';
-      statusLabel.textContent = 'Free Trial';
-      statusDesc.textContent = `${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} remaining — all Pro components unlocked.`;
-      progressWrap.style.display = 'block';
-      progressFill.style.width = `${(trialDaysLeft / TRIAL_DAYS) * 100}%`;
-      licenseSection.style.display = 'block';
-      upgradeSection.style.display = 'block';
-    } else {
-      statusBox.className = 'status-box expired';
-      statusLabel.className = 'status-label expired';
-      statusLabel.textContent = 'Trial Expired';
-      statusDesc.textContent = 'Pro components are locked. Enter a license key or upgrade to continue.';
-      progressWrap.style.display = 'none';
-      licenseSection.style.display = 'block';
-      upgradeSection.style.display = 'block';
-    }
+function setStatus(active, plan) {
+  if (active) {
+    statusEl.className = 'status active';
+    statusLabel.className = 'status-label active';
+    statusLabel.textContent = plan === 'owner' ? 'Owner' : 'Pro Active';
+    statusDesc.textContent = 'AI Builder and Quiz Maker are unlocked on Canvas.';
+    upgradeSection.style.display = 'none';
+  } else {
+    statusEl.className = 'status locked';
+    statusLabel.className = 'status-label locked';
+    statusLabel.textContent = 'No License';
+    statusDesc.textContent = 'Enter your license key below to unlock AI features.';
+    upgradeSection.style.display = 'block';
   }
+}
 
-  function validateKeyFormat(key) {
-    // Basic format: 4 groups of 4 alphanumeric chars separated by dashes
-    return /^[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}$/.test(key.trim());
-  }
+function showFeedback(msg, type) {
+  feedback.textContent = msg;
+  feedback.className = 'feedback ' + type;
+}
 
-  activateBtn.addEventListener('click', () => {
-    const key = keyInput.value.trim().toUpperCase();
-    feedback.textContent = '';
-    feedback.className = 'feedback';
+keyInput.addEventListener('input', () => {
+  let v = keyInput.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const parts = [];
+  for (let i = 0; i < v.length && i < 16; i += 4) parts.push(v.slice(i, i + 4));
+  keyInput.value = parts.join('-');
+  feedback.textContent = '';
+  feedback.className = 'feedback';
+});
 
-    if (!key) {
-      feedback.textContent = 'Please enter your license key.';
-      feedback.className = 'feedback error';
-      return;
-    }
+activateBtn.addEventListener('click', async () => {
+  const key = keyInput.value.trim().toUpperCase();
+  if (!key) { showFeedback('Enter a license key.', 'error'); return; }
 
-    if (!validateKeyFormat(key)) {
-      feedback.textContent = 'Invalid key format. Expected: XXXX-XXXX-XXXX-XXXX';
-      feedback.className = 'feedback error';
-      return;
-    }
+  activateBtn.disabled = true;
+  activateBtn.textContent = 'Validating…';
+  feedback.textContent = '';
+  feedback.className = 'feedback';
 
-    activateBtn.disabled = true;
-    activateBtn.textContent = 'Activating…';
-
-    fetch(`${API_BASE}/api/validate`, {
+  try {
+    const res = await fetch(`${API_BASE}/api/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.valid) {
-          chrome.storage.sync.set({ licenseValid: true, licenseKey: key }, () => {
-            feedback.textContent = '✅ License activated! All components are now unlocked.';
-            feedback.className = 'feedback success';
-            activateBtn.textContent = 'Activated';
-            showState(true, 0);
-          });
-        } else {
-          feedback.textContent = data.error ?? 'Invalid license key.';
-          feedback.className = 'feedback error';
-          activateBtn.disabled = false;
-          activateBtn.textContent = 'Activate License';
-        }
-      })
-      .catch(() => {
-        feedback.textContent = 'Could not reach the server. Check your connection.';
-        feedback.className = 'feedback error';
-        activateBtn.disabled = false;
-        activateBtn.textContent = 'Activate License';
-      });
-  });
+    });
+    const data = await res.json();
 
-  // Load state on popup open
-  chrome.storage.sync.get(['installDate', 'licenseValid'], data => {
-    const licenseValid = !!data.licenseValid;
-    let trialDaysLeft = TRIAL_DAYS;
-
-    if (data.installDate) {
-      const elapsed = Math.floor((Date.now() - data.installDate) / 86400000);
-      trialDaysLeft = Math.max(0, TRIAL_DAYS - elapsed);
+    if (data.valid) {
+      await chrome.storage.local.set({ ce_license_key: key });
+      setStatus(true, data.plan);
+      showFeedback('License activated!', 'success');
+      activateBtn.textContent = 'Change Key';
+    } else {
+      showFeedback(data.error || 'Invalid license key.', 'error');
+      setStatus(false, '');
+      activateBtn.textContent = 'Activate License';
     }
+  } catch {
+    showFeedback('Network error — try again.', 'error');
+    activateBtn.textContent = 'Activate License';
+  } finally {
+    activateBtn.disabled = false;
+  }
+});
 
-    showState(licenseValid, trialDaysLeft);
-  });
-})();
+// Init — load stored key and reflect status
+chrome.storage.local.get('ce_license_key', stored => {
+  const key = stored.ce_license_key || '';
+  if (key) {
+    keyInput.value = key;
+    activateBtn.textContent = 'Change Key';
+    setStatus(true, 'pro');
+  } else {
+    setStatus(false, '');
+  }
+});
