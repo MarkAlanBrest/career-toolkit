@@ -1980,6 +1980,87 @@ Critical rules:
     };
   }
 
+  // ── UPGRADE MODAL ─────────────────────────────────────────────────────────────
+  function showUpgradeModal(feature) {
+    if (document.getElementById('ce-upgrade-overlay')) return;
+    const overlay = document.createElement('div'); overlay.id = 'ce-upgrade-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999999;display:flex;align-items:center;justify-content:center;';
+
+    const panel = document.createElement('div');
+    panel.style.cssText = 'background:#fff;border-radius:14px;width:500px;max-width:calc(100vw - 40px);overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.35);font-family:inherit;';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:24px 28px 20px;color:#fff;position:relative;';
+    hdr.innerHTML = `
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.8;margin-bottom:6px;">Canvas Enhancer Pro</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:4px;">Unlock ${feature}</div>
+      <div style="font-size:14px;opacity:.85;">AI-powered content creation for Canvas LMS instructors.</div>`;
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'position:absolute;top:16px;right:18px;background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1;';
+    closeBtn.onclick = () => overlay.remove();
+    hdr.appendChild(closeBtn); panel.appendChild(hdr);
+
+    // Video placeholder
+    const vid = document.createElement('div');
+    vid.style.cssText = 'background:#0f0f1a;height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;';
+    vid.innerHTML = `
+      <div style="width:56px;height:56px;background:rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid rgba(255,255,255,.3);">
+        <span style="font-size:22px;margin-left:4px;">▶</span>
+      </div>
+      <div style="color:rgba(255,255,255,.5);font-size:13px;">Demo video coming soon</div>`;
+    panel.appendChild(vid);
+
+    // Features
+    const body = document.createElement('div'); body.style.cssText = 'padding:20px 28px;';
+
+    const features = feature === 'AI Builder'
+      ? ['Generate full Canvas pages, assignments, and discussions in seconds','Auto-detects the page type and customizes the output','Choose content length and insert or replace existing content']
+      : ['Build complete Canvas quizzes with AI-generated questions','Multiple choice, true/false, short answer, and essay','Creates the quiz directly in Canvas — Classic and New Quizzes'];
+
+    const featureList = document.createElement('ul');
+    featureList.style.cssText = 'list-style:none;padding:0;margin:0 0 20px;display:flex;flex-direction:column;gap:8px;';
+    features.forEach(f => {
+      const li = document.createElement('li');
+      li.style.cssText = 'display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;';
+      li.innerHTML = `<span style="color:#7c3aed;font-size:16px;line-height:1.2;flex-shrink:0;">✓</span><span>${f}</span>`;
+      featureList.appendChild(li);
+    });
+    body.appendChild(featureList);
+
+    // Pricing
+    const price = document.createElement('div');
+    price.style.cssText = 'background:#f5f3ff;border:1px solid #ede9fe;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;';
+    price.innerHTML = `
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#111827;">Pro Plan</div>
+        <div style="font-size:12px;color:#6b7280;">50 AI generations/month · All features</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:22px;font-weight:800;color:#7c3aed;">$79</div>
+        <div style="font-size:11px;color:#6b7280;">per year</div>
+      </div>`;
+    body.appendChild(price);
+
+    const upgradeBtn = document.createElement('button');
+    upgradeBtn.textContent = 'Upgrade to Pro →';
+    upgradeBtn.style.cssText = 'width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;box-shadow:0 4px 14px rgba(124,58,237,.35);';
+    upgradeBtn.onclick = () => window.open('https://canvasenhancer.com/upgrade', '_blank');
+    body.appendChild(upgradeBtn);
+
+    const keyLink = document.createElement('div');
+    keyLink.style.cssText = 'text-align:center;font-size:12px;color:#6b7280;';
+    keyLink.innerHTML = 'Already have a license key? <a href="#" style="color:#7c3aed;font-weight:600;">Enter it here →</a>';
+    keyLink.querySelector('a').onclick = e => { e.preventDefault(); overlay.remove(); showSettings(); };
+    body.appendChild(keyLink);
+
+    panel.appendChild(body);
+    overlay.appendChild(panel);
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+  }
+
   // ── SETTINGS ──────────────────────────────────────────────────────────────────
   function showSettings() {
     if (document.getElementById('ce-settings-overlay')) return;
@@ -2053,11 +2134,11 @@ Critical rules:
 
     const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
     aiBtn.textContent='AI Builder';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();GM_getValue('ce_license_key','')?showContentBuilder():showUpgradeModal('AI Builder');};
     rowBottom.appendChild(aiBtn);
     const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
     qmBtn.textContent='Quiz Maker';
-    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showQuizMaker();};
+    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();GM_getValue('ce_license_key','')?showQuizMaker():showUpgradeModal('Quiz Maker');};
     rowBottom.appendChild(qmBtn);
 
     Object.entries(COMPONENTS).forEach(([,cat]) => {
