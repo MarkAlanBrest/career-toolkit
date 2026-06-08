@@ -2039,8 +2039,8 @@ Critical rules:
         <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Pro: 150 gen/mo — $20/mo or $200/yr</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:22px;font-weight:800;color:#7c3aed;">$79</div>
-        <div style="font-size:11px;color:#6b7280;">per year · or $7.75/mo</div>
+        <div style="font-size:22px;font-weight:800;color:#7c3aed;">$6.58<span style="font-size:13px;font-weight:400;color:#6b7280;">/mo</span></div>
+        <div style="font-size:11px;color:#6b7280;">when billed annually ($79/yr)</div>
       </div>`;
     body.appendChild(price);
 
