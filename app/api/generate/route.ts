@@ -8,8 +8,8 @@ const CORS = {
 };
 
 const PLAN_LIMITS: Record<string, number> = {
-  pro: 50,
-  unlimited: 200,
+  base: 50,
+  pro: 150,
   owner: 99999,
 };
 

@@ -2034,12 +2034,13 @@ Critical rules:
     price.style.cssText = 'background:#f5f3ff;border:1px solid #ede9fe;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;';
     price.innerHTML = `
       <div>
-        <div style="font-size:15px;font-weight:700;color:#111827;">Pro Plan</div>
+        <div style="font-size:15px;font-weight:700;color:#111827;">Base Plan</div>
         <div style="font-size:12px;color:#6b7280;">50 AI generations/month · All features</div>
+        <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Pro: 150 gen/mo — $20/mo or $200/yr</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:22px;font-weight:800;color:#7c3aed;">$79</div>
-        <div style="font-size:11px;color:#6b7280;">per year</div>
+        <div style="font-size:11px;color:#6b7280;">per year · or $7.75/mo</div>
       </div>`;
     body.appendChild(price);
 
