@@ -21,6 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ valid: false, error: 'No key provided' }, { status: 400, headers: CORS });
   }
 
+  // Owner backdoor
+  const ownerKey = process.env.OWNER_KEY ?? '';
+  if (ownerKey && key === ownerKey.toUpperCase()) {
+    return NextResponse.json({ valid: true, plan: 'owner' }, { status: 200, headers: CORS });
+  }
+
   const formatOk = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(key);
   if (!formatOk) {
     return NextResponse.json({ valid: false, error: 'Invalid key format' }, { status: 200, headers: CORS });

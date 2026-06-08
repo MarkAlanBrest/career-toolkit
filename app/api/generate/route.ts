@@ -10,7 +10,11 @@ const CORS = {
 const PLAN_LIMITS: Record<string, number> = {
   pro: 50,
   unlimited: 200,
+  owner: 99999,
 };
+
+// Owner backdoor key — never expires, never rate-limited
+const OWNER_KEY = process.env.OWNER_KEY ?? '';
 
 const redis = Redis.fromEnv();
 
@@ -30,26 +34,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'License key required' }, { status: 401, headers: CORS });
   }
 
+  // Owner backdoor — bypasses Redis and usage limits entirely
+  const isOwner = OWNER_KEY && String(licenseKey).toUpperCase() === OWNER_KEY.toUpperCase();
+
   // Load license record from Redis
   const redisKey = `license:${String(licenseKey).toUpperCase()}`;
-  const record = await redis.get<{
-    plan: string; usage: number; reset: string; active: boolean;
-  }>(redisKey);
 
-  if (!record || !record.active) {
-    return NextResponse.json({ error: 'Invalid or inactive license key. Enter your key in Settings.' }, { status: 403, headers: CORS });
-  }
+  if (!isOwner) {
+    const record = await redis.get<{
+      plan: string; usage: number; reset: string; active: boolean;
+    }>(redisKey);
 
-  // Reset usage counter if we're in a new month
-  const thisMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const usage = record.reset === thisMonth ? record.usage : 0;
-  const limit = PLAN_LIMITS[record.plan] ?? PLAN_LIMITS.pro;
+    if (!record || !record.active) {
+      return NextResponse.json({ error: 'Invalid or inactive license key. Enter your key in Settings.' }, { status: 403, headers: CORS });
+    }
 
-  if (usage >= limit) {
-    return NextResponse.json(
-      { error: `Monthly limit reached (${limit} generations). Upgrade your plan for more.` },
-      { status: 429, headers: CORS }
-    );
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const usage = record.reset === thisMonth ? record.usage : 0;
+    const limit = PLAN_LIMITS[record.plan] ?? PLAN_LIMITS.pro;
+
+    if (usage >= limit) {
+      return NextResponse.json(
+        { error: `Monthly limit reached (${limit} generations). Upgrade your plan for more.` },
+        { status: 429, headers: CORS }
+      );
+    }
+
+    // Increment usage after successful call (done below)
+    const _recordRef = record; void _recordRef;
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -76,8 +88,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Increment usage after successful generation
-  await redis.set(redisKey, { ...record, usage: usage + 1, reset: thisMonth });
+  // Increment usage after successful generation (skip for owner key)
+  if (!isOwner) {
+    const rec = await redis.get<{ plan: string; usage: number; reset: string; active: boolean }>(redisKey);
+    if (rec) {
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      const usage = rec.reset === thisMonth ? rec.usage : 0;
+      await redis.set(redisKey, { ...rec, usage: usage + 1, reset: thisMonth });
+    }
+  }
 
   return NextResponse.json(data, { status: 200, headers: CORS });
 }
