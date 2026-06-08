@@ -207,7 +207,7 @@ export default function HomePage() {
       <section id="components" style={{ padding: "64px 32px", background: "#f8f9fa" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <h2 style={{ textAlign: "center", fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
-            33 ready-to-use components — all free
+            42 ready-to-use components — all free
           </h2>
           <p style={{ textAlign: "center", color: "#6b7780", marginBottom: 48 }}>
             Every component unlocks the moment you install. No license key required.
@@ -215,12 +215,11 @@ export default function HomePage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20 }}>
             {[
               { category: "Dividers", items: ["Simple line", "Bold line", "Dashed line", "Double line", "Colored bar", "Gradient bar"] },
-              { category: "Headers", items: ["Section banner", "Accent bar", "Underline header", "Blue banner", "Gradient banner", "Warning banner"] },
-              { category: "Callouts", items: ["Tip", "Warning", "Important", "Note", "Do Not", "Success", "Did You Know"] },
-              { category: "Lists", items: ["Checklist", "Numbered steps", "Badge labels", "Progress tracker"] },
-              { category: "Layouts", items: ["Two columns", "Three columns", "Image + text card", "Collapsible section"] },
-              { category: "Cards", items: ["Icon feature card", "Pull quote", "Button link", "Styled table", "Rubric / grading box"] },
-              { category: "Templates", items: ["Weekly Lesson", "Assignment Brief", "Lab Instructions"] },
+              { category: "Headers", items: ["Section banner", "Solid banner", "Gradient banner", "Underline header", "Dark banner", "Warning banner"] },
+              { category: "Callouts", items: ["Tip", "Warning", "Important", "Note", "Custom", "Do Not", "Success", "Did You Know"] },
+              { category: "Lists", items: ["Checklist", "Steps", "Icon list ✅", "Icon list ▶", "Badge labels", "Progress tracker"] },
+              { category: "Layouts", items: ["Custom columns", "Two columns", "Three columns", "Image + text", "Collapsible"] },
+              { category: "Cards", items: ["Card grid", "Instructor Bio", "Welcome", "Tips for Success", "Office Hours", "Due Date", "Course Policies", "Grading Breakdown", "Submit Checklist", "Pull quote", "Button link"] },
             ].map(cat => (
               <div key={cat.category} style={{ border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
                 <div style={{ background: "#2d3b45", color: "#fff", padding: "10px 16px", fontWeight: 700, fontSize: 14 }}>
@@ -256,8 +255,7 @@ export default function HomePage() {
               <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 2 }}>$0</div>
               <div style={{ fontSize: 14, color: "#6b7780", marginBottom: 24 }}>forever</div>
               <ul style={{ listStyle: "none", padding: 0, fontSize: 14, lineHeight: 2.2, marginBottom: 28 }}>
-                <li>✓ All 33+ components</li>
-                <li>✓ 3 full page templates</li>
+                <li>✓ All 42 components</li>
                 <li>✓ All future components</li>
                 <li style={{ color: "#9ca3af" }}>✗ AI Content Builder</li>
                 <li style={{ color: "#9ca3af" }}>✗ AI Quiz Maker</li>
