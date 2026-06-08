@@ -2134,11 +2134,11 @@ Critical rules:
 
     const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
     aiBtn.textContent='AI Builder';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();GM_getValue('ce_license_key','')?showContentBuilder():showUpgradeModal('AI Builder');};
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showContentBuilder():showUpgradeModal('AI Builder');});};
     rowBottom.appendChild(aiBtn);
     const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
     qmBtn.textContent='Quiz Maker';
-    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();GM_getValue('ce_license_key','')?showQuizMaker():showUpgradeModal('Quiz Maker');};
+    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showQuizMaker():showUpgradeModal('Quiz Maker');});};
     rowBottom.appendChild(qmBtn);
 
     Object.entries(COMPONENTS).forEach(([,cat]) => {
