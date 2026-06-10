@@ -2194,9 +2194,10 @@ Critical rules:
   setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
-  if (document.querySelector(RCE_SEL)) buildToolbar();
+  const isSpeedGrader = () => /speed_grader/.test(window.location.href);
+  if (!isSpeedGrader() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    if (!isSpeedGrader() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
   }).observe(document.body, { childList:true, subtree:true });
 
 })();
