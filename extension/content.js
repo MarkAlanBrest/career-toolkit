@@ -3,7 +3,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_canvas_token'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -17,6 +17,28 @@
   function ceGenerate(payload) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: 'GENERATE', payload }, res => {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        if (res?.error) return reject(new Error(res.error));
+        resolve(res);
+      });
+    });
+  }
+
+  function ceCanvasApi(url) {
+    const token = GM_getValue('ce_canvas_token', '');
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url, token } }, res => {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        if (res?.error) return reject(new Error(res.error));
+        resolve(res);
+      });
+    });
+  }
+
+  function ceParseFile(b64, filename, mimeType, fileUrl) {
+    const token = GM_getValue('ce_canvas_token', '');
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { b64, filename, mimeType, fileUrl, token } }, res => {
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (res?.error) return reject(new Error(res.error));
         resolve(res);
@@ -2115,6 +2137,391 @@ Critical rules:
     document.body.appendChild(overlay);
   }
 
+  // ── SPEEDGRADER AI GRADER ─────────────────────────────────────────────────────
+  function showSpeedGraderPanel() {
+    const sg = {
+      token: GM_getValue('ce_canvas_token', ''),
+      rubricText: '',
+      rubricName: '',
+      rubricPoints: null,
+      studentId: '',
+      studentName: '',
+      submissionText: '',
+      submissionStatus: 'idle', // idle | loading | ready | nosubmission | error
+      submissionError: '',
+      grading: false,
+      result: null, // { score, total, feedback }
+    };
+
+    function getUrlParts() {
+      const params = new URLSearchParams(window.location.search);
+      const m = window.location.pathname.match(/\/courses\/(\d+)/);
+      return { courseId: m?.[1] || '', assignmentId: params.get('assignment_id') || '', studentId: params.get('student_id') || '' };
+    }
+
+    function parseRubricPoints(text) {
+      const patterns = [/total[:\s]+(\d+)\s*(?:points?|pts)/i, /out\s+of\s+(\d+)\s*(?:points?|pts)?/i, /(\d+)\s*(?:points?|pts)\s*total/i];
+      for (const p of patterns) { const m = text.match(p); if (m) return parseInt(m[1]); }
+      const all = [...text.matchAll(/(\d+)\s*(?:points?|pts)/gi)];
+      if (all.length) { const sum = all.reduce((a, m) => a + parseInt(m[1]), 0); if (sum > 0 && sum <= 1000) return sum; }
+      return null;
+    }
+
+    async function fetchSubmission() {
+      const { courseId, assignmentId, studentId } = getUrlParts();
+      if (!studentId || !sg.token || !courseId || !assignmentId) return;
+      sg.studentId = studentId;
+      sg.submissionText = ''; sg.submissionStatus = 'loading'; sg.result = null;
+      render();
+
+      try {
+        // Grab student name — try DOM first, fall back to API
+        const nameEl = document.querySelector('#student_carousel_name, .student_selection option:checked, #students_selectmenu-button .ui-selectmenu-text');
+        if (nameEl) {
+          sg.studentName = nameEl.textContent.trim().replace(/\s*\(.*\)$/, '');
+        } else {
+          try {
+            const user = await ceCanvasApi(`${window.location.origin}/api/v1/users/${studentId}/profile`);
+            sg.studentName = user.name || user.short_name || '';
+          } catch (_) {}
+        }
+
+        const sub = await ceCanvasApi(`${window.location.origin}/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/${studentId}?include[]=attachments`);
+
+        if (!sub.submission_type) {
+          sg.submissionStatus = 'nosubmission'; render(); return;
+        }
+
+        if (sub.submission_type === 'online_text_entry' && sub.body) {
+          const tmp = document.createElement('div'); tmp.innerHTML = sub.body;
+          sg.submissionText = (tmp.textContent || tmp.innerText || '').trim();
+          sg.submissionStatus = 'ready'; render();
+        } else if (sub.submission_type === 'online_upload' && sub.attachments?.length) {
+          const att = sub.attachments.find(a =>
+            /pdf|word|document|officedocument/.test(a['content-type'] || '') ||
+            /\.(pdf|docx?|txt|xlsx?)$/i.test(a.filename || '')
+          ) || sub.attachments[0];
+          try {
+            const parsed = await ceParseFile(null, att.filename, att['content-type'], att.url);
+            sg.submissionText = parsed.text;
+            sg.submissionStatus = 'ready';
+          } catch (e) {
+            sg.submissionStatus = 'error';
+            sg.submissionError = `Could not read ${att.filename} — paste text manually below`;
+          }
+          render();
+        } else if (sub.submission_type === 'online_url') {
+          sg.submissionText = `[URL submission: ${sub.url}]`;
+          sg.submissionStatus = 'ready'; render();
+        } else {
+          sg.submissionStatus = 'error';
+          sg.submissionError = 'Submission type not supported — paste text below';
+          render();
+        }
+      } catch (e) {
+        sg.submissionStatus = 'error';
+        sg.submissionError = e.message || 'Failed to load submission';
+        render();
+      }
+    }
+
+    async function gradeSubmission() {
+      if (!sg.submissionText.trim() || !sg.rubricText) return;
+      sg.grading = true; render();
+      const total = sg.rubricPoints || 100;
+      const firstName = sg.studentName ? sg.studentName.split(' ')[0] : 'the student';
+      const prompt = `You are an expert teacher grading a student submission.
+
+Student name: ${sg.studentName || 'Student'}
+
+Rubric:
+${sg.rubricText}
+
+Student submission:
+${sg.submissionText.slice(0, 12000)}
+
+Grade this submission against the rubric. Total possible points: ${total}.
+
+Respond in exactly this format (no other text):
+SCORE: [number]/${total}
+FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by name, noting specific strengths and areas for improvement based on the rubric criteria. Be direct and constructive.]`;
+
+      try {
+        const data = await ceGenerate({ model: 'claude-sonnet-4-6', max_tokens: 512, messages: [{ role: 'user', content: prompt }] });
+        const text = data?.content?.[0]?.text || '';
+        const scoreMatch = text.match(/SCORE:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)/);
+        const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/);
+        sg.result = {
+          score: scoreMatch ? parseFloat(scoreMatch[1]) : null,
+          total,
+          feedback: feedbackMatch ? feedbackMatch[1].trim() : text.trim(),
+        };
+      } catch (e) {
+        sg.result = { score: null, total, feedback: 'Error: ' + (e.message || 'Could not generate feedback') };
+      }
+      sg.grading = false; render();
+    }
+
+    // ── RENDER ──────────────────────────────────────────────────────────────────
+    const container = document.createElement('div');
+    container.id = 'ce-ai-grader';
+    container.style.cssText = 'margin:10px 0 4px 0;border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
+
+    function render() {
+      container.innerHTML = '';
+      // Header
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'background:#0770B8;color:#fff;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;';
+      const htitle = document.createElement('span');
+      htitle.style.cssText = 'font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;';
+      htitle.innerHTML = '<span style="font-size:14px;">✦</span> AI Grader';
+      hdr.appendChild(htitle);
+      if (sg.rubricText) {
+        const clr = document.createElement('button');
+        clr.textContent = '✕ rubric';
+        clr.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:inherit;';
+        clr.onclick = () => { sg.rubricText = ''; sg.rubricName = ''; sg.rubricPoints = null; sg.result = null; render(); };
+        hdr.appendChild(clr);
+      }
+      container.appendChild(hdr);
+      const body = document.createElement('div');
+      body.style.cssText = 'padding:10px;';
+      if (!sg.token) body.appendChild(renderTokenSetup());
+      else if (!sg.rubricText) body.appendChild(renderRubricUpload());
+      else body.appendChild(renderGradingView());
+      container.appendChild(body);
+    }
+
+    function mkBtn(label, styles) {
+      const b = document.createElement('button'); b.type = 'button';
+      b.textContent = label;
+      b.style.cssText = `width:100%;padding:7px 10px;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;border:none;${styles}`;
+      return b;
+    }
+
+    function renderTokenSetup() {
+      const w = document.createElement('div');
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight:600;color:#2d3b45;margin-bottom:6px;';
+      title.textContent = 'Connect Canvas to get started';
+      w.appendChild(title);
+      const steps = ['Click your name → Account → Settings','Scroll to "Approved Integrations"','Click + New Access Token → copy it','Paste it below'];
+      const ol = document.createElement('ol');
+      ol.style.cssText = 'color:#6b7280;font-size:12px;padding-left:16px;margin:0 0 8px 0;line-height:1.9;';
+      steps.forEach(s => { const li = document.createElement('li'); li.textContent = s; ol.appendChild(li); });
+      w.appendChild(ol);
+      const inp = document.createElement('input');
+      inp.type = 'password'; inp.placeholder = 'Paste token here…';
+      inp.style.cssText = 'width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;margin-bottom:6px;font-family:inherit;';
+      w.appendChild(inp);
+      const save = mkBtn('Save & Connect', 'background:#0770B8;color:#fff;');
+      save.onclick = () => {
+        const v = inp.value.trim(); if (!v) return;
+        sg.token = v; GM_setValue('ce_canvas_token', v);
+        render(); fetchSubmission();
+      };
+      w.appendChild(save);
+      return w;
+    }
+
+    function renderRubricUpload() {
+      const w = document.createElement('div');
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight:600;color:#2d3b45;margin-bottom:4px;';
+      title.textContent = 'Upload rubric for this assignment';
+      w.appendChild(title);
+      const sub = document.createElement('div');
+      sub.style.cssText = 'font-size:11px;color:#9ca3af;margin-bottom:8px;';
+      sub.textContent = 'Stays loaded while you grade. PDF or Word doc.';
+      w.appendChild(sub);
+
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file'; fileInput.accept = '.pdf,.doc,.docx,.txt'; fileInput.style.display = 'none';
+      const upBtn = mkBtn('📎 Upload PDF or Word Doc', 'background:#f5f5f5;border:2px dashed #c7cdd1 !important;color:#2d3b45;font-weight:500;margin-bottom:8px;');
+      upBtn.style.border = '2px dashed #c7cdd1';
+      upBtn.onclick = () => fileInput.click();
+
+      fileInput.onchange = async e => {
+        const file = e.target.files[0]; if (!file) return;
+        upBtn.textContent = 'Parsing…'; upBtn.disabled = true;
+        try {
+          const b64 = await new Promise((res, rej) => {
+            const reader = new FileReader();
+            reader.onload = evt => {
+              const bytes = new Uint8Array(evt.target.result);
+              let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+              res(btoa(bin));
+            };
+            reader.onerror = rej;
+            reader.readAsArrayBuffer(file);
+          });
+          const result = await ceParseFile(b64, file.name, file.type);
+          sg.rubricText = result.text; sg.rubricName = file.name; sg.rubricPoints = parseRubricPoints(result.text);
+          render(); if (sg.submissionStatus === 'idle') fetchSubmission();
+        } catch (err) {
+          upBtn.textContent = '📎 Upload PDF or Word Doc'; upBtn.disabled = false;
+          showNotice('Could not parse rubric: ' + err.message);
+        }
+      };
+      w.appendChild(fileInput); w.appendChild(upBtn);
+
+      const or = document.createElement('div');
+      or.style.cssText = 'text-align:center;color:#c7cdd1;font-size:11px;margin:4px 0;';
+      or.textContent = '— or paste rubric text —';
+      w.appendChild(or);
+
+      const ta = document.createElement('textarea');
+      ta.placeholder = 'Paste rubric criteria here…';
+      ta.style.cssText = 'width:100%;box-sizing:border-box;height:72px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;';
+      w.appendChild(ta);
+
+      const useBtn = mkBtn('Use this rubric', 'background:#0770B8;color:#fff;margin-top:6px;');
+      useBtn.onclick = () => {
+        const v = ta.value.trim(); if (!v) return;
+        sg.rubricText = v; sg.rubricName = 'Pasted rubric'; sg.rubricPoints = parseRubricPoints(v);
+        render(); if (sg.submissionStatus === 'idle') fetchSubmission();
+      };
+      w.appendChild(useBtn);
+      return w;
+    }
+
+    function renderGradingView() {
+      const w = document.createElement('div');
+      const pts = sg.rubricPoints || 100;
+
+      // Rubric badge
+      const rb = document.createElement('div');
+      rb.style.cssText = 'font-size:11px;color:#127a1b;background:#e6f4ea;padding:4px 8px;border-radius:3px;margin-bottom:8px;';
+      rb.textContent = `📋 ${sg.rubricName}  ·  ${pts} pts`;
+      w.appendChild(rb);
+
+      if (sg.grading) {
+        const ld = document.createElement('div');
+        ld.style.cssText = 'text-align:center;padding:14px 0;';
+        ld.innerHTML = `<div style="color:#0770B8;font-weight:600;">Grading ${sg.studentName ? sg.studentName.split(' ')[0] + '\'s' : 'the'} submission…</div><div style="font-size:11px;color:#9ca3af;margin-top:3px;">Takes a few seconds</div>`;
+        w.appendChild(ld); return w;
+      }
+
+      if (sg.result) { renderResult(w); return w; }
+
+      // Student name
+      if (sg.studentName) {
+        const sn = document.createElement('div');
+        sn.style.cssText = 'font-weight:600;color:#2d3b45;margin-bottom:5px;font-size:13px;';
+        sn.textContent = `👤 ${sg.studentName}`;
+        w.appendChild(sn);
+      }
+
+      if (sg.submissionStatus === 'loading') {
+        const ld = document.createElement('div'); ld.style.cssText = 'font-size:12px;color:#9ca3af;';
+        ld.textContent = 'Loading submission…'; w.appendChild(ld); return w;
+      }
+      if (sg.submissionStatus === 'nosubmission') {
+        const nd = document.createElement('div'); nd.style.cssText = 'font-size:12px;color:#9ca3af;font-style:italic;';
+        nd.textContent = 'No submission yet.'; w.appendChild(nd); return w;
+      }
+
+      if (sg.submissionStatus === 'error') {
+        const ed = document.createElement('div'); ed.style.cssText = 'font-size:12px;color:#c0392b;margin-bottom:6px;';
+        ed.textContent = sg.submissionError; w.appendChild(ed);
+      }
+      if (sg.submissionStatus === 'ready') {
+        const words = sg.submissionText.split(/\s+/).filter(Boolean).length;
+        const rd = document.createElement('div'); rd.style.cssText = 'font-size:12px;color:#127a1b;margin-bottom:8px;';
+        rd.textContent = `✓ Submission loaded — ${words} words`; w.appendChild(rd);
+      }
+
+      // Manual text fallback (always shown if no text yet)
+      if (!sg.submissionText.trim()) {
+        const lbl = document.createElement('div'); lbl.style.cssText = 'font-size:11px;color:#6b7280;margin-bottom:4px;';
+        lbl.textContent = 'Or paste submission text:'; w.appendChild(lbl);
+        const ta = document.createElement('textarea');
+        ta.placeholder = 'Paste student response here…';
+        ta.style.cssText = 'width:100%;box-sizing:border-box;height:72px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;margin-bottom:6px;';
+        ta.oninput = () => { sg.submissionText = ta.value; };
+        w.appendChild(ta);
+      }
+
+      if (sg.submissionText.trim() || sg.submissionStatus === 'error') {
+        const gradeBtn = mkBtn(`✦ Grade ${sg.studentName ? sg.studentName.split(' ')[0] + '\'s' : 'this'} submission`, 'background:#0770B8;color:#fff;margin-top:2px;');
+        gradeBtn.onclick = gradeSubmission;
+        w.appendChild(gradeBtn);
+      }
+      return w;
+    }
+
+    function renderResult(w) {
+      const r = sg.result;
+      if (r.score !== null) {
+        const sc = document.createElement('div');
+        sc.style.cssText = 'font-size:20px;font-weight:700;color:#0770B8;text-align:center;padding:8px;background:#f0f7ff;border-radius:4px;margin-bottom:8px;';
+        sc.textContent = `${r.score} / ${r.total}`;
+        w.appendChild(sc);
+      }
+      const lbl = document.createElement('div'); lbl.style.cssText = 'font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;';
+      lbl.textContent = 'Suggested feedback'; w.appendChild(lbl);
+      const ta = document.createElement('textarea');
+      ta.value = r.feedback;
+      ta.style.cssText = 'width:100%;box-sizing:border-box;height:90px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;line-height:1.5;';
+      ta.oninput = () => { r.feedback = ta.value; };
+      w.appendChild(ta);
+      const ins = mkBtn('↵ Insert into comment', 'background:#0770B8;color:#fff;margin-top:6px;');
+      ins.onclick = () => {
+        const box = document.querySelector('#speedgrader_textarea, textarea[name="comment[text_comment]"]');
+        if (box) {
+          box.value = r.feedback;
+          box.dispatchEvent(new Event('input', { bubbles: true }));
+          box.dispatchEvent(new Event('change', { bubbles: true }));
+          showNotice('Feedback inserted!');
+        } else {
+          navigator.clipboard.writeText(r.feedback).then(() => showNotice('Copied to clipboard — paste into comment box'));
+        }
+      };
+      w.appendChild(ins);
+      const again = mkBtn('↺ Grade again', 'background:#f5f5f5;color:#2d3b45;border:1px solid #c7cdd1 !important;font-weight:400;margin-top:4px;');
+      again.style.border = '1px solid #c7cdd1';
+      again.onclick = () => { sg.result = null; render(); };
+      w.appendChild(again);
+    }
+
+    // ── INJECT & WATCH ──────────────────────────────────────────────────────────
+    function inject() {
+      if (document.getElementById('ce-ai-grader')) return;
+      const sidebar = document.querySelector('#rightside_inner, #right-side-inner, .right-side-inner');
+      if (!sidebar) return;
+      sidebar.appendChild(container);
+      render();
+      if (sg.token && sg.rubricText) fetchSubmission();
+    }
+
+    // Watch for student navigation (SpeedGrader uses history.pushState)
+    let sgLastStudentId = getUrlParts().studentId;
+    const _origPushState = history.pushState.bind(history);
+    history.pushState = function (...args) {
+      _origPushState(...args);
+      const sid = getUrlParts().studentId;
+      if (sid && sid !== sgLastStudentId) {
+        sgLastStudentId = sid;
+        sg.result = null; sg.submissionText = ''; sg.submissionStatus = 'idle'; sg.studentName = '';
+        if (sg.token && sg.rubricText) fetchSubmission();
+        else render();
+      }
+    };
+    window.addEventListener('popstate', () => {
+      const sid = getUrlParts().studentId;
+      if (sid && sid !== sgLastStudentId) {
+        sgLastStudentId = sid;
+        sg.result = null; sg.submissionText = ''; sg.submissionStatus = 'idle'; sg.studentName = '';
+        if (sg.token && sg.rubricText) fetchSubmission();
+        else render();
+      }
+    });
+
+    inject();
+    new MutationObserver(() => { if (!document.getElementById('ce-ai-grader')) inject(); })
+      .observe(document.body, { childList: true, subtree: true });
+  }
+
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
@@ -2195,9 +2602,13 @@ Critical rules:
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
   const isSpeedGrader = () => /speed_grader/.test(window.location.href);
-  if (!isSpeedGrader() && document.querySelector(RCE_SEL)) buildToolbar();
-  new MutationObserver(() => {
-    if (!isSpeedGrader() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
-  }).observe(document.body, { childList:true, subtree:true });
+  if (isSpeedGrader()) {
+    showSpeedGraderPanel();
+  } else {
+    if (document.querySelector(RCE_SEL)) buildToolbar();
+    new MutationObserver(() => {
+      if (document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    }).observe(document.body, { childList:true, subtree:true });
+  }
 
 })();
