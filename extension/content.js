@@ -2149,7 +2149,7 @@ Critical rules:
       const panel=document.createElement('div'); panel.className='ce-panel';
       cat.items.forEach(item => {
         const entry=document.createElement('button'); entry.className='ce-item'; entry.type='button';
-        if (item.pro) {
+        if (false && item.pro) {
           entry.innerHTML=`${item.label} <span style="opacity:.55;font-size:11px;">🔒</span>`;
           entry.style.cssText='color:#666;';
           entry.onclick=e=>{e.stopPropagation();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?handleItemClick(item,rowProps):showUpgradeModal('Pro Components');});};
