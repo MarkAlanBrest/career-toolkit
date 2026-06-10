@@ -35,15 +35,30 @@
     return data;
   }
 
-  function ceParseFile(b64, filename, mimeType, fileUrl) {
-    const token = GM_getValue('ce_canvas_token', '');
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { b64, filename, mimeType, fileUrl, token } }, res => {
-        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        if (res?.error) return reject(new Error(res.error));
-        resolve(res);
-      });
+  async function ceParseFile(b64, filename, mimeType, fileUrl) {
+    let base64 = b64;
+    // If given a Canvas file URL, fetch it directly from the content script (same-origin on Canvas)
+    if (!base64 && fileUrl) {
+      const token = GM_getValue('ce_canvas_token', '');
+      const fileRes = await fetch(fileUrl, token ? { headers: { 'Authorization': `Bearer ${token}` } } : {});
+      if (!fileRes.ok) throw new Error(`Could not download file: HTTP ${fileRes.status}`);
+      const buffer = await fileRes.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      base64 = btoa(bin);
+    }
+    // POST directly to Vercel — bypasses background service worker entirely
+    const res = await fetch('https://career-toolkit-ruby.vercel.app/api/parse-file', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ b64: base64, filename, mimeType }),
     });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — deploy the latest version to Vercel first`); }
+    if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
+    return data;
   }
 
   const BAKED_VERSION = '2.4';
