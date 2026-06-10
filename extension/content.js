@@ -3,7 +3,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_canvas_token'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_canvas_token','ce_grader_settings'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -2153,6 +2153,20 @@ Critical rules:
   }
 
   // ── SPEEDGRADER AI GRADER ─────────────────────────────────────────────────────
+  function sgLoadSettings(courseId, assignmentId) {
+    const all = GM_getValue('ce_grader_settings', {});
+    return all[`${courseId}_${assignmentId}`] || {
+      totalPoints: 100, rubricText: '', answerKey: '',
+      gradingIntensity: 'balanced', feedbackTone: 'encouraging',
+      acceptIntent: true, partialCredit: true, customInstructions: '',
+    };
+  }
+  function sgSaveSettings(courseId, assignmentId, name, settings) {
+    const all = GM_getValue('ce_grader_settings', {});
+    all[`${courseId}_${assignmentId}`] = { ...settings, _name: name };
+    GM_setValue('ce_grader_settings', all);
+  }
+
   function showSpeedGraderPanel() {
     const sg = {
       token: GM_getValue('ce_canvas_token', ''),
