@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 function htmlToStructuredText(html: string): string {
-  return html
+  // Process ordered lists first — give each <li> inside <ol> a number
+  let result = html.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_match, inner) => {
+    let n = 0;
+    return inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_li, content) => {
+      n++;
+      return `\n[NUMBERED LIST ITEM ${n}] ${content}`;
+    });
+  });
+  // Process unordered lists
+  result = result.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_match, inner) =>
+    inner.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_li: string, content: string) => `\n• ${content}`)
+  );
+  // Any remaining bare <li> (e.g. List Paragraph style mapped to li)
+  result = result.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '\n• $1');
+
+  return result
     .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n\n[HEADING 1] $1\n')
     .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n\n[HEADING 2] $1\n')
     .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n\n[HEADING 3] $1\n')
@@ -11,7 +26,6 @@ function htmlToStructuredText(html: string): string {
     .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '\n[QUOTE] $1\n')
     .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
     .replace(/<em[^>]*>(.*?)<\/em>/gi, '_$1_')
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n• $1')
     .replace(/<p[^>]*class="[^"]*caption[^"]*"[^>]*>(.*?)<\/p>/gi, '\n[Caption: $1]\n')
     .replace(/<p[^>]*class="[^"]*indent[^"]*"[^>]*>(.*?)<\/p>/gi, '\n  $1\n')
     .replace(/<p[^>]*>(.*?)<\/p>/gi, '\n$1\n')
