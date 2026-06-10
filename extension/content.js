@@ -25,7 +25,7 @@
   }
 
   const BAKED_VERSION = '2.4';
-  const COMPONENTS_URL = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app/components.json';
+  const COMPONENTS_URL = 'https://career-toolkit-ruby.vercel.app/components.json';
 
   // ── THEME COLORS ─────────────────────────────────────────────────────────────
   const COLORS = [
@@ -1296,7 +1296,7 @@
   }
 
   function cbGenerate(st, genBtn, renderFn) {
-    if (!st.apiKey) { showNotice('No license key — go to ⚙ Setup first'); return; }
+    // license check bypassed
     if (!st.textContent.trim() && !st.uploadedFile) { showNotice('Add some content or describe what to create'); return; }
     genBtn.textContent='Generating…'; genBtn.disabled=true;
     st.view='loading'; renderFn();
@@ -1781,7 +1781,7 @@
 
     // ── GENERATE ───────────────────────────────────────────────────────────
     genBtn.onclick=()=>{
-      if(!apiKey){showQStatus('No license key — set it in ✦ AI Builder → ⚙ Setup first.','err');return;}
+      // license check bypassed
       if(!qst.topic.trim()){showQStatus('Enter a topic first.','err');return;}
       const totalQ=Object.values(qst.typeCounts).reduce((s,v)=>s+v,0);
       if(!totalQ){showQStatus('Set at least one question type count above zero.','err');return;}

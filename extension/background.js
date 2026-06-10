@@ -1,7 +1,7 @@
 // Canvas Enhancer — background service worker
 // Handles cross-origin requests that content scripts cannot make directly.
 
-const API_BASE = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app';
+const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GENERATE') {

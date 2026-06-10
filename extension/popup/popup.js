@@ -1,4 +1,4 @@
-const API_BASE = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app';
+const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
 const statusEl       = document.getElementById('status');
 const statusLabel    = document.getElementById('status-label');
