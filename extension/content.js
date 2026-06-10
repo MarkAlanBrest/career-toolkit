@@ -2485,11 +2485,29 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
     }
 
     // ── INJECT & WATCH ──────────────────────────────────────────────────────────
+    function findSidebar() {
+      return (
+        document.querySelector('#rightside_inner') ||
+        document.querySelector('#right_side')       ||
+        document.querySelector('#right-side')       ||
+        document.querySelector('#grading_box_holder') ||
+        document.querySelector('#speedgrader_sidebar') ||
+        document.querySelector('#speedgrader_textarea')?.closest('#right_side, #rightside, #right-side, [id*="right"], form') ||
+        document.querySelector('#speedgrader_textarea')?.parentElement
+      );
+    }
+
     function inject() {
       if (document.getElementById('ce-ai-grader')) return;
-      const sidebar = document.querySelector('#rightside_inner, #right-side-inner, .right-side-inner');
-      if (!sidebar) return;
-      sidebar.appendChild(container);
+      const sidebar = findSidebar();
+      if (sidebar) {
+        sidebar.appendChild(container);
+        container.style.position = '';
+      } else {
+        // Last-resort: fixed panel on right edge
+        container.style.cssText += 'position:fixed;right:12px;top:80px;width:280px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.2);';
+        document.body.appendChild(container);
+      }
       render();
       if (sg.token && sg.rubricText) fetchSubmission();
     }
@@ -2517,9 +2535,15 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       }
     });
 
+    // Try immediately, then poll for up to 15s for async sidebar load
     inject();
     new MutationObserver(() => { if (!document.getElementById('ce-ai-grader')) inject(); })
       .observe(document.body, { childList: true, subtree: true });
+    let _sgPollCount = 0;
+    const _sgPoll = setInterval(() => {
+      if (document.getElementById('ce-ai-grader') || _sgPollCount++ > 30) { clearInterval(_sgPoll); return; }
+      inject();
+    }, 500);
   }
 
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
