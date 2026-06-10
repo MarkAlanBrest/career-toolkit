@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 
 function htmlToStructuredText(html: string): string {
   return html
-    .replace(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/gi, '\n\n## $1\n')
-    .replace(/<h[4-6][^>]*>(.*?)<\/h[4-6]>/gi, '\n\n### $1\n')
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n\n[HEADING 1] $1\n')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n\n[HEADING 2] $1\n')
+    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n\n[HEADING 3] $1\n')
+    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '\n\n[HEADING 4] $1\n')
+    .replace(/<h5[^>]*>(.*?)<\/h5>/gi, '\n\n[HEADING 5] $1\n')
+    .replace(/<h6[^>]*>(.*?)<\/h6>/gi, '\n\n[HEADING 6] $1\n')
+    .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '\n[QUOTE] $1\n')
     .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
     .replace(/<em[^>]*>(.*?)<\/em>/gi, '_$1_')
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n- $1')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n• $1')
+    .replace(/<p[^>]*class="[^"]*caption[^"]*"[^>]*>(.*?)<\/p>/gi, '\n[Caption: $1]\n')
+    .replace(/<p[^>]*class="[^"]*indent[^"]*"[^>]*>(.*?)<\/p>/gi, '\n  $1\n')
     .replace(/<p[^>]*>(.*?)<\/p>/gi, '\n$1\n')
     .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<th[^>]*>(.*?)<\/th>/gi, ' | **$1** |')
     .replace(/<td[^>]*>(.*?)<\/td>/gi, ' | $1')
     .replace(/<tr[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, '')
@@ -17,6 +25,7 @@ function htmlToStructuredText(html: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -62,8 +71,25 @@ export async function POST(req: NextRequest) {
     } else if (isDocx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mammoth = require('mammoth');
-      // Convert to HTML then simplify to structured text so AI can read formatting
-      const result = await mammoth.convertToHtml({ buffer });
+      const styleMap = [
+        "p[style-name='Title'] => h1:fresh",
+        "p[style-name='Subtitle'] => h2:fresh",
+        "p[style-name='Heading 1'] => h1:fresh",
+        "p[style-name='Heading 2'] => h2:fresh",
+        "p[style-name='Heading 3'] => h3:fresh",
+        "p[style-name='Heading 4'] => h4:fresh",
+        "p[style-name='Heading 5'] => h5:fresh",
+        "p[style-name='Heading 6'] => h6:fresh",
+        "p[style-name='List Paragraph'] => li:fresh",
+        "p[style-name='Quote'] => blockquote:fresh",
+        "p[style-name='Intense Quote'] => blockquote:fresh",
+        "p[style-name='Caption'] => p.caption:fresh",
+        "p[style-name='Normal Indent'] => p.indent:fresh",
+        "p[style-name='Body Text Indent'] => p.indent:fresh",
+        "r[style-name='Strong'] => strong",
+        "r[style-name='Emphasis'] => em",
+      ];
+      const result = await mammoth.convertToHtml({ buffer }, { styleMap });
       text = htmlToStructuredText(result.value);
     } else if (isXlsx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports

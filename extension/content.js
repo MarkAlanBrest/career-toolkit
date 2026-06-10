@@ -2273,12 +2273,13 @@ Critical rules:
       if (st.rubricText)         prompt += `RUBRIC / GRADING CRITERIA:\n${st.rubricText}\n\n`;
       if (st.answerKey)          prompt += `ANSWER KEY:\n${st.answerKey}\n\n`;
       if (st.customInstructions) prompt += `ADDITIONAL INSTRUCTIONS:\n${st.customInstructions}\n\n`;
+      prompt += `FORMATTING NOTE: The submission uses these structural markers extracted from the Word/PDF file: [HEADING 1], [HEADING 2], [HEADING 3] for section headings; **bold** for bold text; _italic_ for italic; • for list items; [Caption:] for captions. If the rubric requires formatting like headings or sections, look for these markers. Visual-only formatting (font size, colors, line spacing) cannot be detected.\n\n`;
       prompt += `STUDENT SUBMISSION:\n${sg.subText.slice(0, 14000)}\n\n`;
       prompt += `Grade this submission. DO NOT penalize for things not in the rubric.\n\n`;
-      prompt += `Respond in exactly this format:\nSCORE: [number]/${total}\nFEEDBACK: [3-5 sentences addressing ${firstName} by name. Lead with strengths, then specific areas tied to rubric criteria.]`;
+      prompt += `Respond in exactly this format (use bullet points for feedback):\nSCORE: [number]/${total}\nFEEDBACK:\n- [Address ${firstName} by name, lead with overall strengths]\n- [Specific strength tied to a rubric criterion]\n- [Area for improvement, be specific]\n- [Optional: additional point or encouragement]\n\nUse 3-5 bullet points total.`;
 
       try {
-        const data = await ceGenerate({ model:'claude-sonnet-4-6', max_tokens:600, messages:[{role:'user',content:prompt}] });
+        const data = await ceGenerate({ model:'claude-sonnet-4-6', max_tokens:800, messages:[{role:'user',content:prompt}] });
         const text = data?.content?.[0]?.text||'';
         const scoreMatch    = text.match(/SCORE:\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+)/);
         const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/);
@@ -2485,7 +2486,7 @@ Critical rules:
       }
       const lbl=document.createElement('div'); lbl.style.cssText='font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;'; lbl.textContent='Suggested feedback'; w.appendChild(lbl);
       const ta=document.createElement('textarea'); ta.value=r.feedback;
-      ta.style.cssText='width:100%;box-sizing:border-box;height:90px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;line-height:1.5;';
+      ta.style.cssText='width:100%;box-sizing:border-box;height:130px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;line-height:1.6;';
       ta.oninput=()=>{ r.feedback=ta.value; }; w.appendChild(ta);
       const ins=mkBtn('↵ Insert into comment','background:#0770B8;color:#fff;margin-top:6px;');
       ins.onclick=()=>{
