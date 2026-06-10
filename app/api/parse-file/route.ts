@@ -1,5 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function htmlToStructuredText(html: string): string {
+  return html
+    .replace(/<h[1-3][^>]*>(.*?)<\/h[1-3]>/gi, '\n\n## $1\n')
+    .replace(/<h[4-6][^>]*>(.*?)<\/h[4-6]>/gi, '\n\n### $1\n')
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<em[^>]*>(.*?)<\/em>/gi, '_$1_')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi, '\n- $1')
+    .replace(/<p[^>]*>(.*?)<\/p>/gi, '\n$1\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<td[^>]*>(.*?)<\/td>/gi, ' | $1')
+    .replace(/<tr[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -41,8 +62,9 @@ export async function POST(req: NextRequest) {
     } else if (isDocx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mammoth = require('mammoth');
-      const result = await mammoth.extractRawText({ buffer });
-      text = result.value;
+      // Convert to HTML then simplify to structured text so AI can read formatting
+      const result = await mammoth.convertToHtml({ buffer });
+      text = htmlToStructuredText(result.value);
     } else if (isXlsx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const xlsx = require('xlsx');

@@ -2177,10 +2177,21 @@ Critical rules:
     }
 
     function parseRubricPoints(text) {
-      const patterns = [/total[:\s]+(\d+)\s*(?:points?|pts)/i, /out\s+of\s+(\d+)\s*(?:points?|pts)?/i, /(\d+)\s*(?:points?|pts)\s*total/i];
-      for (const p of patterns) { const m = text.match(p); if (m) return parseInt(m[1]); }
-      const all = [...text.matchAll(/(\d+)\s*(?:points?|pts)/gi)];
-      if (all.length) { const sum = all.reduce((a, m) => a + parseInt(m[1]), 0); if (sum > 0 && sum <= 1000) return sum; }
+      // Explicit total patterns — most reliable
+      const totalPatterns = [
+        /total[:\s]+(\d+)\s*(?:points?|pts)/i,
+        /(\d+)\s*(?:points?|pts)\s*total/i,
+        /out\s+of\s+(\d+)/i,
+        /worth\s+(\d+)\s*(?:points?|pts)/i,
+        /\/\s*(\d+)\s*points?/i,
+      ];
+      for (const p of totalPatterns) { const m = text.match(p); if (m) return parseInt(m[1]); }
+      // Fallback: take the single largest point value found — do NOT sum
+      const all = [...text.matchAll(/\b(\d+)\s*(?:points?|pts)\b/gi)];
+      if (all.length) {
+        const max = Math.max(...all.map(m => parseInt(m[1])));
+        if (max > 0 && max <= 1000) return max;
+      }
       return null;
     }
 
@@ -2422,22 +2433,26 @@ FEEDBACK: [3-5 sentences addressing ${firstName} by name. Lead with what they di
       const w = document.createElement('div');
       const pts = sg.rubricPoints || 100;
 
-      // Rubric badge + view toggle
+      // Rubric badge + points override + view toggle
       const rb = document.createElement('div');
-      rb.style.cssText = 'font-size:11px;color:#127a1b;background:#e6f4ea;padding:4px 8px;border-radius:3px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;';
+      rb.style.cssText = 'font-size:11px;color:#127a1b;background:#e6f4ea;padding:4px 8px;border-radius:3px;margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;';
       const rbLabel = document.createElement('span');
-      rbLabel.textContent = `📋 ${sg.rubricName}  ·  ${pts} pts`;
+      rbLabel.textContent = `📋 ${sg.rubricName}`;
+      const ptsLabel = document.createElement('span'); ptsLabel.textContent = 'pts:'; ptsLabel.style.cssText = 'color:#127a1b;';
+      const ptsInp = document.createElement('input');
+      ptsInp.type = 'number'; ptsInp.min = '1'; ptsInp.max = '1000';
+      ptsInp.value = pts;
+      ptsInp.style.cssText = 'width:46px;padding:1px 4px;border:1px solid #a7d7a9;border-radius:3px;font-size:11px;color:#127a1b;background:#f0faf0;font-family:inherit;';
+      ptsInp.onchange = () => { sg.rubricPoints = parseInt(ptsInp.value) || 100; };
       const rbToggle = document.createElement('button');
-      rbToggle.type = 'button';
-      rbToggle.textContent = 'view';
-      rbToggle.style.cssText = 'background:none;border:none;color:#127a1b;text-decoration:underline;font-size:11px;cursor:pointer;padding:0;font-family:inherit;';
+      rbToggle.type = 'button'; rbToggle.textContent = 'view';
+      rbToggle.style.cssText = 'background:none;border:none;color:#127a1b;text-decoration:underline;font-size:11px;cursor:pointer;padding:0;font-family:inherit;margin-left:auto;';
       let rubricVisible = false;
       const rubricPreview = document.createElement('textarea');
-      rubricPreview.readOnly = true;
-      rubricPreview.value = sg.rubricText;
+      rubricPreview.readOnly = true; rubricPreview.value = sg.rubricText;
       rubricPreview.style.cssText = 'display:none;width:100%;box-sizing:border-box;height:80px;font-size:10px;font-family:monospace;border:1px solid #c7cdd1;border-radius:3px;padding:4px 6px;resize:vertical;color:#374151;background:#f9fafb;margin-bottom:4px;';
       rbToggle.onclick = () => { rubricVisible = !rubricVisible; rubricPreview.style.display = rubricVisible ? 'block' : 'none'; rbToggle.textContent = rubricVisible ? 'hide' : 'view'; };
-      rb.appendChild(rbLabel); rb.appendChild(rbToggle);
+      rb.appendChild(rbLabel); rb.appendChild(ptsLabel); rb.appendChild(ptsInp); rb.appendChild(rbToggle);
       w.appendChild(rb); w.appendChild(rubricPreview);
 
       if (sg.grading) {
