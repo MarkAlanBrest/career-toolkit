@@ -24,15 +24,15 @@
     });
   }
 
-  function ceCanvasApi(url) {
+  async function ceCanvasApi(url) {
+    // Canvas API is same-origin — fetch directly from the content script, no background worker needed
     const token = GM_getValue('ce_canvas_token', '');
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url, token } }, res => {
-        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        if (res?.error) return reject(new Error(res.error));
-        resolve(res);
-      });
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.errors?.[0]?.message || data?.message || `Canvas API error ${res.status}`);
+    return data;
   }
 
   function ceParseFile(b64, filename, mimeType, fileUrl) {
@@ -2151,6 +2151,8 @@ Critical rules:
       submissionError: '',
       grading: false,
       result: null, // { score, total, feedback }
+      floating: false, // true when sidebar not found; shows toggle button
+      open: false,
     };
 
     function getUrlParts() {
@@ -2276,13 +2278,23 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       htitle.style.cssText = 'font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;';
       htitle.innerHTML = '<span style="font-size:14px;">✦</span> AI Grader';
       hdr.appendChild(htitle);
+      const hdrRight = document.createElement('div');
+      hdrRight.style.cssText = 'display:flex;align-items:center;gap:4px;';
       if (sg.rubricText) {
         const clr = document.createElement('button');
         clr.textContent = '✕ rubric';
         clr.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:11px;padding:2px 7px;border-radius:3px;cursor:pointer;font-family:inherit;';
         clr.onclick = () => { sg.rubricText = ''; sg.rubricName = ''; sg.rubricPoints = null; sg.result = null; render(); };
-        hdr.appendChild(clr);
+        hdrRight.appendChild(clr);
       }
+      if (sg.floating) {
+        const xBtn = document.createElement('button');
+        xBtn.textContent = '✕';
+        xBtn.style.cssText = 'background:rgba(255,255,255,.15);border:none;color:#fff;font-size:14px;cursor:pointer;padding:2px 6px;border-radius:3px;line-height:1;font-family:inherit;';
+        xBtn.onclick = () => { sg.open = false; container.style.display = 'none'; toggleBtn.style.display = 'block'; };
+        hdrRight.appendChild(xBtn);
+      }
+      hdr.appendChild(hdrRight);
       container.appendChild(hdr);
       const body = document.createElement('div');
       body.style.cssText = 'padding:10px;';
@@ -2484,6 +2496,20 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       w.appendChild(again);
     }
 
+    // ── OPEN / CLOSE TOGGLE ──────────────────────────────────────────────────────
+    sg.open = false; // collapsed by default
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'ce-ai-grader-toggle';
+    toggleBtn.textContent = '✦ AI Grader';
+    toggleBtn.style.cssText = 'position:fixed;right:0;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:right center;background:#0770B8;color:#fff;border:none;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;border-radius:4px 4px 0 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 0 8px rgba(0,0,0,.2);white-space:nowrap;';
+    toggleBtn.onclick = () => {
+      sg.open = !sg.open;
+      container.style.display = sg.open ? 'block' : 'none';
+      toggleBtn.style.display = sg.open ? 'none' : 'block';
+      if (sg.open && sg.token && sg.rubricText && sg.submissionStatus === 'idle') fetchSubmission();
+    };
+
     // ── INJECT & WATCH ──────────────────────────────────────────────────────────
     function findSidebar() {
       return (
@@ -2501,15 +2527,19 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       if (document.getElementById('ce-ai-grader')) return;
       const sidebar = findSidebar();
       if (sidebar) {
+        // Embedded in Canvas sidebar — always visible, no toggle needed
+        sg.floating = false; sg.open = true;
         sidebar.appendChild(container);
-        container.style.position = '';
+        render();
+        if (sg.token && sg.rubricText) fetchSubmission();
       } else {
-        // Last-resort: fixed panel on right edge
-        container.style.cssText += 'position:fixed;right:12px;top:80px;width:280px;z-index:99999;box-shadow:0 4px 20px rgba(0,0,0,.2);';
+        // Floating fallback — start collapsed with a tab on the right edge
+        sg.floating = true;
+        container.style.cssText = 'display:none;position:fixed;right:12px;top:80px;width:300px;z-index:99998;box-shadow:0 4px 20px rgba(0,0,0,.25);border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
         document.body.appendChild(container);
+        document.body.appendChild(toggleBtn);
+        render();
       }
-      render();
-      if (sg.token && sg.rubricText) fetchSubmission();
     }
 
     // Watch for student navigation (SpeedGrader uses history.pushState)
