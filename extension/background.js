@@ -74,7 +74,9 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ b64: base64, filename, mimeType }),
   });
-  const data = await res.json();
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
   if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
   return data;
 }

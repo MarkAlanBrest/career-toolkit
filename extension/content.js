@@ -2209,7 +2209,8 @@ Critical rules:
             sg.submissionStatus = 'ready';
           } catch (e) {
             sg.submissionStatus = 'error';
-            sg.submissionError = `Could not read ${att.filename} — paste text manually below`;
+            const fname = decodeURIComponent((att.filename || '').replace(/\+/g, ' '));
+            sg.submissionError = `Could not read "${fname}": ${e?.message || 'unknown error'}`;
           }
           render();
         } else if (sub.submission_type === 'online_url') {
@@ -2502,7 +2503,7 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
     toggleBtn.textContent = '✦ AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;right:0;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:right center;background:#0770B8;color:#fff;border:none;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;border-radius:4px 4px 0 0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 0 8px rgba(0,0,0,.2);white-space:nowrap;';
+    toggleBtn.style.cssText = 'position:fixed;top:12px;right:12px;background:#0770B8;color:#fff;border:none;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;border-radius:6px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
     toggleBtn.onclick = () => {
       sg.open = !sg.open;
       container.style.display = sg.open ? 'block' : 'none';
@@ -2535,7 +2536,7 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       } else {
         // Floating fallback — start collapsed with a tab on the right edge
         sg.floating = true;
-        container.style.cssText = 'display:none;position:fixed;right:12px;top:80px;width:300px;z-index:99998;box-shadow:0 4px 20px rgba(0,0,0,.25);border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
+        container.style.cssText = 'display:none;position:fixed;right:12px;top:52px;width:300px;z-index:99998;box-shadow:0 4px 20px rgba(0,0,0,.25);border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
         document.body.appendChild(container);
         document.body.appendChild(toggleBtn);
         render();

@@ -22,37 +22,49 @@ export async function POST(req: NextRequest) {
   try {
     buffer = Buffer.from(b64, 'base64');
   } catch {
-    return NextResponse.json({ error: 'Invalid base64 data' }, { status: 400, headers: CORS });
+    return NextResponse.json({ error: 'Invalid file data' }, { status: 400, headers: CORS });
   }
 
-  const isPdf  = mimeType.includes('pdf')  || filename.toLowerCase().endsWith('.pdf');
-  const isDocx = mimeType.includes('word') || mimeType.includes('officedocument') ||
-                 filename.toLowerCase().endsWith('.docx') || filename.toLowerCase().endsWith('.doc');
-  const isXlsx = mimeType.includes('spreadsheet') || mimeType.includes('excel') ||
-                 filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls');
+  const fname = filename.toLowerCase();
+  const mime  = mimeType.toLowerCase();
+  const isPdf  = mime.includes('pdf')  || fname.endsWith('.pdf');
+  const isDocx = mime.includes('word') || mime.includes('officedocument') || fname.endsWith('.docx') || fname.endsWith('.doc');
+  const isXlsx = mime.includes('spreadsheet') || mime.includes('excel') || fname.endsWith('.xlsx') || fname.endsWith('.xls');
 
   let text = '';
   try {
     if (isPdf) {
-      // Use lib path directly to avoid pdf-parse test-file access issue in serverless
-      const pdfParse = (await import('pdf-parse/lib/pdf-parse.js' as any)).default;
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require('pdf-parse');
       const data = await pdfParse(buffer);
       text = data.text;
     } else if (isDocx) {
-      const mammoth = await import('mammoth');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const mammoth = require('mammoth');
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (isXlsx) {
-      const xlsx = await import('xlsx');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const xlsx = require('xlsx');
       const workbook = xlsx.read(buffer);
-      text = workbook.SheetNames
+      text = (workbook.SheetNames as string[])
         .map((name: string) => xlsx.utils.sheet_to_csv(workbook.Sheets[name]))
         .join('\n\n');
     } else {
       text = buffer.toString('utf-8');
     }
   } catch (err: any) {
-    return NextResponse.json({ error: `Could not parse file: ${err.message}` }, { status: 500, headers: CORS });
+    return NextResponse.json(
+      { error: `Could not parse ${fname || 'file'}: ${err.message}` },
+      { status: 500, headers: CORS }
+    );
+  }
+
+  if (!text.trim()) {
+    return NextResponse.json(
+      { error: 'File parsed but no text could be extracted. Try copying and pasting the rubric text instead.' },
+      { status: 422, headers: CORS }
+    );
   }
 
   return NextResponse.json({ text: text.trim() }, { headers: CORS });
