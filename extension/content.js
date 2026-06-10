@@ -2472,8 +2472,20 @@ FEEDBACK: [3-5 sentences addressing ${firstName} by name. Lead with what they di
       }
       if (sg.submissionStatus === 'ready') {
         const words = sg.submissionText.split(/\s+/).filter(Boolean).length;
-        const rd = document.createElement('div'); rd.style.cssText = 'font-size:12px;color:#127a1b;margin-bottom:8px;';
-        rd.textContent = `✓ Submission loaded — ${words} words`; w.appendChild(rd);
+        const rd = document.createElement('div');
+        rd.style.cssText = 'font-size:12px;color:#127a1b;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;';
+        const rdLabel = document.createElement('span');
+        rdLabel.textContent = `✓ Submission loaded — ${words} words`;
+        const subToggle = document.createElement('button');
+        subToggle.type = 'button'; subToggle.textContent = 'view';
+        subToggle.style.cssText = 'background:none;border:none;color:#127a1b;text-decoration:underline;font-size:11px;cursor:pointer;padding:0;font-family:inherit;';
+        const subPreview = document.createElement('textarea');
+        subPreview.readOnly = true; subPreview.value = sg.submissionText;
+        subPreview.style.cssText = 'display:none;width:100%;box-sizing:border-box;height:100px;font-size:10px;font-family:monospace;border:1px solid #c7cdd1;border-radius:3px;padding:4px 6px;resize:vertical;color:#374151;background:#f9fafb;margin-bottom:4px;';
+        let subVisible = false;
+        subToggle.onclick = () => { subVisible = !subVisible; subPreview.style.display = subVisible ? 'block' : 'none'; subToggle.textContent = subVisible ? 'hide' : 'view'; };
+        rd.appendChild(rdLabel); rd.appendChild(subToggle);
+        w.appendChild(rd); w.appendChild(subPreview);
       }
 
       // Manual text fallback (always shown if no text yet)
