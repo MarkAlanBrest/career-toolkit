@@ -2167,21 +2167,35 @@ Critical rules:
     GM_setValue('ce_grader_settings', all);
   }
 
+  function showNotice(msg) {
+    const n = document.createElement('div');
+    n.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#2d3b45;color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:999999;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);';
+    n.textContent = msg; document.body.appendChild(n);
+    setTimeout(() => n.remove(), 2500);
+  }
+
   function showSpeedGraderPanel() {
     const sg = {
       token: GM_getValue('ce_canvas_token', ''),
-      rubricText: '',
-      rubricName: '',
-      rubricPoints: null,
-      studentId: '',
-      studentName: '',
-      submissionText: '',
-      submissionStatus: 'idle', // idle | loading | ready | nosubmission | error
-      submissionError: '',
-      grading: false,
-      result: null, // { score, total, feedback }
-      floating: false, // true when sidebar not found; shows toggle button
+      view: 'grade',   // grade | settings | token_setup
+      floating: false,
       open: false,
+      // assignment context (from URL)
+      courseId:     '',
+      assignmentId: '',
+      assignmentName: '',
+      // settings (loaded from storage per assignment)
+      settings: { totalPoints:100, rubricText:'', answerKey:'', gradingIntensity:'balanced', feedbackTone:'encouraging', acceptIntent:true, partialCredit:true, customInstructions:'' },
+      settingsDraft: null,
+      // student & submission
+      studentId:   '',
+      studentName: '',
+      subStatus:   'idle',  // idle | loading | ready | nosubmission | error
+      subText:     '',
+      subError:    '',
+      // grading
+      grading: false,
+      result:  null,  // { score, total, feedback }
     };
 
     function getUrlParts() {
