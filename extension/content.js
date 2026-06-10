@@ -2248,7 +2248,7 @@ Critical rules:
       sg.grading = true; render();
       const total = sg.rubricPoints || 100;
       const firstName = sg.studentName ? sg.studentName.split(' ')[0] : 'the student';
-      const prompt = `You are an expert teacher grading a student submission.
+      const prompt = `You are a fair and accurate teacher grading a student submission.
 
 Student name: ${sg.studentName || 'Student'}
 
@@ -2258,11 +2258,16 @@ ${sg.rubricText}
 Student submission:
 ${sg.submissionText.slice(0, 12000)}
 
-Grade this submission against the rubric. Total possible points: ${total}.
+Instructions:
+- Grade ONLY against the criteria listed in the rubric above. Do not penalize for things not mentioned in the rubric.
+- If the student clearly meets a criterion, award full points for it. Do not dock points for minor stylistic issues unless the rubric specifically requires them.
+- If the rubric uses a point scale per criterion, score each criterion independently and sum them.
+- Total possible points: ${total}.
+- Be generous when the evidence is ambiguous — default to giving the student the benefit of the doubt.
 
 Respond in exactly this format (no other text):
 SCORE: [number]/${total}
-FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by name, noting specific strengths and areas for improvement based on the rubric criteria. Be direct and constructive.]`;
+FEEDBACK: [3-5 sentences addressing ${firstName} by name. Lead with what they did well, then note any specific areas for improvement tied to rubric criteria. Be encouraging and constructive.]`;
 
       try {
         const data = await ceGenerate({ model: 'claude-sonnet-4-6', max_tokens: 512, messages: [{ role: 'user', content: prompt }] });
@@ -2417,11 +2422,23 @@ FEEDBACK: [3-5 sentences of personalized feedback addressing ${firstName} by nam
       const w = document.createElement('div');
       const pts = sg.rubricPoints || 100;
 
-      // Rubric badge
+      // Rubric badge + view toggle
       const rb = document.createElement('div');
-      rb.style.cssText = 'font-size:11px;color:#127a1b;background:#e6f4ea;padding:4px 8px;border-radius:3px;margin-bottom:8px;';
-      rb.textContent = `📋 ${sg.rubricName}  ·  ${pts} pts`;
-      w.appendChild(rb);
+      rb.style.cssText = 'font-size:11px;color:#127a1b;background:#e6f4ea;padding:4px 8px;border-radius:3px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;';
+      const rbLabel = document.createElement('span');
+      rbLabel.textContent = `📋 ${sg.rubricName}  ·  ${pts} pts`;
+      const rbToggle = document.createElement('button');
+      rbToggle.type = 'button';
+      rbToggle.textContent = 'view';
+      rbToggle.style.cssText = 'background:none;border:none;color:#127a1b;text-decoration:underline;font-size:11px;cursor:pointer;padding:0;font-family:inherit;';
+      let rubricVisible = false;
+      const rubricPreview = document.createElement('textarea');
+      rubricPreview.readOnly = true;
+      rubricPreview.value = sg.rubricText;
+      rubricPreview.style.cssText = 'display:none;width:100%;box-sizing:border-box;height:80px;font-size:10px;font-family:monospace;border:1px solid #c7cdd1;border-radius:3px;padding:4px 6px;resize:vertical;color:#374151;background:#f9fafb;margin-bottom:4px;';
+      rbToggle.onclick = () => { rubricVisible = !rubricVisible; rubricPreview.style.display = rubricVisible ? 'block' : 'none'; rbToggle.textContent = rubricVisible ? 'hide' : 'view'; };
+      rb.appendChild(rbLabel); rb.appendChild(rbToggle);
+      w.appendChild(rb); w.appendChild(rubricPreview);
 
       if (sg.grading) {
         const ld = document.createElement('div');
