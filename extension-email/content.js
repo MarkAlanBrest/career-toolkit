@@ -178,6 +178,7 @@
   ========================================================= */
   const CANVAS_BASE = window.location.origin;
   const API = CANVAS_BASE + '/api/v1';
+  const TOOLKIT_BASE = 'https://career-toolkit-ruby.vercel.app';
 
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
@@ -430,6 +431,20 @@
     return canvasPost(`/courses/${courseId}/discussion_topics`, { title, message: '<p>' + message.replace(/\n/g, '<br>') + '</p>', is_announcement: true, published: true });
   }
 
+  async function getTextSignups(courseId) {
+    const res = await fetch(`${TOOLKIT_BASE}/api/signup?courseId=${encodeURIComponent(courseId)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'Could not load text signups.');
+    return data.signups || [];
+  }
+
+  async function removeTextSignup(id) {
+    const res = await fetch(`${TOOLKIT_BASE}/api/signup?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || 'Could not remove signup.');
+    return data;
+  }
+
   /* =========================================================
      UTILITY
   ========================================================= */
@@ -440,6 +455,11 @@
   function escapeAttr(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function formatPhone(digits) {
+    const s = String(digits || '').replace(/\D/g, '');
+    if (s.length !== 10) return String(digits || '');
+    return `(${s.slice(0,3)}) ${s.slice(3,6)}-${s.slice(6)}`;
   }
 
   /* =========================================================
