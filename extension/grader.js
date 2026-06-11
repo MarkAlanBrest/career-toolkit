@@ -554,8 +554,8 @@
 
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
-    toggleBtn.textContent = 'AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;top:72px;right:18px;background:#2d3b45;color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.22);white-space:nowrap;';
+    toggleBtn.innerHTML = '<span style="font-size:16px;line-height:1;">✦</span><span>AI Grader</span>';
+    toggleBtn.style.cssText = 'position:fixed;top:118px;right:18px;z-index:99999;display:flex;align-items:center;gap:7px;min-width:112px;justify-content:center;padding:9px 13px;border:none;border-radius:8px;background:#2d3b45;color:#fff;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.22);cursor:pointer;white-space:nowrap;';
     toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; if(sg.open) hideToggle(); else showToggle(); if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // Toolbar button (ce-grader-btn in content.js) calls this when the toolbar is present
