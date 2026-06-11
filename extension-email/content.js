@@ -583,6 +583,16 @@
         </div>
       </div>
       <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check">Also post as Canvas Announcement</label></div>
+      <div class="ces-card" id="ces-text-signups-card" style="background:#f9fafb;">
+        <div class="ces-flex-between">
+          <div>
+            <strong>Text Subscribers</strong>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Phone numbers collected for this Canvas course.</div>
+          </div>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-signups">Refresh</button>
+        </div>
+        <div id="ces-text-signups-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
+      </div>
       <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button></div>
       <div id="ces-progress-area" style="display:none;" class="ces-mt">
         <div class="ces-status ces-status-info" id="ces-progress-text">Fetching data...</div>
@@ -592,6 +602,8 @@
     `;
 
     loadCurrentCourse(courseId);
+    loadTextSubscribers(courseId);
+    container.querySelector('#ces-refresh-signups')?.addEventListener('click', () => loadTextSubscribers(courseId));
 
     let selectedType = firstType;
     container.querySelectorAll('#ces-type-cards .ces-card').forEach(card => {
@@ -642,6 +654,47 @@
     });
 
     updateOptionsVisibility('upcoming');
+  }
+
+  async function loadTextSubscribers(courseId) {
+    const list = document.getElementById('ces-text-signups-list');
+    if (!list) return;
+    if (!courseId) {
+      list.textContent = 'Open from inside a Canvas course to load subscribers.';
+      return;
+    }
+    list.textContent = 'Loading...';
+    try {
+      const signups = await getTextSignups(courseId);
+      if (!signups.length) {
+        list.textContent = 'No text subscribers found for this course yet.';
+        return;
+      }
+      list.innerHTML = signups.map(s => `
+        <div class="ces-msg-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <strong>${escapeHtml(s.name || 'Student')}</strong>
+            <div style="font-size:12px;color:#6b7280;">${escapeHtml(formatPhone(s.phone))} · ${escapeHtml(s.className || '')}</div>
+          </div>
+          <button class="ces-btn ces-btn-danger ces-btn-sm ces-remove-signup" data-id="${escapeAttr(String(s.id))}">Remove</button>
+        </div>
+      `).join('');
+      list.querySelectorAll('.ces-remove-signup').forEach(btn => btn.addEventListener('click', async () => {
+        if (!confirm('Remove this student from text alerts for this course?')) return;
+        btn.disabled = true;
+        btn.textContent = 'Removing...';
+        try {
+          await removeTextSignup(btn.dataset.id);
+          await loadTextSubscribers(courseId);
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Remove';
+          showStatus(err?.message || 'Could not remove signup.', 'error');
+        }
+      }));
+    } catch (err) {
+      list.innerHTML = `<span style="color:#b91c1c;">${escapeHtml(err?.message || 'Could not load text subscribers.')}</span>`;
+    }
   }
 
   function updateOptionsVisibility(type) {
