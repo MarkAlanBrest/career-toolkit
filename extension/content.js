@@ -1078,20 +1078,24 @@
       const themeCard=mkCard();
       themeCard.appendChild(mkSecHdr('Style / Theme'));
       const themeGrid=document.createElement('div'); themeGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;';
+      const cr=document.createElement('div'); cr.style.cssText=`display:${st.pageStyle==='custom'?'flex':'none'};align-items:center;gap:8px;margin-top:10px;`;
+      const cl=document.createElement('span'); cl.textContent='Primary color:'; cl.style.fontSize='13px';
+      const ci=document.createElement('input'); ci.type='color'; ci.value=st.customColor;
+      ci.style.cssText='width:50px;height:30px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;';
+      ci.oninput=()=>{ st.customColor=ci.value; }; cr.appendChild(cl); cr.appendChild(ci);
+      const themeBtns=[];
+      const themeStyle=(act)=>`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#7c3aed':'#374151'};font-family:inherit;`;
       Object.entries(CB_THEMES).forEach(([key,theme])=>{
-        const act=st.pageStyle===key;
-        const tb=document.createElement('button'); tb.textContent=theme.name;
-        tb.style.cssText=`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#7c3aed':'#374151'};font-family:inherit;`;
-        tb.onclick=()=>{ st.pageStyle=key; render(); }; themeGrid.appendChild(tb);
+        const tb=document.createElement('button'); tb.textContent=theme.name; tb.dataset.key=key;
+        tb.style.cssText=themeStyle(st.pageStyle===key);
+        tb.onclick=()=>{
+          st.pageStyle=key;
+          themeBtns.forEach(b=>b.style.cssText=themeStyle(b.dataset.key===key));
+          cr.style.display=key==='custom'?'flex':'none';
+        };
+        themeBtns.push(tb); themeGrid.appendChild(tb);
       });
-      themeCard.appendChild(themeGrid);
-      if (st.pageStyle==='custom') {
-        const cr=document.createElement('div'); cr.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
-        const cl=document.createElement('span'); cl.textContent='Primary color:'; cl.style.fontSize='13px';
-        const ci=document.createElement('input'); ci.type='color'; ci.value=st.customColor;
-        ci.style.cssText='width:50px;height:30px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;';
-        ci.oninput=()=>{ st.customColor=ci.value; }; cr.appendChild(cl); cr.appendChild(ci); themeCard.appendChild(cr);
-      }
+      themeCard.appendChild(themeGrid); themeCard.appendChild(cr);
       // ── CONTENT INPUT (top) ──────────────────────────────────────────────────────
       const contentCard=mkCard();
       contentCard.appendChild(mkSecHdr('Content'));
