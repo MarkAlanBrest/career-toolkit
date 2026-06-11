@@ -408,11 +408,16 @@
   let _overlay = null;
 
   function openEmailSystem() {
+    if (!_overlay) buildUI();
     if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
   }
 
   function buildUI() {
-    if (document.getElementById('ces-overlay')) { _overlay = document.getElementById('ces-overlay'); return; }
+    if (document.getElementById('ces-overlay')) {
+      _overlay = document.getElementById('ces-overlay');
+      showTab('send');
+      return;
+    }
     const overlay = document.createElement('div');
     overlay.id = 'ces-overlay';
     overlay.innerHTML = `
@@ -441,19 +446,37 @@
         showTab(tab.dataset.tab);
       });
     });
+    showTab('send');
   }
 
   /* =========================================================
      TAB: SEND MESSAGES
   ========================================================= */
-  async function showTab(tabName) {
-    const body = document.getElementById('ces-body');
-    if (tabName === 'send') renderSendTab(body);
-    else if (tabName === 'templates') renderTemplatesTab(body);
-    else if (tabName === 'settings') renderSettingsTab(body);
+  function renderTabError(body, err) {
+    if (!body) return;
+    body.innerHTML = `
+      <div class="ces-status ces-status-error">
+        Message System could not load this view: ${escapeHtml(err?.message || String(err))}
+      </div>
+      <button class="ces-btn ces-btn-secondary" id="ces-retry-tab">Retry</button>
+    `;
+    body.querySelector('#ces-retry-tab')?.addEventListener('click', () => showTab('send'));
   }
 
-  async function renderSendTab(container) {
+  function showTab(tabName) {
+    const body = document.getElementById('ces-body');
+    if (!body) return;
+    try {
+      if (tabName === 'send') renderSendTab(body);
+      else if (tabName === 'templates') renderTemplatesTab(body);
+      else if (tabName === 'settings') renderSettingsTab(body);
+    } catch (err) {
+      renderTabError(body, err);
+    }
+  }
+
+  function renderSendTab(container) {
+    if (!container) return;
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
@@ -562,6 +585,7 @@
       });
     } catch(err) {
       select.innerHTML = '<option value="">Error loading courses</option>';
+      showStatus(err?.message || 'Could not load Canvas courses.', 'error');
     }
   }
 
