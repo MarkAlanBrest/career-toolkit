@@ -1,6 +1,9 @@
 (async function () {
   'use strict';
 
+  // Toolbar is for the Canvas content editor — not for SpeedGrader
+  if (/speed_grader/.test(window.location.href)) return;
+
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
   const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
@@ -869,7 +872,7 @@
     if (document.getElementById('ce-ai-overlay')) document.getElementById('ce-ai-overlay').remove();
 
     const st = {
-      view: GM_getValue('ce_license_key','') ? 'build' : 'setup',
+      view: 'build',
       contentType: detectPageType(),
       pageStyle: 'pastel',
       customColor: '#1e3a5f',
@@ -1296,7 +1299,6 @@
   }
 
   function cbGenerate(st, genBtn, renderFn) {
-    if (!st.apiKey) { showNotice('No license key — go to ⚙ Setup first'); return; }
     if (!st.textContent.trim() && !st.uploadedFile) { showNotice('Add some content or describe what to create'); return; }
     genBtn.textContent='Generating…'; genBtn.disabled=true;
     st.view='loading'; renderFn();
@@ -1549,13 +1551,6 @@
     optsCard.appendChild(qSwitch('Include Explanations','Answer explanations on each question',qst.includeExplanations,v=>qst.includeExplanations=v));
     leftBody.appendChild(optsCard);
 
-    if(!apiKey){
-      const notice=document.createElement('div');
-      notice.style.cssText='background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;font-size:12px;color:#1e40af;margin-bottom:12px;line-height:1.5;';
-      notice.innerHTML='<strong>License key required.</strong><br>Set your key via <strong>✦ AI Builder → ⚙ Setup</strong>.';
-      leftBody.appendChild(notice);
-    }
-
     const statusEl=document.createElement('div');statusEl.style.display='none';leftBody.appendChild(statusEl);
     function showQStatus(msg,type){
       const c={err:'background:#fef2f2;color:#991b1b;border:1px solid #fca5a5',ok:'background:#f0fdf4;color:#166534;border:1px solid #86efac',info:'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd'};
@@ -1781,7 +1776,6 @@
 
     // ── GENERATE ───────────────────────────────────────────────────────────
     genBtn.onclick=()=>{
-      if(!apiKey){showQStatus('No license key — set it in ✦ AI Builder → ⚙ Setup first.','err');return;}
       if(!qst.topic.trim()){showQStatus('Enter a topic first.','err');return;}
       const totalQ=Object.values(qst.typeCounts).reduce((s,v)=>s+v,0);
       if(!totalQ){showQStatus('Set at least one question type count above zero.','err');return;}
@@ -2135,11 +2129,11 @@ Critical rules:
 
     const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
     aiBtn.textContent='AI Builder';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showContentBuilder():showUpgradeModal('AI Builder');});};
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
     rowBottom.appendChild(aiBtn);
     const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
     qmBtn.textContent='Quiz Maker';
-    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showQuizMaker():showUpgradeModal('Quiz Maker');});};
+    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showQuizMaker();};
     rowBottom.appendChild(qmBtn);
 
     Object.entries(COMPONENTS).forEach(([,cat]) => {
