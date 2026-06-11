@@ -2253,11 +2253,14 @@ Critical rules:
   const _onSG     = /speed_grader/.test(window.location.href);
   const _onCourse = /\/courses\/\d+/.test(window.location.href);
 
+  console.debug('Canvas Enhancer: content script running', { url: window.location.href, onSpeedGrader: _onSG, rcePresent: !!document.querySelector(RCE_SEL) });
+
   function syncRowBottom() {
     const row = document.getElementById('ce-row-bottom');
     if (!row) return;
     const collapsed = GM_getValue('ce_toolbar_collapsed', false);
     const hasRCE    = _onSG ? false : !!document.querySelector(RCE_SEL);
+    console.debug('Canvas Enhancer: syncRowBottom', { collapsed, hasRCE });
     row.style.display = (!collapsed && hasRCE) ? '' : 'none';
     const tb = document.getElementById('ce-toggle-btn');
     if (tb) tb.innerHTML = collapsed ? '⊕' : '⊗';
@@ -2434,11 +2437,16 @@ Critical rules:
   loadComponents();
 
   if (document.querySelector(RCE_SEL) || _onSG) {
+    console.debug('Canvas Enhancer: initial condition met, calling buildToolbar');
     buildToolbar();
     syncRowBottom();
   }
-  new MutationObserver(() => {
-    if (!document.getElementById('ce-toolbar') && (document.querySelector(RCE_SEL) || _onSG)) buildToolbar();
+  new MutationObserver((mutations) => {
+    console.debug('Canvas Enhancer: MutationObserver fired', mutations.length);
+    if (!document.getElementById('ce-toolbar') && (document.querySelector(RCE_SEL) || _onSG)) {
+      console.debug('Canvas Enhancer: building toolbar from MutationObserver');
+      buildToolbar();
+    }
     syncRowBottom();
   }).observe(document.body, { childList:true, subtree:true });
 
