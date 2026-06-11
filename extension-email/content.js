@@ -843,11 +843,9 @@
 
   async function loadTextsTab(courseId) {
     const currentList = document.getElementById('ces-current-text-list');
-    const allList = document.getElementById('ces-all-text-list');
-    if (!currentList || !allList) return;
+    if (!currentList) return;
 
     currentList.textContent = courseId ? 'Loading current course numbers...' : 'Open from inside a Canvas course to match subscribers.';
-    allList.textContent = 'Loading all collected numbers...';
 
     try {
       const [courseSignups, allSignups, students] = await Promise.all([
@@ -864,16 +862,11 @@
       const unmatched = allSignups.filter(s => !matchedIds.has(String(s.id)));
 
       currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId);
-      allList.innerHTML = unmatched.length
-        ? renderSignupRows(unmatched, courseId)
-        : '<div style="font-size:13px;color:#6b7280;">No unmatched or older signups found.</div>';
 
       bindSignupRemoveButtons(currentList, () => loadTextsTab(courseId));
-      bindSignupRemoveButtons(allList, () => loadTextsTab(courseId));
     } catch (err) {
       const message = escapeHtml(err?.message || 'Could not load text subscribers.');
       currentList.innerHTML = `<span style="color:#b91c1c;">${message}</span>`;
-      allList.innerHTML = `<span style="color:#b91c1c;">${message}</span>`;
     }
   }
 
@@ -892,15 +885,6 @@
           <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-texts">Refresh</button>
         </div>
         <div id="ces-current-text-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
-      </div>
-      <div class="ces-send-panel">
-        <div class="ces-send-panel-head">
-          <div>
-            <div class="ces-send-panel-title">Unmatched / Older Signups</div>
-            <div class="ces-send-panel-sub">These may have been collected before the Canvas course ID was saved.</div>
-          </div>
-        </div>
-        <div id="ces-all-text-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
       </div>
     `;
     loadCurrentCourse(courseId);
