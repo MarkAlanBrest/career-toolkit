@@ -190,25 +190,30 @@
   const DEFAULT_TEMPLATES = {
     upcoming: {
       name: 'Upcoming Assignments',
+      description: 'Remind students of upcoming due dates',
       subject: 'Upcoming Assignments - {{courseName}}',
       body: `Dear {{studentName}},\n\nThis is a reminder from {{teacherName}} about upcoming assignments in {{courseName}} within the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease make sure to complete and submit these assignments before their due dates.\n\nBest regards,\n{{teacherName}}`,
     },
     missing: {
       name: 'Missing Work Reminder',
+      description: 'Alert students about unsubmitted work',
       subject: 'Missing Assignments - {{courseName}}',
       body: `Dear {{studentName}},\n\nThis is {{teacherName}} reaching out about some missing work in {{courseName}}.\n\nAccording to my records, the following assignments from the past {{daysBack}} days have not been submitted:\n\n{{missingAssignmentList}}\n\nI encourage you to complete and submit these assignments as soon as possible. Late submissions are still better than missing work. Please reach out if you need any assistance.\n\nSincerely,\n{{teacherName}}`,
     },
     welcome: {
       name: 'Welcome to Class',
+      description: 'Send a warm welcome message',
       subject: 'Welcome to {{courseName}}!',
       body: `Dear {{studentName}},\n\nWelcome to {{courseName}}! I'm {{teacherName}}, and I'm excited to have you in class this term.\n\nHere are a few things to get started:\n- Check Canvas regularly for announcements and assignment updates\n- Review the course syllabus and schedule\n- Reach out early if you need help or accommodations\n\nI look forward to a great semester together!\n\nWarm regards,\n{{teacherName}}`,
     },
     evaluation: {
       name: 'Student Evaluation',
+      description: 'Share grade status and progress',
       subject: 'Your Progress in {{courseName}}',
       body: `Dear {{studentName}},\n\nThis is {{teacherName}} with an update on your progress in {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nPlease don't hesitate to reach out if you have questions about your progress or need additional support.\n\nBest regards,\n{{teacherName}}`,
     },
   };
+  const DEFAULT_TEMPLATE_KEYS = new Set(Object.keys(DEFAULT_TEMPLATES));
 
   /* =========================================================
      CANVAS API HELPERS
@@ -325,11 +330,12 @@
      TEMPLATE ENGINE
   ========================================================= */
   function getTemplates() {
+    const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
     const stored = GM_getValue(STORAGE_KEYS.TEMPLATES, null);
     if (stored) {
-      try { return JSON.parse(stored); } catch(e) {}
+      try { return { ...defaults, ...JSON.parse(stored) }; } catch(e) {}
     }
-    return JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
+    return defaults;
   }
 
   function saveTemplates(templates) {
@@ -387,6 +393,26 @@
         const missingSection = missing.length > 0 ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missing.map(s => s.assignment || s))}` : 'You have no missing assignments. Great work!';
         const upcomingSection = upcoming.length > 0 ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : 'No upcoming assignments in the next ' + daysForward + ' days.';
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection };
+        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+      }
+    } else {
+      const allAssignments = await getAssignments(courseId);
+      const upcoming = getUpcomingAssignments(allAssignments, daysForward);
+      const assignmentList = formatAssignmentList(upcoming);
+      for (const student of students) {
+        const vars = {
+          studentName: student.name || student.sortable_name || 'Student',
+          teacherName,
+          courseName,
+          daysForward: String(daysForward),
+          daysBack: String(daysBack),
+          assignmentList,
+          missingAssignmentList: '',
+          currentGrade: '',
+          currentScore: '',
+          missingSection: '',
+          upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${assignmentList}` : '',
+        };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     }
@@ -511,6 +537,15 @@
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
     const courseId    = getCurrentCourseId();
+    const templates   = getTemplates();
+    const templateEntries = Object.entries(templates);
+    const firstType = templateEntries[0]?.[0] || 'welcome';
+    const templateCards = templateEntries.map(([key, tpl], idx) => `
+      <div class="ces-card${idx === 0 ? ' selected' : ''}" data-type="${escapeAttr(key)}">
+        <strong>${escapeHtml(tpl.name || key)}</strong>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">${escapeHtml(tpl.description || tpl.subject || 'Custom message')}</div>
+      </div>
+    `).join('');
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
@@ -519,10 +554,7 @@
       ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
       <label class="ces-label">Email Type</label>
       <div class="ces-grid-2" id="ces-type-cards">
-        <div class="ces-card selected" data-type="upcoming"><strong>&#128197; Upcoming Assignments</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Remind students of upcoming due dates</div></div>
-        <div class="ces-card" data-type="missing"><strong>&#9888; Missing Work Reminder</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Alert students about unsubmitted work</div></div>
-        <div class="ces-card" data-type="welcome"><strong>&#128075; Welcome to Class</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send a warm welcome message</div></div>
-        <div class="ces-card" data-type="evaluation"><strong>&#128202; Student Evaluation</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Share grade status and progress</div></div>
+        ${templateCards || '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
       </div>
       <div id="ces-options-area">
         <div class="ces-grid-2">
@@ -541,7 +573,7 @@
 
     loadCurrentCourse(courseId);
 
-    let selectedType = 'upcoming';
+    let selectedType = firstType;
     container.querySelectorAll('#ces-type-cards .ces-card').forEach(card => {
       card.addEventListener('click', () => {
         container.querySelectorAll('#ces-type-cards .ces-card').forEach(c => c.classList.remove('selected'));
@@ -744,12 +776,33 @@
 
     function renderList() {
       let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize email templates. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
+      html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">+ New Custom Message</button></div>`;
       for (const [type, tpl] of Object.entries(templates)) {
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button></div></div>`;
+        const canDelete = !DEFAULT_TEMPLATE_KEYS.has(type);
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
+      container.querySelector('#ces-add-tpl').addEventListener('click', () => {
+        const id = `custom_${Date.now()}`;
+        templates[id] = {
+          name: 'Custom Message',
+          description: 'Teacher-created message',
+          subject: '{{courseName}} Update',
+          body: `Dear {{studentName}},\n\nWrite your custom message here.\n\nBest regards,\n{{teacherName}}`,
+        };
+        renderEditor(id);
+      });
       container.querySelectorAll('.ces-edit-tpl').forEach(btn => btn.addEventListener('click', () => renderEditor(btn.dataset.type)));
+      container.querySelectorAll('.ces-del-tpl').forEach(btn => btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        if (DEFAULT_TEMPLATE_KEYS.has(type)) return;
+        if (confirm(`Delete "${templates[type]?.name || 'this custom message'}"?`)) {
+          delete templates[type];
+          saveTemplates(templates);
+          renderList();
+        }
+      }));
       container.querySelector('#ces-reset-tpl').addEventListener('click', () => {
         if (confirm('Reset all templates to defaults? Your custom templates will be lost.')) {
           const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
@@ -762,6 +815,10 @@
       const tpl = templates[type];
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
+        <label class="ces-label">Message Name</label>
+        <input type="text" class="ces-input" id="ces-tpl-name" value="${escapeAttr(tpl.name)}">
+        <label class="ces-label">Short Description</label>
+        <input type="text" class="ces-input" id="ces-tpl-desc" value="${escapeAttr(tpl.description || '')}">
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <label class="ces-label">Email Body</label>
@@ -775,6 +832,8 @@
       `;
       container.querySelector('#ces-tpl-cancel').addEventListener('click', renderList);
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
+        templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
+        templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
         templates[type].subject = container.querySelector('#ces-tpl-subject').value;
         templates[type].body    = container.querySelector('#ces-tpl-body').value;
         saveTemplates(templates); renderList();
