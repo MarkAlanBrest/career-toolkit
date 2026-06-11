@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 function SignupWidget() {
   const params = useSearchParams();
 
-  // These come from Canvas ENV (via extension postMessage) or URL params
+  // Auto-filled from Canvas ENV (via extension postMessage) or URL params — not editable by student
   const [name,      setName]      = useState('');
   const [className, setClassName] = useState(params.get('class')   || '');
   const [teacher,   setTeacher]   = useState(params.get('teacher') || '');
@@ -51,7 +51,6 @@ function SignupWidget() {
     if (!optIn) { setErrorMsg('Please check the opt-in box to continue.'); return; }
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 10) { setErrorMsg('Enter a valid 10-digit US cell number.'); return; }
-    if (!className.trim()) { setErrorMsg('Please enter your class name.'); return; }
     setStep('submitting');
     try {
       const res = await fetch('/api/signup', {
@@ -73,11 +72,6 @@ function SignupWidget() {
   }
 
   const titleParts = [className, term].filter(Boolean).join(' · ');
-  // Show fallback inputs for any field Canvas didn't fill in
-  const needsClass   = ctxReady && !className;
-  const needsTeacher = ctxReady && !teacher;
-  const needsTerm    = ctxReady && !term;
-  const hasFallbacks = needsClass || needsTeacher || needsTerm;
 
   if (step === 'success') {
     return (
@@ -153,47 +147,6 @@ function SignupWidget() {
           </div>
         </div>
 
-        {/* Fallback inputs — only shown when Canvas ENV didn't provide the data */}
-        {hasFallbacks && (
-          <div style={S.fallbacks}>
-            {needsClass && (
-              <div style={S.fallbackField}>
-                <label style={S.fallbackLabel}>Class Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Biology 101"
-                  value={className}
-                  onChange={e => setClassName(e.target.value)}
-                  style={S.fallbackInput}
-                />
-              </div>
-            )}
-            {needsTeacher && (
-              <div style={S.fallbackField}>
-                <label style={S.fallbackLabel}>Teacher</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mr. Smith"
-                  value={teacher}
-                  onChange={e => setTeacher(e.target.value)}
-                  style={S.fallbackInput}
-                />
-              </div>
-            )}
-            {needsTerm && (
-              <div style={S.fallbackField}>
-                <label style={S.fallbackLabel}>Term</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Fall 2026"
-                  value={term}
-                  onChange={e => setTerm(e.target.value)}
-                  style={S.fallbackInput}
-                />
-              </div>
-            )}
-          </div>
-        )}
       </form>
 
       {errorMsg && <div style={S.error}>{errorMsg}</div>}
@@ -308,41 +261,6 @@ const S: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
     letterSpacing: '0.2px',
     flexShrink: 0,
-  },
-  fallbacks: {
-    display: 'flex',
-    gap: 12,
-    flexWrap: 'wrap',
-    marginTop: 12,
-    padding: '10px 12px',
-    background: 'rgba(0,0,0,0.15)',
-    borderRadius: 8,
-  },
-  fallbackField: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 3,
-    flex: '1 1 140px',
-    minWidth: 120,
-  },
-  fallbackLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  fallbackInput: {
-    padding: '6px 10px',
-    fontSize: 13,
-    border: '1.5px solid rgba(255,255,255,0.3)',
-    borderRadius: 5,
-    background: 'rgba(255,255,255,0.12)',
-    color: '#fff',
-    outline: 'none',
-    fontFamily: 'inherit',
-    width: '100%',
-    boxSizing: 'border-box',
   },
   error: {
     marginTop: 8,
