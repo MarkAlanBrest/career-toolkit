@@ -35,8 +35,22 @@
     #ces-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 12px 20px; background: #059669; color: #fff; flex-shrink: 0;
+      gap: 12px;
     }
     #ces-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+    #ces-course-badge {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,.92);
+      background: rgba(255,255,255,.16);
+      border-radius: 999px;
+      padding: 4px 10px;
+      max-width: 360px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .ces-close-btn {
       background: rgba(255,255,255,.2); border: none; color: #fff;
       width: 32px; height: 32px; border-radius: 50%;
@@ -414,6 +428,14 @@
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
   }
 
+  function setCourseBadge(courseId, courseName) {
+    const badge = document.getElementById('ces-course-badge');
+    if (!badge) return;
+    badge.textContent = courseId
+      ? `Current Course Loaded${courseName ? ': ' + courseName : ''} ID ${courseId}`
+      : 'No course loaded';
+  }
+
   function openEmailSystem() {
     if (!_overlay) buildUI();
     if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
@@ -431,6 +453,7 @@
       <div id="ces-panel">
         <div id="ces-header">
           <h2>&#9993; Canvas Message System</h2>
+          <div id="ces-course-badge">No course loaded</div>
           <button class="ces-close-btn" id="ces-close">&times;</button>
         </div>
         <div id="ces-tabs">
@@ -492,11 +515,8 @@
     container.innerHTML = `
       <div id="ces-status-area"></div>
       ${!teacherName ? '<div class="ces-status ces-status-error">Please set your Teacher Name in the Settings tab first.</div>' : ''}
-      <label class="ces-label">Current Course</label>
-      <div class="ces-card" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
-        <strong>${courseId ? 'Detecting course...' : 'Open Message System from inside a Canvas course.'}</strong>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">${courseId ? `Course ID: ${escapeHtml(courseId)}` : 'No /courses/{id} was found in the current page URL.'}</div>
-      </div>
+      <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
+      ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
       <label class="ces-label">Email Type</label>
       <div class="ces-grid-2" id="ces-type-cards">
         <div class="ces-card selected" data-type="upcoming"><strong>&#128197; Upcoming Assignments</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Remind students of upcoming due dates</div></div>
@@ -600,23 +620,18 @@
   }
 
   async function loadCurrentCourse(courseId) {
-    const box = document.getElementById('ces-current-course');
-    if (!box || !courseId) return;
+    const courseEl = document.getElementById('ces-current-course');
+    if (!courseEl || !courseId) { setCourseBadge('', ''); return; }
+    setCourseBadge(courseId, '');
     try {
       const course = await getCourse(courseId);
       const name = course.name || `Course ${courseId}`;
       const term = course.term?.name ? ` (${course.term.name})` : '';
-      box.dataset.courseName = name + term;
-      box.innerHTML = `
-        <strong>${escapeHtml(name)}</strong>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Course ID: ${escapeHtml(courseId)}${escapeHtml(term)}</div>
-      `;
+      courseEl.dataset.courseName = name + term;
+      setCourseBadge(courseId, name + term);
     } catch (err) {
-      box.dataset.courseName = `Course ${courseId}`;
-      box.innerHTML = `
-        <strong>Course ${escapeHtml(courseId)}</strong>
-        <div style="font-size:12px;color:#b91c1c;margin-top:4px;">Could not load course name: ${escapeHtml(err?.message || 'Canvas API error')}</div>
-      `;
+      courseEl.dataset.courseName = `Course ${courseId}`;
+      setCourseBadge(courseId, '');
     }
   }
 
