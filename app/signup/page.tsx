@@ -3,68 +3,79 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-function SignupForm() {
+type CtxState = { name: string; className: string; term: string; teacher: string };
+
+function SignupWidget() {
   const params = useSearchParams();
-  const [name, setName] = useState('');
+  const [ctx, setCtx] = useState<CtxState>({
+    name: '',
+    className: params.get('class') || '',
+    term: params.get('term') || '',
+    teacher: params.get('teacher') || '',
+  });
+  const [ctxReady, setCtxReady] = useState(false);
   const [phone, setPhone] = useState('');
-  const [className, setClassName] = useState('');
-  const [teacher, setTeacher] = useState('');
-  const [term, setTerm] = useState('');
   const [optIn, setOptIn] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [step, setStep] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (params.get('class')) setClassName(params.get('class')!);
-    if (params.get('teacher')) setTeacher(params.get('teacher')!);
-    if (params.get('term')) setTerm(params.get('term')!);
-  }, [params]);
+    if (window.self === window.top) { setCtxReady(true); return; }
 
-  function formatPhone(value: string) {
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    if (digits.length <= 3) return digits;
-    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    const onMsg = (evt: MessageEvent) => {
+      if (evt.data?.type !== 'CE_CONTEXT') return;
+      setCtx(prev => ({
+        name:      evt.data.name      || prev.name,
+        className: evt.data.className || prev.className,
+        term:      evt.data.term      || prev.term,
+        teacher:   evt.data.teacher   || prev.teacher,
+      }));
+      setCtxReady(true);
+    };
+
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: 'CE_REQUEST_CONTEXT' }, '*');
+    const t = setTimeout(() => setCtxReady(true), 2500);
+    return () => { window.removeEventListener('message', onMsg); clearTimeout(t); };
+  }, []);
+
+  function fmtPhone(v: string) {
+    const d = v.replace(/\D/g, '').slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `(${d.slice(0,3)}) ${d.slice(3)}`;
+    return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMsg('');
     if (!optIn) { setErrorMsg('Please check the opt-in box to continue.'); return; }
     const digits = phone.replace(/\D/g, '');
-    if (digits.length !== 10) { setErrorMsg('Please enter a valid 10-digit US phone number.'); return; }
-    setStatus('loading');
-    setErrorMsg('');
+    if (digits.length !== 10) { setErrorMsg('Enter a valid 10-digit US cell number.'); return; }
+    setStep('submitting');
     try {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone: digits, className, teacher, term, optIn }),
+        body: JSON.stringify({ name: ctx.name || 'Student', phone: digits, className: ctx.className, teacher: ctx.teacher, term: ctx.term, optIn }),
       });
       const data = await res.json();
-      if (!res.ok) { setErrorMsg(data.error || 'Something went wrong. Try again.'); setStatus('error'); return; }
-      setStatus('success');
-    } catch {
-      setErrorMsg('Network error. Please try again.');
-      setStatus('error');
-    }
+      if (!res.ok) { setErrorMsg(data.error || 'Something went wrong. Please try again.'); setStep('error'); return; }
+      setStep('success');
+    } catch { setErrorMsg('Network error. Please try again.'); setStep('error'); }
   }
 
-  if (status === 'success') {
+  const titleParts = [ctx.className, ctx.term].filter(Boolean).join(' · ');
+
+  if (step === 'success') {
     return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-            <h2 style={{ color: '#0770B8', fontSize: 26, fontWeight: 800, margin: '0 0 12px' }}>
-              You&rsquo;re signed up!
-            </h2>
-            <p style={{ color: '#555', fontSize: 15, lineHeight: 1.5 }}>
-              You&rsquo;ll receive text alerts for <strong>{className}</strong> with{' '}
-              <strong>{teacher}</strong> this <strong>{term}</strong>.
-            </p>
-            <p style={{ color: '#888', fontSize: 13, marginTop: 16 }}>
-              Reply STOP at any time to unsubscribe.
-            </p>
+      <div style={S.page}>
+        <div style={{ ...S.inner, justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 36, lineHeight: 1 }}>🎉</div>
+          <div style={S.title}>You&rsquo;re signed up{ctx.name ? `, ${ctx.name.split(' ')[0]}` : ''}!</div>
+          <div style={S.sub}>
+            You&rsquo;ll get text alerts{ctx.className ? ` for ${ctx.className}` : ''}.
+            &nbsp;Reply STOP anytime to unsubscribe.
           </div>
         </div>
       </div>
@@ -72,242 +83,190 @@ function SignupForm() {
   }
 
   return (
-    <div style={styles.page}>
-      {/* Header banner */}
-      <div style={styles.banner}>
-        <div style={styles.bannerIcon}>📱</div>
-        <div>
-          <h1 style={styles.bannerTitle}>Sign Up for Text Alerts!</h1>
-          <p style={styles.bannerSub}>
-            Get class updates &amp; reminders sent straight to your phone.
-            <br />
-            Never miss a deadline or announcement again!
-          </p>
-        </div>
-      </div>
-
-      <div style={styles.card}>
-        <form onSubmit={handleSubmit} noValidate>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Your Name *</label>
-            <input
-              style={styles.input}
-              type="text"
-              placeholder="First Last"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
+    <div style={S.page}>
+      <div style={S.inner}>
+        {/* Left: branding + headline */}
+        <div style={S.headline}>
+          <div style={S.titleRow}>
+            <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>📱</span>
+            <div>
+              <div style={S.title}>
+                Text Alerts{titleParts ? ` — ${titleParts}` : ''}
+              </div>
+              <div style={S.sub}>
+                {ctxReady && ctx.name
+                  ? <>Hi, <strong>{ctx.name.split(' ')[0]}</strong>! Get class updates sent to your phone.</>
+                  : 'Sign up to get class updates sent to your phone.'}
+              </div>
+            </div>
           </div>
+        </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Cell Phone Number *</label>
+        {/* Right: form */}
+        <form onSubmit={submit} noValidate style={S.form}>
+          <div style={S.inputWrap}>
+            <span style={S.inputIcon}>📞</span>
             <input
-              style={styles.input}
               type="tel"
               placeholder="(555) 867-5309"
               value={phone}
-              onChange={e => setPhone(formatPhone(e.target.value))}
+              onChange={e => setPhone(fmtPhone(e.target.value))}
               required
+              style={S.input}
             />
           </div>
 
-          <div style={styles.row}>
-            <div style={{ ...styles.fieldGroup, flex: 1 }}>
-              <label style={styles.label}>Class Name *</label>
-              <input
-                style={styles.input}
-                type="text"
-                placeholder="Biology 101"
-                value={className}
-                onChange={e => setClassName(e.target.value)}
-                required
-              />
-            </div>
-            <div style={{ ...styles.fieldGroup, flex: 1 }}>
-              <label style={styles.label}>Term *</label>
-              <input
-                style={styles.input}
-                type="text"
-                placeholder="Fall 2026"
-                value={term}
-                onChange={e => setTerm(e.target.value)}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Teacher Name *</label>
-            <input
-              style={styles.input}
-              type="text"
-              placeholder="Mr. / Ms. Smith"
-              value={teacher}
-              onChange={e => setTeacher(e.target.value)}
-              required
-            />
-          </div>
-
-          <label style={styles.checkRow}>
+          <label style={S.checkLabel}>
             <input
               type="checkbox"
               checked={optIn}
               onChange={e => setOptIn(e.target.checked)}
-              style={{ width: 18, height: 18, accentColor: '#0770B8', cursor: 'pointer', flexShrink: 0 }}
+              style={{ width: 16, height: 16, accentColor: '#fff', cursor: 'pointer', flexShrink: 0, marginTop: 1 }}
             />
-            <span style={{ fontSize: 13, color: '#444', lineHeight: 1.4 }}>
-              I agree to receive text message alerts from my teacher for this class.
-              Message &amp; data rates may apply. Reply STOP to unsubscribe.
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3 }}>
+              I agree to receive<br />text alerts
             </span>
           </label>
 
-          {errorMsg && <p style={styles.error}>{errorMsg}</p>}
-
           <button
             type="submit"
-            disabled={status === 'loading'}
-            style={status === 'loading' ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
+            disabled={step === 'submitting'}
+            style={step === 'submitting' ? { ...S.btn, opacity: 0.65, cursor: 'not-allowed' } : S.btn}
           >
-            {status === 'loading' ? 'Signing you up…' : '✅  Sign Me Up — It\'s Free!'}
+            {step === 'submitting' ? 'Signing up…' : 'Sign Me Up! →'}
           </button>
         </form>
       </div>
 
-      <p style={styles.footer}>
-        Your number is only used for class alerts from your teacher and will never be sold or shared.
-      </p>
+      {errorMsg && (
+        <div style={S.error}>{errorMsg}</div>
+      )}
+
+      <div style={S.footer}>
+        Your number is never sold or shared &nbsp;·&nbsp; Reply STOP at any time to unsubscribe
+      </div>
     </div>
   );
 }
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#555' }}>Loading…</div>}>
-      <SignupForm />
+    <Suspense fallback={<div style={{ background: '#0770B8', minHeight: '100vh' }} />}>
+      <SignupWidget />
     </Suspense>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const S: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(160deg, #e8f4fd 0%, #f5faff 60%, #fff 100%)',
+    background: 'linear-gradient(135deg, #0770B8 0%, #045a9a 60%, #034a82 100%)',
     fontFamily: "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif",
-    padding: '0 0 32px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
     boxSizing: 'border-box',
+    padding: '16px 24px 10px',
   },
-  banner: {
-    background: 'linear-gradient(135deg, #0770B8 0%, #055fa0 100%)',
-    color: '#fff',
-    padding: '28px 32px',
+  inner: {
     display: 'flex',
     alignItems: 'center',
     gap: 20,
-    boxShadow: '0 4px 16px rgba(7,112,184,0.3)',
+    flexWrap: 'wrap',
+    color: '#fff',
   },
-  bannerIcon: {
-    fontSize: 52,
-    lineHeight: 1,
-    flexShrink: 0,
-    filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+  headline: {
+    flex: '1 1 220px',
   },
-  bannerTitle: {
-    margin: '0 0 6px',
-    fontSize: 26,
-    fontWeight: 900,
-    letterSpacing: '-0.5px',
-    textShadow: '0 1px 3px rgba(0,0,0,0.2)',
-  },
-  bannerSub: {
-    margin: 0,
-    fontSize: 14,
-    opacity: 0.92,
-    lineHeight: 1.5,
-  },
-  card: {
-    maxWidth: 520,
-    margin: '28px auto 0',
-    background: '#fff',
-    borderRadius: 10,
-    boxShadow: '0 2px 20px rgba(0,0,0,0.10)',
-    padding: '28px 32px',
-    border: '1px solid #dde8f0',
-  },
-  fieldGroup: {
-    marginBottom: 16,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 5,
-  },
-  row: {
-    display: 'flex',
-    gap: 12,
-    marginBottom: 0,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: '#2d3b45',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  input: {
-    width: '100%',
-    padding: '10px 12px',
-    fontSize: 15,
-    border: '1.5px solid #c7d7e4',
-    borderRadius: 6,
-    outline: 'none',
-    color: '#2d3b45',
-    background: '#fff',
-    boxSizing: 'border-box',
-    transition: 'border-color 0.15s',
-    fontFamily: 'inherit',
-  },
-  checkRow: {
+  titleRow: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: 10,
-    marginBottom: 20,
-    cursor: 'pointer',
-    marginTop: 4,
   },
-  submitBtn: {
-    display: 'block',
+  title: {
+    fontSize: 18,
+    fontWeight: 900,
+    color: '#fff',
+    letterSpacing: '-0.3px',
+    lineHeight: 1.2,
+    textShadow: '0 1px 3px rgba(0,0,0,0.2)',
+    margin: 0,
+  },
+  sub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.88)',
+    marginTop: 4,
+    lineHeight: 1.4,
+  },
+  form: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+    flex: '1 1 340px',
+  },
+  inputWrap: {
+    position: 'relative',
+    flex: '1 1 160px',
+    minWidth: 150,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 10,
+    fontSize: 14,
+    pointerEvents: 'none',
+  },
+  input: {
     width: '100%',
-    padding: '14px',
-    background: 'linear-gradient(135deg, #E66000 0%, #c95500 100%)',
+    padding: '9px 12px 9px 32px',
+    fontSize: 15,
+    fontWeight: 600,
+    border: '2px solid rgba(255,255,255,0.4)',
+    borderRadius: 6,
+    background: 'rgba(255,255,255,0.15)',
+    color: '#fff',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+    letterSpacing: '0.5px',
+  },
+  checkLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 6,
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  btn: {
+    padding: '9px 18px',
+    background: 'linear-gradient(135deg, #E66000, #c95500)',
     color: '#fff',
     border: 'none',
-    borderRadius: 8,
-    fontSize: 17,
+    borderRadius: 6,
+    fontSize: 14,
     fontWeight: 900,
-    letterSpacing: '0.3px',
     cursor: 'pointer',
-    boxShadow: '0 4px 14px rgba(230,96,0,0.35)',
-    transition: 'opacity 0.15s, transform 0.1s',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 3px 10px rgba(230,96,0,0.4)',
     fontFamily: 'inherit',
-  },
-  submitBtnDisabled: {
-    opacity: 0.6,
-    cursor: 'not-allowed',
+    letterSpacing: '0.2px',
+    flexShrink: 0,
   },
   error: {
-    color: '#c0392b',
-    fontSize: 13,
-    background: '#fdf2f2',
-    border: '1px solid #f5c6cb',
-    borderRadius: 5,
-    padding: '8px 12px',
-    marginBottom: 12,
+    marginTop: 8,
+    fontSize: 12,
+    color: '#ffe0b2',
+    background: 'rgba(0,0,0,0.2)',
+    borderRadius: 4,
+    padding: '5px 10px',
   },
   footer: {
+    marginTop: 8,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
-    color: '#999',
-    fontSize: 12,
-    marginTop: 16,
-    padding: '0 24px',
-    lineHeight: 1.5,
+    letterSpacing: '0.2px',
   },
 };

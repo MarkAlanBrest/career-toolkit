@@ -2792,4 +2792,20 @@ Critical rules:
     }).observe(document.body, { childList:true, subtree:true });
   }
 
+  // ── TEXT ALERT SIGNUP — Canvas context bridge ─────────────────────────────────
+  // When our /signup iframe embedded in Canvas asks for student/course context,
+  // read it from Canvas's global window.ENV and reply via postMessage.
+  window.addEventListener('message', evt => {
+    if (evt.data?.type !== 'CE_REQUEST_CONTEXT' || !evt.source) return;
+    try {
+      const env = window.ENV || {};
+      const name      = env.current_user?.display_name || env.current_user?.name || '';
+      const className = env.COURSE_TITLE || env.course?.name || '';
+      const term      = env.ENROLLMENT_TERM?.name || '';
+      evt.source.postMessage({ type: 'CE_CONTEXT', name, className, term }, '*');
+    } catch {
+      if (evt.source) evt.source.postMessage({ type: 'CE_CONTEXT', name: '', className: '', term: '' }, '*');
+    }
+  });
+
 })();
