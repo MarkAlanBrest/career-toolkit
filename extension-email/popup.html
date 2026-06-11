@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 260px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      color: #111827;
+    }
+    .header {
+      background: linear-gradient(135deg, #059669, #047857);
+      color: #fff;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-icon { font-size: 22px; line-height: 1; }
+    .header-text h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+    .header-text p  { font-size: 11px; opacity: 0.85; margin: 0; }
+    .body { padding: 16px 18px; }
+    #open-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px;
+      background: #059669;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #open-btn:hover { background: #047857; }
+    #open-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+    .status {
+      margin-top: 11px;
+      font-size: 12px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .status.error { color: #b91c1c; }
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 14px 0; }
+    .tip {
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: center;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">✉</div>
+    <div class="header-text">
+      <h2>Canvas Message System</h2>
+      <p>Personalized student messages &amp; alerts</p>
+    </div>
+  </div>
+  <div class="body">
+    <button id="open-btn">Open Message System</button>
+    <p class="status" id="status"></p>
+    <hr class="divider">
+    <p class="tip">Also available via the <strong>Message System</strong> link in Canvas course navigation.</p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

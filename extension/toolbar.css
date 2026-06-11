@@ -18,6 +18,15 @@
   user-select: none !important;
 }
 
+#ce-row-top,
+#ce-row-bottom {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  width: 100% !important;
+  flex-wrap: wrap !important;
+}
+
 #ce-toolbar .ce-group {
   position: relative;
 }

@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Message System",
+  "version": "1.0.0",
+  "description": "Send personalized messages and announcements to Canvas LMS students — directly from Canvas.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.instructure.com/*",
+    "https://*.canvas.com/*",
+    "https://*.canvaslms.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Canvas Message System",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://*.canvas.com/*",
+        "https://*.canvaslms.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
