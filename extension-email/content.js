@@ -137,18 +137,25 @@
     }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
 
-    /* Canvas course navigation item */
-    #ces-nav-item a {
-      display: flex !important;
+    #ces-floating-btn {
+      position: fixed;
+      top: 72px;
+      right: 18px;
+      z-index: 99998;
+      display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      color: inherit;
-      text-decoration: none;
-      font-size: 14px;
+      gap: 7px;
+      padding: 9px 13px;
+      border: none;
+      border-radius: 8px;
+      background: #059669;
+      color: #fff;
+      font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      box-shadow: 0 4px 16px rgba(0,0,0,.22);
+      cursor: pointer;
     }
-    #ces-nav-item a:hover { background: rgba(0,0,0,.05); }
-    #ces-nav-item a .ces-nav-icon { font-size: 16px; }
+    #ces-floating-btn:hover { background: #047857; }
+    #ces-floating-btn .ces-nav-icon { font-size: 16px; line-height: 1; }
   `;
   document.head.appendChild(_style);
 
@@ -803,42 +810,20 @@
   }
 
   /* =========================================================
-     CANVAS COURSE NAVIGATION INJECTION
-     Adds "Email System" to the left-side course navigation menu.
+     FLOATING BUTTON
+     Keeps Message System out of Canvas navigation and toolbars.
   ========================================================= */
-  function findCourseNavList() {
-    if (!/\/courses\/\d+(?:\/|$)/.test(window.location.pathname)) return null;
-    return (
-      document.querySelector('#section-tabs') ||
-      document.querySelector('[data-testid="course-navigation"] ul') ||
-      document.querySelector('nav[aria-label*="Course" i] ul') ||
-      document.querySelector('.ic-app-course-menu ul') ||
-      document.querySelector('.course-menu ul')
-    );
+  function addFloatingButton() {
+    if (document.getElementById('ces-floating-btn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'ces-floating-btn';
+    btn.type = 'button';
+    btn.title = 'Canvas Message System';
+    btn.innerHTML = '<span class="ces-nav-icon">✉</span><span>Messages</span>';
+    btn.addEventListener('click', openEmailSystem);
+    document.body.appendChild(btn);
   }
-
-  function injectCourseNav() {
-    const tabs = findCourseNavList();
-    if (!tabs || document.getElementById('ces-nav-item')) return;
-
-    const li = document.createElement('li');
-    li.id = 'ces-nav-item';
-    li.className = 'section ces-section';
-
-    const a = document.createElement('a');
-    a.href = '#';
-    a.title = 'Canvas Message System';
-    a.setAttribute('role', 'button');
-    a.innerHTML = '<span class="ces-nav-icon">✉</span> Message System';
-    a.addEventListener('click', e => { e.preventDefault(); openEmailSystem(); });
-
-    li.appendChild(a);
-    tabs.appendChild(li);
-  }
-
-  // Watch for the course nav to appear (Canvas renders it asynchronously)
-  new MutationObserver(injectCourseNav).observe(document.body, { childList: true, subtree: true });
-  injectCourseNav();
+  addFloatingButton();
 
   /* =========================================================
      POPUP MESSAGE LISTENER

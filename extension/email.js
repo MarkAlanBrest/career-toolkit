@@ -818,29 +818,39 @@
   }
 
   /* =========================================================
-     TOOLBAR BUTTON
+     FLOATING BUTTON
   ========================================================= */
-  function tryAddEmailBtn() {
-    const rowTop = document.getElementById('ce-row-top');
-    if (!rowTop || document.getElementById('ce-email-btn')) return;
+  function addFloatingEmailBtn() {
+    if (document.getElementById('ce-email-btn')) return;
     const btn = document.createElement('button');
     btn.id = 'ce-email-btn';
-    btn.className = 'ce-btn';
     btn.type = 'button';
-    btn.innerHTML = '<span class="ce-icon">✉</span>';
+    btn.innerHTML = '<span style="font-size:16px;line-height:1;">✉</span><span>Messages</span>';
     btn.title = 'Canvas Message System';
-    btn.style.cssText = 'padding:4px 8px;font-size:16px;';
+    btn.style.cssText = [
+      'position:fixed',
+      'top:72px',
+      'right:18px',
+      'z-index:99998',
+      'display:flex',
+      'align-items:center',
+      'gap:7px',
+      'padding:9px 13px',
+      'border:none',
+      'border-radius:8px',
+      'background:#059669',
+      'color:#fff',
+      'font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      'box-shadow:0 4px 16px rgba(0,0,0,.22)',
+      'cursor:pointer'
+    ].join(';');
     btn.onclick = e => {
       e.stopPropagation();
       if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
     };
-    // Insert before the AI Chat group (first .ce-group in rowTop)
-    const chatGroup = rowTop.querySelector('.ce-group');
-    if (chatGroup) rowTop.insertBefore(btn, chatGroup);
-    else rowTop.appendChild(btn);
+    document.body.appendChild(btn);
   }
-  new MutationObserver(tryAddEmailBtn).observe(document.body, { childList: true, subtree: true });
-  tryAddEmailBtn();
+  addFloatingEmailBtn();
 
   /* =========================================================
      INIT

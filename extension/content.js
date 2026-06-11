@@ -264,7 +264,7 @@
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parseFloat(parsed.version) > parseFloat(BAKED_VERSION)) {
-          COMPONENTS = { ...parsed.components, navigation: BAKED_COMPONENTS.navigation };
+          COMPONENTS = parsed.components;
         }
       }
     } catch(e) {}
@@ -275,7 +275,7 @@
         if (parseFloat(data.version) > curVer) {
           GM_setValue('ce_components', JSON.stringify(data));
           GM_setValue('ce_version', data.version);
-          COMPONENTS = { ...data.components, navigation: BAKED_COMPONENTS.navigation };
+          COMPONENTS = data.components;
           const t = document.getElementById('ce-toolbar');
           if (t) { t.remove(); buildToolbar(); }
         }
@@ -2340,7 +2340,7 @@ Critical rules:
     qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showQuizMaker();};
     rowBottom.appendChild(qmBtn);
 
-    Object.entries(COMPONENTS).forEach(([,cat]) => {
+    Object.entries(COMPONENTS).filter(([,cat]) => cat && Array.isArray(cat.items)).forEach(([,cat]) => {
       const group=document.createElement('div'); group.className='ce-group';
       const btn=document.createElement('button'); btn.className='ce-btn'; btn.type='button';
       btn.textContent=`${cat.label} ▾`;
