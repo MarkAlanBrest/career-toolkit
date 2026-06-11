@@ -2266,6 +2266,7 @@ Critical rules:
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
     const toolbar = document.createElement('div'); toolbar.id = 'ce-toolbar';
+    try {
 
     // rowProps must exist before rowTop so icon/video handlers can reference it
     const rowProps = document.createElement('div'); rowProps.id = 'ce-row-props';
@@ -2406,6 +2407,26 @@ Critical rules:
         });
         relocate.observe(document.body, { childList: true, subtree: true });
       }
+    }
+    } catch (err) {
+      console.error('Canvas Enhancer: error building toolbar', err);
+      // Minimal fallback toolbar to avoid crashing the page
+      try {
+        if (!document.getElementById('ce-toolbar')) {
+          const fb = document.createElement('div'); fb.id = 'ce-toolbar';
+          const rb = document.createElement('div'); rb.id = 'ce-row-top';
+          const tbtn = document.createElement('button'); tbtn.id = 'ce-toggle-btn';
+          tbtn.className = 'ce-btn'; tbtn.type = 'button';
+          const collapsed = GM_getValue ? GM_getValue('ce_toolbar_collapsed', false) : false;
+          tbtn.innerHTML = collapsed ? '⊕' : '⊗';
+          tbtn.onclick = e => { e.stopPropagation(); if (GM_setValue && GM_getValue) { GM_setValue('ce_toolbar_collapsed', !GM_getValue('ce_toolbar_collapsed', false)); } };
+          rb.appendChild(tbtn);
+          const msg = document.createElement('button'); msg.className = 'ce-btn'; msg.type = 'button'; msg.textContent = 'Message';
+          msg.onclick = () => { try { alert('Canvas Enhancer loaded'); } catch(e){} };
+          rb.appendChild(msg);
+          fb.appendChild(rb); document.body.insertBefore(fb, document.body.firstChild);
+        }
+      } catch (e2) { console.error('Canvas Enhancer fallback toolbar failed', e2); }
     }
   }
 
