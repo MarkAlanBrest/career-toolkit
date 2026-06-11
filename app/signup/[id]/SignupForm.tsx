@@ -10,12 +10,10 @@ type ClassConfig = {
 };
 
 export default function SignupForm({ config, configId }: { config: ClassConfig; configId: string }) {
-  const [phone,  setPhone]  = useState('');
-  const [optIn,  setOptIn]  = useState(false);
-  const [step,   setStep]   = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [phone,    setPhone]    = useState('');
+  const [optIn,    setOptIn]    = useState(false);
+  const [step,     setStep]     = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-
-  const titleParts = [config.className, config.term].filter(Boolean).join(' · ');
 
   function fmtPhone(v: string) {
     const d = v.replace(/\D/g, '').slice(0, 10);
@@ -35,14 +33,7 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone:     digits,
-          className: config.className,
-          courseId:  configId,
-          term:      config.term,
-          name:      'Student',
-          optIn,
-        }),
+        body: JSON.stringify({ phone: digits, className: config.className, courseId: configId, term: config.term, name: 'Student', optIn }),
       });
       const data = await res.json();
       if (!res.ok) { setErrorMsg(data.error || 'Something went wrong. Please try again.'); setStep('error'); return; }
@@ -50,16 +41,18 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
     } catch { setErrorMsg('Network error. Please try again.'); setStep('error'); }
   }
 
+  const titleParts = [config.className, config.term].filter(Boolean).join(' · ');
+
   if (step === 'success') {
     return (
       <div style={S.page}>
-        <div style={{ textAlign: 'center', color: '#fff', padding: 32 }}>
-          <div style={{ fontSize: 40, lineHeight: 1 }}>🎉</div>
-          <div style={{ ...S.title, marginTop: 10 }}>You&rsquo;re signed up!</div>
-          <div style={{ ...S.sub, marginTop: 6 }}>
-            You&rsquo;ll get text alerts for <strong>{config.className}</strong>.
-            &nbsp;Contact your teacher to be removed.
-          </div>
+        <div style={{ textAlign: 'center', color: '#fff', padding: 40 }}>
+          <div style={{ fontSize: 52, lineHeight: 1 }}>🎉</div>
+          <h2 style={{ margin: '14px 0 8px', fontSize: 26, fontWeight: 900 }}>You&rsquo;re signed up!</h2>
+          <p style={{ margin: 0, opacity: 0.9, fontSize: 15 }}>
+            You&rsquo;ll receive text alerts for <strong>{config.className}</strong>.<br />
+            Contact your teacher to be removed.
+          </p>
         </div>
       </div>
     );
@@ -67,33 +60,41 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
 
   return (
     <div style={S.page}>
-      <form onSubmit={submit} noValidate>
-        <div style={S.inner}>
-          <div style={S.headline}>
-            <div style={S.titleRow}>
-              <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>📱</span>
-              <div>
-                <div style={S.title}>Text Alerts — {titleParts}</div>
-                <div style={S.sub}>
-                  {config.teacherName
-                    ? <>Sign up to get updates from <strong>{config.teacherName}</strong> sent to your phone.</>
-                    : 'Sign up to get class updates sent to your phone.'}
-                </div>
-              </div>
-            </div>
-          </div>
+      <div style={S.grid}>
 
-          <div style={S.form}>
-            <div style={S.inputWrap}>
-              <span style={S.inputIcon}>📞</span>
-              <input
-                type="tel"
-                placeholder="(555) 867-5309"
-                value={phone}
-                onChange={e => setPhone(fmtPhone(e.target.value))}
-                required
-                style={S.input}
-              />
+        {/* ── LEFT: all text ── */}
+        <div style={S.left}>
+          <div style={{ fontSize: 44, lineHeight: 1, marginBottom: 14 }}>📱</div>
+          <h1 style={S.title}>Text Alerts</h1>
+          {titleParts && <p style={S.classLine}>{titleParts}</p>}
+          <p style={S.sub}>
+            {config.teacherName
+              ? <>Sign up to get updates &amp; reminders from <strong>{config.teacherName}</strong> sent straight to your phone.</>
+              : 'Sign up to get class updates and reminders sent straight to your phone.'}
+          </p>
+          <ul style={S.bullets}>
+            <li>✓&nbsp; Instant reminders — never miss a deadline</li>
+            <li>✓&nbsp; Direct updates from your teacher</li>
+            <li>✓&nbsp; Sign up in seconds, it&rsquo;s free</li>
+          </ul>
+        </div>
+
+        {/* ── RIGHT: form ── */}
+        <div style={S.right}>
+          <form onSubmit={submit} noValidate>
+            <div style={S.field}>
+              <label style={S.fieldLabel}>Your Cell Number</label>
+              <div style={S.inputWrap}>
+                <span style={S.inputIcon}>📞</span>
+                <input
+                  type="tel"
+                  placeholder="(555) 867-5309"
+                  value={phone}
+                  onChange={e => setPhone(fmtPhone(e.target.value))}
+                  required
+                  style={S.input}
+                />
+              </div>
             </div>
 
             <label style={S.checkLabel}>
@@ -101,12 +102,14 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
                 type="checkbox"
                 checked={optIn}
                 onChange={e => setOptIn(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: '#fff', cursor: 'pointer', flexShrink: 0, marginTop: 1 }}
+                style={{ width: 17, height: 17, accentColor: '#E66000', cursor: 'pointer', flexShrink: 0, marginTop: 2 }}
               />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3 }}>
-                I agree to receive<br />class text alerts
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 1.4 }}>
+                I agree to receive text message alerts for this class
               </span>
             </label>
+
+            {errorMsg && <p style={S.error}>{errorMsg}</p>}
 
             <button
               type="submit"
@@ -115,15 +118,14 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
             >
               {step === 'submitting' ? 'Signing up…' : 'Sign Me Up! →'}
             </button>
-          </div>
+          </form>
         </div>
-      </form>
 
-      {errorMsg && <div style={S.error}>{errorMsg}</div>}
-
-      <div style={S.footer}>
-        Your number is only used for class alerts and is never sold or shared &nbsp;·&nbsp; Contact your teacher to be removed
       </div>
+
+      <p style={S.footer}>
+        Your number is only used for class alerts and is never sold or shared &nbsp;·&nbsp; Contact your teacher to be removed
+      </p>
     </div>
   );
 }
@@ -131,35 +133,138 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
 const S: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0770B8 0%, #045a9a 60%, #034a82 100%)',
+    background: 'linear-gradient(135deg, #0770B8 0%, #045a9a 55%, #034a82 100%)',
     fontFamily: "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif",
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
+    padding: '32px 40px 20px',
     boxSizing: 'border-box',
-    padding: '16px 24px 10px',
   },
-  inner:    { display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', color: '#fff' },
-  headline: { flex: '1 1 220px' },
-  titleRow: { display: 'flex', alignItems: 'flex-start', gap: 10 },
-  title: { fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.3px', lineHeight: 1.2, textShadow: '0 1px 3px rgba(0,0,0,0.2)' },
-  sub:   { fontSize: 13, color: 'rgba(255,255,255,0.88)', marginTop: 4, lineHeight: 1.4 },
-  form:  { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: '1 1 340px' },
-  inputWrap: { position: 'relative', flex: '1 1 160px', minWidth: 150, display: 'flex', alignItems: 'center' },
-  inputIcon: { position: 'absolute', left: 10, fontSize: 14, pointerEvents: 'none' },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 300px',
+    gap: 48,
+    alignItems: 'center',
+    maxWidth: 860,
+    margin: '0 auto',
+    width: '100%',
+  },
+  left: {
+    color: '#fff',
+  },
+  title: {
+    margin: '0 0 4px',
+    fontSize: 34,
+    fontWeight: 900,
+    color: '#fff',
+    letterSpacing: '-0.5px',
+    lineHeight: 1.1,
+    textShadow: '0 2px 6px rgba(0,0,0,0.2)',
+  },
+  classLine: {
+    margin: '0 0 12px',
+    fontSize: 16,
+    fontWeight: 700,
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: '0.2px',
+  },
+  sub: {
+    margin: '0 0 20px',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.88)',
+    lineHeight: 1.6,
+  },
+  bullets: {
+    margin: 0,
+    padding: 0,
+    listStyle: 'none',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  right: {
+    background: 'rgba(255,255,255,0.10)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    borderRadius: 14,
+    padding: '28px 24px',
+    backdropFilter: 'blur(8px)',
+  },
+  field: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    display: 'block',
+    fontSize: 11,
+    fontWeight: 800,
+    color: 'rgba(255,255,255,0.7)',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.8px',
+    marginBottom: 6,
+  },
+  inputWrap: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  inputIcon: {
+    position: 'absolute',
+    left: 11,
+    fontSize: 14,
+    pointerEvents: 'none',
+  },
   input: {
-    width: '100%', padding: '9px 12px 9px 32px', fontSize: 15, fontWeight: 600,
-    border: '2px solid rgba(255,255,255,0.4)', borderRadius: 6,
-    background: 'rgba(255,255,255,0.15)', color: '#fff', outline: 'none',
-    boxSizing: 'border-box', fontFamily: 'inherit', letterSpacing: '0.5px',
+    width: '100%',
+    padding: '11px 12px 11px 34px',
+    fontSize: 16,
+    fontWeight: 600,
+    border: '2px solid rgba(255,255,255,0.35)',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.15)',
+    color: '#fff',
+    outline: 'none',
+    boxSizing: 'border-box' as const,
+    fontFamily: 'inherit',
+    letterSpacing: '0.5px',
   },
-  checkLabel: { display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer', flexShrink: 0 },
+  checkLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8,
+    cursor: 'pointer',
+    marginBottom: 20,
+  },
   btn: {
-    padding: '9px 18px', background: 'linear-gradient(135deg, #E66000, #c95500)',
-    color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 900,
-    cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 3px 10px rgba(230,96,0,0.4)',
-    fontFamily: 'inherit', flexShrink: 0,
+    display: 'block',
+    width: '100%',
+    padding: '13px',
+    background: 'linear-gradient(135deg, #E66000, #c95500)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontSize: 16,
+    fontWeight: 900,
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(230,96,0,0.4)',
+    fontFamily: 'inherit',
+    letterSpacing: '0.2px',
   },
-  error:  { marginTop: 8, fontSize: 12, color: '#ffe0b2', background: 'rgba(0,0,0,0.2)', borderRadius: 4, padding: '5px 10px' },
-  footer: { marginTop: 8, fontSize: 10, color: 'rgba(255,255,255,0.55)', textAlign: 'center', letterSpacing: '0.2px' },
+  error: {
+    color: '#ffe0b2',
+    fontSize: 12,
+    background: 'rgba(0,0,0,0.2)',
+    borderRadius: 4,
+    padding: '6px 10px',
+    marginBottom: 12,
+  },
+  footer: {
+    marginTop: 24,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center' as const,
+    letterSpacing: '0.2px',
+    maxWidth: 860,
+    margin: '24px auto 0',
+    width: '100%',
+  },
 };
