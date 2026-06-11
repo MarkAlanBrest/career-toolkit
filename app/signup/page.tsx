@@ -89,7 +89,7 @@ function SignupWidget() {
           </div>
           <div style={{ ...S.sub, marginTop: 6 }}>
             You&rsquo;ll get text alerts{className ? ` for ${className}` : ''}.
-            &nbsp;Reply STOP anytime to unsubscribe.
+            &nbsp;To be removed, contact your teacher directly.
           </div>
         </div>
       </div>
@@ -139,7 +139,7 @@ function SignupWidget() {
                 style={{ width: 16, height: 16, accentColor: '#fff', cursor: 'pointer', flexShrink: 0, marginTop: 1 }}
               />
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', lineHeight: 1.3 }}>
-                I agree to receive<br />text alerts
+                I agree to receive<br />class text alerts
               </span>
             </label>
 
@@ -199,7 +199,7 @@ function SignupWidget() {
       {errorMsg && <div style={S.error}>{errorMsg}</div>}
 
       <div style={S.footer}>
-        Your number is never sold or shared &nbsp;·&nbsp; Reply STOP at any time to unsubscribe
+        Your number is only used for class alerts and is never sold or shared &nbsp;·&nbsp; Contact your teacher to be removed
       </div>
     </div>
   );
