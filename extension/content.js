@@ -1443,11 +1443,13 @@
     }
 
     const lengthInstr = { concise:'Keep the output concise and focused — 1-2 short sections, minimal copy.', standard:'Use a balanced amount of detail — 3-4 sections with moderate copy.', detailed:'Be comprehensive — cover the topic thoroughly with multiple sections, rich detail, and supporting elements.' };
+    const maxTokensMap = { concise:2000, standard:4000, detailed:8096 };
     prompt+=`\nLength: ${lengthInstr[st.contentLength]||lengthInstr.standard}\n`;
+
     if (st.textContent.trim()) prompt+=`\nContent:\n${st.textContent}\n`;
     if (st.uploadedFile)       prompt+=`\nUploaded file (${st.uploadedName}):\n${st.uploadedFile}\n`;
     prompt+=`\nRules: Return ONLY HTML. Inline CSS only — no <style> tags, no <head>/<body>. Web-safe fonts only. No JavaScript. No external images. Ready to paste into Canvas Rich Content Editor.`;
-    ceGenerate({ model:'claude-sonnet-4-6', max_tokens:8096, messages:[{role:'user',content:prompt}] })
+    ceGenerate({ model:'claude-sonnet-4-6', max_tokens:maxTokensMap[st.contentLength]||4000, messages:[{role:'user',content:prompt}] })
       .then(data => {
         genBtn.disabled=false; genBtn.textContent='✦ Generate';
         let html=data?.content?.[0]?.text||'';

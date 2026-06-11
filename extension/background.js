@@ -35,13 +35,38 @@ async function handleGenerate(payload) {
     body: JSON.stringify({ messages, max_tokens, model, licenseKey }),
   });
 
-  const data = await res.json();
-
   if (!res.ok) {
-    throw new Error(data?.error || `HTTP ${res.status}`);
+    let errData;
+    try { errData = await res.json(); } catch { errData = {}; }
+    throw new Error(errData?.error || `HTTP ${res.status}`);
   }
 
-  return data;
+  // Consume the SSE stream and accumulate the full text
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (raw === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(raw);
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          fullText += evt.delta.text;
+        }
+      } catch { /* incomplete chunk, skip */ }
+    }
+  }
+
+  return { content: [{ type: 'text', text: fullText }] };
 }
 
 async function handleCanvasApi({ url, token }) {
