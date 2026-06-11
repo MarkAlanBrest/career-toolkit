@@ -2568,9 +2568,20 @@ Critical rules:
       ins.onclick=()=>{
         const commentText = r._editedFeedback !== undefined ? r._editedFeedback : feedLines;
         // Insert comment
-        const box=document.querySelector('#speed_grader_comment_textarea, #speedgrader_textarea, textarea[name="comment[text_comment]"]');
-        if (box) { box.value=commentText; box.dispatchEvent(new Event('input',{bubbles:true})); box.dispatchEvent(new Event('change',{bubbles:true})); }
-        else { navigator.clipboard.writeText(commentText).then(()=>{}); }
+        const box = document.querySelector(
+          '#speed_grader_comment_textarea, #speedgrader_textarea, ' +
+          'textarea[name="comment[text_comment]"], #grading_comment, ' +
+          '#comment_textarea, .submission-comment-form textarea, ' +
+          'textarea[aria-label*="comment" i], textarea[placeholder*="comment" i], ' +
+          '.grading_comment textarea'
+        );
+        if (box) {
+          const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+          nativeSetter.call(box, commentText);
+          box.dispatchEvent(new Event('input',{bubbles:true}));
+          box.dispatchEvent(new Event('change',{bubbles:true}));
+          box.focus();
+        } else { navigator.clipboard.writeText(commentText).then(()=>{}); }
         // Insert grade
         const gradeInput = document.querySelector(
           '#student_grading_value, #grading-box-extended, ' +
