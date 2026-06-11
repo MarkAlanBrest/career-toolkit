@@ -18,11 +18,11 @@
   user-select: none !important;
 }
 
-.ce-group {
+#ce-toolbar .ce-group {
   position: relative;
 }
 
-.ce-btn {
+#ce-toolbar .ce-btn {
   display: flex !important;
   align-items: center !important;
   gap: 5px !important;
@@ -38,11 +38,12 @@
   transition: background 0.1s !important;
   font-family: inherit !important;
   outline: none !important;
+  text-decoration: none !important;
 }
 
-.ce-btn:hover,
-.ce-btn.ce-open,
-.ce-btn[aria-expanded="true"] {
+#ce-toolbar .ce-btn:hover,
+#ce-toolbar .ce-btn.ce-open,
+#ce-toolbar .ce-btn[aria-expanded="true"] {
   background: #e8e8e8 !important;
   color: #2d3b45 !important;
   border: none !important;

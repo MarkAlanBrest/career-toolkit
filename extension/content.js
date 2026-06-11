@@ -344,16 +344,16 @@
     .ce-prop-swatch.active { border-color:#333 !important; box-shadow:0 0 0 1px #fff inset; }
     .ce-prop-sep { width:1px; height:20px; background:#e0e0e0; flex-shrink:0; }
     .ce-sep { width:1px; height:18px; background:#e8e8e8; margin:0 4px; flex-shrink:0; }
-    .ce-group { position:relative; }
-    .ce-btn {
+    #ce-toolbar .ce-group { position:relative; }
+    #ce-toolbar .ce-btn {
       display:flex !important; align-items:center !important; gap:5px !important;
       background:transparent !important; border:none !important; border-radius:3px !important;
       box-shadow:none !important; padding:5px 8px !important; cursor:pointer !important;
       font-size:14px !important; color:#2d3b45 !important;
       white-space:nowrap !important; transition:background .1s !important; font-family:inherit !important;
-      outline:none !important;
+      outline:none !important; text-decoration:none !important;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:#e8e8e8 !important; color:#2d3b45 !important; border:none !important; }
+    #ce-toolbar .ce-btn:hover, #ce-toolbar .ce-btn.ce-open { background:#e8e8e8 !important; color:#2d3b45 !important; border:none !important; box-shadow:none !important; }
     .ce-icon { font-style:normal; font-size:14px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 4px); left:0;
