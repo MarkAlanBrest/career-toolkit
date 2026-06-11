@@ -10,7 +10,7 @@ export default function SetupPage() {
   const [term,        setTerm]        = useState('');
   const [step,        setStep]        = useState<'form' | 'loading' | 'done'>('form');
   const [signupUrl,   setSignupUrl]   = useState('');
-  const [copied,      setCopied]      = useState(false);
+  const [copied,      setCopied]      = useState<'link' | 'embed' | null>(null);
   const [error,       setError]       = useState('');
 
   async function handleCreate(e: React.FormEvent) {
@@ -33,8 +33,16 @@ export default function SetupPage() {
 
   function copyLink() {
     navigator.clipboard.writeText(signupUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
+      setCopied('link');
+      setTimeout(() => setCopied(null), 2500);
+    });
+  }
+
+  function copyEmbed() {
+    const code = `<iframe src="${signupUrl}" width="100%" height="170" frameborder="0" style="border:none; border-radius:8px;"></iframe>`;
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied('embed');
+      setTimeout(() => setCopied(null), 2500);
     });
   }
 
@@ -91,24 +99,27 @@ export default function SetupPage() {
             <div style={S.urlBox}>
               <span style={{ flex: 1, fontSize: 14, color: '#2d3b45', wordBreak: 'break-all' }}>{signupUrl}</span>
               <button onClick={copyLink} style={S.copyBtn}>
-                {copied ? '✓ Copied!' : 'Copy Link'}
+                {copied === 'link' ? '✓ Copied!' : 'Copy Link'}
               </button>
             </div>
+
+            <button onClick={copyEmbed} style={{ ...S.outlineBtn, width: '100%', marginTop: 10, fontSize: 13 }}>
+              {copied === 'embed' ? '✓ Embed Code Copied!' : '📋 Copy as Embed Code (for Canvas page editor)'}
+            </button>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
               <a href={signupUrl} target="_blank" rel="noreferrer"
                 style={{ ...S.btn, textDecoration: 'none', textAlign: 'center', flex: 1 }}>
                 Preview Page ↗
               </a>
-              <button onClick={() => { setStep('form'); setClassName(''); setTerm(''); setTeacherName(''); }}
+              <button onClick={() => { setStep('form'); setClassName(''); setTerm(''); setTeacherName(''); setCopied(null); }}
                 style={{ ...S.outlineBtn, flex: 1 }}>
                 Create Another Class
               </button>
             </div>
 
             <p style={{ marginTop: 20, fontSize: 12, color: '#999', textAlign: 'center' }}>
-              Paste this link in a Canvas announcement, page, or anywhere students can see it.
-              No embed code needed.
+              Share the link in a Canvas announcement, email, or anywhere students can see it.
             </p>
           </div>
         )}
