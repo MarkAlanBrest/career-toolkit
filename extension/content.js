@@ -1,10 +1,9 @@
-﻿(async function () {
+(async function () {
   'use strict';
-  try {
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_canvas_token','ce_toolbar_collapsed'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -17,11 +16,7 @@
   // ── AI GENERATE (via background service worker) ───────────────────────────────
   function ceGenerate(payload) {
     return new Promise((resolve, reject) => {
-      // Hold an open port so the MV3 service worker isn't terminated mid-request
-      let port;
-      try { port = chrome.runtime.connect({ name: 'ce-keepalive' }); } catch(e) {}
       chrome.runtime.sendMessage({ type: 'GENERATE', payload }, res => {
-        try { port?.disconnect(); } catch(e) {}
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (res?.error) return reject(new Error(res.error));
         resolve(res);
@@ -29,45 +24,8 @@
     });
   }
 
-  async function ceCanvasApi(url) {
-    // Canvas API is same-origin — fetch directly from the content script, no background worker needed
-    const token = GM_getValue('ce_canvas_token', '');
-    const res = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.errors?.[0]?.message || data?.message || `Canvas API error ${res.status}`);
-    return data;
-  }
-
-  async function ceParseFile(b64, filename, mimeType, fileUrl) {
-    let base64 = b64;
-    // If given a Canvas file URL, fetch it directly from the content script (same-origin on Canvas)
-    if (!base64 && fileUrl) {
-      const token = GM_getValue('ce_canvas_token', '');
-      const fileRes = await fetch(fileUrl, token ? { headers: { 'Authorization': `Bearer ${token}` } } : {});
-      if (!fileRes.ok) throw new Error(`Could not download file: HTTP ${fileRes.status}`);
-      const buffer = await fileRes.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let bin = '';
-      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      base64 = btoa(bin);
-    }
-    // POST directly to Vercel — bypasses background service worker entirely
-    const res = await fetch('https://career-toolkit-ruby.vercel.app/api/parse-file', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ b64: base64, filename, mimeType }),
-    });
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — deploy the latest version to Vercel first`); }
-    if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
-    return data;
-  }
-
   const BAKED_VERSION = '2.4';
-  const COMPONENTS_URL = 'https://career-toolkit-ruby.vercel.app/components.json';
+  const COMPONENTS_URL = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app/components.json';
 
   // ── THEME COLORS ─────────────────────────────────────────────────────────────
   const COLORS = [
@@ -265,7 +223,7 @@
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parseFloat(parsed.version) > parseFloat(BAKED_VERSION)) {
-          COMPONENTS = parsed.components;
+          COMPONENTS = { ...parsed.components, navigation: BAKED_COMPONENTS.navigation };
         }
       }
     } catch(e) {}
@@ -276,7 +234,7 @@
         if (parseFloat(data.version) > curVer) {
           GM_setValue('ce_components', JSON.stringify(data));
           GM_setValue('ce_version', data.version);
-          COMPONENTS = data.components;
+          COMPONENTS = { ...data.components, navigation: BAKED_COMPONENTS.navigation };
           const t = document.getElementById('ce-toolbar');
           if (t) { t.remove(); buildToolbar(); }
         }
@@ -288,19 +246,18 @@
   const style = document.createElement('style');
   style.textContent = `
     #ce-toolbar {
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;
-      font-size:14px !important; background:#fff !important;
-      border:none !important; border-bottom:1px solid #c7cdd1 !important;
-      border-radius:0 !important; box-shadow:none !important;
-      position:relative !important; z-index:9000 !important; user-select:none !important;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      font-size:13px; background:#f5f5f5;
+      border:1px solid #ddd; border-bottom:none;
+      border-radius:4px 4px 0 0; position:relative; z-index:9000; user-select:none;
     }
     #ce-row-top {
-      display:flex; align-items:center; gap:2px;
-      padding:4px 8px 4px 26px; border-bottom:1px solid #e8e8e8; flex-wrap:wrap;
+      display:flex; align-items:center; gap:4px;
+      padding:6px 10px; border-bottom:1px solid #e0e0e0; flex-wrap:wrap;
     }
     #ce-row-bottom {
-      display:flex; align-items:center; gap:2px;
-      padding:4px 8px 4px 26px; flex-wrap:wrap;
+      display:flex; align-items:center; gap:4px;
+      padding:6px 10px; flex-wrap:wrap;
     }
     #ce-row-props {
       display:none; align-items:center; gap:8px; flex-wrap:wrap;
@@ -348,17 +305,15 @@
     .ce-prop-swatch:hover { transform:scale(1.15); }
     .ce-prop-swatch.active { border-color:#333 !important; box-shadow:0 0 0 1px #fff inset; }
     .ce-prop-sep { width:1px; height:20px; background:#e0e0e0; flex-shrink:0; }
-    .ce-sep { width:1px; height:18px; background:#e8e8e8; margin:0 4px; flex-shrink:0; }
-    #ce-toolbar .ce-group { position:relative; }
-    #ce-toolbar .ce-btn {
-      display:flex !important; align-items:center !important; gap:5px !important;
-      background:transparent !important; border:none !important; border-radius:3px !important;
-      box-shadow:none !important; padding:5px 8px !important; cursor:pointer !important;
-      font-size:14px !important; color:#2d3b45 !important;
-      white-space:nowrap !important; transition:background .1s !important; font-family:inherit !important;
-      outline:none !important; text-decoration:none !important;
+    .ce-sep { width:1px; height:20px; background:#ddd; margin:0 2px; flex-shrink:0; }
+    .ce-group { position:relative; }
+    .ce-btn {
+      display:flex; align-items:center; gap:5px;
+      background:#fff; border:1px solid #ccc; border-radius:4px;
+      padding:5px 10px; cursor:pointer; font-size:13px; color:#333;
+      white-space:nowrap; transition:background .15s,border-color .15s; font-family:inherit;
     }
-    #ce-toolbar .ce-btn:hover, #ce-toolbar .ce-btn.ce-open { background:#e8e8e8 !important; color:#2d3b45 !important; border:none !important; box-shadow:none !important; }
+    .ce-btn:hover, .ce-btn.ce-open { background:#0770B8; border-color:#0770B8; color:#fff; }
     .ce-icon { font-style:normal; font-size:14px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 4px); left:0;
@@ -374,7 +329,7 @@
       cursor:pointer; transition:background .1s; font-family:inherit;
     }
     .ce-item:last-child { border-bottom:none; }
-    .ce-item:hover { background:#f0f0f0; color:#2d3b45; }
+    .ce-item:hover { background:#e8f0fb; color:#0770B8; }
     .ce-icon-panel { min-width:300px; padding:0; }
     .ce-icon-tabs { display:flex; border-bottom:1px solid #eee; }
     .ce-icon-tab {
@@ -914,7 +869,7 @@
     if (document.getElementById('ce-ai-overlay')) document.getElementById('ce-ai-overlay').remove();
 
     const st = {
-      view: 'build',
+      view: GM_getValue('ce_license_key','') ? 'build' : 'setup',
       contentType: detectPageType(),
       pageStyle: 'pastel',
       customColor: '#1e3a5f',
@@ -1079,24 +1034,20 @@
       const themeCard=mkCard();
       themeCard.appendChild(mkSecHdr('Style / Theme'));
       const themeGrid=document.createElement('div'); themeGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;';
-      const cr=document.createElement('div'); cr.style.cssText=`display:${st.pageStyle==='custom'?'flex':'none'};align-items:center;gap:8px;margin-top:10px;`;
-      const cl=document.createElement('span'); cl.textContent='Primary color:'; cl.style.fontSize='13px';
-      const ci=document.createElement('input'); ci.type='color'; ci.value=st.customColor;
-      ci.style.cssText='width:50px;height:30px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;';
-      ci.oninput=()=>{ st.customColor=ci.value; }; cr.appendChild(cl); cr.appendChild(ci);
-      const themeBtns=[];
-      const themeStyle=(act)=>`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#7c3aed':'#374151'};font-family:inherit;`;
       Object.entries(CB_THEMES).forEach(([key,theme])=>{
-        const tb=document.createElement('button'); tb.textContent=theme.name; tb.dataset.key=key;
-        tb.style.cssText=themeStyle(st.pageStyle===key);
-        tb.onclick=()=>{
-          st.pageStyle=key;
-          themeBtns.forEach(b=>b.style.cssText=themeStyle(b.dataset.key===key));
-          cr.style.display=key==='custom'?'flex':'none';
-        };
-        themeBtns.push(tb); themeGrid.appendChild(tb);
+        const act=st.pageStyle===key;
+        const tb=document.createElement('button'); tb.textContent=theme.name;
+        tb.style.cssText=`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#7c3aed':'#374151'};font-family:inherit;`;
+        tb.onclick=()=>{ st.pageStyle=key; render(); }; themeGrid.appendChild(tb);
       });
-      themeCard.appendChild(themeGrid); themeCard.appendChild(cr);
+      themeCard.appendChild(themeGrid);
+      if (st.pageStyle==='custom') {
+        const cr=document.createElement('div'); cr.style.cssText='display:flex;align-items:center;gap:8px;margin-top:10px;';
+        const cl=document.createElement('span'); cl.textContent='Primary color:'; cl.style.fontSize='13px';
+        const ci=document.createElement('input'); ci.type='color'; ci.value=st.customColor;
+        ci.style.cssText='width:50px;height:30px;border-radius:6px;border:1px solid #d1d5db;cursor:pointer;';
+        ci.oninput=()=>{ st.customColor=ci.value; }; cr.appendChild(cl); cr.appendChild(ci); themeCard.appendChild(cr);
+      }
       // ── CONTENT INPUT (top) ──────────────────────────────────────────────────────
       const contentCard=mkCard();
       contentCard.appendChild(mkSecHdr('Content'));
@@ -1270,14 +1221,12 @@
       const lenCard=mkCard();
       lenCard.appendChild(mkSecHdr('Content length'));
       const lenRow=document.createElement('div'); lenRow.style.cssText='display:flex;gap:8px;';
-      const lenBtns=[];
       [['concise','Concise','Short and focused'],['standard','Standard','Balanced detail'],['detailed','Detailed','Comprehensive coverage']].forEach(([val,label,desc])=>{
-        const lb=document.createElement('button'); lb.type='button'; lb.dataset.val=val;
-        const style=act=>`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#7c3aed':'#6b7280'};`;
-        lb.style.cssText=style(st.contentLength===val);
+        const act=st.contentLength===val;
+        const lb=document.createElement('button'); lb.type='button';
+        lb.style.cssText=`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#7c3aed':'#6b7280'};`;
         lb.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">${label}</div><div style="font-size:11px;opacity:.75;">${desc}</div>`;
-        lb.onclick=()=>{ st.contentLength=val; lenBtns.forEach(b=>b.style.cssText=style(b.dataset.val===val)); };
-        lenBtns.push(lb); lenRow.appendChild(lb);
+        lb.onclick=()=>{st.contentLength=val;render();}; lenRow.appendChild(lb);
       });
       lenCard.appendChild(lenRow); w.appendChild(lenCard);
 
@@ -1347,7 +1296,7 @@
   }
 
   function cbGenerate(st, genBtn, renderFn) {
-    // license check bypassed
+    if (!st.apiKey) { showNotice('No license key — go to ⚙ Setup first'); return; }
     if (!st.textContent.trim() && !st.uploadedFile) { showNotice('Add some content or describe what to create'); return; }
     genBtn.textContent='Generating…'; genBtn.disabled=true;
     st.view='loading'; renderFn();
@@ -1444,13 +1393,11 @@
     }
 
     const lengthInstr = { concise:'Keep the output concise and focused — 1-2 short sections, minimal copy.', standard:'Use a balanced amount of detail — 3-4 sections with moderate copy.', detailed:'Be comprehensive — cover the topic thoroughly with multiple sections, rich detail, and supporting elements.' };
-    const maxTokensMap = { concise:2000, standard:4000, detailed:8096 };
     prompt+=`\nLength: ${lengthInstr[st.contentLength]||lengthInstr.standard}\n`;
-
     if (st.textContent.trim()) prompt+=`\nContent:\n${st.textContent}\n`;
     if (st.uploadedFile)       prompt+=`\nUploaded file (${st.uploadedName}):\n${st.uploadedFile}\n`;
     prompt+=`\nRules: Return ONLY HTML. Inline CSS only — no <style> tags, no <head>/<body>. Web-safe fonts only. No JavaScript. No external images. Ready to paste into Canvas Rich Content Editor.`;
-    ceGenerate({ model:'claude-sonnet-4-6', max_tokens:maxTokensMap[st.contentLength]||4000, messages:[{role:'user',content:prompt}] })
+    ceGenerate({ model:'claude-sonnet-4-6', max_tokens:8096, messages:[{role:'user',content:prompt}] })
       .then(data => {
         genBtn.disabled=false; genBtn.textContent='✦ Generate';
         let html=data?.content?.[0]?.text||'';
@@ -1834,7 +1781,7 @@
 
     // ── GENERATE ───────────────────────────────────────────────────────────
     genBtn.onclick=()=>{
-      // license check bypassed
+      if(!apiKey){showQStatus('No license key — set it in ✦ AI Builder → ⚙ Setup first.','err');return;}
       if(!qst.topic.trim()){showQStatus('Enter a topic first.','err');return;}
       const totalQ=Object.values(qst.typeCounts).reduce((s,v)=>s+v,0);
       if(!totalQ){showQStatus('Set at least one question type count above zero.','err');return;}
@@ -2167,109 +2114,11 @@ Critical rules:
     overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
     document.body.appendChild(overlay);
   }
-  // ── TEXT ALERT SIGNUP EMBED GENERATOR ────────────────────────────────────────
-  async function showSignupEmbedDialog() {
-    const courseMatch = window.location.pathname.match(/\/courses\/(\d+)/);
-    const courseId    = courseMatch?.[1] || '';
-
-    let className = '', term = '';
-
-    if (courseId) {
-      try {
-        const course = await ceCanvasApi(`/api/v1/courses/${courseId}?include[]=term`);
-        className = course.name       || '';
-        term      = course.term?.name || '';
-      } catch { /* will show empty fields to fill manually */ }
-    }
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
-
-    const dlg = document.createElement('div');
-    dlg.style.cssText = 'background:#fff;border-radius:10px;padding:28px 32px;width:520px;max-width:94vw;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit;';
-
-    function makeEmbed() {
-      const cls  = encodeURIComponent(className);
-      const trm  = encodeURIComponent(term);
-      const base = 'https://career-toolkit-ruby.vercel.app/signup';
-      const params = [`course_id=${courseId}`, cls && `class=${cls}`, trm && `term=${trm}`].filter(Boolean).join('&');
-      return `<iframe src="${base}?${params}" width="100%" height="170" frameborder="0" style="border:none; border-radius:8px;"></iframe>`;
-    }
-
-    dlg.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h2 style="margin:0;font-size:17px;color:#2d3b45;">📱 Text Alert Signup Widget</h2>
-        <button id="ce-sig-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">✕</button>
-      </div>
-      <p style="margin:0 0 12px;font-size:13px;color:#555;">Copy this embed code into your Canvas page editor (HTML view).</p>
-      <div style="margin-bottom:14px;">
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Class Name</label>
-        <input id="ce-sig-class" type="text" value="${className}" placeholder="e.g. Biology 101"
-          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:14px;box-sizing:border-box;" />
-      </div>
-      <div style="margin-bottom:14px;">
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Term</label>
-        <input id="ce-sig-term" type="text" value="${term}" placeholder="e.g. Fall 2026"
-          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:14px;box-sizing:border-box;" />
-      </div>
-      <div style="margin-bottom:18px;">
-        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Embed Code</label>
-        <textarea id="ce-sig-code" readonly rows="4"
-          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:12px;font-family:monospace;background:#f8fafc;box-sizing:border-box;resize:none;color:#2d3b45;">${makeEmbed()}</textarea>
-      </div>
-      <div style="display:flex;gap:10px;">
-        <button id="ce-sig-copy" style="flex:1;padding:10px;background:#0770B8;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">📋 Copy Embed Code</button>
-        <button id="ce-sig-close2" style="padding:10px 18px;background:#f0f0f0;color:#555;border:none;border-radius:6px;font-size:14px;cursor:pointer;">Close</button>
-      </div>
-    `;
-
-    overlay.appendChild(dlg);
-    document.body.appendChild(overlay);
-
-    function refreshCode() {
-      className = dlg.querySelector('#ce-sig-class').value;
-      term      = dlg.querySelector('#ce-sig-term').value;
-      dlg.querySelector('#ce-sig-code').value = makeEmbed();
-    }
-
-    dlg.querySelector('#ce-sig-class').addEventListener('input', refreshCode);
-    dlg.querySelector('#ce-sig-term').addEventListener('input', refreshCode);
-
-    dlg.querySelector('#ce-sig-copy').addEventListener('click', () => {
-      navigator.clipboard.writeText(dlg.querySelector('#ce-sig-code').value).then(() => {
-        dlg.querySelector('#ce-sig-copy').textContent = '✓ Copied!';
-        setTimeout(() => { dlg.querySelector('#ce-sig-copy').textContent = '📋 Copy Embed Code'; }, 2000);
-      });
-    });
-
-    const close = () => overlay.remove();
-    dlg.querySelector('#ce-sig-close').addEventListener('click', close);
-    dlg.querySelector('#ce-sig-close2').addEventListener('click', close);
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-  }
 
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
-  const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
-  const _onSG     = /speed_grader/.test(window.location.href);
-  const _onCourse = /\/courses\/\d+/.test(window.location.href);
-
-  console.debug('Canvas Enhancer: content script running', { url: window.location.href, onSpeedGrader: _onSG, rcePresent: !!document.querySelector(RCE_SEL) });
-
-  function syncRowBottom() {
-    const row = document.getElementById('ce-row-bottom');
-    if (!row) return;
-    const collapsed = GM_getValue('ce_toolbar_collapsed', false);
-    const hasRCE    = _onSG ? false : !!document.querySelector(RCE_SEL);
-    console.debug('Canvas Enhancer: syncRowBottom', { collapsed, hasRCE });
-    row.style.display = (!collapsed && hasRCE) ? '' : 'none';
-    const tb = document.getElementById('ce-toggle-btn');
-    if (tb) tb.innerHTML = collapsed ? '⊕' : '⊗';
-  }
-
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
     const toolbar = document.createElement('div'); toolbar.id = 'ce-toolbar';
-    try {
 
     // rowProps must exist before rowTop so icon/video handlers can reference it
     const rowProps = document.createElement('div'); rowProps.id = 'ce-row-props';
@@ -2282,70 +2131,18 @@ Critical rules:
       group.appendChild(btn); group.appendChild(panelEl); return group;
     }
 
-    // ── ROW TOP (utility bar — always visible) ─────────────────────────────────
-    const rowTop = document.createElement('div'); rowTop.id = 'ce-row-top';
-
-    const toggleBtn = document.createElement('button'); toggleBtn.className='ce-btn'; toggleBtn.type='button';
-    toggleBtn.id = 'ce-toggle-btn';
-    toggleBtn.innerHTML = GM_getValue('ce_toolbar_collapsed', false) ? '⊕' : '⊗';
-    toggleBtn.title = 'Toggle Canvas Enhancer toolbar';
-    toggleBtn.style.cssText = 'padding:4px 9px;font-size:15px;font-weight:700;';
-    toggleBtn.onclick = e => {
-      e.stopPropagation(); closeAllPanels();
-      const isCollapsed = GM_getValue('ce_toolbar_collapsed', false);
-      GM_setValue('ce_toolbar_collapsed', !isCollapsed);
-      syncRowBottom();
-    };
-    rowTop.appendChild(toggleBtn);
-
-    if (_onSG) {
-      const graderBtn = document.createElement('button'); graderBtn.className='ce-btn'; graderBtn.type='button';
-      graderBtn.id = 'ce-grader-btn'; graderBtn.textContent = '✦ AI Grader';
-      graderBtn.title = 'Toggle AI Grader panel';
-      graderBtn.onclick = e => { e.stopPropagation(); closeAllPanels(); window.__cesGraderToggle?.(); };
-      rowTop.appendChild(graderBtn);
-    }
-
-    const chatGroup = document.createElement('div'); chatGroup.className='ce-group';
-    const chatBtn = document.createElement('button'); chatBtn.className='ce-btn'; chatBtn.type='button';
-    chatBtn.textContent = '🤖 AI Chat ▾';
-    const chatPanel = document.createElement('div'); chatPanel.className='ce-panel';
-    [
-      { label: '✦ Claude',     url: 'https://claude.ai' },
-      { label: '⬡ ChatGPT',    url: 'https://chatgpt.com' },
-      { label: '◈ Gemini',     url: 'https://gemini.google.com' },
-      { label: '⊙ Perplexity', url: 'https://perplexity.ai' },
-    ].forEach(({ label, url }) => {
-      const link = document.createElement('button'); link.className='ce-item'; link.type='button';
-      link.textContent = label;
-      link.onclick = e => { e.stopPropagation(); window.open(url, '_blank'); closeAllPanels(); };
-      chatPanel.appendChild(link);
-    });
-    chatBtn.onclick = e => { e.stopPropagation(); const isOpen=chatPanel.classList.contains('ce-open'); closeAllPanels(); if(!isOpen){chatPanel.classList.add('ce-open');chatBtn.classList.add('ce-open');} };
-    chatGroup.appendChild(chatBtn); chatGroup.appendChild(chatPanel);
-    rowTop.appendChild(chatGroup);
-
-    const gearBtn = document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
-    gearBtn.innerHTML = '<span class="ce-icon">⚙</span>';
-    gearBtn.title = 'Settings'; gearBtn.style.cssText = 'padding:4px 8px;font-size:16px;';
-    gearBtn.onclick = e => { e.stopPropagation(); closeAllPanels(); showSettings(); };
-    rowTop.appendChild(gearBtn);
-
-    // ── ROW BOTTOM (component bar — collapses with toggle) ─────────────────────
     const rowBottom = document.createElement('div'); rowBottom.id = 'ce-row-bottom';
-    rowBottom.style.display = 'none'; // syncRowBottom() corrects after insertion
 
     const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
     aiBtn.textContent='AI Builder';
-    aiBtn.style.marginLeft='-41px';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showContentBuilder():showUpgradeModal('AI Builder');});};
     rowBottom.appendChild(aiBtn);
     const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
     qmBtn.textContent='Quiz Maker';
-    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showQuizMaker();};
+    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?showQuizMaker():showUpgradeModal('Quiz Maker');});};
     rowBottom.appendChild(qmBtn);
 
-    Object.entries(COMPONENTS).filter(([,cat]) => cat && Array.isArray(cat.items)).forEach(([,cat]) => {
+    Object.entries(COMPONENTS).forEach(([,cat]) => {
       const group=document.createElement('div'); group.className='ce-group';
       const btn=document.createElement('button'); btn.className='ce-btn'; btn.type='button';
       btn.textContent=`${cat.label} ▾`;
@@ -2369,14 +2166,13 @@ Critical rules:
     const iconsGroup=makeTopGroup('Icons',buildIconPanel(rowProps));
     rowBottom.appendChild(iconsGroup);
 
-    const sigBtn=document.createElement('button'); sigBtn.className='ce-btn'; sigBtn.type='button';
-    sigBtn.innerHTML='<span class="ce-icon">📱</span>';
-    sigBtn.title='Generate Text Alert Signup Widget';
-    sigBtn.style.cssText='padding:4px 8px;font-size:16px;';
-    sigBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSignupEmbedDialog();};
-    rowBottom.appendChild(sigBtn);
+    const gearBtn=document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
+    gearBtn.innerHTML='<span class="ce-icon">⚙</span>';
+    gearBtn.title='Settings';
+    gearBtn.style.cssText='padding:4px 8px;font-size:16px;';
+    gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSettings();};
+    rowBottom.appendChild(gearBtn);
 
-    toolbar.appendChild(rowTop);
     toolbar.appendChild(rowBottom);
     toolbar.appendChild(rowProps);
 
@@ -2386,81 +2182,21 @@ Critical rules:
     });
     document.addEventListener('click', closeAllPanels);
 
-    const rce = document.querySelector(RCE_SEL);
-    if (rce) {
-      rce.parentNode.insertBefore(toolbar, rce);
-    } else {
-      // No RCE yet — insert at top of Canvas content area so toolbar is visible
-      const anchor = (
-        document.querySelector('.ic-Layout-contentMain') ||
-        document.querySelector('#main') ||
-        document.querySelector('#content')
-      );
-      if (anchor) {
-        anchor.insertBefore(toolbar, anchor.firstChild);
-      } else {
-        // Canvas shell not yet painted; park at body top and move once it appears
-        document.body.insertBefore(toolbar, document.body.firstChild);
-        const relocate = new MutationObserver(() => {
-          const dest = document.querySelector('.ic-Layout-contentMain, #main, #content');
-          if (dest && !dest.contains(toolbar)) {
-            dest.insertBefore(toolbar, dest.firstChild);
-            relocate.disconnect();
-          }
-        });
-        relocate.observe(document.body, { childList: true, subtree: true });
-      }
-    }
-    } catch (err) {
-      console.error('Canvas Enhancer: error building toolbar', err);
-      // Minimal fallback toolbar to avoid crashing the page
-      try {
-        if (!document.getElementById('ce-toolbar')) {
-          const fb = document.createElement('div'); fb.id = 'ce-toolbar';
-          const rb = document.createElement('div'); rb.id = 'ce-row-top';
-          const tbtn = document.createElement('button'); tbtn.id = 'ce-toggle-btn';
-          tbtn.className = 'ce-btn'; tbtn.type = 'button';
-          const collapsed = GM_getValue ? GM_getValue('ce_toolbar_collapsed', false) : false;
-          tbtn.innerHTML = collapsed ? '⊕' : '⊗';
-          tbtn.onclick = e => { e.stopPropagation(); if (GM_setValue && GM_getValue) { GM_setValue('ce_toolbar_collapsed', !GM_getValue('ce_toolbar_collapsed', false)); } };
-          rb.appendChild(tbtn);
-          const msg = document.createElement('button'); msg.className = 'ce-btn'; msg.type = 'button'; msg.textContent = 'Message';
-          msg.onclick = () => { try { alert('Canvas Enhancer loaded'); } catch(e){} };
-          rb.appendChild(msg);
-          fb.appendChild(rb); document.body.insertBefore(fb, document.body.firstChild);
-        }
-      } catch (e2) { console.error('Canvas Enhancer fallback toolbar failed', e2); }
-    }
+    const rce = document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce');
+    if (rce) rce.parentNode.insertBefore(toolbar, rce);
+    else document.body.appendChild(toolbar);
   }
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();
 
-  if (document.querySelector(RCE_SEL) || _onSG) {
-    console.debug('Canvas Enhancer: initial condition met, calling buildToolbar');
-    buildToolbar();
-    syncRowBottom();
-  }
-  new MutationObserver((mutations) => {
-    console.debug('Canvas Enhancer: MutationObserver fired', mutations.length);
-    if (!document.getElementById('ce-toolbar') && (document.querySelector(RCE_SEL) || _onSG)) {
-      console.debug('Canvas Enhancer: building toolbar from MutationObserver');
-      buildToolbar();
-    }
-    syncRowBottom();
+  // Verify local file is loading correctly
+  setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
+
+  const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
+  if (document.querySelector(RCE_SEL)) buildToolbar();
+  new MutationObserver(() => {
+    if (document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
   }).observe(document.body, { childList:true, subtree:true });
 
-  // ── TEXT ALERT SIGNUP — student name bridge ──────────────────────────────────
-  // Class name and term come from URL params (set when teacher generates the
-  // embed code). This bridge only needs to supply the student's display name.
-  window.addEventListener('message', evt => {
-    if (evt.data?.type !== 'CE_REQUEST_CONTEXT' || !evt.source) return;
-    const env  = window.ENV || {};
-    const name = env.current_user?.display_name || env.current_user?.name || '';
-    evt.source.postMessage({ type: 'CE_CONTEXT', name }, '*');
-  });
-
-  } catch (err) {
-    console.error('Canvas Enhancer error in content script:', err);
-  }
 })();
