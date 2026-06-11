@@ -4,8 +4,8 @@ const config: NextConfig = {
   async headers() {
     return [
       {
-        // Allow the signup page to be embedded as an iframe inside Canvas LMS
-        source: '/signup',
+        // Allow signup pages to be embedded as iframes inside Canvas LMS
+        source: '/signup/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
