@@ -2793,19 +2793,38 @@ Critical rules:
   }
 
   // ── TEXT ALERT SIGNUP — Canvas context bridge ─────────────────────────────────
-  // When our /signup iframe embedded in Canvas asks for student/course context,
-  // read it from Canvas's global window.ENV and reply via postMessage.
-  window.addEventListener('message', evt => {
+  // When the /signup iframe asks for context, call the Canvas API for the real
+  // course name and term, then reply via postMessage.
+  window.addEventListener('message', async evt => {
     if (evt.data?.type !== 'CE_REQUEST_CONTEXT' || !evt.source) return;
-    try {
-      const env = window.ENV || {};
-      const name      = env.current_user?.display_name || env.current_user?.name || '';
-      const className = env.COURSE_TITLE || env.course?.name || '';
-      const term      = env.ENROLLMENT_TERM?.name || '';
-      evt.source.postMessage({ type: 'CE_CONTEXT', name, className, term }, '*');
-    } catch {
-      if (evt.source) evt.source.postMessage({ type: 'CE_CONTEXT', name: '', className: '', term: '' }, '*');
+
+    const env    = window.ENV || {};
+    const source = evt.source;
+
+    // Student name — window.ENV.current_user is reliable
+    const name = env.current_user?.display_name || env.current_user?.name || '';
+
+    // Course ID from the Canvas page URL: /courses/12345/...
+    const courseMatch = window.location.pathname.match(/\/courses\/(\d+)/);
+    const courseId    = courseMatch?.[1] || '';
+
+    let className = '';
+    let term      = '';
+
+    if (courseId) {
+      try {
+        // include[]=term fetches enrollment term in the same call
+        const course = await ceCanvasApi(`/api/v1/courses/${courseId}?include[]=term`);
+        className = course.name       || '';
+        term      = course.term?.name || '';
+      } catch { /* fall through to ENV fallback */ }
     }
+
+    // ENV fallback if API call failed or no course in URL
+    if (!className) className = env.COURSE_TITLE || env.course?.name || '';
+    if (!term)      term      = env.ENROLLMENT_TERM?.name || '';
+
+    source.postMessage({ type: 'CE_CONTEXT', name, className, term }, '*');
   });
 
 })();
