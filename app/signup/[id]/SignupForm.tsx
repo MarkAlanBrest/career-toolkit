@@ -64,7 +64,6 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
 
         {/* ── LEFT: all text ── */}
         <div style={S.left}>
-          <div style={{ fontSize: 44, lineHeight: 1, marginBottom: 14 }}>📱</div>
           <h1 style={S.title}>Text Alerts</h1>
           {titleParts && <p style={S.classLine}>{titleParts}</p>}
           <p style={S.sub}>
