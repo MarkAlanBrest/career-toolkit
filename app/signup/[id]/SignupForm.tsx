@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type ClassConfig = {
   id: string;
@@ -9,11 +9,32 @@ type ClassConfig = {
   term: string;
 };
 
-export default function SignupForm({ config, configId }: { config: ClassConfig; configId: string }) {
+export default function SignupForm({ config }: { config: ClassConfig; configId: string }) {
+  const [studentName, setStudentName] = useState('');
+  const [courseId, setCourseId] = useState('');
+  const [courseName, setCourseName] = useState(config.className);
   const [phone,    setPhone]    = useState('');
   const [optIn,    setOptIn]    = useState(false);
   const [step,     setStep]     = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    const onMsg = (evt: MessageEvent) => {
+      if (evt.data?.type !== 'CE_CONTEXT') return;
+      if (evt.data.name || evt.data.studentName) setStudentName(evt.data.name || evt.data.studentName);
+      if (evt.data.courseId || evt.data.course_id) setCourseId(String(evt.data.courseId || evt.data.course_id));
+      if (evt.data.className || evt.data.courseName) setCourseName(evt.data.className || evt.data.courseName);
+    };
+    window.addEventListener('message', onMsg);
+
+    const refCourse = document.referrer.match(/\/courses\/(\d+)/)?.[1];
+    if (refCourse) setCourseId(prev => prev || refCourse);
+
+    if (window.self !== window.top) {
+      window.parent.postMessage({ type: 'CE_REQUEST_CONTEXT' }, '*');
+    }
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
 
   function fmtPhone(v: string) {
     const d = v.replace(/\D/g, '').slice(0, 10);
@@ -33,7 +54,14 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: digits, className: config.className, courseId: configId, term: config.term, name: 'Student', optIn }),
+        body: JSON.stringify({
+          phone: digits,
+          className: courseName || config.className,
+          courseId,
+          term: config.term,
+          name: studentName.trim() || 'Student',
+          optIn,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setErrorMsg(data.error || 'Something went wrong. Please try again.'); setStep('error'); return; }
@@ -41,16 +69,16 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
     } catch { setErrorMsg('Network error. Please try again.'); setStep('error'); }
   }
 
-  const titleParts = [config.className, config.term].filter(Boolean).join(' · ');
+  const titleParts = [courseName || config.className, config.term].filter(Boolean).join(' · ');
 
   if (step === 'success') {
     return (
       <div style={S.page}>
         <div style={{ textAlign: 'center', color: '#fff', padding: 40 }}>
           <div style={{ fontSize: 52, lineHeight: 1 }}>🎉</div>
-          <h2 style={{ margin: '14px 0 8px', fontSize: 26, fontWeight: 900 }}>You&rsquo;re signed up!</h2>
+          <h2 style={{ margin: '14px 0 8px', fontSize: 26, fontWeight: 900 }}>You&rsquo;re signed up{studentName ? `, ${studentName.split(' ')[0]}` : ''}!</h2>
           <p style={{ margin: 0, opacity: 0.9, fontSize: 15 }}>
-            You&rsquo;ll receive text alerts for <strong>{config.className}</strong>.<br />
+            You&rsquo;ll receive text alerts for <strong>{courseName || config.className}</strong>.<br />
             Contact your teacher to be removed.
           </p>
         </div>
@@ -67,7 +95,9 @@ export default function SignupForm({ config, configId }: { config: ClassConfig; 
           <h1 style={S.title}>Text Alerts</h1>
           {titleParts && <p style={S.classLine}>{titleParts}</p>}
           <p style={S.sub}>
-            {config.teacherName
+            {studentName
+              ? <>Hi, <strong>{studentName.split(' ')[0]}</strong>! Sign up to get updates &amp; reminders sent straight to your phone.</>
+              : config.teacherName
               ? <>Sign up to get updates &amp; reminders from <strong>{config.teacherName}</strong> sent straight to your phone.</>
               : 'Sign up to get class updates and reminders sent straight to your phone.'}
           </p>

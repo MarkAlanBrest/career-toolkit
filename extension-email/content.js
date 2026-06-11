@@ -217,6 +217,7 @@
   const CANVAS_BASE = window.location.origin;
   const API = CANVAS_BASE + '/api/v1';
   const TOOLKIT_BASE = 'https://career-toolkit-ruby.vercel.app';
+  const TOOLKIT_ORIGIN = new URL(TOOLKIT_BASE).origin;
 
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
@@ -313,6 +314,63 @@
     try { return JSON.parse(responseText); } catch(e) { return responseText; }
   }
 
+  let cachedCanvasUser = null;
+  async function getCurrentCanvasUser() {
+    if (cachedCanvasUser) return cachedCanvasUser;
+    try {
+      const resp = await fetch(`${API}/users/self/profile`, { credentials: 'same-origin' });
+      if (!resp.ok) throw new Error(`Canvas user lookup failed: ${resp.status}`);
+      const user = await resp.json();
+      cachedCanvasUser = {
+        id: user.id || '',
+        name: user.name || user.short_name || user.sortable_name || '',
+      };
+    } catch (_err) {
+      const nameEl = document.querySelector('.ic-app-header__logomark-container + * [title], .user_name, [data-testid="user-menu"]');
+      cachedCanvasUser = { id: '', name: nameEl?.textContent?.trim() || '' };
+    }
+    return cachedCanvasUser;
+  }
+
+  async function buildSignupContext() {
+    const courseId = getCurrentCourseId();
+    let courseName = '';
+    try {
+      if (courseId) {
+        const course = await getCourse(courseId);
+        courseName = course.name || '';
+      }
+    } catch (_err) {}
+    const user = await getCurrentCanvasUser();
+    return {
+      type: 'CE_CONTEXT',
+      courseId,
+      course_id: courseId,
+      className: courseName,
+      name: user.name,
+      studentName: user.name,
+      userId: user.id,
+    };
+  }
+
+  async function sendSignupContext(targetWindow) {
+    try {
+      const context = await buildSignupContext();
+      targetWindow.postMessage(context, TOOLKIT_ORIGIN);
+    } catch (_err) {}
+  }
+
+  function bridgeSignupIframes() {
+    document.querySelectorAll('iframe[src]').forEach(frame => {
+      try {
+        const src = new URL(frame.getAttribute('src'), window.location.href);
+        if (src.origin === TOOLKIT_ORIGIN && src.pathname.startsWith('/signup') && frame.contentWindow) {
+          sendSignupContext(frame.contentWindow);
+        }
+      } catch (_err) {}
+    });
+  }
+
   /* =========================================================
      DATA FETCHERS
   ========================================================= */
@@ -320,7 +378,9 @@
     return canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
   }
   async function getCourse(courseId) {
-    return canvasGet(`/courses/${courseId}?include[]=term`);
+    const resp = await fetch(`${API}/courses/${courseId}?include[]=term`, { credentials: 'same-origin' });
+    if (!resp.ok) throw new Error(`Canvas API error: ${resp.status} ${resp.statusText}`);
+    return resp.json();
   }
   async function getStudents(courseId) {
     return canvasGet(`/courses/${courseId}/users?enrollment_type[]=student&include[]=email&include[]=enrollments`);
@@ -501,6 +561,9 @@
     const s = String(digits || '').replace(/\D/g, '');
     if (s.length !== 10) return String(digits || '');
     return `(${s.slice(0,3)}) ${s.slice(3,6)}-${s.slice(6)}`;
+  }
+  function normalizeName(name) {
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
 
   /* =========================================================
@@ -787,14 +850,20 @@
     allList.textContent = 'Loading all collected numbers...';
 
     try {
-      const [courseSignups, allSignups] = await Promise.all([
+      const [courseSignups, allSignups, students] = await Promise.all([
         courseId ? getTextSignups(courseId) : Promise.resolve([]),
         getTextSignups(''),
+        courseId ? getStudents(courseId).catch(() => []) : Promise.resolve([]),
       ]);
-      const matchedIds = new Set(courseSignups.map(s => String(s.id)));
+      const rosterNames = new Set(students.map(s => normalizeName(s.name || s.sortable_name)).filter(Boolean));
+      const matched = allSignups.filter(s =>
+        (courseId && String(s.courseId || '') === String(courseId)) ||
+        (normalizeName(s.name) && rosterNames.has(normalizeName(s.name)))
+      );
+      const matchedIds = new Set(matched.map(s => String(s.id)));
       const unmatched = allSignups.filter(s => !matchedIds.has(String(s.id)));
 
-      currentList.innerHTML = renderSignupRows(courseSignups, courseId);
+      currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId);
       allList.innerHTML = unmatched.length
         ? renderSignupRows(unmatched, courseId)
         : '<div style="font-size:13px;color:#6b7280;">No unmatched or older signups found.</div>';
@@ -1168,6 +1237,16 @@
     document.body.appendChild(btn);
   }
   addFloatingButton();
+  bridgeSignupIframes();
+  new MutationObserver(bridgeSignupIframes).observe(document.body, { childList: true, subtree: true });
+
+  window.addEventListener('message', evt => {
+    if (evt.origin !== TOOLKIT_ORIGIN) return;
+    if (evt.data?.type !== 'CE_REQUEST_CONTEXT') return;
+    if (evt.source && typeof evt.source.postMessage === 'function') {
+      sendSignupContext(evt.source);
+    }
+  });
 
   /* =========================================================
      POPUP MESSAGE LISTENER
