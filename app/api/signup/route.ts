@@ -21,10 +21,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { name?: string; phone?: string; className?: string; teacher?: string; term?: string; optIn?: boolean };
+  let body: { name?: string; phone?: string; className?: string; courseId?: string; term?: string; optIn?: boolean };
   try { body = await req.json(); } catch { return json({ error: 'Invalid request' }, 400); }
 
-  const { name, phone, className, teacher, term, optIn } = body;
+  const { name, phone, className, courseId, term, optIn } = body;
 
   if (!phone || !/^\d{10}$/.test(phone)) return json({ error: 'A valid 10-digit phone number is required.' }, 400);
   if (!optIn)                             return json({ error: 'Opt-in consent is required.' }, 400);
@@ -38,8 +38,8 @@ export async function POST(req: NextRequest) {
     id:        Date.now(),
     name:      name?.trim()      || 'Student',
     phone,
-    className: className.trim(),
-    teacher:   teacher?.trim()   || '—',
+    className: className?.trim() || '—',
+    courseId:  courseId           || '—',
     term:      term?.trim()      || '—',
     optIn:     true,
     createdAt: new Date().toISOString(),

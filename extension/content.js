@@ -2704,6 +2704,87 @@ Critical rules:
     }, 500);
   }
 
+  // ── TEXT ALERT SIGNUP EMBED GENERATOR ────────────────────────────────────────
+  async function showSignupEmbedDialog() {
+    const courseMatch = window.location.pathname.match(/\/courses\/(\d+)/);
+    const courseId    = courseMatch?.[1] || '';
+
+    let className = '', term = '';
+
+    if (courseId) {
+      try {
+        const course = await ceCanvasApi(`/api/v1/courses/${courseId}?include[]=term`);
+        className = course.name       || '';
+        term      = course.term?.name || '';
+      } catch { /* will show empty fields to fill manually */ }
+    }
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+
+    const dlg = document.createElement('div');
+    dlg.style.cssText = 'background:#fff;border-radius:10px;padding:28px 32px;width:520px;max-width:94vw;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit;';
+
+    function makeEmbed() {
+      const cls  = encodeURIComponent(className);
+      const trm  = encodeURIComponent(term);
+      const base = 'https://career-toolkit-ruby.vercel.app/signup';
+      const params = [`course_id=${courseId}`, cls && `class=${cls}`, trm && `term=${trm}`].filter(Boolean).join('&');
+      return `<iframe src="${base}?${params}" width="100%" height="170" frameborder="0" style="border:none; border-radius:8px;"></iframe>`;
+    }
+
+    dlg.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h2 style="margin:0;font-size:17px;color:#2d3b45;">📱 Text Alert Signup Widget</h2>
+        <button id="ce-sig-close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">✕</button>
+      </div>
+      <p style="margin:0 0 12px;font-size:13px;color:#555;">Copy this embed code into your Canvas page editor (HTML view).</p>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Class Name</label>
+        <input id="ce-sig-class" type="text" value="${className}" placeholder="e.g. Biology 101"
+          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:14px;box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Term</label>
+        <input id="ce-sig-term" type="text" value="${term}" placeholder="e.g. Fall 2026"
+          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:14px;box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="font-size:11px;font-weight:700;color:#888;text-transform:uppercase;display:block;margin-bottom:4px;">Embed Code</label>
+        <textarea id="ce-sig-code" readonly rows="4"
+          style="width:100%;padding:8px 10px;border:1.5px solid #c7d7e4;border-radius:5px;font-size:12px;font-family:monospace;background:#f8fafc;box-sizing:border-box;resize:none;color:#2d3b45;">${makeEmbed()}</textarea>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="ce-sig-copy" style="flex:1;padding:10px;background:#0770B8;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">📋 Copy Embed Code</button>
+        <button id="ce-sig-close2" style="padding:10px 18px;background:#f0f0f0;color:#555;border:none;border-radius:6px;font-size:14px;cursor:pointer;">Close</button>
+      </div>
+    `;
+
+    overlay.appendChild(dlg);
+    document.body.appendChild(overlay);
+
+    function refreshCode() {
+      className = dlg.querySelector('#ce-sig-class').value;
+      term      = dlg.querySelector('#ce-sig-term').value;
+      dlg.querySelector('#ce-sig-code').value = makeEmbed();
+    }
+
+    dlg.querySelector('#ce-sig-class').addEventListener('input', refreshCode);
+    dlg.querySelector('#ce-sig-term').addEventListener('input', refreshCode);
+
+    dlg.querySelector('#ce-sig-copy').addEventListener('click', () => {
+      navigator.clipboard.writeText(dlg.querySelector('#ce-sig-code').value).then(() => {
+        dlg.querySelector('#ce-sig-copy').textContent = '✓ Copied!';
+        setTimeout(() => { dlg.querySelector('#ce-sig-copy').textContent = '📋 Copy Embed Code'; }, 2000);
+      });
+    });
+
+    const close = () => overlay.remove();
+    dlg.querySelector('#ce-sig-close').addEventListener('click', close);
+    dlg.querySelector('#ce-sig-close2').addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  }
+
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
@@ -2756,6 +2837,13 @@ Critical rules:
     const iconsGroup=makeTopGroup('Icons',buildIconPanel(rowProps));
     rowBottom.appendChild(iconsGroup);
 
+    const sigBtn=document.createElement('button'); sigBtn.className='ce-btn'; sigBtn.type='button';
+    sigBtn.innerHTML='<span class="ce-icon">📱</span>';
+    sigBtn.title='Generate Text Alert Signup Widget';
+    sigBtn.style.cssText='padding:4px 8px;font-size:16px;';
+    sigBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSignupEmbedDialog();};
+    rowBottom.appendChild(sigBtn);
+
     const gearBtn=document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
     gearBtn.innerHTML='<span class="ce-icon">⚙</span>';
     gearBtn.title='Settings';
@@ -2792,39 +2880,14 @@ Critical rules:
     }).observe(document.body, { childList:true, subtree:true });
   }
 
-  // ── TEXT ALERT SIGNUP — Canvas context bridge ─────────────────────────────────
-  // When the /signup iframe asks for context, call the Canvas API for the real
-  // course name and term, then reply via postMessage.
-  window.addEventListener('message', async evt => {
+  // ── TEXT ALERT SIGNUP — student name bridge ──────────────────────────────────
+  // Class name and term come from URL params (set when teacher generates the
+  // embed code). This bridge only needs to supply the student's display name.
+  window.addEventListener('message', evt => {
     if (evt.data?.type !== 'CE_REQUEST_CONTEXT' || !evt.source) return;
-
-    const env    = window.ENV || {};
-    const source = evt.source;
-
-    // Student name — window.ENV.current_user is reliable
+    const env  = window.ENV || {};
     const name = env.current_user?.display_name || env.current_user?.name || '';
-
-    // Course ID from the Canvas page URL: /courses/12345/...
-    const courseMatch = window.location.pathname.match(/\/courses\/(\d+)/);
-    const courseId    = courseMatch?.[1] || '';
-
-    let className = '';
-    let term      = '';
-
-    if (courseId) {
-      try {
-        // include[]=term fetches enrollment term in the same call
-        const course = await ceCanvasApi(`/api/v1/courses/${courseId}?include[]=term`);
-        className = course.name       || '';
-        term      = course.term?.name || '';
-      } catch { /* fall through to ENV fallback */ }
-    }
-
-    // ENV fallback if API call failed or no course in URL
-    if (!className) className = env.COURSE_TITLE || env.course?.name || '';
-    if (!term)      term      = env.ENROLLMENT_TERM?.name || '';
-
-    source.postMessage({ type: 'CE_CONTEXT', name, className, term }, '*');
+    evt.source.postMessage({ type: 'CE_CONTEXT', name }, '*');
   });
 
 })();
