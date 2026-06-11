@@ -236,7 +236,7 @@
       if (sg.floating) {
         const xBtn = document.createElement('button'); xBtn.textContent = '✕'; xBtn.type='button';
         xBtn.style.cssText = 'background:rgba(255,255,255,.15);border:none;color:#fff;font-size:14px;cursor:pointer;padding:2px 6px;border-radius:3px;line-height:1;';
-        xBtn.onclick = () => { sg.open=false; container.style.display='none'; if(!document.getElementById('ce-toolbar')) toggleBtn.style.display='block'; };
+        xBtn.onclick = () => { sg.open=false; container.style.display='none'; showToggle(); };
         hdrRight.appendChild(xBtn);
       }
       hdr.appendChild(hdrRight);
@@ -516,11 +516,47 @@
     }
 
     // ── TOGGLE (floating mode) ─────────────────────────────────────────────────
+    let _msgBtnEl = null;
+
+    function positionToggle() {
+      const msgBtn = document.querySelector(
+        '#message_student_link, a.message_student_link, button.message_student_link, ' +
+        '[data-testid="message-student-button"], [data-testid="send_message_student"], ' +
+        'button[aria-label="Send message to student"], a[aria-label="Send message to student"]'
+      );
+      if (!msgBtn) return false;
+      const r = msgBtn.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      if (!_msgBtnEl) {
+        _msgBtnEl = msgBtn;
+        msgBtn.style.setProperty('visibility', 'hidden', 'important');
+        msgBtn.style.setProperty('pointer-events', 'none', 'important');
+      }
+      toggleBtn.style.cssText = [
+        'position:fixed',
+        `top:${Math.round(r.top)}px`, `left:${Math.round(r.left)}px`,
+        `width:${Math.round(r.width)}px`, `height:${Math.round(r.height)}px`,
+        'background:#2d3b45', 'color:#fff', 'border:none', 'border-radius:4px',
+        'cursor:pointer', 'z-index:99999',
+        'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        'font-size:13px', 'font-weight:700',
+        'display:flex', 'align-items:center', 'justify-content:center',
+        'white-space:nowrap', 'box-sizing:border-box',
+      ].join(';');
+      return true;
+    }
+
+    function showToggle() {
+      if (_msgBtnEl) positionToggle(); else toggleBtn.style.display = 'block';
+    }
+
+    function hideToggle() { toggleBtn.style.display = 'none'; }
+
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
     toggleBtn.textContent = 'AI Grader';
     toggleBtn.style.cssText = 'position:fixed;top:72px;right:18px;background:#2d3b45;color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.22);white-space:nowrap;';
-    toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; toggleBtn.style.display=sg.open?'none':'block'; if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
+    toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; if(sg.open) hideToggle(); else showToggle(); if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // Toolbar button (ce-grader-btn in content.js) calls this when the toolbar is present
     window.__cesGraderToggle = () => {
@@ -552,6 +588,12 @@
       document.body.appendChild(container);
       if (!document.getElementById('ce-ai-grader-toggle')) document.body.appendChild(toggleBtn);
       render();
+      // Overlay the Canvas "Message Student" button once it renders
+      if (!_msgBtnEl) {
+        let _tries = 0;
+        const _poll = setInterval(() => { if (positionToggle() || ++_tries > 30) clearInterval(_poll); }, 300);
+        window.addEventListener('resize', positionToggle);
+      }
     }
 
     // ── NAVIGATION TRACKING ────────────────────────────────────────────────────
