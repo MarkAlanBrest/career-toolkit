@@ -261,6 +261,9 @@
   async function getCourses() {
     return canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
   }
+  async function getCourse(courseId) {
+    return canvasGet(`/courses/${courseId}?include[]=term`);
+  }
   async function getStudents(courseId) {
     return canvasGet(`/courses/${courseId}/users?enrollment_type[]=student&include[]=email&include[]=enrollments`);
   }
@@ -407,6 +410,10 @@
   let currentCourseId = null;
   let _overlay = null;
 
+  function getCurrentCourseId() {
+    return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
+  }
+
   function openEmailSystem() {
     if (!_overlay) buildUI();
     if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
@@ -480,13 +487,16 @@
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
-    const lastCourse  = GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+    const courseId    = getCurrentCourseId();
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
       ${!teacherName ? '<div class="ces-status ces-status-error">Please set your Teacher Name in the Settings tab first.</div>' : ''}
-      <label class="ces-label">Select Course</label>
-      <select class="ces-select" id="ces-course-select"><option value="">Loading courses...</option></select>
+      <label class="ces-label">Current Course</label>
+      <div class="ces-card" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
+        <strong>${courseId ? 'Detecting course...' : 'Open Message System from inside a Canvas course.'}</strong>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">${courseId ? `Course ID: ${escapeHtml(courseId)}` : 'No /courses/{id} was found in the current page URL.'}</div>
+      </div>
       <label class="ces-label">Email Type</label>
       <div class="ces-grid-2" id="ces-type-cards">
         <div class="ces-card selected" data-type="upcoming"><strong>&#128197; Upcoming Assignments</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Remind students of upcoming due dates</div></div>
@@ -509,7 +519,7 @@
       <div id="ces-messages-area" class="ces-mt"></div>
     `;
 
-    loadCourses(lastCourse);
+    loadCurrentCourse(courseId);
 
     let selectedType = 'upcoming';
     container.querySelectorAll('#ces-type-cards .ces-card').forEach(card => {
@@ -522,10 +532,10 @@
     });
 
     container.querySelector('#ces-generate-btn').addEventListener('click', async () => {
-      const courseSelect = container.querySelector('#ces-course-select');
-      const courseId = courseSelect.value;
-      const courseName = courseSelect.options[courseSelect.selectedIndex]?.text || '';
-      if (!courseId) { showStatus('Please select a course.', 'error'); return; }
+      const courseBox = container.querySelector('#ces-current-course');
+      const courseId = courseBox?.dataset.courseId || getCurrentCourseId();
+      const courseName = courseBox?.dataset.courseName || `Course ${courseId}`;
+      if (!courseId) { showStatus('Open Message System from inside a Canvas course first.', 'error'); return; }
       if (!teacherName) { showStatus('Please set your Teacher Name in Settings first.', 'error'); return; }
 
       currentCourseId = courseId;
@@ -586,6 +596,27 @@
     } catch(err) {
       select.innerHTML = '<option value="">Error loading courses</option>';
       showStatus(err?.message || 'Could not load Canvas courses.', 'error');
+    }
+  }
+
+  async function loadCurrentCourse(courseId) {
+    const box = document.getElementById('ces-current-course');
+    if (!box || !courseId) return;
+    try {
+      const course = await getCourse(courseId);
+      const name = course.name || `Course ${courseId}`;
+      const term = course.term?.name ? ` (${course.term.name})` : '';
+      box.dataset.courseName = name + term;
+      box.innerHTML = `
+        <strong>${escapeHtml(name)}</strong>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Course ID: ${escapeHtml(courseId)}${escapeHtml(term)}</div>
+      `;
+    } catch (err) {
+      box.dataset.courseName = `Course ${courseId}`;
+      box.innerHTML = `
+        <strong>Course ${escapeHtml(courseId)}</strong>
+        <div style="font-size:12px;color:#b91c1c;margin-top:4px;">Could not load course name: ${escapeHtml(err?.message || 'Canvas API error')}</div>
+      `;
     }
   }
 
