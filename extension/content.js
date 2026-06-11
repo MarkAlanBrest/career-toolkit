@@ -2708,7 +2708,7 @@ Critical rules:
 
     const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
     aiBtn.textContent='AI Builder';
-    aiBtn.style.transform='translateX(-50%)';
+    aiBtn.style.marginLeft='-41px';
     aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
     rowBottom.appendChild(aiBtn);
     const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
