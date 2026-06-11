@@ -518,8 +518,8 @@
     // ── TOGGLE (floating mode) ─────────────────────────────────────────────────
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
-    toggleBtn.textContent = '✦ AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;top:110px;right:45px;background:#2d3b45;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
+    toggleBtn.textContent = 'AI Grader';
+    toggleBtn.style.cssText = 'position:fixed;top:72px;right:18px;background:#2d3b45;color:#fff;border:none;border-radius:8px;padding:9px 13px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.22);white-space:nowrap;';
     toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; toggleBtn.style.display=sg.open?'none':'block'; if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // Toolbar button (ce-grader-btn in content.js) calls this when the toolbar is present
@@ -546,20 +546,12 @@
     function inject() {
       if (document.getElementById('ce-ai-grader')) return;
       loadAssignmentSettings();
-      const sidebar = findSidebar();
-      if (sidebar) {
-        sg.floating=false; sg.open=true;
-        container.style.cssText = 'width:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;border-top:2px solid #2d3b45;';
-        sidebar.appendChild(container);
-        render();
-        if (sg.token) fetchSubmission();
-      } else {
-        sg.floating=true;
-        container.style.cssText='display:none;position:fixed;right:0;top:52px;bottom:0;width:340px;z-index:99998;box-shadow:-4px 0 24px rgba(0,0,0,.3);background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow-y:auto;';
-        document.body.appendChild(container);
-        if (!document.getElementById('ce-toolbar')) document.body.appendChild(toggleBtn);
-        render();
-      }
+      sg.floating=true;
+      sg.open=false;
+      container.style.cssText='display:none;position:fixed;right:0;top:52px;bottom:0;width:340px;z-index:99998;box-shadow:-4px 0 24px rgba(0,0,0,.3);background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow-y:auto;';
+      document.body.appendChild(container);
+      if (!document.getElementById('ce-ai-grader-toggle')) document.body.appendChild(toggleBtn);
+      render();
     }
 
     // ── NAVIGATION TRACKING ────────────────────────────────────────────────────

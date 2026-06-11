@@ -2411,12 +2411,12 @@ Critical rules:
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();
 
-  if (_onSG || document.querySelector(RCE_SEL)) {
+  if (!_onSG && document.querySelector(RCE_SEL)) {
     buildToolbar();
     syncRowBottom();
   }
   new MutationObserver(() => {
-    if (!document.getElementById('ce-toolbar') && (_onSG || document.querySelector(RCE_SEL))) buildToolbar();
+    if (!document.getElementById('ce-toolbar') && !_onSG && document.querySelector(RCE_SEL)) buildToolbar();
     syncRowBottom();
   }).observe(document.body, { childList:true, subtree:true });
 
