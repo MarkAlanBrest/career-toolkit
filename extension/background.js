@@ -3,6 +3,11 @@
 
 const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
+// Keep service worker alive during long AI requests
+chrome.runtime.onConnect.addListener(port => {
+  if (port.name === 'ce-keepalive') port.onDisconnect.addListener(() => {});
+});
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GENERATE') {
     handleGenerate(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));

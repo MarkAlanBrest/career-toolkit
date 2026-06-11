@@ -16,7 +16,11 @@
   // ── AI GENERATE (via background service worker) ───────────────────────────────
   function ceGenerate(payload) {
     return new Promise((resolve, reject) => {
+      // Hold an open port so the MV3 service worker isn't terminated mid-request
+      let port;
+      try { port = chrome.runtime.connect({ name: 'ce-keepalive' }); } catch(e) {}
       chrome.runtime.sendMessage({ type: 'GENERATE', payload }, res => {
+        try { port?.disconnect(); } catch(e) {}
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (res?.error) return reject(new Error(res.error));
         resolve(res);
@@ -1261,12 +1265,14 @@
       const lenCard=mkCard();
       lenCard.appendChild(mkSecHdr('Content length'));
       const lenRow=document.createElement('div'); lenRow.style.cssText='display:flex;gap:8px;';
+      const lenBtns=[];
       [['concise','Concise','Short and focused'],['standard','Standard','Balanced detail'],['detailed','Detailed','Comprehensive coverage']].forEach(([val,label,desc])=>{
-        const act=st.contentLength===val;
-        const lb=document.createElement('button'); lb.type='button';
-        lb.style.cssText=`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#7c3aed':'#6b7280'};`;
+        const lb=document.createElement('button'); lb.type='button'; lb.dataset.val=val;
+        const style=act=>`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#7c3aed':'#6b7280'};`;
+        lb.style.cssText=style(st.contentLength===val);
         lb.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">${label}</div><div style="font-size:11px;opacity:.75;">${desc}</div>`;
-        lb.onclick=()=>{st.contentLength=val;render();}; lenRow.appendChild(lb);
+        lb.onclick=()=>{ st.contentLength=val; lenBtns.forEach(b=>b.style.cssText=style(b.dataset.val===val)); };
+        lenBtns.push(lb); lenRow.appendChild(lb);
       });
       lenCard.appendChild(lenRow); w.appendChild(lenCard);
 
