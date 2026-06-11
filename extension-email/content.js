@@ -7,11 +7,26 @@
 
   // Storage shim — pre-load all keys used by the email system
   const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
-  const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
+  const hasChromeStorage = !!(globalThis.chrome && chrome.storage && chrome.storage.local);
+  const _store = hasChromeStorage
+    ? await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve))
+    : EMAIL_KEYS.reduce((acc, key) => {
+        try {
+          const value = localStorage.getItem(key);
+          if (value !== null) acc[key] = value;
+        } catch (_err) {}
+        return acc;
+      }, {});
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
     _store[key] = val;
-    chrome.storage.local.set({ [key]: val });
+    if (hasChromeStorage) {
+      chrome.storage.local.set({ [key]: val });
+      return;
+    }
+    try {
+      localStorage.setItem(key, String(val));
+    } catch (_err) {}
   }
 
   // Inject styles
@@ -137,7 +152,12 @@
       height: 100%; background: #059669; transition: width .3s; border-radius: 3px;
     }
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .ces-send-grid { display:grid; grid-template-columns: minmax(260px, 1.5fr) 110px 110px auto; gap:10px; align-items:end; }
+    .ces-send-grid {
+      display:grid;
+      grid-template-columns: minmax(260px, 1.5fr) 110px 110px auto;
+      gap:10px;
+      align-items:end;
+    }
     .ces-send-panel {
       border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; background:#f9fafb; margin-top:12px;
     }
@@ -179,6 +199,15 @@
     }
     #ces-floating-btn:hover { background: #047857; }
     #ces-floating-btn .ces-nav-icon { font-size: 16px; line-height: 1; }
+    @media (max-width: 720px) {
+      #ces-body { padding: 14px; }
+      .ces-send-grid { grid-template-columns: 1fr 1fr; }
+      .ces-send-grid > div:first-child { grid-column: 1 / -1; }
+      .ces-checkbox-row { align-self:center; margin: 0; }
+      .ces-generate-row { flex-direction: column; align-items: stretch; }
+      .ces-generate-row #ces-generate-btn { width: 100%; }
+      .ces-send-panel-head { align-items:flex-start; }
+    }
   `;
   document.head.appendChild(_style);
 
@@ -671,7 +700,7 @@
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     });
 
-    updateOptionsVisibility('upcoming');
+    updateOptionsVisibility(selectedType);
   }
 
   async function loadTextSubscribers(courseId) {
@@ -1049,12 +1078,14 @@
      POPUP MESSAGE LISTENER
      Receives "open" command from popup.js
   ========================================================= */
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg.type === 'CES_OPEN') {
-      openEmailSystem();
-      sendResponse({ ok: true });
-    }
-  });
+  if (globalThis.chrome && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (msg.type === 'CES_OPEN') {
+        openEmailSystem();
+        sendResponse({ ok: true });
+      }
+    });
+  }
 
   /* =========================================================
      INIT
