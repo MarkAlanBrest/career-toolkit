@@ -2768,8 +2768,6 @@ Critical rules:
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();
 
-  // Verify local file is loading correctly
-  setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
   const isSpeedGrader = () => /speed_grader/.test(window.location.href);
