@@ -1,5 +1,6 @@
 ﻿(async function () {
   'use strict';
+  try {
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
@@ -2430,4 +2431,7 @@ Critical rules:
     evt.source.postMessage({ type: 'CE_CONTEXT', name }, '*');
   });
 
+  } catch (err) {
+    console.error('Canvas Enhancer error in content script:', err);
+  }
 })();

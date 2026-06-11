@@ -1,8 +1,8 @@
 (async function () {
   'use strict';
-
-  // Only runs on SpeedGrader pages
-  if (!/speed_grader/.test(window.location.href)) return;
+  try {
+    // Only runs on SpeedGrader pages
+    if (!/speed_grader/.test(window.location.href)) return;
 
   // Storage shim — pre-load keys used by the grader
   const _store = await new Promise(resolve =>
@@ -596,4 +596,7 @@
   }
 
   showSpeedGraderPanel();
+  } catch (err) {
+    console.error('Canvas Enhancer error in grader script:', err);
+  }
 })();
