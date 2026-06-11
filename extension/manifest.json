@@ -25,7 +25,7 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["content.js", "grader.js", "email.js"],
+      "js": ["content.js", "grader.js"],
       "css": ["toolbar.css"],
       "run_at": "document_idle"
     }
