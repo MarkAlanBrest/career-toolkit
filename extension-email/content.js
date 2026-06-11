@@ -553,7 +553,7 @@
 
   function renderSendTab(container) {
     if (!container) return;
-    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '') || 'Teacher';
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
     const courseId    = getCurrentCourseId();
@@ -569,7 +569,7 @@
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
-      ${!teacherName ? '<div class="ces-status ces-status-error">Please set your Teacher Name in the Settings tab first.</div>' : ''}
+      ${teacherName === 'Teacher' ? '<div class="ces-status ces-status-info">Teacher Name is not set. Messages will use "Teacher" until you update Settings.</div>' : ''}
       <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
       ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
       <label class="ces-label">Email Type</label>
@@ -610,7 +610,7 @@
       card.addEventListener('click', () => {
         container.querySelectorAll('#ces-type-cards .ces-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
-        selectedType = card.dataset.type;
+        selectedType = card.dataset.type || firstType;
         updateOptionsVisibility(selectedType);
       });
     });
@@ -620,7 +620,6 @@
       const courseId = courseBox?.dataset.courseId || getCurrentCourseId();
       const courseName = courseBox?.dataset.courseName || `Course ${courseId}`;
       if (!courseId) { showStatus('Open Message System from inside a Canvas course first.', 'error'); return; }
-      if (!teacherName) { showStatus('Please set your Teacher Name in Settings first.', 'error'); return; }
 
       currentCourseId = courseId;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);

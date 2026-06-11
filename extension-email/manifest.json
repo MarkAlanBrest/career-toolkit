@@ -10,7 +10,9 @@
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://*.canvas.com/*",
-    "https://*.canvaslms.com/*"
+    "https://*.canvaslms.com/*",
+    "https://*.vercel.app/*",
+    "https://career-toolkit-ruby.vercel.app/*"
   ],
   "action": {
     "default_popup": "popup.html",
