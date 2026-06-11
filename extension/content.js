@@ -2293,12 +2293,12 @@ Critical rules:
     // ── RENDER ─────────────────────────────────────────────────────────────────
     const container = document.createElement('div');
     container.id = 'ce-ai-grader';
-    container.style.cssText = 'margin:10px 0 4px 0;border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
+    container.style.cssText = 'width:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
 
     function render() {
       container.innerHTML = '';
       const hdr = document.createElement('div');
-      hdr.style.cssText = 'background:#0770B8;color:#fff;padding:7px 10px;display:flex;align-items:center;justify-content:space-between;';
+      hdr.style.cssText = 'background:#2d3b45;color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;';
       const htitle = document.createElement('span');
       htitle.style.cssText = 'font-weight:700;font-size:13px;';
       htitle.textContent = sg.view === 'settings' ? '⚙ Grading Settings' : '✦ AI Grader';
@@ -2324,7 +2324,7 @@ Critical rules:
       }
       hdr.appendChild(hdrRight);
       container.appendChild(hdr);
-      const body = document.createElement('div'); body.style.cssText = 'padding:10px;';
+      const body = document.createElement('div'); body.style.cssText = 'padding:14px 12px;';
       if (!sg.token || sg.view === 'token_setup') body.appendChild(renderTokenSetup());
       else if (sg.view === 'settings')            body.appendChild(renderSettings());
       else                                        body.appendChild(renderGrade());
@@ -2609,7 +2609,7 @@ Critical rules:
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
     toggleBtn.textContent = '✦ AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;top:110px;right:0;background:#0770B8;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;writing-mode:horizontal-tb;';
+    toggleBtn.style.cssText = 'position:fixed;top:110px;right:0;background:#2d3b45;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
     toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; toggleBtn.style.display=sg.open?'none':'block'; if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // ── INJECT ─────────────────────────────────────────────────────────────────
@@ -2631,12 +2631,13 @@ Critical rules:
       const sidebar = findSidebar();
       if (sidebar) {
         sg.floating=false; sg.open=true;
+        container.style.cssText = 'width:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;border-top:2px solid #2d3b45;';
         sidebar.appendChild(container);
         render();
         if (sg.token) fetchSubmission();
       } else {
         sg.floating=true;
-        container.style.cssText='display:none;position:fixed;right:12px;top:52px;width:300px;z-index:99998;box-shadow:0 4px 20px rgba(0,0,0,.25);border:1px solid #c7cdd1;border-radius:4px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;max-height:calc(100vh - 80px);overflow-y:auto;';
+        container.style.cssText='display:none;position:fixed;right:0;top:52px;bottom:0;width:340px;z-index:99998;box-shadow:-4px 0 24px rgba(0,0,0,.3);background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow-y:auto;';
         document.body.appendChild(container);
         document.body.appendChild(toggleBtn);
         render();
