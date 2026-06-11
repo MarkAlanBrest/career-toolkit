@@ -283,10 +283,11 @@
   const style = document.createElement('style');
   style.textContent = `
     #ce-toolbar {
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      font-size:13px; background:#fff;
-      border-bottom:1px solid #c7cdd1;
-      position:relative; z-index:9000; user-select:none;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif !important;
+      font-size:13px !important; background:#fff !important;
+      border:none !important; border-bottom:1px solid #c7cdd1 !important;
+      border-radius:0 !important; box-shadow:none !important;
+      position:relative !important; z-index:9000 !important; user-select:none !important;
     }
     #ce-row-top {
       display:flex; align-items:center; gap:2px;
@@ -345,12 +346,14 @@
     .ce-sep { width:1px; height:18px; background:#e8e8e8; margin:0 4px; flex-shrink:0; }
     .ce-group { position:relative; }
     .ce-btn {
-      display:flex; align-items:center; gap:5px;
-      background:none; border:none; border-radius:3px;
-      padding:5px 8px; cursor:pointer; font-size:13px; color:#2d3b45;
-      white-space:nowrap; transition:background .1s; font-family:inherit;
+      display:flex !important; align-items:center !important; gap:5px !important;
+      background:transparent !important; border:none !important; border-radius:3px !important;
+      box-shadow:none !important; padding:5px 8px !important; cursor:pointer !important;
+      font-size:13px !important; color:#2d3b45 !important;
+      white-space:nowrap !important; transition:background .1s !important; font-family:inherit !important;
+      outline:none !important;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:#e8e8e8; color:#2d3b45; }
+    .ce-btn:hover, .ce-btn.ce-open { background:#e8e8e8 !important; color:#2d3b45 !important; border:none !important; }
     .ce-icon { font-style:normal; font-size:14px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 4px); left:0;
