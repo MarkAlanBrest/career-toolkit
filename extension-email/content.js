@@ -806,18 +806,29 @@
      CANVAS COURSE NAVIGATION INJECTION
      Adds "Email System" to the left-side course navigation menu.
   ========================================================= */
+  function findCourseNavList() {
+    if (!/\/courses\/\d+(?:\/|$)/.test(window.location.pathname)) return null;
+    return (
+      document.querySelector('#section-tabs') ||
+      document.querySelector('[data-testid="course-navigation"] ul') ||
+      document.querySelector('nav[aria-label*="Course" i] ul') ||
+      document.querySelector('.ic-app-course-menu ul') ||
+      document.querySelector('.course-menu ul')
+    );
+  }
+
   function injectCourseNav() {
-    // Canvas left-side course navigation is #section-tabs (inside a course)
-    const tabs = document.querySelector('#section-tabs');
+    const tabs = findCourseNavList();
     if (!tabs || document.getElementById('ces-nav-item')) return;
 
     const li = document.createElement('li');
     li.id = 'ces-nav-item';
-    li.className = 'section';
+    li.className = 'section ces-section';
 
     const a = document.createElement('a');
     a.href = '#';
     a.title = 'Canvas Message System';
+    a.setAttribute('role', 'button');
     a.innerHTML = '<span class="ces-nav-icon">✉</span> Message System';
     a.addEventListener('click', e => { e.preventDefault(); openEmailSystem(); });
 
