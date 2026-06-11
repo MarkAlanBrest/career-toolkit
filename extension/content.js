@@ -291,11 +291,11 @@
     }
     #ce-row-top {
       display:flex; align-items:center; gap:2px;
-      padding:4px 8px 4px 14px; border-bottom:1px solid #e8e8e8; flex-wrap:wrap;
+      padding:4px 8px 4px 26px; border-bottom:1px solid #e8e8e8; flex-wrap:wrap;
     }
     #ce-row-bottom {
       display:flex; align-items:center; gap:2px;
-      padding:4px 8px 4px 14px; flex-wrap:wrap;
+      padding:4px 8px 4px 26px; flex-wrap:wrap;
     }
     #ce-row-props {
       display:none; align-items:center; gap:8px; flex-wrap:wrap;
