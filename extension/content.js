@@ -2609,7 +2609,7 @@ Critical rules:
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
     toggleBtn.textContent = '✦ AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;top:110px;right:0;background:#2d3b45;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
+    toggleBtn.style.cssText = 'position:fixed;top:110px;right:45px;background:#2d3b45;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
     toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; toggleBtn.style.display=sg.open?'none':'block'; if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // ── INJECT ─────────────────────────────────────────────────────────────────
