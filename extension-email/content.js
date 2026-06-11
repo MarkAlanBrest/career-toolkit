@@ -137,6 +137,15 @@
       height: 100%; background: #059669; transition: width .3s; border-radius: 3px;
     }
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ces-send-grid { display:grid; grid-template-columns: minmax(260px, 1.5fr) 110px 110px auto; gap:10px; align-items:end; }
+    .ces-send-panel {
+      border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; background:#f9fafb; margin-top:12px;
+    }
+    .ces-send-panel-head { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .ces-send-panel-title { font-size:13px; font-weight:700; color:#111827; }
+    .ces-send-panel-sub { font-size:12px; color:#6b7280; margin-top:2px; }
+    .ces-generate-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+    .ces-generate-row #ces-generate-btn { min-width:170px; justify-content:center; }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
     .ces-mt { margin-top: 16px; }
     .ces-mb { margin-bottom: 16px; }
@@ -560,11 +569,8 @@
     const templates   = getTemplates();
     const templateEntries = Object.entries(templates);
     const firstType = templateEntries[0]?.[0] || 'welcome';
-    const templateCards = templateEntries.map(([key, tpl], idx) => `
-      <div class="ces-card${idx === 0 ? ' selected' : ''}" data-type="${escapeAttr(key)}">
-        <strong>${escapeHtml(tpl.name || key)}</strong>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">${escapeHtml(tpl.description || tpl.subject || 'Custom message')}</div>
-      </div>
+    const templateOptions = templateEntries.map(([key, tpl]) => `
+      <option value="${escapeAttr(key)}">${escapeHtml(tpl.name || key)}</option>
     `).join('');
 
     container.innerHTML = `
@@ -572,31 +578,42 @@
       ${teacherName === 'Teacher' ? '<div class="ces-status ces-status-info">Teacher Name is not set. Messages will use "Teacher" until you update Settings.</div>' : ''}
       <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
       ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
-      <label class="ces-label">Email Type</label>
-      <div class="ces-grid-2" id="ces-type-cards">
-        ${templateCards || '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
-      </div>
-      <div id="ces-options-area">
-        <div class="ces-grid-2">
-          <div id="ces-days-forward-wrap"><label class="ces-label">Days Forward</label><input type="number" class="ces-input" id="ces-days-forward" value="${daysForward}" min="1" max="90"></div>
-          <div id="ces-days-back-wrap" style="display:none;"><label class="ces-label">Days Back</label><input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365"></div>
+      <div class="ces-send-grid">
+        <div>
+          <label class="ces-label">Message</label>
+          <select class="ces-select" id="ces-template-select">${templateOptions}</select>
+          <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
         </div>
+        <div id="ces-days-forward-wrap">
+          <label class="ces-label">Forward</label>
+          <input type="number" class="ces-input" id="ces-days-forward" value="${daysForward}" min="1" max="90">
+        </div>
+        <div id="ces-days-back-wrap" style="display:none;">
+          <label class="ces-label">Back</label>
+          <input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365">
+        </div>
+        <label class="ces-checkbox-row" style="margin:0 0 8px;">
+          <input type="checkbox" id="ces-announce-check">
+          <span>Announcement</span>
+        </label>
       </div>
-      <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check">Also post as Canvas Announcement</label></div>
-      <div class="ces-card" id="ces-text-signups-card" style="background:#f9fafb;">
-        <div class="ces-flex-between">
+      ${templateOptions ? '' : '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
+      <div class="ces-send-panel" id="ces-text-signups-card">
+        <div class="ces-send-panel-head">
           <div>
-            <strong>Text Subscribers</strong>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Phone numbers collected for this Canvas course.</div>
+            <div class="ces-send-panel-title">Text Subscribers</div>
+            <div class="ces-send-panel-sub">Phone numbers collected for this course.</div>
           </div>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-signups">Refresh</button>
         </div>
         <div id="ces-text-signups-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
       </div>
-      <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button></div>
-      <div id="ces-progress-area" style="display:none;" class="ces-mt">
-        <div class="ces-status ces-status-info" id="ces-progress-text">Fetching data...</div>
-        <div class="ces-progress"><div class="ces-progress-bar" id="ces-progress-bar" style="width:0%"></div></div>
+      <div class="ces-generate-row">
+        <div id="ces-progress-area" style="display:none;flex:1;">
+          <div class="ces-status ces-status-info" id="ces-progress-text" style="margin-bottom:6px;">Fetching data...</div>
+          <div class="ces-progress"><div class="ces-progress-bar" id="ces-progress-bar" style="width:0%"></div></div>
+        </div>
+        <button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button>
       </div>
       <div id="ces-messages-area" class="ces-mt"></div>
     `;
@@ -606,14 +623,16 @@
     container.querySelector('#ces-refresh-signups')?.addEventListener('click', () => loadTextSubscribers(courseId));
 
     let selectedType = firstType;
-    container.querySelectorAll('#ces-type-cards .ces-card').forEach(card => {
-      card.addEventListener('click', () => {
-        container.querySelectorAll('#ces-type-cards .ces-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedType = card.dataset.type || firstType;
-        updateOptionsVisibility(selectedType);
-      });
-    });
+    const templateSelect = container.querySelector('#ces-template-select');
+    const templateDesc = container.querySelector('#ces-template-desc');
+    function refreshTemplateControls() {
+      selectedType = templateSelect?.value || firstType;
+      const tpl = templates[selectedType];
+      if (templateDesc) templateDesc.textContent = tpl?.description || tpl?.subject || '';
+      updateOptionsVisibility(selectedType);
+    }
+    templateSelect?.addEventListener('change', refreshTemplateControls);
+    refreshTemplateControls();
 
     container.querySelector('#ces-generate-btn').addEventListener('click', async () => {
       const courseBox = container.querySelector('#ces-current-course');
