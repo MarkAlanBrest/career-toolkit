@@ -470,7 +470,10 @@
   }
 
   async function getTextSignups(courseId) {
-    const res = await fetch(`${TOOLKIT_BASE}/api/signup?courseId=${encodeURIComponent(courseId)}`);
+    const url = courseId
+      ? `${TOOLKIT_BASE}/api/signup?courseId=${encodeURIComponent(courseId)}`
+      : `${TOOLKIT_BASE}/api/signup`;
+    const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || 'Could not load text signups.');
     return data.signups || [];
@@ -487,12 +490,12 @@
      UTILITY
   ========================================================= */
   function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function escapeAttr(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    if (str == null) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
   function formatPhone(digits) {
     const s = String(digits || '').replace(/\D/g, '');
@@ -542,6 +545,7 @@
         </div>
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
+          <button class="ces-tab" data-tab="texts">Text Subscribers</button>
           <button class="ces-tab" data-tab="templates">Email Templates</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
@@ -582,6 +586,7 @@
     if (!body) return;
     try {
       if (tabName === 'send') renderSendTab(body);
+      else if (tabName === 'texts') renderTextsTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
@@ -627,16 +632,6 @@
         </label>
       </div>
       ${templateOptions ? '' : '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
-      <div class="ces-send-panel" id="ces-text-signups-card">
-        <div class="ces-send-panel-head">
-          <div>
-            <div class="ces-send-panel-title">Text Subscribers</div>
-            <div class="ces-send-panel-sub">Phone numbers collected for this course.</div>
-          </div>
-          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-signups">Refresh</button>
-        </div>
-        <div id="ces-text-signups-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
-      </div>
       <div class="ces-generate-row">
         <div id="ces-progress-area" style="display:none;flex:1;">
           <div class="ces-status ces-status-info" id="ces-progress-text" style="margin-bottom:6px;">Fetching data...</div>
@@ -648,8 +643,6 @@
     `;
 
     loadCurrentCourse(courseId);
-    loadTextSubscribers(courseId);
-    container.querySelector('#ces-refresh-signups')?.addEventListener('click', () => loadTextSubscribers(courseId));
 
     let selectedType = firstType;
     const templateSelect = container.querySelector('#ces-template-select');
@@ -742,6 +735,108 @@
     } catch (err) {
       list.innerHTML = `<span style="color:#b91c1c;">${escapeHtml(err?.message || 'Could not load text subscribers.')}</span>`;
     }
+  }
+
+  function renderSignupRows(signups, courseId) {
+    if (!signups.length) {
+      return '<div style="font-size:13px;color:#6b7280;">No phone numbers found.</div>';
+    }
+    return signups.map(s => {
+      const signupCourse = String(s.courseId || '');
+      const courseMatch = courseId && signupCourse === String(courseId);
+      const courseLabel = signupCourse && signupCourse !== '-'
+        ? `Course ID ${signupCourse}`
+        : 'No Canvas course ID saved';
+      return `
+        <div class="ces-msg-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <strong>${escapeHtml(s.name || 'Student')}</strong>
+            <div style="font-size:12px;color:#6b7280;">${escapeHtml(formatPhone(s.phone))}</div>
+            <div style="font-size:12px;color:${courseMatch ? '#047857' : '#6b7280'};">
+              ${escapeHtml(courseLabel)}${s.className ? ' · ' + escapeHtml(s.className) : ''}
+            </div>
+          </div>
+          <button class="ces-btn ces-btn-danger ces-btn-sm ces-remove-signup" data-id="${escapeAttr(String(s.id))}">Remove</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function bindSignupRemoveButtons(container, reload) {
+    container.querySelectorAll('.ces-remove-signup').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Remove this student from text alerts?')) return;
+      btn.disabled = true;
+      btn.textContent = 'Removing...';
+      try {
+        await removeTextSignup(btn.dataset.id);
+        await reload();
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Remove';
+        showStatus(err?.message || 'Could not remove signup.', 'error');
+      }
+    }));
+  }
+
+  async function loadTextsTab(courseId) {
+    const currentList = document.getElementById('ces-current-text-list');
+    const allList = document.getElementById('ces-all-text-list');
+    if (!currentList || !allList) return;
+
+    currentList.textContent = courseId ? 'Loading current course numbers...' : 'Open from inside a Canvas course to match subscribers.';
+    allList.textContent = 'Loading all collected numbers...';
+
+    try {
+      const [courseSignups, allSignups] = await Promise.all([
+        courseId ? getTextSignups(courseId) : Promise.resolve([]),
+        getTextSignups(''),
+      ]);
+      const matchedIds = new Set(courseSignups.map(s => String(s.id)));
+      const unmatched = allSignups.filter(s => !matchedIds.has(String(s.id)));
+
+      currentList.innerHTML = renderSignupRows(courseSignups, courseId);
+      allList.innerHTML = unmatched.length
+        ? renderSignupRows(unmatched, courseId)
+        : '<div style="font-size:13px;color:#6b7280;">No unmatched or older signups found.</div>';
+
+      bindSignupRemoveButtons(currentList, () => loadTextsTab(courseId));
+      bindSignupRemoveButtons(allList, () => loadTextsTab(courseId));
+    } catch (err) {
+      const message = escapeHtml(err?.message || 'Could not load text subscribers.');
+      currentList.innerHTML = `<span style="color:#b91c1c;">${message}</span>`;
+      allList.innerHTML = `<span style="color:#b91c1c;">${message}</span>`;
+    }
+  }
+
+  function renderTextsTab(container) {
+    if (!container) return;
+    const courseId = getCurrentCourseId();
+    container.innerHTML = `
+      <div id="ces-status-area"></div>
+      <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
+      <div class="ces-send-panel">
+        <div class="ces-send-panel-head">
+          <div>
+            <div class="ces-send-panel-title">Current Course Text Subscribers</div>
+            <div class="ces-send-panel-sub">${courseId ? `Matched to Canvas course ID ${escapeHtml(courseId)}.` : 'Open from a Canvas course page to match by course ID.'}</div>
+          </div>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-texts">Refresh</button>
+        </div>
+        <div id="ces-current-text-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
+      </div>
+      <div class="ces-send-panel">
+        <div class="ces-send-panel-head">
+          <div>
+            <div class="ces-send-panel-title">Unmatched / Older Signups</div>
+            <div class="ces-send-panel-sub">These may have been collected before the Canvas course ID was saved.</div>
+          </div>
+        </div>
+        <div id="ces-all-text-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
+      </div>
+    `;
+    loadCurrentCourse(courseId);
+    loadTextsTab(courseId);
+    container.querySelector('#ces-refresh-texts')?.addEventListener('click', () => loadTextsTab(courseId));
   }
 
   function updateOptionsVisibility(type) {
