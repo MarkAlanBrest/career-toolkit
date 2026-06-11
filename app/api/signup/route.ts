@@ -35,14 +35,14 @@ export async function POST(req: NextRequest) {
 
   const { name, phone, className, teacher, term, optIn } = body;
 
-  if (!name?.trim() || !phone || !className?.trim() || !teacher?.trim() || !term?.trim()) {
-    return new Response(JSON.stringify({ error: 'All fields are required.' }), { status: 400, headers: CORS });
-  }
-  if (!/^\d{10}$/.test(phone)) {
-    return new Response(JSON.stringify({ error: 'Phone must be a 10-digit number.' }), { status: 400, headers: CORS });
+  if (!phone || !/^\d{10}$/.test(phone)) {
+    return new Response(JSON.stringify({ error: 'A valid 10-digit phone number is required.' }), { status: 400, headers: CORS });
   }
   if (!optIn) {
     return new Response(JSON.stringify({ error: 'Opt-in consent is required.' }), { status: 400, headers: CORS });
+  }
+  if (!className?.trim()) {
+    return new Response(JSON.stringify({ error: 'Class name is required.' }), { status: 400, headers: CORS });
   }
 
   try {
