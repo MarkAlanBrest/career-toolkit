@@ -2276,7 +2276,7 @@ Critical rules:
       prompt += `FORMATTING NOTE: The submission uses these structural markers extracted from the Word/PDF file: [HEADING 1], [HEADING 2], [HEADING 3] for section headings; **bold** for bold text; _italic_ for italic; • for list items; [Caption:] for captions. If the rubric requires formatting like headings or sections, look for these markers. Visual-only formatting (font size, colors, line spacing) cannot be detected.\n\n`;
       prompt += `STUDENT SUBMISSION:\n${sg.subText.slice(0, 14000)}\n\n`;
       prompt += `Grade this submission. DO NOT penalize for things not in the rubric.\n\n`;
-      prompt += `Respond in exactly this format (use bullet points for feedback):\nSCORE: [number]/${total}\nFEEDBACK:\n- [Address ${firstName} by name, lead with overall strengths]\n- [Specific strength tied to a rubric criterion]\n- [Area for improvement, be specific]\n- [Optional: additional point or encouragement]\n\nUse 3-5 bullet points total.`;
+      prompt += `Respond in EXACTLY this format — no other text:\nSCORE: [number]/${total}\nFEEDBACK:\n- ⚠ TEACHER CHECK: [list the specific items the teacher must manually verify that cannot be auto-detected from text, e.g. fonts, spacing, margins, drawings, headers]\n- [Address ${firstName} by name, summarize overall performance]\n- [Specific finding on a rubric criterion — what was present or missing]\n- [Another criterion or area for improvement]\n\nRules: first bullet MUST start with ⚠ TEACHER CHECK:. Use 3-5 bullets total.`;
 
       try {
         const data = await ceGenerate({ model:'claude-sonnet-4-6', max_tokens:800, messages:[{role:'user',content:prompt}] });
@@ -2310,6 +2310,11 @@ Critical rules:
         sBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:13px;padding:2px 7px;border-radius:3px;cursor:pointer;';
         sBtn.onclick = () => { sg.settingsDraft = {...sg.settings}; sg.view='settings'; render(); };
         hdrRight.appendChild(sBtn);
+        const kBtn = document.createElement('button'); kBtn.textContent = '🔑'; kBtn.type='button';
+        kBtn.title = 'Change Canvas API token';
+        kBtn.style.cssText = 'background:rgba(255,255,255,.2);border:none;color:#fff;font-size:13px;padding:2px 7px;border-radius:3px;cursor:pointer;';
+        kBtn.onclick = () => { sg.view='token_setup'; render(); };
+        hdrRight.appendChild(kBtn);
       }
       if (sg.floating) {
         const xBtn = document.createElement('button'); xBtn.textContent = '✕'; xBtn.type='button';
@@ -2320,9 +2325,9 @@ Critical rules:
       hdr.appendChild(hdrRight);
       container.appendChild(hdr);
       const body = document.createElement('div'); body.style.cssText = 'padding:10px;';
-      if (!sg.token)                   body.appendChild(renderTokenSetup());
-      else if (sg.view === 'settings') body.appendChild(renderSettings());
-      else                             body.appendChild(renderGrade());
+      if (!sg.token || sg.view === 'token_setup') body.appendChild(renderTokenSetup());
+      else if (sg.view === 'settings')            body.appendChild(renderSettings());
+      else                                        body.appendChild(renderGrade());
       container.appendChild(body);
     }
 
@@ -2334,17 +2339,29 @@ Critical rules:
 
     // ── TOKEN SETUP VIEW ───────────────────────────────────────────────────────
     function renderTokenSetup() {
+      const isReplace = !!sg.token; // true = changing existing token
       const w = document.createElement('div');
-      const title = document.createElement('div'); title.style.cssText='font-weight:600;color:#2d3b45;margin-bottom:6px;'; title.textContent='Connect Canvas to get started'; w.appendChild(title);
-      const steps = ['Click your name → Account → Settings','Scroll to "Approved Integrations"','Click + New Access Token → copy it','Paste it below'];
-      const ol = document.createElement('ol'); ol.style.cssText='color:#6b7280;font-size:12px;padding-left:16px;margin:0 0 8px 0;line-height:1.9;';
-      steps.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; ol.appendChild(li); }); w.appendChild(ol);
-      const inp=document.createElement('input'); inp.type='password'; inp.placeholder='Paste token here…';
+      const title = document.createElement('div'); title.style.cssText='font-weight:600;color:#2d3b45;margin-bottom:6px;';
+      title.textContent = isReplace ? 'Replace Canvas API Token' : 'Connect Canvas to get started'; w.appendChild(title);
+      if (isReplace) {
+        const cur = document.createElement('div'); cur.style.cssText='font-size:11px;color:#6b7280;background:#f9fafb;padding:5px 8px;border-radius:3px;margin-bottom:8px;font-family:monospace;';
+        cur.textContent = 'Current: ' + sg.token.slice(0,6) + '••••••••' + sg.token.slice(-4); w.appendChild(cur);
+      } else {
+        const steps = ['Click your name → Account → Settings','Scroll to "Approved Integrations"','Click + New Access Token → copy it','Paste it below'];
+        const ol = document.createElement('ol'); ol.style.cssText='color:#6b7280;font-size:12px;padding-left:16px;margin:0 0 8px 0;line-height:1.9;';
+        steps.forEach(s=>{ const li=document.createElement('li'); li.textContent=s; ol.appendChild(li); }); w.appendChild(ol);
+      }
+      const inp=document.createElement('input'); inp.type='password'; inp.placeholder='Paste new token here…';
       inp.style.cssText='width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;margin-bottom:6px;font-family:inherit;';
       w.appendChild(inp);
-      const save=mkBtn('Save & Connect','background:#0770B8;color:#fff;');
-      save.onclick=()=>{ const v=inp.value.trim(); if(!v) return; sg.token=v; GM_setValue('ce_canvas_token',v); loadAssignmentSettings(); render(); fetchSubmission(); };
-      w.appendChild(save); return w;
+      const save=mkBtn(isReplace ? 'Update Token' : 'Save & Connect','background:#0770B8;color:#fff;');
+      save.onclick=()=>{ const v=inp.value.trim(); if(!v) return; sg.token=v; GM_setValue('ce_canvas_token',v); sg.view='grade'; loadAssignmentSettings(); render(); if(sg.subStatus==='idle') fetchSubmission(); };
+      w.appendChild(save);
+      if (isReplace) {
+        const cancel=mkBtn('Cancel','background:#f0f0f0;color:#374151;margin-top:4px;');
+        cancel.onclick=()=>{ sg.view='grade'; render(); }; w.appendChild(cancel);
+      }
+      return w;
     }
 
     // ── SETTINGS VIEW ──────────────────────────────────────────────────────────
@@ -2414,6 +2431,42 @@ Critical rules:
       w.appendChild(saveBtn);
       const cancelBtn=mkBtn('Cancel','background:#f0f0f0;color:#374151;margin-top:4px;');
       cancelBtn.onclick=()=>{ sg.view='grade'; render(); }; w.appendChild(cancelBtn);
+
+      // ── BACKUP / RESTORE ──────────────────────────────────────────────────
+      const sep=document.createElement('div'); sep.style.cssText='border-top:1px solid #e5e7eb;margin-top:10px;padding-top:8px;';
+      sep.appendChild(mkLabel('Backup & Restore'));
+
+      const exportBtn=mkBtn('⬇ Export all assignment settings','background:#f5f5f5;color:#374151;font-weight:400;margin-top:4px;');
+      exportBtn.onclick=()=>{
+        const data=GM_getValue('ce_grader_settings',{});
+        const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob); const a=document.createElement('a');
+        a.href=url; a.download='grader-settings-backup.json'; a.click(); URL.revokeObjectURL(url);
+      };
+      sep.appendChild(exportBtn);
+
+      let importOpen=false;
+      const importBtn=mkBtn('⬆ Import backup','background:#f5f5f5;color:#374151;font-weight:400;margin-top:4px;');
+      const importTa=document.createElement('textarea'); importTa.placeholder='Paste exported JSON here…';
+      importTa.style.cssText='display:none;width:100%;box-sizing:border-box;height:60px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:11px;resize:vertical;font-family:monospace;margin-top:4px;';
+      const confirmBtn=mkBtn('✓ Confirm import (overwrites all)','display:none;background:#dc2626;color:#fff;font-weight:600;margin-top:4px;');
+      confirmBtn.style.display='none';
+      importBtn.onclick=()=>{
+        importOpen=!importOpen;
+        importTa.style.display=importOpen?'block':'none';
+        confirmBtn.style.display=importOpen?'block':'none';
+      };
+      confirmBtn.onclick=()=>{
+        try {
+          const parsed=JSON.parse(importTa.value);
+          GM_setValue('ce_grader_settings',parsed);
+          loadAssignmentSettings();
+          showNotice('Settings restored!');
+          importOpen=false; importTa.style.display='none'; confirmBtn.style.display='none'; importTa.value='';
+        } catch(_) { showNotice('Invalid JSON — check the file and try again'); }
+      };
+      sep.appendChild(importBtn); sep.appendChild(importTa); sep.appendChild(confirmBtn);
+      w.appendChild(sep);
       return w;
     }
 
@@ -2479,20 +2532,62 @@ Critical rules:
     }
 
     function renderResult(w) {
-      const r=sg.result;
-      if (r.score!==null) {
-        const sc=document.createElement('div'); sc.style.cssText='font-size:20px;font-weight:700;color:#0770B8;text-align:center;padding:8px;background:#f0f7ff;border-radius:4px;margin-bottom:8px;';
-        sc.textContent=`${r.score} / ${r.total}`; w.appendChild(sc);
+      const r = sg.result;
+
+      // Split ⚠ warning lines from regular feedback lines
+      const allLines = r.feedback.split('\n');
+      const warnLines = allLines.filter(l => /^[-•*]?\s*⚠/.test(l.trim()));
+      const feedLines = allLines.filter(l => !/^[-•*]?\s*⚠/.test(l.trim()) && l.trim()).join('\n');
+
+      // ⚠ Teacher check — red box at top
+      if (warnLines.length) {
+        const warn = document.createElement('div');
+        warn.style.cssText = 'background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:7px 10px;margin-bottom:8px;font-size:11px;color:#b91c1c;line-height:1.5;';
+        warn.textContent = warnLines.map(l => l.replace(/^[-•*]\s*/, '').trim()).join('\n');
+        w.appendChild(warn);
       }
-      const lbl=document.createElement('div'); lbl.style.cssText='font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;'; lbl.textContent='Suggested feedback'; w.appendChild(lbl);
-      const ta=document.createElement('textarea'); ta.value=r.feedback;
+
+      // Editable score row
+      const scoreRow = document.createElement('div'); scoreRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;background:#f0f7ff;border-radius:4px;padding:7px 10px;';
+      const scoreLabel = document.createElement('span'); scoreLabel.style.cssText='font-size:12px;font-weight:700;color:#0770B8;white-space:nowrap;'; scoreLabel.textContent='Score:'; scoreRow.appendChild(scoreLabel);
+      const scoreInp = document.createElement('input'); scoreInp.type='number'; scoreInp.min='0'; scoreInp.max=String(r.total); scoreInp.step='0.5';
+      scoreInp.value = r.score !== null ? String(r.score) : '';
+      scoreInp.style.cssText='width:60px;padding:4px 6px;border:1px solid #bfdbfe;border-radius:3px;font-size:16px;font-weight:700;color:#0770B8;text-align:center;font-family:inherit;background:#fff;';
+      scoreInp.oninput=()=>{ r.score=parseFloat(scoreInp.value)||0; };
+      const scoreSep = document.createElement('span'); scoreSep.style.cssText='font-size:16px;font-weight:700;color:#0770B8;'; scoreSep.textContent=` / ${r.total}`;
+      scoreRow.appendChild(scoreInp); scoreRow.appendChild(scoreSep); w.appendChild(scoreRow);
+
+      // Editable feedback (no ⚠ lines — those stay in the red box)
+      const lbl=document.createElement('div'); lbl.style.cssText='font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;'; lbl.textContent='Student comment (editable)'; w.appendChild(lbl);
+      const ta=document.createElement('textarea'); ta.value=feedLines;
       ta.style.cssText='width:100%;box-sizing:border-box;height:130px;padding:6px 8px;border:1px solid #c7cdd1;border-radius:3px;font-size:12px;resize:vertical;font-family:inherit;line-height:1.6;';
-      ta.oninput=()=>{ r.feedback=ta.value; }; w.appendChild(ta);
-      const ins=mkBtn('↵ Insert into comment','background:#0770B8;color:#fff;margin-top:6px;');
+      ta.oninput=()=>{ r._editedFeedback=ta.value; }; w.appendChild(ta);
+
+      // Insert comment + grade
+      const ins=mkBtn('↵ Insert comment & grade','background:#0770B8;color:#fff;margin-top:6px;');
       ins.onclick=()=>{
+        const commentText = r._editedFeedback !== undefined ? r._editedFeedback : feedLines;
+        // Insert comment
         const box=document.querySelector('#speed_grader_comment_textarea, #speedgrader_textarea, textarea[name="comment[text_comment]"]');
-        if (box) { box.value=r.feedback; box.dispatchEvent(new Event('input',{bubbles:true})); box.dispatchEvent(new Event('change',{bubbles:true})); showNotice('Feedback inserted!'); }
-        else { navigator.clipboard.writeText(r.feedback).then(()=>showNotice('Copied to clipboard — paste into comment box')); }
+        if (box) { box.value=commentText; box.dispatchEvent(new Event('input',{bubbles:true})); box.dispatchEvent(new Event('change',{bubbles:true})); }
+        else { navigator.clipboard.writeText(commentText).then(()=>{}); }
+        // Insert grade
+        const gradeInput = document.querySelector(
+          '#student_grading_value, #grading-box-extended, ' +
+          'input.grading-box-number, input[data-testid="student-grades-input"], ' +
+          'input[aria-label="Grade"], input[aria-label="grade"], ' +
+          '.react-grade-input input, #submission_details .grade input, ' +
+          'input[placeholder="–"]'
+        );
+        if (gradeInput && r.score !== null) {
+          gradeInput.value = String(r.score);
+          gradeInput.dispatchEvent(new Event('input',{bubbles:true}));
+          gradeInput.dispatchEvent(new Event('change',{bubbles:true}));
+          gradeInput.dispatchEvent(new KeyboardEvent('keydown',{bubbles:true,key:'Enter'}));
+          showNotice(box ? 'Comment & grade inserted!' : 'Grade inserted — comment copied to clipboard');
+        } else {
+          showNotice(box ? 'Comment inserted!' : 'Copied to clipboard');
+        }
       };
       w.appendChild(ins);
       const again=mkBtn('↺ Grade again','background:#f5f5f5;color:#2d3b45;margin-top:4px;');
@@ -2503,7 +2598,7 @@ Critical rules:
     const toggleBtn = document.createElement('button');
     toggleBtn.id = 'ce-ai-grader-toggle';
     toggleBtn.textContent = '✦ AI Grader';
-    toggleBtn.style.cssText = 'position:fixed;top:12px;right:12px;background:#0770B8;color:#fff;border:none;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;border-radius:6px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);white-space:nowrap;';
+    toggleBtn.style.cssText = 'position:fixed;top:110px;right:0;background:#0770B8;color:#fff;border:none;border-radius:6px 0 0 6px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;z-index:99999;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:-2px 2px 8px rgba(0,0,0,.25);white-space:nowrap;writing-mode:horizontal-tb;';
     toggleBtn.onclick=()=>{ sg.open=!sg.open; container.style.display=sg.open?'block':'none'; toggleBtn.style.display=sg.open?'none':'block'; if(sg.open&&sg.token&&sg.subStatus==='idle') fetchSubmission(); else render(); };
 
     // ── INJECT ─────────────────────────────────────────────────────────────────
@@ -2537,18 +2632,39 @@ Critical rules:
       }
     }
 
-    // Student navigation (SpeedGrader pushState / popstate)
-    let sgLastStudentId = getUrlParts().studentId;
-    const _origPushState = history.pushState.bind(history);
-    history.pushState = function(...args) {
-      _origPushState(...args);
-      const sid=getUrlParts().studentId;
-      if (sid&&sid!==sgLastStudentId) { sgLastStudentId=sid; sg.result=null; sg.subText=''; sg.subStatus='idle'; sg.studentName=''; if(sg.token&&(!sg.floating||sg.open)) fetchSubmission(); else render(); }
-    };
-    window.addEventListener('popstate',()=>{
-      const sid=getUrlParts().studentId;
-      if (sid&&sid!==sgLastStudentId) { sgLastStudentId=sid; sg.result=null; sg.subText=''; sg.subStatus='idle'; sg.studentName=''; if(sg.token&&(!sg.floating||sg.open)) fetchSubmission(); else render(); }
-    });
+    // ── NAVIGATION TRACKING ────────────────────────────────────────────────────
+    let sgLastStudentId    = getUrlParts().studentId;
+    let sgLastAssignmentId = getUrlParts().assignmentId;
+
+    function onNavChange() {
+      const { courseId, assignmentId, studentId } = getUrlParts();
+      const assignmentChanged = assignmentId && assignmentId !== sgLastAssignmentId;
+      const studentChanged    = studentId    && studentId    !== sgLastStudentId;
+      if (!assignmentChanged && !studentChanged) return;
+      if (assignmentChanged) {
+        sgLastAssignmentId = assignmentId;
+        sg.courseId = courseId; sg.assignmentId = assignmentId; sg.assignmentName = '';
+        sg.settings = sgLoadSettings(courseId, assignmentId);
+      }
+      sgLastStudentId = studentId;
+      sg.result = null; sg.subText = ''; sg.subStatus = 'idle'; sg.studentName = '';
+      if (sg.token && (!sg.floating || sg.open)) fetchSubmission(); else render();
+    }
+
+    // Cover all URL-change mechanisms SpeedGrader may use
+    const _origPushState    = history.pushState.bind(history);
+    const _origReplaceState = history.replaceState.bind(history);
+    history.pushState    = function(...a) { _origPushState(...a);    setTimeout(onNavChange, 100); };
+    history.replaceState = function(...a) { _origReplaceState(...a); setTimeout(onNavChange, 100); };
+    window.addEventListener('popstate',   () => setTimeout(onNavChange, 100));
+    window.addEventListener('hashchange', () => setTimeout(onNavChange, 100));
+
+    // Polling fallback — catches any SpeedGrader navigation our hooks miss
+    setInterval(onNavChange, 1200);
+
+    // DOM observer — student name element changes when SpeedGrader loads next student
+    const _sgNameEl = document.querySelector('#student_carousel_name, #students_selectmenu-button');
+    if (_sgNameEl) new MutationObserver(()=>setTimeout(onNavChange,200)).observe(_sgNameEl,{childList:true,subtree:true,characterData:true});
 
     // Try immediately, then poll for up to 15s for async sidebar load
     inject();
