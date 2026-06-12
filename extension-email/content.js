@@ -29,6 +29,16 @@
     } catch (_err) {}
   }
 
+  function isSpeedGraderPage() {
+    return /\/gradebook\/speed_grader\b/.test(window.location.pathname)
+      || /[?&]assignment_id=/.test(window.location.search) && /speed_grader/.test(window.location.href);
+  }
+
+  if (isSpeedGraderPage()) {
+    window.__cesLoaded = false;
+    return;
+  }
+
   // Inject styles
   const _style = document.createElement('style');
   _style.textContent = `
@@ -1162,6 +1172,16 @@ Thank you,
         <label class="ces-label">Canvas API Token</label>
         <input type="password" class="ces-input" id="ces-set-api-token" value="${escapeAttr(apiToken)}" placeholder="Paste Canvas access token">
         <p style="font-size:12px;color:#6b7280;margin-top:4px;">Optional. Used for Canvas course, student, message, and announcement requests.</p>
+        <div style="font-size:12px;color:#374151;line-height:1.55;margin-top:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;">
+          <strong>How to find it:</strong>
+          <ol style="margin:6px 0 0 18px;padding:0;">
+            <li>Open Canvas Account.</li>
+            <li>Go to Settings.</li>
+            <li>Find Approved Integrations.</li>
+            <li>Click New Access Token.</li>
+            <li>Copy the token and paste it here.</li>
+          </ol>
+        </div>
       </div>
       <div class="ces-card">
         <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
@@ -1249,6 +1269,10 @@ Thank you,
 
   function placeCanvasLauncher() {
     const btn = document.getElementById('ces-launcher-btn');
+    if (isSpeedGraderPage()) {
+      if (btn) btn.remove();
+      return;
+    }
     if (!btn) return;
     const host = findCanvasLauncherHost();
     if (host) {
