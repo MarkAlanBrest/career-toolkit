@@ -313,6 +313,8 @@
     return url.toString();
   }
 
+  const TEMPLATE_VERSION_VALUE = '3';
+
   const DEFAULT_TEMPLATES = {
     canvasApp: {
       name: 'Canvas Student App Setup',
@@ -339,136 +341,101 @@ ${CANVAS_STUDENT_ANDROID_URL}
 
 Thank you,
 {{teacherName}}`,
-      body: `<div style="font-family:Arial,Helvetica,sans-serif;border:1px solid #d1d5db;border-radius:8px;background:#ffffff;overflow:hidden;max-width:760px;">
-  <div style="background:#2d3b45;color:#ffffff;padding:20px 24px;">
-    <div style="font-size:24px;font-weight:800;line-height:1.2;">Get {{courseName}} Announcements on Your Phone</div>
-    <div style="font-size:14px;line-height:1.5;margin-top:8px;color:#dbe5eb;">Install the Canvas Student app and turn on notifications so you do not miss class updates.</div>
-  </div>
-  <div style="padding:20px 24px;color:#111827;">
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.</p>
-    <p style="margin:0 0 18px;"><a href="{{canvasAppUrl}}" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 14px;border-radius:6px;">Open setup page</a></p>
-    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
-      <div style="flex:1 1 260px;min-width:240px;">
-        <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Before class ends today:</div>
-        <ol style="margin:0;padding-left:22px;color:#374151;font-size:14px;line-height:1.7;">
-          <li>Scan the QR code for your phone.</li>
-          <li>Install the Canvas Student app.</li>
-          <li>Log in to Canvas.</li>
-          <li>Allow notifications when your phone asks.</li>
-        </ol>
-        <div style="margin-top:14px;background:#f9fafb;border-left:4px solid #2d3b45;padding:11px 13px;color:#111827;font-size:13px;line-height:1.45;">
-          After installing, check Canvas notification settings and make sure course announcements are enabled.
-        </div>
-      </div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <div style="width:150px;text-align:center;">
-          <img src="${qrCodeUrl(CANVAS_STUDENT_IOS_URL, 150)}" alt="QR code for Canvas Student on iPhone" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;" />
-          <div style="font-size:13px;font-weight:800;color:#111827;margin-top:8px;">iPhone</div>
-          <a href="${CANVAS_STUDENT_IOS_URL}" style="font-size:12px;color:#0770B8;">Open App Store</a>
-        </div>
-        <div style="width:150px;text-align:center;">
-          <img src="${qrCodeUrl(CANVAS_STUDENT_ANDROID_URL, 150)}" alt="QR code for Canvas Student on Android" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;" />
-          <div style="font-size:13px;font-weight:800;color:#111827;margin-top:8px;">Android</div>
-          <a href="${CANVAS_STUDENT_ANDROID_URL}" style="font-size:12px;color:#0770B8;">Open Google Play</a>
-        </div>
-      </div>
-    </div>
-    <p style="font-size:14px;line-height:1.55;margin:18px 0 0;">Thank you,<br>{{teacherName}}</p>
-  </div>
-</div>`,
+      body: teacherTextToCanvasHtml(`# Canvas Notification Setup
+
+Hi {{studentName}},
+
+Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.
+
+[Button: Open setup page | {{canvasAppUrl}}]
+
+> Before class ends today, install the app, log in, allow notifications, and make sure announcements are enabled for this course.
+
+- iPhone App Store: ${CANVAS_STUDENT_IOS_URL}
+- Android Google Play: ${CANVAS_STUDENT_ANDROID_URL}
+
+Thank you,
+{{teacherName}}`),
     },
     upcoming: {
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
       subject: 'Upcoming Assignments - {{courseName}}',
-      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
-  <div style="border-left:6px solid #0770B8;padding:4px 0 4px 16px;margin-bottom:16px;">
-    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Upcoming Assignments</div>
-    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}} - Next {{daysForward}} days</div>
-  </div>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Here are the upcoming assignments I want you to keep on your radar.</p>
-  <div style="border:1px solid #c7d7e4;border-radius:6px;background:#f8fbfd;padding:14px 16px;margin:0 0 16px;">
-    {{assignmentListHtml}}
-  </div>
-  <div style="border-left:4px solid #f59e0b;background:#fffbeb;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
-    Please submit work before the due date, and reach out early if you are stuck.
-  </div>
-  <p style="font-size:14px;line-height:1.55;margin:0;">Thank you,<br>{{teacherName}}</p>
-</div>`,
+      body: teacherTextToCanvasHtml(`# Upcoming Assignments
+
+Hi {{studentName}},
+
+Here are the assignments coming up in {{courseName}} over the next {{daysForward}} days.
+
+{{assignmentListHtml}}
+
+> Please submit work before the due date, and reach out early if you are stuck.
+
+Thank you,
+{{teacherName}}`),
     },
     missing: {
       name: 'Missing Work Reminder',
       description: 'Alert students about unsubmitted work',
       subject: 'Missing Assignments - {{courseName}}',
-      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
-  <div style="border-left:6px solid #b91c1c;padding:4px 0 4px 16px;margin-bottom:16px;">
-    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Missing Work Reminder</div>
-    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}} - Past {{daysBack}} days</div>
-  </div>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">I am checking in because these assignments still appear as missing.</p>
-  <div style="border:1px solid #fecaca;border-radius:6px;background:#fef2f2;padding:14px 16px;margin:0 0 16px;">
-    {{missingAssignmentListHtml}}
-  </div>
-  <div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
-    Late work is still better than missing work. Please submit what you can and message me if you need help.
-  </div>
-  <p style="font-size:14px;line-height:1.55;margin:0;">Sincerely,<br>{{teacherName}}</p>
-</div>`,
+      body: teacherTextToCanvasHtml(`# Missing Work Reminder
+
+Hi {{studentName}},
+
+I am checking in because the following assignments still appear as missing in {{courseName}}.
+
+{{missingAssignmentListHtml}}
+
+> Late work is still better than missing work. Please submit what you can and message me if you need help.
+
+Sincerely,
+{{teacherName}}`),
     },
     welcome: {
       name: 'Welcome to Class',
       description: 'Send a warm welcome message',
       subject: 'Welcome to {{courseName}}!',
-      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
-  <div style="background:#2d3b45;color:#ffffff;padding:18px 20px;border-radius:6px 6px 0 0;">
-    <div style="font-size:24px;font-weight:800;line-height:1.2;">Welcome to {{courseName}}</div>
-    <div style="font-size:14px;line-height:1.45;margin-top:6px;color:#dbe5eb;">A quick start note from {{teacherName}}</div>
-  </div>
-  <div style="border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;padding:18px 20px;">
-    <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-    <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Welcome to {{courseName}}. I am excited to have you in class this term.</p>
-    <div style="font-size:16px;font-weight:800;margin:0 0 10px;">To get started:</div>
-    <ul style="margin:0 0 16px;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;">
-      <li>Check Canvas regularly for announcements and assignment updates.</li>
-      <li>Review the course syllabus and schedule.</li>
-      <li>Reach out early if you need help or accommodations.</li>
-    </ul>
-    <div style="height:1px;background:#d1d5db;margin:16px 0;"></div>
-    <p style="font-size:14px;line-height:1.55;margin:0;">I look forward to a great semester together.<br><br>Warm regards,<br>{{teacherName}}</p>
-  </div>
-</div>`,
+      body: teacherTextToCanvasHtml(`# Welcome to {{courseName}}
+
+Hi {{studentName}},
+
+Welcome to {{courseName}}. I am excited to have you in class this term.
+
+To get started:
+
+- Check Canvas regularly for announcements and assignment updates.
+- Review the course syllabus and schedule.
+- Reach out early if you need help or accommodations.
+
+---
+
+I look forward to a great semester together.
+
+Warm regards,
+{{teacherName}}`),
     },
     evaluation: {
       name: 'Student Evaluation',
       description: 'Share grade status and progress',
       subject: 'Your Progress in {{courseName}}',
-      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
-  <div style="border-left:6px solid #047857;padding:4px 0 4px 16px;margin-bottom:16px;">
-    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Your Progress Update</div>
-    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}}</div>
-  </div>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Here is a quick update on your current progress.</p>
-  <div style="display:block;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:6px;padding:14px 16px;margin:0 0 16px;">
-    <div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:800;letter-spacing:.04em;">Current Grade</div>
-    <div style="font-size:24px;font-weight:800;color:#111827;margin-top:3px;">{{currentGrade}} <span style="font-size:15px;color:#4b5563;">({{currentScore}}%)</span></div>
-  </div>
-  <div style="border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;margin:0 0 14px;">
-    <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Missing Work</div>
-    {{missingSectionHtml}}
-  </div>
-  <div style="border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;margin:0 0 16px;">
-    <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Coming Up</div>
-    {{upcomingSectionHtml}}
-  </div>
-  <div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
-    Please reach out if you have questions about your progress or need support.
-  </div>
-  <p style="font-size:14px;line-height:1.55;margin:0;">Best regards,<br>{{teacherName}}</p>
-</div>`,
+      body: teacherTextToCanvasHtml(`# Your Progress Update
+
+Hi {{studentName}},
+
+Here is a quick update on your current progress in {{courseName}}.
+
+> Current grade: {{currentGrade}} ({{currentScore}}%)
+
+# Missing Work
+{{missingSectionHtml}}
+
+# Coming Up
+{{upcomingSectionHtml}}
+
+> Please reach out if you have questions about your progress or need support.
+
+Best regards,
+{{teacherName}}`),
     },
   };
   const DEFAULT_TEMPLATE_KEYS = new Set(Object.keys(DEFAULT_TEMPLATES));
@@ -610,20 +577,20 @@ Thank you,
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== '2') {
+        if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== TEMPLATE_VERSION_VALUE) {
           const customTemplates = {};
           for (const [key, value] of Object.entries(parsed)) {
             if (!DEFAULT_TEMPLATE_KEYS.has(key)) customTemplates[key] = value;
           }
           const upgraded = { ...defaults, ...customTemplates };
           saveTemplates(upgraded);
-          GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
+          GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, TEMPLATE_VERSION_VALUE);
           return upgraded;
         }
         return { ...defaults, ...parsed };
       } catch(e) {}
     }
-    GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
+    GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, TEMPLATE_VERSION_VALUE);
     return defaults;
   }
 
@@ -647,6 +614,104 @@ Thank you,
     return isHtmlMessage(message)
       ? String(message || '')
       : escapeHtml(message).replace(/\n/g, '<br>');
+  }
+
+  function htmlToTeacherText(message) {
+    if (!isHtmlMessage(message)) return String(message || '');
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = String(message || '');
+    wrapper.querySelectorAll('a[href]').forEach(link => {
+      const text = link.textContent.trim() || 'Open Link';
+      const href = link.getAttribute('href') || '';
+      link.replaceWith(document.createTextNode(`[Button: ${text} | ${href}]`));
+    });
+    wrapper.querySelectorAll('img[src]').forEach(img => {
+      const alt = img.getAttribute('alt') || 'Image';
+      const src = img.getAttribute('src') || '';
+      img.replaceWith(document.createTextNode(`[Image: ${alt} | ${src}]`));
+    });
+    wrapper.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    wrapper.querySelectorAll('h1,h2,h3,p,div,li,ol,ul').forEach(el => {
+      if (el.tagName === 'LI') el.prepend('- ');
+      el.append(document.createTextNode('\n'));
+    });
+    return wrapper.textContent
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function teacherTextToCanvasHtml(text) {
+    const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+    const out = [];
+    let paragraph = [];
+    let list = [];
+    let title = '';
+
+    const flushParagraph = () => {
+      if (!paragraph.length) return;
+      const body = paragraph.map(escapeHtml).join('<br>');
+      out.push(`<p style="font-size:15px;line-height:1.6;margin:0 0 14px;color:#1f2937;">${body}</p>`);
+      paragraph = [];
+    };
+    const flushList = () => {
+      if (!list.length) return;
+      out.push(`<ul style="margin:0 0 16px;padding-left:22px;color:#1f2937;font-size:14px;line-height:1.75;">${list.map(item => `<li style="margin:0 0 4px;">${escapeHtml(item)}</li>`).join('')}</ul>`);
+      list = [];
+    };
+    const flushAll = () => { flushParagraph(); flushList(); };
+
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
+      const line = raw.trim();
+      if (!line) { flushAll(); continue; }
+
+      const button = line.match(/^\[Button:\s*(.*?)\s*\|\s*(.*?)\]$/i);
+      const image = line.match(/^\[Image:\s*(.*?)\s*\|\s*(.*?)\]$/i);
+      const qr = line.match(/^\[QR:\s*(.*?)\s*\|\s*(.*?)\]$/i);
+
+      if (/^\{\{[a-zA-Z0-9]+Html\}\}$/.test(line)) {
+        flushAll();
+        out.push(line);
+      } else if (line.startsWith('# ')) {
+        flushAll();
+        if (!title && !out.length) {
+          title = line.slice(2).trim();
+        } else {
+          out.push(`<div style="font-size:16px;font-weight:800;line-height:1.25;color:#111827;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">${escapeHtml(line.slice(2).trim())}</div>`);
+        }
+      } else if (line === '---') {
+        flushAll();
+        out.push('<div style="height:1px;background:#d1d5db;margin:16px 0;"></div>');
+      } else if (line.startsWith('> ')) {
+        flushAll();
+        out.push(`<div style="border-left:4px solid #0770B8;background:#f4f9fc;padding:11px 13px;margin:12px 0 16px;font-size:14px;line-height:1.55;color:#1f2937;">${escapeHtml(line.slice(2).trim())}</div>`);
+      } else if (button) {
+        flushAll();
+        out.push(`<p style="margin:16px 0;"><a href="${escapeAttr(button[2])}" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 16px;border-radius:4px;">${escapeHtml(button[1] || 'Open Link')}</a></p>`);
+      } else if (image) {
+        flushAll();
+        out.push(`<p style="margin:14px 0;"><img src="${escapeAttr(image[2])}" alt="${escapeAttr(image[1] || 'Image')}" style="max-width:100%;height:auto;border:1px solid #e5e7eb;border-radius:6px;"></p>`);
+      } else if (qr) {
+        flushAll();
+        out.push(`<div style="display:inline-block;text-align:center;margin:14px 0;"><img src="${qrCodeUrl(qr[2], 150)}" alt="${escapeAttr(qr[1] || 'QR code')}" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;"><div style="font-size:12px;color:#4b5563;margin-top:6px;">${escapeHtml(qr[1] || 'Scan QR code')}</div></div>`);
+      } else if (line.startsWith('- ')) {
+        flushParagraph();
+        list.push(line.slice(2).trim());
+      } else {
+        flushList();
+        paragraph.push(raw);
+      }
+    }
+    flushAll();
+    const header = title
+      ? `<div style="background:#2d3b45;color:#ffffff;padding:18px 22px;border-bottom:4px solid #0770B8;"><div style="font-size:22px;font-weight:800;line-height:1.2;">${escapeHtml(title)}</div></div>`
+      : '';
+    return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;">
+  ${header}
+  <div style="padding:20px 22px;">${out.join('\n')}</div>
+</div>`;
   }
 
   function htmlToCanvasInboxText(html) {
@@ -1238,16 +1303,16 @@ Thank you,
           name: 'Custom Message',
           description: 'Teacher-created message',
           subject: '{{courseName}} Update',
-          body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
-  <div style="border-left:6px solid #0770B8;padding:4px 0 4px 16px;margin-bottom:16px;">
-    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">{{courseName}} Update</div>
-    <div style="font-size:14px;color:#4b5563;margin-top:4px;">A message from {{teacherName}}</div>
-  </div>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
-  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Write your message here.</p>
-  <div style="height:1px;background:#d1d5db;margin:16px 0;"></div>
-  <p style="font-size:14px;line-height:1.55;margin:0;">Thank you,<br>{{teacherName}}</p>
-</div>`,
+          body: teacherTextToCanvasHtml(`# {{courseName}} Update
+
+Hi {{studentName}},
+
+Write your message here.
+
+---
+
+Thank you,
+{{teacherName}}`),
         };
         renderEditor(id);
       });
@@ -1264,13 +1329,14 @@ Thank you,
       container.querySelector('#ces-reset-tpl').addEventListener('click', () => {
         if (confirm('Reset all templates to defaults? Your custom templates will be lost.')) {
           const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
-          saveTemplates(defaults); GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2'); Object.assign(templates, defaults); renderList();
+          saveTemplates(defaults); GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, TEMPLATE_VERSION_VALUE); Object.assign(templates, defaults); renderList();
         }
       });
     }
 
     function renderEditor(type) {
       const tpl = templates[type];
+      const editableBody = htmlToTeacherText(tpl.body);
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Message Name</label>
@@ -1279,7 +1345,7 @@ Thank you,
         <input type="text" class="ces-input" id="ces-tpl-desc" value="${escapeAttr(tpl.description || '')}">
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
-        <label class="ces-label">Email Body</label>
+        <label class="ces-label">Message Body</label>
         <div id="ces-format-toolbar" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;">
           <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="heading">Heading</button>
           <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="divider">Line</button>
@@ -1291,7 +1357,8 @@ Thank you,
           <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="date">Due Date</button>
           <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="signature">Signature</button>
         </div>
-        <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:200px;">${escapeHtml(tpl.body)}</textarea>
+        <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:260px;">${escapeHtml(editableBody)}</textarea>
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;">Use normal text. Toolbar blocks are converted to Canvas-friendly formatting when saved or previewed.</div>
         <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{assignmentListHtml}} {{missingAssignmentList}} {{missingAssignmentListHtml}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{missingSectionHtml}} {{upcomingSection}} {{upcomingSectionHtml}} {{canvasAppUrl}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
@@ -1307,7 +1374,7 @@ Thank you,
         templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
         templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
         templates[type].subject = container.querySelector('#ces-tpl-subject').value;
-        templates[type].body    = container.querySelector('#ces-tpl-body').value;
+        templates[type].body    = teacherTextToCanvasHtml(container.querySelector('#ces-tpl-body').value);
         saveTemplates(templates); renderList();
       });
       container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
@@ -1316,22 +1383,22 @@ Thank you,
         const sampleMissingHtml = '<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li><strong>Homework 5</strong> <span style="color:#6b7280;">Due: 4/1/2026</span></li></ul>';
         const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', assignmentListHtml: sampleListHtml, missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', missingAssignmentListHtml: sampleMissingHtml, currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing (past 14 days):\n  - Homework 5', missingSectionHtml: sampleMissingHtml, upcomingSection: 'Upcoming (next 7 days):\n  - Essay 1', upcomingSectionHtml: sampleListHtml, canvasAppUrl: buildCanvasAppPromoUrl('12345', 'Sample Course') };
         const subject = container.querySelector('#ces-tpl-subject').value;
-        const body    = container.querySelector('#ces-tpl-body').value;
+        const body    = teacherTextToCanvasHtml(container.querySelector('#ces-tpl-body').value);
         container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="font-size:13px;">${messagePreviewHtml(renderTemplate(body, sampleVars))}</div></div>`;
       });
     }
 
     function insertTemplateSnippet(textarea, kind) {
       const snippets = {
-        heading: `<div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;margin:0 0 12px;">Section Heading</div>`,
-        divider: `<div style="height:1px;background:#d1d5db;margin:16px 0;"></div>`,
-        callout: `<div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:12px 0;font-size:14px;line-height:1.5;color:#111827;">Important note goes here.</div>`,
-        button: `<p style="margin:14px 0;"><a href="https://example.com" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 14px;border-radius:6px;">Open Link</a></p>`,
-        image: `<p style="margin:14px 0;"><img src="https://example.com/image.jpg" alt="Image description" style="max-width:100%;height:auto;border:1px solid #e5e7eb;border-radius:6px;"></p>`,
-        qr: `<div style="display:inline-block;text-align:center;margin:14px 0;"><img src="${qrCodeUrl('https://example.com', 150)}" alt="QR code" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;"><div style="font-size:12px;color:#4b5563;margin-top:6px;">Scan QR code</div></div>`,
-        checklist: `<ul style="margin:12px 0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li>First step</li><li>Second step</li><li>Third step</li></ul>`,
-        date: `<div style="border:1px solid #c7d7e4;border-radius:6px;background:#f8fbfd;padding:12px 14px;margin:12px 0;"><div style="font-size:12px;text-transform:uppercase;color:#0770B8;font-weight:800;letter-spacing:.04em;">Due Date</div><div style="font-size:16px;font-weight:800;color:#111827;margin-top:4px;">Assignment Name</div><div style="font-size:13px;color:#4b5563;margin-top:2px;">Due by 11:59 PM</div></div>`,
-        signature: `<p style="font-size:14px;line-height:1.55;margin:16px 0 0;">Thank you,<br>{{teacherName}}</p>`,
+        heading: '# Section Heading',
+        divider: '---',
+        callout: '> Important note goes here.',
+        button: '[Button: Open Link | https://example.com]',
+        image: '[Image: Image description | https://example.com/image.jpg]',
+        qr: '[QR: Scan QR code | https://example.com]',
+        checklist: '- First step\n- Second step\n- Third step',
+        date: '# Due Date\nAssignment Name\nDue by 11:59 PM',
+        signature: 'Thank you,\n{{teacherName}}',
       };
       const snippet = snippets[kind] || '';
       const start = textarea.selectionStart || 0;
