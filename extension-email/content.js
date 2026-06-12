@@ -136,6 +136,30 @@
       box-shadow: 0 0 0 2px rgba(3,116,181,.14);
     }
     .ces-textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+    .ces-editor-toolbar {
+      display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+      padding:8px; margin:0 0 0; border:1px solid #c7cdd1;
+      border-bottom:none; border-radius:6px 6px 0 0; background:#f8fafc;
+    }
+    .ces-editor-toolbar .ces-select, .ces-editor-toolbar .ces-input {
+      width:auto; min-width:92px; padding:5px 8px; font-size:12px;
+    }
+    .ces-editor-btn {
+      height:30px; min-width:30px; padding:0 8px; border:1px solid #c7cdd1;
+      border-radius:4px; background:#fff; color:#2d3b45; font-size:12px;
+      font-weight:700; cursor:pointer;
+    }
+    .ces-editor-btn:hover { background:#eef7fc; border-color:#8aa9bf; }
+    .ces-email-editor {
+      min-height:340px; max-height:48vh; overflow:auto; padding:20px 22px;
+      border:1px solid #c7cdd1; border-radius:0 0 6px 6px; background:#fff;
+      color:#111827; font-family:Arial,Helvetica,sans-serif; line-height:1.6;
+    }
+    .ces-email-editor:focus { outline:none; border-color:#0374b5; box-shadow:0 0 0 3px rgba(3,116,181,.12); }
+    .ces-email-editor img { max-width:100%; height:auto; }
+    .ces-editor-shell { border:1px solid #d1d5db; border-radius:6px; overflow:hidden; background:#fff; }
+    .ces-editor-shell .ces-email-editor { border:none; border-radius:0; }
+    .ces-editor-subject-preview { font-size:13px;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:9px 10px;margin-bottom:10px; }
     .ces-btn {
       padding: 8px 16px; border: none; border-radius: 6px;
       font-size: 14px; font-weight: 600; cursor: pointer;
@@ -308,10 +332,6 @@
   const CANVAS_STUDENT_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.instructure.candroid';
   const CANVAS_APP_PROMO_URL = 'https://career-toolkit-ruby.vercel.app/canvas-app';
 
-  function qrCodeUrl(url, size = 160) {
-    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=12&data=${encodeURIComponent(url)}`;
-  }
-
   function buildCanvasAppPromoUrl(courseId, courseName) {
     const url = new URL(CANVAS_APP_PROMO_URL);
     url.searchParams.set('audience', 'student');
@@ -320,7 +340,7 @@
     return url.toString();
   }
 
-  const TEMPLATE_VERSION_VALUE = '4';
+  const TEMPLATE_VERSION_VALUE = '5';
 
   function templateBody(source) {
     return {
@@ -361,7 +381,8 @@ Hi {{studentName}},
 
 Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.
 
-[Button: Open setup page | {{canvasAppUrl}}]
+Open setup page:
+{{canvasAppUrl}}
 
 > Before class ends today, install the app, log in, allow notifications, and make sure announcements are enabled for this course.
 
@@ -618,9 +639,29 @@ Best regards,
 
   function normalizeTemplateSource(tpl) {
     const next = { ...tpl };
+    if (next.bodyMode === 'html') {
+      next.body = sanitizeCanvasEmailHtml(next.body || next.bodyText || '');
+      next.bodyText = htmlToTeacherText(next.body);
+      return next;
+    }
     next.bodyText = String(next.bodyText || htmlToTeacherText(next.body || ''));
     next.body = teacherTextToCanvasHtml(next.bodyText);
     return next;
+  }
+
+  function sanitizeCanvasEmailHtml(html) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = String(html || '');
+    wrapper.querySelectorAll('script, iframe, object, embed, form, input, button, video, audio, canvas, svg').forEach(el => el.remove());
+    wrapper.querySelectorAll('*').forEach(el => {
+      [...el.attributes].forEach(attr => {
+        const name = attr.name.toLowerCase();
+        const value = attr.value || '';
+        if (name.startsWith('on')) el.removeAttribute(attr.name);
+        if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(value)) el.removeAttribute(attr.name);
+      });
+    });
+    return wrapper.innerHTML.trim();
   }
 
   function renderTemplate(template, vars) {
@@ -648,12 +689,11 @@ Best regards,
     wrapper.querySelectorAll('a[href]').forEach(link => {
       const text = link.textContent.trim() || 'Open Link';
       const href = link.getAttribute('href') || '';
-      link.replaceWith(document.createTextNode(`[Button: ${text} | ${href}]`));
+      link.replaceWith(document.createTextNode(text && href ? `${text}: ${href}` : href || text));
     });
     wrapper.querySelectorAll('img[src]').forEach(img => {
       const alt = img.getAttribute('alt') || 'Image';
-      const src = img.getAttribute('src') || '';
-      img.replaceWith(document.createTextNode(`[Image: ${alt} | ${src}]`));
+      img.replaceWith(document.createTextNode(alt ? `[${alt}]` : ''));
     });
     wrapper.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
     wrapper.querySelectorAll('h1,h2,h3,p,div,li,ol,ul').forEach(el => {
@@ -692,10 +732,6 @@ Best regards,
       const line = raw.trim();
       if (!line) { flushAll(); continue; }
 
-      const button = line.match(/^\[Button:\s*(.*?)\s*\|\s*(.*?)\]$/i);
-      const image = line.match(/^\[Image:\s*(.*?)\s*\|\s*(.*?)\]$/i);
-      const qr = line.match(/^\[QR:\s*(.*?)\s*\|\s*(.*?)\]$/i);
-
       if (/^\{\{[a-zA-Z0-9]+Html\}\}$/.test(line)) {
         flushAll();
         out.push(line);
@@ -712,15 +748,6 @@ Best regards,
       } else if (line.startsWith('> ')) {
         flushAll();
         out.push(`<div style="border-left:4px solid #0770B8;background:#f4f9fc;padding:11px 13px;margin:12px 0 16px;font-size:14px;line-height:1.55;color:#1f2937;">${escapeHtml(line.slice(2).trim())}</div>`);
-      } else if (button) {
-        flushAll();
-        out.push(`<p style="margin:16px 0;"><a href="${escapeAttr(button[2])}" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 16px;border-radius:4px;">${escapeHtml(button[1] || 'Open Link')}</a></p>`);
-      } else if (image) {
-        flushAll();
-        out.push(`<p style="margin:14px 0;"><img src="${escapeAttr(image[2])}" alt="${escapeAttr(image[1] || 'Image')}" style="max-width:100%;height:auto;border:1px solid #e5e7eb;border-radius:6px;"></p>`);
-      } else if (qr) {
-        flushAll();
-        out.push(`<div style="display:inline-block;text-align:center;margin:14px 0;"><img src="${qrCodeUrl(qr[2], 150)}" alt="${escapeAttr(qr[1] || 'QR code')}" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;"><div style="font-size:12px;color:#4b5563;margin-top:6px;">${escapeHtml(qr[1] || 'Scan QR code')}</div></div>`);
       } else if (line.startsWith('- ')) {
         flushParagraph();
         list.push(line.slice(2).trim());
@@ -1362,6 +1389,7 @@ Thank you,
     function renderEditor(type) {
       const tpl = templates[type];
       const editableBody = tpl.bodyText || htmlToTeacherText(tpl.body);
+      const editorHtml = tpl.bodyMode === 'html' ? sanitizeCanvasEmailHtml(tpl.body || '') : teacherTextToCanvasHtml(editableBody);
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Message Name</label>
@@ -1370,73 +1398,151 @@ Thank you,
         <input type="text" class="ces-input" id="ces-tpl-desc" value="${escapeAttr(tpl.description || '')}">
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
+        <div class="ces-editor-subject-preview"><strong>Subject:</strong> <span id="ces-subject-preview">${escapeHtml(tpl.subject)}</span></div>
         <label class="ces-label">Message Body</label>
-        <div id="ces-format-toolbar" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;">
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="heading">Heading</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="divider">Line</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="callout">Callout</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="button">Button</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="image">Image</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="qr">QR</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="checklist">Checklist</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="date">Due Date</button>
-          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="signature">Signature</button>
+        <div class="ces-editor-shell">
+          <div id="ces-format-toolbar" class="ces-editor-toolbar">
+            <select class="ces-select" id="ces-editor-font" title="Font">
+              <option value="">Font</option>
+              <option value="Arial,Helvetica,sans-serif">Arial</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Trebuchet MS',Arial,sans-serif">Trebuchet</option>
+              <option value="Verdana,Arial,sans-serif">Verdana</option>
+            </select>
+            <select class="ces-select" id="ces-editor-size" title="Text size">
+              <option value="">Size</option>
+              <option value="13px">Small</option>
+              <option value="15px">Normal</option>
+              <option value="18px">Large</option>
+              <option value="22px">Heading</option>
+            </select>
+            <input class="ces-input" id="ces-editor-color" type="color" value="#111827" title="Text color">
+            <button type="button" class="ces-editor-btn" data-command="bold" title="Bold">B</button>
+            <button type="button" class="ces-editor-btn" data-command="italic" title="Italic"><em>I</em></button>
+            <button type="button" class="ces-editor-btn" data-command="underline" title="Underline"><u>U</u></button>
+            <button type="button" class="ces-editor-btn" data-command="insertUnorderedList" title="Bulleted list">&bull; List</button>
+            <button type="button" class="ces-editor-btn" data-block="heading" title="Insert heading">Heading</button>
+            <button type="button" class="ces-editor-btn" data-block="callout" title="Insert callout">Callout</button>
+            <button type="button" class="ces-editor-btn" data-block="divider" title="Insert line">Line</button>
+            <button type="button" class="ces-editor-btn" data-block="signature" title="Insert signature">Signature</button>
+          </div>
+          <div id="ces-tpl-body" class="ces-email-editor" contenteditable="true">${editorHtml}</div>
         </div>
-        <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:260px;">${escapeHtml(editableBody)}</textarea>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;">Use normal text. Toolbar blocks are converted to Canvas-friendly formatting when saved or previewed.</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;">This is the message preview and editor. Saved formatting uses Canvas-safe email HTML.</div>
         <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{assignmentListHtml}} {{missingAssignmentList}} {{missingAssignmentListHtml}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{missingSectionHtml}} {{upcomingSection}} {{upcomingSectionHtml}} {{canvasAppUrl}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
-          <button class="ces-btn ces-btn-secondary" id="ces-tpl-preview">Preview</button>
         </div>
-        <div id="ces-tpl-preview-area" class="ces-mt"></div>
       `;
       container.querySelector('#ces-tpl-cancel').addEventListener('click', renderList);
-      container.querySelectorAll('#ces-format-toolbar [data-snippet]').forEach(btn => {
-        btn.addEventListener('click', () => insertTemplateSnippet(container.querySelector('#ces-tpl-body'), btn.dataset.snippet));
+      const editor = container.querySelector('#ces-tpl-body');
+      const subjectInput = container.querySelector('#ces-tpl-subject');
+      const subjectPreview = container.querySelector('#ces-subject-preview');
+      let savedEditorRange = null;
+      const rememberEditorSelection = () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return;
+        const node = selection.anchorNode;
+        if (node && editor.contains(node.nodeType === Node.TEXT_NODE ? node.parentNode : node)) {
+          savedEditorRange = selection.getRangeAt(0).cloneRange();
+        }
+      };
+      const restoreEditorSelection = () => {
+        editor.focus();
+        if (!savedEditorRange) return;
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(savedEditorRange);
+      };
+      ['keyup', 'mouseup', 'input', 'blur'].forEach(eventName => editor.addEventListener(eventName, rememberEditorSelection));
+      container.querySelector('#ces-format-toolbar').addEventListener('mousedown', e => {
+        if (e.target.closest('button')) e.preventDefault();
+      });
+      subjectInput.addEventListener('input', () => {
+        subjectPreview.textContent = subjectInput.value || '(no subject)';
+      });
+      container.querySelectorAll('#ces-format-toolbar [data-command]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          restoreEditorSelection();
+          runEditorCommand(editor, btn.dataset.command);
+          rememberEditorSelection();
+        });
+      });
+      container.querySelectorAll('#ces-format-toolbar [data-block]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          restoreEditorSelection();
+          insertEditorBlock(editor, btn.dataset.block);
+          rememberEditorSelection();
+        });
+      });
+      container.querySelector('#ces-editor-font').addEventListener('change', e => {
+        if (!e.target.value) return;
+        restoreEditorSelection();
+        applyEditorStyle(editor, { fontFamily: e.target.value });
+        rememberEditorSelection();
+        e.target.value = '';
+      });
+      container.querySelector('#ces-editor-size').addEventListener('change', e => {
+        if (!e.target.value) return;
+        restoreEditorSelection();
+        applyEditorStyle(editor, { fontSize: e.target.value });
+        rememberEditorSelection();
+        e.target.value = '';
+      });
+      container.querySelector('#ces-editor-color').addEventListener('input', e => {
+        restoreEditorSelection();
+        applyEditorStyle(editor, { color: e.target.value });
+        rememberEditorSelection();
       });
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
+        const body = sanitizeCanvasEmailHtml(editor.innerHTML);
         templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
         templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
-        templates[type].subject = container.querySelector('#ces-tpl-subject').value;
-        templates[type].bodyText = container.querySelector('#ces-tpl-body').value;
-        templates[type].body    = teacherTextToCanvasHtml(templates[type].bodyText);
+        templates[type].subject = subjectInput.value;
+        templates[type].bodyMode = 'html';
+        templates[type].body = body;
+        templates[type].bodyText = htmlToTeacherText(body);
         saveTemplates(templates); renderList();
-      });
-      container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
-        const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, 'Professor Smith');
-        const sampleListHtml = '<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li><strong>Essay 1</strong> <span style="color:#6b7280;">Due: 4/15/2026</span></li><li><strong>Quiz 3</strong> <span style="color:#6b7280;">Due: 4/18/2026</span></li></ul>';
-        const sampleMissingHtml = '<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li><strong>Homework 5</strong> <span style="color:#6b7280;">Due: 4/1/2026</span></li></ul>';
-        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', assignmentListHtml: sampleListHtml, missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', missingAssignmentListHtml: sampleMissingHtml, currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing (past 14 days):\n  - Homework 5', missingSectionHtml: sampleMissingHtml, upcomingSection: 'Upcoming (next 7 days):\n  - Essay 1', upcomingSectionHtml: sampleListHtml, canvasAppUrl: buildCanvasAppPromoUrl('12345', 'Sample Course') };
-        const subject = container.querySelector('#ces-tpl-subject').value;
-        const body    = teacherTextToCanvasHtml(container.querySelector('#ces-tpl-body').value);
-        container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="font-size:13px;">${messagePreviewHtml(renderTemplate(body, sampleVars))}</div></div>`;
       });
     }
 
-    function insertTemplateSnippet(textarea, kind) {
-      const snippets = {
-        heading: '# Section Heading',
-        divider: '---',
-        callout: '> Important note goes here.',
-        button: '[Button: Open Link | https://example.com]',
-        image: '[Image: Image description | https://example.com/image.jpg]',
-        qr: '[QR: Scan QR code | https://example.com]',
-        checklist: '- First step\n- Second step\n- Third step',
-        date: '# Due Date\nAssignment Name\nDue by 11:59 PM',
-        signature: 'Thank you,\n{{teacherName}}',
+    function runEditorCommand(editor, command) {
+      editor.focus();
+      document.execCommand(command, false, null);
+    }
+
+    function applyEditorStyle(editor, styles) {
+      editor.focus();
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      const span = document.createElement('span');
+      Object.assign(span.style, styles);
+      if (range.collapsed) {
+        span.appendChild(document.createTextNode('Text'));
+        range.insertNode(span);
+        range.selectNodeContents(span);
+      } else {
+        try {
+          range.surroundContents(span);
+        } catch (_err) {
+          span.appendChild(range.extractContents());
+          range.insertNode(span);
+        }
+      }
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    function insertEditorBlock(editor, kind) {
+      const blocks = {
+        heading: '<div style="font-size:18px;font-weight:800;line-height:1.25;color:#111827;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">Section Heading</div>',
+        callout: '<div style="border-left:4px solid #0770B8;background:#f4f9fc;padding:11px 13px;margin:12px 0 16px;font-size:14px;line-height:1.55;color:#1f2937;">Important note goes here.</div>',
+        divider: '<div style="height:1px;background:#d1d5db;margin:16px 0;"></div>',
+        signature: '<p style="font-size:15px;line-height:1.6;margin:0 0 14px;color:#1f2937;">Thank you,<br>{{teacherName}}</p>',
       };
-      const snippet = snippets[kind] || '';
-      const start = textarea.selectionStart || 0;
-      const end = textarea.selectionEnd || 0;
-      const before = textarea.value.slice(0, start);
-      const after = textarea.value.slice(end);
-      const prefix = before && !before.endsWith('\n') ? '\n\n' : '';
-      const suffix = after && !after.startsWith('\n') ? '\n\n' : '';
-      textarea.value = before + prefix + snippet + suffix + after;
-      const cursor = (before + prefix + snippet).length;
-      textarea.focus();
-      textarea.setSelectionRange(cursor, cursor);
+      editor.focus();
+      document.execCommand('insertHTML', false, blocks[kind] || '');
     }
 
     renderList();
