@@ -167,8 +167,8 @@ const S: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   input: {
-    flex: '1 1 180px',
-    minWidth: 170,
+    flex: '0 0 155px',
+    width: 155,
     padding: '9px 11px',
     fontSize: 15,
     fontWeight: 600,
