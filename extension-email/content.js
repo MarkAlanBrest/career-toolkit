@@ -167,6 +167,25 @@
     }
     .ces-msg-row .ces-msg-body img { max-width: 100%; }
     .ces-msg-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ces-review-preview {
+      border:1px solid #e5e7eb; border-radius:8px; background:#fff;
+      padding:14px; margin-bottom:12px;
+    }
+    .ces-review-preview-body {
+      font-size:13px; color:#374151; max-height:360px; overflow:auto;
+      background:#f9fafb; border-radius:4px; padding:10px; margin-top:8px;
+    }
+    .ces-review-preview-body img { max-width:100%; }
+    .ces-recipient-list {
+      border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; background:#fff;
+    }
+    .ces-recipient-row {
+      display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px;
+      align-items:center; padding:8px 10px; border-top:1px solid #eef0f2;
+    }
+    .ces-recipient-row:first-child { border-top:0; }
+    .ces-recipient-row:hover { background:#f9fafb; }
+    .ces-recipient-name { font-size:13px; font-weight:700; color:#111827; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .ces-status {
       padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
       font-size: 13px; font-weight: 500;
@@ -244,7 +263,7 @@
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
-    .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; transform: translateY(3px); }
+    .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; margin: 0; align-self: center; transform: none; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
     @media (max-width: 720px) {
@@ -1078,22 +1097,40 @@ Thank you,
   }
 
   function renderMessagesList(container, courseId, courseName, emailType) {
-    let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All Selected Channels</button></div>`;
+    const preview = generatedMessages[0];
+    const previewBody = preview.studentName ? preview.body.replaceAll(preview.studentName, '{{studentName}}') : preview.body;
+    const previewSubject = preview.studentName ? preview.subject.replaceAll(preview.studentName, '{{studentName}}') : preview.subject;
+    const uniqueSubjects = new Set(generatedMessages.map(msg => msg.subject)).size;
+    let html = `
+      <div class="ces-flex-between ces-mb">
+        <strong>${generatedMessages.length} student${generatedMessages.length === 1 ? '' : 's'} ready</strong>
+        <button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All Selected Channels</button>
+      </div>
+      <div class="ces-review-preview">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;">Message Preview</div>
+            <div class="ces-msg-subject" style="margin-top:4px;"><strong>Subject:</strong> ${escapeHtml(previewSubject)}</div>
+          </div>
+          ${uniqueSubjects > 1 ? '<div class="ces-status ces-status-info" style="margin:0;padding:5px 8px;">Some personalized subjects may vary by student.</div>' : ''}
+        </div>
+        <div class="ces-review-preview-body">${messagePreviewHtml(previewBody)}</div>
+      </div>
+      <div style="font-size:13px;font-weight:800;color:#111827;margin:12px 0 8px;">Recipients</div>
+      <div class="ces-recipient-list">
+    `;
     generatedMessages.forEach((msg, i) => {
       html += `
-        <div class="ces-msg-row" id="ces-msg-${i}">
-          <div class="ces-msg-header">
-            <span class="ces-msg-name">${escapeHtml(msg.studentName)}</span>
-            <div class="ces-msg-actions">
-              <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
-              <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Open in Compose</button>
-            </div>
+        <div class="ces-recipient-row" id="ces-msg-${i}">
+          <div class="ces-recipient-name" title="${escapeAttr(msg.studentName)}">${escapeHtml(msg.studentName)}</div>
+          <div class="ces-msg-actions">
+            <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Compose</button>
           </div>
-          <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(msg.subject)}</div>
-          <div class="ces-msg-body">${messagePreviewHtml(msg.body)}</div>
         </div>
       `;
     });
+    html += '</div>';
     container.innerHTML = html;
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
