@@ -633,7 +633,7 @@
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
           <button class="ces-tab" data-tab="templates">Message Templates</button>
-          <button class="ces-tab" data-tab="googleTexts">Google Texts</button>
+          <button class="ces-tab" data-tab="googleVoice">Google Voice</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
         <div id="ces-body"></div>
@@ -681,7 +681,7 @@
     try {
       if (tabName === 'send') renderSendTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
-      else if (tabName === 'googleTexts') renderGoogleTextsTab(body);
+      else if (tabName === 'googleVoice') renderGoogleVoiceTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
       renderTabError(body, err);
@@ -1049,9 +1049,9 @@
   }
 
   /* =========================================================
-     TAB: GOOGLE TEXTS
+     TAB: GOOGLE VOICE
   ========================================================= */
-  async function renderGoogleTextsTab(container) {
+  async function renderGoogleVoiceTab(container) {
     if (!container) return;
     const courseId = getSelectedCourseId();
     container.innerHTML = `
@@ -1060,45 +1060,46 @@
       <div class="ces-send-panel">
         <div class="ces-send-panel-head">
           <div>
-            <div class="ces-send-panel-title">Google Texts</div>
-            <div class="ces-send-panel-sub">Send and receive one direct text conversation at a time using Google Messages.</div>
+            <div class="ces-send-panel-title">Google Voice</div>
+            <div class="ces-send-panel-sub">Use Google Voice for free one-at-a-time texting outside the blocked embed.</div>
           </div>
-          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-open-google-texts">Open in Window</button>
+          <button class="ces-btn ces-btn-primary ces-btn-sm" id="ces-open-google-voice">Open Google Voice</button>
         </div>
         <div class="ces-grid-2" style="margin-top:12px;grid-template-columns:minmax(220px,280px) 1fr;">
           <div>
             <label class="ces-label" style="margin-top:0;">Student</label>
-            <select class="ces-select" id="ces-google-text-student">
+            <select class="ces-select" id="ces-google-voice-student">
               <option value="">Loading students...</option>
             </select>
             <p style="font-size:12px;color:#6b7280;line-height:1.45;margin:8px 0 0;">
-              Pick a student here for your own tracking, then search/select that conversation inside Google Messages.
+              Pick a student here for your own tracking, then open Google Voice and text that student manually.
             </p>
           </div>
           <div class="ces-card" style="background:#f9fafb;margin:0;">
-            <strong>Important</strong>
+            <strong>Why this opens separately</strong>
             <div style="font-size:13px;color:#374151;line-height:1.55;margin-top:6px;">
-              Google Messages must already be paired with the teacher's phone. If the embedded panel is blank, use Open in Window.
+              Google blocks Voice/Messages from running inside Canvas. Opening it in its own tab avoids the 403 error and keeps texting free.
             </div>
           </div>
         </div>
       </div>
-      <div class="ces-card" style="padding:0;overflow:hidden;margin-top:12px;">
-        <iframe
-          id="ces-google-texts-frame"
-          src="https://messages.google.com/web/conversations"
-          title="Google Messages"
-          style="display:block;width:100%;height:520px;border:0;background:#fff;"
-        ></iframe>
+      <div class="ces-card" style="margin-top:12px;">
+        <h3 style="margin:0 0 8px;font-size:16px;">Texting Workflow</h3>
+        <ol style="font-size:13px;color:#374151;line-height:1.7;margin:0;padding-left:20px;">
+          <li>Select the student in this tab.</li>
+          <li>Click Open Google Voice.</li>
+          <li>Search for the student's conversation or number in Google Voice.</li>
+          <li>Send or reply to one message at a time.</li>
+        </ol>
       </div>
     `;
 
     loadCurrentCourse(courseId);
-    container.querySelector('#ces-open-google-texts')?.addEventListener('click', () => {
-      window.open('https://messages.google.com/web/conversations', '_blank', 'noopener,noreferrer');
+    container.querySelector('#ces-open-google-voice')?.addEventListener('click', () => {
+      window.open('https://voice.google.com/messages', '_blank', 'noopener,noreferrer');
     });
 
-    const select = container.querySelector('#ces-google-text-student');
+    const select = container.querySelector('#ces-google-voice-student');
     if (!courseId) {
       select.innerHTML = '<option value="">Open from inside a Canvas course</option>';
       return;
@@ -1114,7 +1115,7 @@
         .join('');
     } catch (err) {
       select.innerHTML = '<option value="">Could not load students</option>';
-      showStatus(err?.message || 'Could not load students for Google Texts.', 'error');
+      showStatus(err?.message || 'Could not load students for Google Voice.', 'error');
     }
   }
 
