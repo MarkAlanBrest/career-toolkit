@@ -149,9 +149,10 @@
     .ces-msg-row .ces-msg-subject { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
     .ces-msg-row .ces-msg-body {
       font-size: 13px; color: #374151; white-space: pre-wrap;
-      max-height: 100px; overflow-y: auto; background: #f9fafb;
+      max-height: 460px; overflow-y: auto; background: #f9fafb;
       padding: 8px; border-radius: 4px;
     }
+    .ces-msg-row .ces-msg-body img { max-width: 100%; }
     .ces-msg-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .ces-status {
       padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
@@ -243,7 +244,56 @@
     LAST_COURSE:  'ces_last_course',
   };
 
+  const CANVAS_STUDENT_IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
+  const CANVAS_STUDENT_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.instructure.candroid';
+
+  function qrCodeUrl(url, size = 160) {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=12&data=${encodeURIComponent(url)}`;
+  }
+
   const DEFAULT_TEMPLATES = {
+    canvasApp: {
+      name: 'Canvas Student App Setup',
+      description: 'Help students install the Canvas app and turn on notifications',
+      subject: 'Set Up Canvas Notifications for {{courseName}}',
+      body: `<div style="font-family:Arial,Helvetica,sans-serif;border:1px solid #d1d5db;border-radius:8px;background:#ffffff;overflow:hidden;max-width:760px;">
+  <div style="background:#2d3b45;color:#ffffff;padding:20px 24px;">
+    <div style="font-size:24px;font-weight:800;line-height:1.2;">Get {{courseName}} Announcements on Your Phone</div>
+    <div style="font-size:14px;line-height:1.5;margin-top:8px;color:#dbe5eb;">Install the Canvas Student app and turn on notifications so you do not miss class updates.</div>
+  </div>
+  <div style="padding:20px 24px;color:#111827;">
+    <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.</p>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+      <div style="flex:1 1 260px;min-width:240px;">
+        <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Before class ends today:</div>
+        <ol style="margin:0;padding-left:22px;color:#374151;font-size:14px;line-height:1.7;">
+          <li>Scan the QR code for your phone.</li>
+          <li>Install the Canvas Student app.</li>
+          <li>Log in to Canvas.</li>
+          <li>Allow notifications when your phone asks.</li>
+        </ol>
+        <div style="margin-top:14px;background:#f9fafb;border-left:4px solid #2d3b45;padding:11px 13px;color:#111827;font-size:13px;line-height:1.45;">
+          After installing, check Canvas notification settings and make sure course announcements are enabled.
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;">
+        <div style="width:150px;text-align:center;">
+          <img src="${qrCodeUrl(CANVAS_STUDENT_IOS_URL, 150)}" alt="QR code for Canvas Student on iPhone" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;" />
+          <div style="font-size:13px;font-weight:800;color:#111827;margin-top:8px;">iPhone</div>
+          <a href="${CANVAS_STUDENT_IOS_URL}" style="font-size:12px;color:#0770B8;">Open App Store</a>
+        </div>
+        <div style="width:150px;text-align:center;">
+          <img src="${qrCodeUrl(CANVAS_STUDENT_ANDROID_URL, 150)}" alt="QR code for Canvas Student on Android" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;" />
+          <div style="font-size:13px;font-weight:800;color:#111827;margin-top:8px;">Android</div>
+          <a href="${CANVAS_STUDENT_ANDROID_URL}" style="font-size:12px;color:#0770B8;">Open Google Play</a>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:14px;line-height:1.55;margin:18px 0 0;">Thank you,<br>{{teacherName}}</p>
+  </div>
+</div>`,
+    },
     upcoming: {
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
@@ -409,6 +459,16 @@
     return text;
   }
 
+  function isHtmlMessage(message) {
+    return /<\/?[a-z][\s\S]*>/i.test(String(message || ''));
+  }
+
+  function messagePreviewHtml(message) {
+    return isHtmlMessage(message)
+      ? String(message || '')
+      : escapeHtml(message).replace(/\n/g, '<br>');
+  }
+
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
@@ -486,7 +546,10 @@
   }
 
   async function postAnnouncement(courseId, title, message) {
-    return canvasPost(`/courses/${courseId}/discussion_topics`, { title, message: '<p>' + message.replace(/\n/g, '<br>') + '</p>', is_announcement: true, published: true });
+    const announcementBody = isHtmlMessage(message)
+      ? message
+      : '<p>' + escapeHtml(message).replace(/\n/g, '<br>') + '</p>';
+    return canvasPost(`/courses/${courseId}/discussion_topics`, { title, message: announcementBody, is_announcement: true, published: true });
   }
 
   /* =========================================================
@@ -813,7 +876,7 @@
             </div>
           </div>
           <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(msg.subject)}</div>
-          <div class="ces-msg-body">${escapeHtml(msg.body)}</div>
+          <div class="ces-msg-body">${messagePreviewHtml(msg.body)}</div>
         </div>
       `;
     });
@@ -976,7 +1039,7 @@
         const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing (past 14 days):\n  - Homework 5', upcomingSection: 'Upcoming (next 7 days):\n  - Essay 1' };
         const subject = container.querySelector('#ces-tpl-subject').value;
         const body    = container.querySelector('#ces-tpl-body').value;
-        container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(renderTemplate(body, sampleVars))}</div></div>`;
+        container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="font-size:13px;">${messagePreviewHtml(renderTemplate(body, sampleVars))}</div></div>`;
       });
     }
 
