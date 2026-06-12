@@ -212,12 +212,27 @@
     }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
 
-    #ces-launcher-btn {
+    #ces-launcher-group {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
+      flex-wrap: nowrap;
+    }
+    #ces-launcher-group.ces-launcher-fixed {
+      position: fixed;
+      top: 10px;
+      right: 78px;
+      z-index: 99998;
+      box-shadow: 0 2px 8px rgba(45,59,69,.18);
+      background: #fff;
+      border-radius: 3px;
+    }
+    #ces-launcher-group.ces-launcher-inline { margin-left: auto; margin-right: 10px; flex: 0 0 auto; }
+    .ces-launcher-btn, .ces-ai-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 36px;
-      padding: 0 12px;
       border: 1px solid #c7cdd1;
       border-radius: 3px;
       background: #fff;
@@ -225,16 +240,10 @@
       font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       cursor: pointer;
     }
-    #ces-launcher-btn:hover { background: #f5f5f5; border-color:#8aa9bf; }
-    #ces-launcher-btn.ces-launcher-fixed {
-      position: fixed;
-      top: 10px;
-      right: 78px;
-      z-index: 99998;
-      box-shadow: 0 2px 8px rgba(45,59,69,.18);
-    }
-    #ces-launcher-btn.ces-launcher-inline { margin-left: auto; margin-right: 10px; flex: 0 0 auto; }
-    #ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
+    .ces-launcher-btn { gap: 7px; padding: 0 12px; }
+    .ces-ai-btn { min-width: 42px; padding: 0 8px; font-size: 12px; }
+    .ces-launcher-btn:hover, .ces-ai-btn:hover { background: #f5f5f5; border-color:#8aa9bf; }
+    .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
@@ -1268,40 +1277,62 @@ Thank you,
   }
 
   function placeCanvasLauncher() {
-    const btn = document.getElementById('ces-launcher-btn');
+    const group = document.getElementById('ces-launcher-group');
     if (isSpeedGraderPage()) {
-      if (btn) btn.remove();
+      if (group) group.remove();
       return;
     }
-    if (!btn) return;
+    if (!group) return;
     const host = findCanvasLauncherHost();
     if (host) {
-      if (btn.parentElement !== host) host.appendChild(btn);
-      btn.classList.remove('ces-launcher-fixed');
-      btn.classList.add('ces-launcher-inline');
+      if (group.parentElement !== host) host.appendChild(group);
+      group.classList.remove('ces-launcher-fixed');
+      group.classList.add('ces-launcher-inline');
       if (getComputedStyle(host).display === 'block') {
         host.style.display = 'flex';
         host.style.alignItems = 'center';
       }
       return;
     }
-    document.body.appendChild(btn);
-    btn.classList.remove('ces-launcher-inline');
-    btn.classList.add('ces-launcher-fixed');
+    document.body.appendChild(group);
+    group.classList.remove('ces-launcher-inline');
+    group.classList.add('ces-launcher-fixed');
   }
 
   function addCanvasLauncher() {
-    if (document.getElementById('ces-launcher-btn')) {
+    if (document.getElementById('ces-launcher-group')) {
       placeCanvasLauncher();
       return;
     }
-    const btn = document.createElement('button');
-    btn.id = 'ces-launcher-btn';
-    btn.type = 'button';
-    btn.title = 'Canvas Message System';
-    btn.innerHTML = '<span class="ces-nav-icon">&#9993;</span><span>Messages</span>';
-    btn.addEventListener('click', openEmailSystem);
-    document.body.appendChild(btn);
+    const group = document.createElement('div');
+    group.id = 'ces-launcher-group';
+
+    const messageBtn = document.createElement('button');
+    messageBtn.className = 'ces-launcher-btn';
+    messageBtn.type = 'button';
+    messageBtn.title = 'Canvas Message System';
+    messageBtn.innerHTML = '<span class="ces-nav-icon">&#9993;</span><span>Messages</span>';
+    messageBtn.addEventListener('click', openEmailSystem);
+    group.appendChild(messageBtn);
+
+    [
+      ['ChatGPT', 'GPT', 'https://chatgpt.com/'],
+      ['Claude', 'Claude', 'https://claude.ai/'],
+      ['Gemini', 'Gemini', 'https://gemini.google.com/'],
+      ['Copilot', 'Copilot', 'https://copilot.microsoft.com/'],
+      ['Perplexity', 'Perplexity', 'https://www.perplexity.ai/'],
+      ['Grok', 'Grok', 'https://grok.com/'],
+    ].forEach(([name, label, url]) => {
+      const aiBtn = document.createElement('button');
+      aiBtn.className = 'ces-ai-btn';
+      aiBtn.type = 'button';
+      aiBtn.title = `Open ${name}`;
+      aiBtn.textContent = label;
+      aiBtn.addEventListener('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
+      group.appendChild(aiBtn);
+    });
+
+    document.body.appendChild(group);
     placeCanvasLauncher();
   }
   addCanvasLauncher();
