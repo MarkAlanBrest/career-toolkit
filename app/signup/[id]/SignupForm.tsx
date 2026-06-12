@@ -100,58 +100,55 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
     <div style={S.page}>
       <div style={S.card}>
         <div style={S.copy}>
-          <div style={S.eyebrow}>Don't Miss a Thing</div>
           <h1 style={S.title}>Sign Up for Text Alerts</h1>
           <p style={S.description}>
-            Enter your name and phone number to get reminders, deadline notices, and class updates sent straight to your phone.
+            Enter your name and phone number to get reminders, deadline notices, and class updates.
           </p>
-          <div style={S.quick}>Takes 10 seconds</div>
-          <ul style={S.list}>
-            <li style={S.listItem}>Assignment reminders</li>
-            <li style={S.listItem}>Class cancellations</li>
-            <li style={S.listItem}>Important deadlines</li>
-          </ul>
         </div>
 
         <form onSubmit={submit} noValidate style={S.form}>
-          <input
-            type="text"
-            aria-label="Student name"
-            placeholder="Your name"
-            value={studentName}
-            onChange={e => setStudentName(e.target.value)}
-            required
-            style={S.nameInput}
-          />
-
-          <input
-            type="tel"
-            aria-label="Cell phone number"
-            placeholder="(555) 867-5309"
-            value={phone}
-            onChange={e => setPhone(fmtPhone(e.target.value))}
-            required
-            style={S.input}
-          />
-
-          <label style={S.checkLabel}>
+          <div style={S.fieldRow}>
             <input
-              type="checkbox"
-              aria-label="I agree to receive text messages"
-              checked={optIn}
-              onChange={e => setOptIn(e.target.checked)}
-              style={S.checkbox}
+              type="text"
+              aria-label="Student name"
+              placeholder="Your name"
+              value={studentName}
+              onChange={e => setStudentName(e.target.value)}
+              required
+              style={S.nameInput}
             />
-            <span style={S.checkText}>I agree to receive text messages</span>
-          </label>
 
-          <button
-            type="submit"
-            disabled={step === 'submitting'}
-            style={step === 'submitting' ? { ...S.btn, opacity: 0.65, cursor: 'not-allowed' } : S.btn}
-          >
-            {step === 'submitting' ? 'Signing up...' : 'Sign Up'}
-          </button>
+            <input
+              type="tel"
+              aria-label="Cell phone number"
+              placeholder="(555) 867-5309"
+              value={phone}
+              onChange={e => setPhone(fmtPhone(e.target.value))}
+              required
+              style={S.input}
+            />
+          </div>
+
+          <div style={S.actionRow}>
+            <label style={S.checkLabel}>
+              <input
+                type="checkbox"
+                aria-label="I agree to receive text messages"
+                checked={optIn}
+                onChange={e => setOptIn(e.target.checked)}
+                style={S.checkbox}
+              />
+              <span style={S.checkText}>I agree to receive text messages</span>
+            </label>
+
+            <button
+              type="submit"
+              disabled={step === 'submitting'}
+              style={step === 'submitting' ? { ...S.btn, opacity: 0.65, cursor: 'not-allowed' } : S.btn}
+            >
+              {step === 'submitting' ? 'Signing up...' : 'Sign Up'}
+            </button>
+          </div>
         </form>
         {errorMsg && <div style={S.error}>{errorMsg}</div>}
       </div>
@@ -175,7 +172,7 @@ const S: Record<string, React.CSSProperties> = {
     maxWidth: 720,
     margin: '0 auto',
     background: '#fff',
-    border: '1px solid #d9dee3',
+    border: '2px solid #111',
     borderRadius: 8,
     padding: 24,
     boxShadow: 'none',
@@ -184,17 +181,6 @@ const S: Record<string, React.CSSProperties> = {
   copy: {
     color: '#111827',
     marginBottom: 16,
-  },
-  eyebrow: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '4px 9px',
-    borderRadius: 999,
-    background: '#eef2f5',
-    color: '#374151',
-    fontSize: 12,
-    fontWeight: 800,
-    marginBottom: 10,
   },
   title: {
     margin: 0,
@@ -209,36 +195,29 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 14,
     lineHeight: 1.45,
   },
-  quick: {
-    color: '#374151',
-    fontSize: 13,
-    fontWeight: 800,
-    marginBottom: 8,
-  },
-  list: {
-    margin: 0,
-    padding: 0,
-    listStyle: 'none',
-    display: 'grid',
-    gap: 5,
-  },
-  listItem: {
-    color: '#374151',
-    fontSize: 13,
-    fontWeight: 650,
-  },
   form: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'stretch',
-    gap: 8,
+    gap: 10,
+  },
+  fieldRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) 170px',
+    gap: 10,
+  },
+  actionRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) 130px',
+    alignItems: 'center',
+    gap: 10,
   },
   checkLabel: {
     display: 'flex',
     alignItems: 'center',
     gap: 6,
     cursor: 'pointer',
-    alignSelf: 'flex-start',
+    minWidth: 0,
   },
   checkbox: {
     width: 20,
@@ -252,7 +231,7 @@ const S: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     lineHeight: 1.2,
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
   },
   input: {
     width: '100%',
