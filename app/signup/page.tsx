@@ -106,15 +106,19 @@ function SignupWidget() {
             <span style={S.checkText}>I agree to receive text messages</span>
           </label>
 
-          <input
-            type="text"
-            aria-label="Student name"
-            placeholder="Your name"
-            value={studentName}
-            onChange={e => setStudentName(e.target.value)}
-            required
-            style={S.nameInput}
-          />
+          {studentName.trim() ? (
+            <input type="hidden" value={studentName} />
+          ) : (
+            <input
+              type="text"
+              aria-label="Student name"
+              placeholder="Your name"
+              value={studentName}
+              onChange={e => setStudentName(e.target.value)}
+              required
+              style={S.nameInput}
+            />
+          )}
 
           <input
             type="tel"
