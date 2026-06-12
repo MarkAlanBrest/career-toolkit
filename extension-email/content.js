@@ -259,6 +259,24 @@
       name: 'Canvas Student App Setup',
       description: 'Help students install the Canvas app and turn on notifications',
       subject: 'Set Up Canvas Notifications for {{courseName}}',
+      inboxBody: `Hi {{studentName}},
+
+Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.
+
+Before class ends today:
+1. Install the Canvas Student app.
+2. Log in to Canvas.
+3. Allow notifications when your phone asks.
+4. Check Canvas notification settings and make sure course announcements are enabled.
+
+iPhone App Store:
+${CANVAS_STUDENT_IOS_URL}
+
+Android Google Play:
+${CANVAS_STUDENT_ANDROID_URL}
+
+Thank you,
+{{teacherName}}`,
       body: `<div style="font-family:Arial,Helvetica,sans-serif;border:1px solid #d1d5db;border-radius:8px;background:#ffffff;overflow:hidden;max-width:760px;">
   <div style="background:#2d3b45;color:#ffffff;padding:20px 24px;">
     <div style="font-size:24px;font-weight:800;line-height:1.2;">Get {{courseName}} Announcements on Your Phone</div>
@@ -502,6 +520,17 @@
     return isHtmlMessage(message) ? htmlToCanvasInboxText(message) : message;
   }
 
+  function buildGeneratedMessage(student, vars, template) {
+    return {
+      studentId: student.id,
+      studentName: vars.studentName,
+      email: student.email || '',
+      subject: renderTemplate(template.subject, vars),
+      body: renderTemplate(template.body, vars),
+      inboxBody: template.inboxBody ? renderTemplate(template.inboxBody, vars) : '',
+    };
+  }
+
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
@@ -519,19 +548,19 @@
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList };
-        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+        messages.push(buildGeneratedMessage(student, vars, template));
       }
     } else if (emailType === 'missing') {
       for (const student of students) {
         const missing = getMissingAssignments(await getSubmissions(courseId, student.id), daysBack);
         if (!missing.length) continue;
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missing.map(s => s.assignment || s)) };
-        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+        messages.push(buildGeneratedMessage(student, vars, template));
       }
     } else if (emailType === 'welcome') {
       for (const student of students) {
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName };
-        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+        messages.push(buildGeneratedMessage(student, vars, template));
       }
     } else if (emailType === 'evaluation') {
       const enrollments = await getEnrollments(courseId);
@@ -545,7 +574,7 @@
         const missingSection = missing.length > 0 ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missing.map(s => s.assignment || s))}` : 'You have no missing assignments. Great work!';
         const upcomingSection = upcoming.length > 0 ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : 'No upcoming assignments in the next ' + daysForward + ' days.';
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection };
-        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+        messages.push(buildGeneratedMessage(student, vars, template));
       }
     } else {
       const allAssignments = await getAssignments(courseId);
@@ -565,7 +594,7 @@
           missingSection: '',
           upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${assignmentList}` : '',
         };
-        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+        messages.push(buildGeneratedMessage(student, vars, template));
       }
     }
     return messages;
@@ -939,7 +968,7 @@
           const msg = generatedMessages[i];
           const row = container.querySelector(`#ces-msg-${i}`);
           try {
-            await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
+            await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
             sent++; if (row) row.style.background = '#ecfdf5';
           } catch(err) {
             failed++; if (row) row.style.background = '#fef2f2';
@@ -978,7 +1007,7 @@
         const msg = generatedMessages[idx];
         btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
         try {
-          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
+          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
           btn.innerHTML = '&#10003; Sent'; btn.classList.remove('ces-btn-primary'); btn.style.background = '#059669';
           const row = document.querySelector(`#ces-msg-${idx}`); if (row) row.style.background = '#ecfdf5';
         } catch(err) {
@@ -993,7 +1022,7 @@
         const idx = parseInt(btn.dataset.idx);
         const msg = generatedMessages[idx];
         window.open(`${CANVAS_BASE}/conversations#filter=type=inbox&user_name=${encodeURIComponent(msg.studentName)}&user_id=${msg.studentId}`, '_blank');
-        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: canvasInboxBody(msg.body), courseId }));
+        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.inboxBody || canvasInboxBody(msg.body), courseId }));
         showStatus(`Compose window opened for ${msg.studentName}. Click "Insert Message" on the compose page.`, 'info');
       });
     });
