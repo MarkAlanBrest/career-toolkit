@@ -6,7 +6,7 @@
   window.__cesLoaded = true;
 
   // Storage shim — pre-load all keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
   const hasChromeStorage = !!(globalThis.chrome && chrome.storage && chrome.storage.local);
   const _store = hasChromeStorage
     ? await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve))
@@ -242,6 +242,7 @@
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
     TEACHER_NAME: 'ces_teacher_name',
+    API_TOKEN:    'ces_canvas_api_token',
     DAYS_FORWARD: 'ces_days_forward',
     DAYS_BACK:    'ces_days_back',
     LAST_COURSE:  'ces_last_course',
@@ -358,11 +359,16 @@ Thank you,
   /* =========================================================
      CANVAS API HELPERS
   ========================================================= */
+  function canvasHeaders(extra = {}) {
+    const token = String(GM_getValue(STORAGE_KEYS.API_TOKEN, '') || '').trim();
+    return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
+  }
+
   async function canvasGet(endpoint) {
     let results = [];
     let url = API + endpoint + (endpoint.includes('?') ? '&' : '?') + 'per_page=100';
     while (url) {
-      const resp = await fetch(url, { credentials: 'same-origin' });
+      const resp = await fetch(url, { credentials: 'same-origin', headers: canvasHeaders() });
       if (!resp.ok) throw new Error(`Canvas API error: ${resp.status} ${resp.statusText}`);
       const data = await resp.json();
       results = results.concat(data);
@@ -402,11 +408,11 @@ Thank you,
     const resp = await fetch(API + endpoint, {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {
+      headers: canvasHeaders({
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-CSRF-Token': csrfToken,
         'X-Requested-With': 'XMLHttpRequest',
-      },
+      }),
       body: formData.toString(),
     });
     const responseText = await resp.text();
@@ -422,7 +428,7 @@ Thank you,
     return courses.filter(c => !c.workflow_state || c.workflow_state === 'available');
   }
   async function getCourse(courseId) {
-    const resp = await fetch(`${API}/courses/${courseId}?include[]=term`, { credentials: 'same-origin' });
+    const resp = await fetch(`${API}/courses/${courseId}?include[]=term`, { credentials: 'same-origin', headers: canvasHeaders() });
     if (!resp.ok) throw new Error(`Canvas API error: ${resp.status} ${resp.statusText}`);
     return resp.json();
   }
@@ -1205,6 +1211,7 @@ Thank you,
   ========================================================= */
   function renderSettingsTab(container) {
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+    const apiToken = GM_getValue(STORAGE_KEYS.API_TOKEN, '');
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
 
@@ -1217,6 +1224,12 @@ Thank you,
         <p style="font-size:12px;color:#6b7280;margin-top:4px;">Used in all message templates as {{teacherName}}.</p>
       </div>
       <div class="ces-card">
+        <h3 style="margin:0 0 12px;">Canvas API</h3>
+        <label class="ces-label">Canvas API Token</label>
+        <input type="password" class="ces-input" id="ces-set-api-token" value="${escapeAttr(apiToken)}" placeholder="Paste Canvas access token">
+        <p style="font-size:12px;color:#6b7280;margin-top:4px;">Optional. Used for Canvas course, student, message, and announcement requests.</p>
+      </div>
+      <div class="ces-card">
         <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
         <div class="ces-grid-2">
           <div><label class="ces-label">Days Forward (Upcoming)</label><input type="number" class="ces-input" id="ces-set-forward" value="${daysForward}" min="1" max="90"></div>
@@ -1226,7 +1239,7 @@ Thank you,
       <div class="ces-card" style="background:#f9fafb;">
         <h3 style="margin:0 0 8px;">How It Works</h3>
         <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
-          <li>Uses your existing Canvas login — no API token needed.</li>
+          <li>Uses your Canvas login, or the Canvas API token above when provided.</li>
           <li>Messages sent through Canvas's built-in Inbox system.</li>
           <li>Announcements posted directly to the selected course.</li>
           <li>All templates and settings saved in browser storage.</li>
@@ -1237,6 +1250,7 @@ Thank you,
 
     container.querySelector('#ces-save-settings').addEventListener('click', () => {
       GM_setValue(STORAGE_KEYS.TEACHER_NAME, container.querySelector('#ces-set-teacher').value.trim());
+      GM_setValue(STORAGE_KEYS.API_TOKEN, container.querySelector('#ces-set-api-token').value.trim());
       GM_setValue(STORAGE_KEYS.DAYS_FORWARD, parseInt(container.querySelector('#ces-set-forward').value) || 7);
       GM_setValue(STORAGE_KEYS.DAYS_BACK,    parseInt(container.querySelector('#ces-set-back').value) || 14);
       const statusArea = document.getElementById('ces-settings-status');
