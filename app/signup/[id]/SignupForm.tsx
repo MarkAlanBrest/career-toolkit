@@ -56,6 +56,7 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
     e.preventDefault();
     setErrorMsg('');
     if (!optIn) { setErrorMsg('Please check the opt-in box to continue.'); return; }
+    if (!studentName.trim()) { setErrorMsg('Enter your name.'); return; }
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 10) { setErrorMsg('Enter a valid 10-digit US cell number.'); return; }
     setStep('submitting');
@@ -107,6 +108,16 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
             />
             <span style={S.checkText}>I agree to receive text messages</span>
           </label>
+
+          <input
+            type="text"
+            aria-label="Student name"
+            placeholder="Your name"
+            value={studentName}
+            onChange={e => setStudentName(e.target.value)}
+            required
+            style={S.nameInput}
+          />
 
           <input
             type="tel"
@@ -178,6 +189,20 @@ const S: Record<string, React.CSSProperties> = {
   input: {
     flex: '0 0 155px',
     width: 155,
+    padding: '9px 11px',
+    fontSize: 15,
+    fontWeight: 600,
+    border: '1px solid #c7cdd1',
+    borderRadius: 6,
+    background: '#fff',
+    color: '#111827',
+    outline: 'none',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+  },
+  nameInput: {
+    flex: '0 0 170px',
+    width: 170,
     padding: '9px 11px',
     fontSize: 15,
     fontWeight: 600,
