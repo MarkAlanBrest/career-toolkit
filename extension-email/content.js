@@ -6,7 +6,7 @@
   window.__cesLoaded = true;
 
   // Storage shim — pre-load all keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
   const hasChromeStorage = !!(globalThis.chrome && chrome.storage && chrome.storage.local);
   const _store = hasChromeStorage
     ? await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve))
@@ -270,6 +270,7 @@
 
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
+    TEMPLATE_VERSION: 'ces_templates_version',
     TEACHER_NAME: 'ces_teacher_name',
     API_TOKEN:    'ces_canvas_api_token',
     DAYS_FORWARD: 'ces_days_forward',
@@ -362,25 +363,93 @@ Thank you,
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
       subject: 'Upcoming Assignments - {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is a reminder from {{teacherName}} about upcoming assignments in {{courseName}} within the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease make sure to complete and submit these assignments before their due dates.\n\nBest regards,\n{{teacherName}}`,
+      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
+  <div style="border-left:6px solid #0770B8;padding:4px 0 4px 16px;margin-bottom:16px;">
+    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Upcoming Assignments</div>
+    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}} - Next {{daysForward}} days</div>
+  </div>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Here are the upcoming assignments I want you to keep on your radar.</p>
+  <div style="border:1px solid #c7d7e4;border-radius:6px;background:#f8fbfd;padding:14px 16px;margin:0 0 16px;">
+    {{assignmentListHtml}}
+  </div>
+  <div style="border-left:4px solid #f59e0b;background:#fffbeb;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
+    Please submit work before the due date, and reach out early if you are stuck.
+  </div>
+  <p style="font-size:14px;line-height:1.55;margin:0;">Thank you,<br>{{teacherName}}</p>
+</div>`,
     },
     missing: {
       name: 'Missing Work Reminder',
       description: 'Alert students about unsubmitted work',
       subject: 'Missing Assignments - {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is {{teacherName}} reaching out about some missing work in {{courseName}}.\n\nAccording to my records, the following assignments from the past {{daysBack}} days have not been submitted:\n\n{{missingAssignmentList}}\n\nI encourage you to complete and submit these assignments as soon as possible. Late submissions are still better than missing work. Please reach out if you need any assistance.\n\nSincerely,\n{{teacherName}}`,
+      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
+  <div style="border-left:6px solid #b91c1c;padding:4px 0 4px 16px;margin-bottom:16px;">
+    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Missing Work Reminder</div>
+    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}} - Past {{daysBack}} days</div>
+  </div>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">I am checking in because these assignments still appear as missing.</p>
+  <div style="border:1px solid #fecaca;border-radius:6px;background:#fef2f2;padding:14px 16px;margin:0 0 16px;">
+    {{missingAssignmentListHtml}}
+  </div>
+  <div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
+    Late work is still better than missing work. Please submit what you can and message me if you need help.
+  </div>
+  <p style="font-size:14px;line-height:1.55;margin:0;">Sincerely,<br>{{teacherName}}</p>
+</div>`,
     },
     welcome: {
       name: 'Welcome to Class',
       description: 'Send a warm welcome message',
       subject: 'Welcome to {{courseName}}!',
-      body: `Dear {{studentName}},\n\nWelcome to {{courseName}}! I'm {{teacherName}}, and I'm excited to have you in class this term.\n\nHere are a few things to get started:\n- Check Canvas regularly for announcements and assignment updates\n- Review the course syllabus and schedule\n- Reach out early if you need help or accommodations\n\nI look forward to a great semester together!\n\nWarm regards,\n{{teacherName}}`,
+      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
+  <div style="background:#2d3b45;color:#ffffff;padding:18px 20px;border-radius:6px 6px 0 0;">
+    <div style="font-size:24px;font-weight:800;line-height:1.2;">Welcome to {{courseName}}</div>
+    <div style="font-size:14px;line-height:1.45;margin-top:6px;color:#dbe5eb;">A quick start note from {{teacherName}}</div>
+  </div>
+  <div style="border:1px solid #d1d5db;border-top:none;border-radius:0 0 6px 6px;padding:18px 20px;">
+    <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+    <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Welcome to {{courseName}}. I am excited to have you in class this term.</p>
+    <div style="font-size:16px;font-weight:800;margin:0 0 10px;">To get started:</div>
+    <ul style="margin:0 0 16px;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;">
+      <li>Check Canvas regularly for announcements and assignment updates.</li>
+      <li>Review the course syllabus and schedule.</li>
+      <li>Reach out early if you need help or accommodations.</li>
+    </ul>
+    <div style="height:1px;background:#d1d5db;margin:16px 0;"></div>
+    <p style="font-size:14px;line-height:1.55;margin:0;">I look forward to a great semester together.<br><br>Warm regards,<br>{{teacherName}}</p>
+  </div>
+</div>`,
     },
     evaluation: {
       name: 'Student Evaluation',
       description: 'Share grade status and progress',
       subject: 'Your Progress in {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is {{teacherName}} with an update on your progress in {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nPlease don't hesitate to reach out if you have questions about your progress or need additional support.\n\nBest regards,\n{{teacherName}}`,
+      body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
+  <div style="border-left:6px solid #047857;padding:4px 0 4px 16px;margin-bottom:16px;">
+    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">Your Progress Update</div>
+    <div style="font-size:14px;color:#4b5563;margin-top:4px;">{{courseName}}</div>
+  </div>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Here is a quick update on your current progress.</p>
+  <div style="display:block;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:6px;padding:14px 16px;margin:0 0 16px;">
+    <div style="font-size:12px;text-transform:uppercase;color:#047857;font-weight:800;letter-spacing:.04em;">Current Grade</div>
+    <div style="font-size:24px;font-weight:800;color:#111827;margin-top:3px;">{{currentGrade}} <span style="font-size:15px;color:#4b5563;">({{currentScore}}%)</span></div>
+  </div>
+  <div style="border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;margin:0 0 14px;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Missing Work</div>
+    {{missingSectionHtml}}
+  </div>
+  <div style="border:1px solid #e5e7eb;border-radius:6px;padding:14px 16px;margin:0 0 16px;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Coming Up</div>
+    {{upcomingSectionHtml}}
+  </div>
+  <div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:0 0 16px;font-size:14px;line-height:1.5;color:#111827;">
+    Please reach out if you have questions about your progress or need support.
+  </div>
+  <p style="font-size:14px;line-height:1.55;margin:0;">Best regards,<br>{{teacherName}}</p>
+</div>`,
     },
   };
   const DEFAULT_TEMPLATE_KEYS = new Set(Object.keys(DEFAULT_TEMPLATES));
@@ -504,6 +573,15 @@ Thank you,
     }).join('\n');
   }
 
+  function formatAssignmentListHtml(assignments, emptyText = 'No assignments to show.') {
+    if (!assignments.length) return `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.5;">${escapeHtml(emptyText)}</p>`;
+    return `<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;">${assignments.map(a => {
+      const due = a.due_at ? new Date(a.due_at).toLocaleDateString() : 'No due date';
+      const name = a.name || a.assignment?.name || 'Unnamed';
+      return `<li><strong>${escapeHtml(name)}</strong> <span style="color:#6b7280;">Due: ${escapeHtml(due)}</span></li>`;
+    }).join('')}</ul>`;
+  }
+
   /* =========================================================
      TEMPLATE ENGINE
   ========================================================= */
@@ -511,8 +589,22 @@ Thank you,
     const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
     const stored = GM_getValue(STORAGE_KEYS.TEMPLATES, null);
     if (stored) {
-      try { return { ...defaults, ...JSON.parse(stored) }; } catch(e) {}
+      try {
+        const parsed = JSON.parse(stored);
+        if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== '2') {
+          const customTemplates = {};
+          for (const [key, value] of Object.entries(parsed)) {
+            if (!DEFAULT_TEMPLATE_KEYS.has(key)) customTemplates[key] = value;
+          }
+          const upgraded = { ...defaults, ...customTemplates };
+          saveTemplates(upgraded);
+          GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
+          return upgraded;
+        }
+        return { ...defaults, ...parsed };
+      } catch(e) {}
     }
+    GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
     return defaults;
   }
 
@@ -599,14 +691,15 @@ Thank you,
       const upcoming = getUpcomingAssignments(await getAssignments(courseId), daysForward);
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList, assignmentListHtml: formatAssignmentListHtml(upcoming, 'No upcoming assignments in this date range.') };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else if (emailType === 'missing') {
       for (const student of students) {
         const missing = getMissingAssignments(await getSubmissions(courseId, student.id), daysBack);
         if (!missing.length) continue;
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missing.map(s => s.assignment || s)) };
+        const missingAssignments = missing.map(s => s.assignment || s);
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missingAssignments), missingAssignmentListHtml: formatAssignmentListHtml(missingAssignments, 'No missing assignments found.') };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else if (emailType === 'welcome') {
@@ -623,9 +716,12 @@ Thank you,
         const grade = enrollment?.grades?.current_grade || 'N/A';
         const score = enrollment?.grades?.current_score || 'N/A';
         const missing = getMissingAssignments(await getSubmissions(courseId, student.id), daysBack);
-        const missingSection = missing.length > 0 ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missing.map(s => s.assignment || s))}` : 'You have no missing assignments. Great work!';
+        const missingAssignments = missing.map(s => s.assignment || s);
+        const missingSection = missing.length > 0 ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missingAssignments)}` : 'You have no missing assignments. Great work!';
         const upcomingSection = upcoming.length > 0 ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : 'No upcoming assignments in the next ' + daysForward + ' days.';
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection };
+        const missingSectionHtml = missing.length > 0 ? formatAssignmentListHtml(missingAssignments) : '<p style="margin:0;color:#047857;font-size:14px;line-height:1.5;">You have no missing assignments. Great work.</p>';
+        const upcomingSectionHtml = upcoming.length > 0 ? formatAssignmentListHtml(upcoming) : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.5;">No upcoming assignments in the next ${daysForward} days.</p>`;
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection, missingSectionHtml, upcomingSectionHtml };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else {
@@ -640,11 +736,15 @@ Thank you,
           daysForward: String(daysForward),
           daysBack: String(daysBack),
           assignmentList,
+          assignmentListHtml: formatAssignmentListHtml(upcoming),
           missingAssignmentList: '',
+          missingAssignmentListHtml: '',
           currentGrade: '',
           currentScore: '',
           missingSection: '',
+          missingSectionHtml: '',
           upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${assignmentList}` : '',
+          upcomingSectionHtml: upcoming.length ? formatAssignmentListHtml(upcoming) : '',
         };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
@@ -1101,7 +1201,16 @@ Thank you,
           name: 'Custom Message',
           description: 'Teacher-created message',
           subject: '{{courseName}} Update',
-          body: `Dear {{studentName}},\n\nWrite your custom message here.\n\nBest regards,\n{{teacherName}}`,
+          body: `<div style="font-family:Arial,Helvetica,sans-serif;max-width:720px;color:#111827;background:#ffffff;">
+  <div style="border-left:6px solid #0770B8;padding:4px 0 4px 16px;margin-bottom:16px;">
+    <div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;">{{courseName}} Update</div>
+    <div style="font-size:14px;color:#4b5563;margin-top:4px;">A message from {{teacherName}}</div>
+  </div>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
+  <p style="font-size:15px;line-height:1.55;margin:0 0 16px;">Write your message here.</p>
+  <div style="height:1px;background:#d1d5db;margin:16px 0;"></div>
+  <p style="font-size:14px;line-height:1.55;margin:0;">Thank you,<br>{{teacherName}}</p>
+</div>`,
         };
         renderEditor(id);
       });
@@ -1118,7 +1227,7 @@ Thank you,
       container.querySelector('#ces-reset-tpl').addEventListener('click', () => {
         if (confirm('Reset all templates to defaults? Your custom templates will be lost.')) {
           const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
-          saveTemplates(defaults); Object.assign(templates, defaults); renderList();
+          saveTemplates(defaults); GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2'); Object.assign(templates, defaults); renderList();
         }
       });
     }
@@ -1134,8 +1243,19 @@ Thank you,
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <label class="ces-label">Email Body</label>
+        <div id="ces-format-toolbar" style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;">
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="heading">Heading</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="divider">Line</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="callout">Callout</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="button">Button</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="image">Image</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="qr">QR</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="checklist">Checklist</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="date">Due Date</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" data-snippet="signature">Signature</button>
+        </div>
         <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:200px;">${escapeHtml(tpl.body)}</textarea>
-        <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{missingAssignmentList}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{upcomingSection}}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{assignmentListHtml}} {{missingAssignmentList}} {{missingAssignmentListHtml}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{missingSectionHtml}} {{upcomingSection}} {{upcomingSectionHtml}} {{canvasAppUrl}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
           <button class="ces-btn ces-btn-secondary" id="ces-tpl-preview">Preview</button>
@@ -1143,6 +1263,9 @@ Thank you,
         <div id="ces-tpl-preview-area" class="ces-mt"></div>
       `;
       container.querySelector('#ces-tpl-cancel').addEventListener('click', renderList);
+      container.querySelectorAll('#ces-format-toolbar [data-snippet]').forEach(btn => {
+        btn.addEventListener('click', () => insertTemplateSnippet(container.querySelector('#ces-tpl-body'), btn.dataset.snippet));
+      });
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
         templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
         templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
@@ -1152,11 +1275,38 @@ Thank you,
       });
       container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
         const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, 'Professor Smith');
-        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing (past 14 days):\n  - Homework 5', upcomingSection: 'Upcoming (next 7 days):\n  - Essay 1' };
+        const sampleListHtml = '<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li><strong>Essay 1</strong> <span style="color:#6b7280;">Due: 4/15/2026</span></li><li><strong>Quiz 3</strong> <span style="color:#6b7280;">Due: 4/18/2026</span></li></ul>';
+        const sampleMissingHtml = '<ul style="margin:0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li><strong>Homework 5</strong> <span style="color:#6b7280;">Due: 4/1/2026</span></li></ul>';
+        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', assignmentListHtml: sampleListHtml, missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', missingAssignmentListHtml: sampleMissingHtml, currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing (past 14 days):\n  - Homework 5', missingSectionHtml: sampleMissingHtml, upcomingSection: 'Upcoming (next 7 days):\n  - Essay 1', upcomingSectionHtml: sampleListHtml, canvasAppUrl: buildCanvasAppPromoUrl('12345', 'Sample Course') };
         const subject = container.querySelector('#ces-tpl-subject').value;
         const body    = container.querySelector('#ces-tpl-body').value;
         container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="font-size:13px;">${messagePreviewHtml(renderTemplate(body, sampleVars))}</div></div>`;
       });
+    }
+
+    function insertTemplateSnippet(textarea, kind) {
+      const snippets = {
+        heading: `<div style="font-size:22px;font-weight:800;line-height:1.2;color:#111827;margin:0 0 12px;">Section Heading</div>`,
+        divider: `<div style="height:1px;background:#d1d5db;margin:16px 0;"></div>`,
+        callout: `<div style="border-left:4px solid #0770B8;background:#eef7fc;padding:10px 12px;margin:12px 0;font-size:14px;line-height:1.5;color:#111827;">Important note goes here.</div>`,
+        button: `<p style="margin:14px 0;"><a href="https://example.com" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 14px;border-radius:6px;">Open Link</a></p>`,
+        image: `<p style="margin:14px 0;"><img src="https://example.com/image.jpg" alt="Image description" style="max-width:100%;height:auto;border:1px solid #e5e7eb;border-radius:6px;"></p>`,
+        qr: `<div style="display:inline-block;text-align:center;margin:14px 0;"><img src="${qrCodeUrl('https://example.com', 150)}" alt="QR code" style="width:150px;height:150px;border:1px solid #e5e7eb;border-radius:6px;"><div style="font-size:12px;color:#4b5563;margin-top:6px;">Scan QR code</div></div>`,
+        checklist: `<ul style="margin:12px 0;padding-left:20px;color:#111827;font-size:14px;line-height:1.7;"><li>First step</li><li>Second step</li><li>Third step</li></ul>`,
+        date: `<div style="border:1px solid #c7d7e4;border-radius:6px;background:#f8fbfd;padding:12px 14px;margin:12px 0;"><div style="font-size:12px;text-transform:uppercase;color:#0770B8;font-weight:800;letter-spacing:.04em;">Due Date</div><div style="font-size:16px;font-weight:800;color:#111827;margin-top:4px;">Assignment Name</div><div style="font-size:13px;color:#4b5563;margin-top:2px;">Due by 11:59 PM</div></div>`,
+        signature: `<p style="font-size:14px;line-height:1.55;margin:16px 0 0;">Thank you,<br>{{teacherName}}</p>`,
+      };
+      const snippet = snippets[kind] || '';
+      const start = textarea.selectionStart || 0;
+      const end = textarea.selectionEnd || 0;
+      const before = textarea.value.slice(0, start);
+      const after = textarea.value.slice(end);
+      const prefix = before && !before.endsWith('\n') ? '\n\n' : '';
+      const suffix = after && !after.startsWith('\n') ? '\n\n' : '';
+      textarea.value = before + prefix + snippet + suffix + after;
+      const cursor = (before + prefix + snippet).length;
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
     }
 
     renderList();

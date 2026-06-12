@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Canvas Reports Pro",
+  "version": "0.1.0",
+  "description": "Professional printable reports for Canvas LMS instructors.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://*.instructure.com/*",
+    "https://*.canvas.com/*",
+    "https://*.canvaslms.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://*.canvas.com/*",
+        "https://*.canvaslms.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["assets/content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

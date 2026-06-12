@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#crp-root {
+  font-family: Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #crp-print-area,
+  #crp-print-area * {
+    visibility: visible;
+  }
+
+  #crp-print-area {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    color: #111827;
+  }
+
+  .crp-no-print {
+    display: none !important;
+  }
+}
