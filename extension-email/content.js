@@ -39,20 +39,23 @@
     }
     #ces-overlay.ces-open { display: flex; }
     #ces-panel {
-      width: 96vw; max-width: 900px;
-      height: 92vh; max-height: 800px;
-      background: #fff; border-radius: 12px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.3);
+      width: 96vw; max-width: 980px;
+      height: 90vh; max-height: 820px;
+      background: #fff; border-radius: 4px;
+      border: 1px solid #c7cdd1;
+      box-shadow: 0 12px 32px rgba(45,59,69,.24);
       display: flex; flex-direction: column;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
       color: #111827; overflow: hidden;
     }
     #ces-header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 20px; background: #059669; color: #fff; flex-shrink: 0;
+      padding: 12px 18px; background: #fff; color: #2d3b45; flex-shrink: 0;
+      border-top: 4px solid #2d3b45;
+      border-bottom: 1px solid #c7cdd1;
       gap: 12px;
     }
-    #ces-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+    #ces-header h2 { margin: 0; font-size: 18px; font-weight: 700; color:#2d3b45; }
     #ces-course-control {
       margin-left: auto;
       display: flex;
@@ -64,16 +67,16 @@
     #ces-course-control label {
       font-size: 12px;
       font-weight: 600;
-      color: rgba(255,255,255,.92);
+      color: #394b58;
       white-space: nowrap;
     }
     #ces-course-select {
       min-width: 0;
       flex: 1;
-      background: rgba(255,255,255,.16);
-      border: 1px solid rgba(255,255,255,.35);
-      border-radius: 6px;
-      color: #fff;
+      background: #fff;
+      border: 1px solid #c7cdd1;
+      border-radius: 3px;
+      color: #2d3b45;
       padding: 6px 28px 6px 9px;
       font-size: 12px;
       font-weight: 600;
@@ -83,24 +86,24 @@
     }
     #ces-course-select option { color: #111827; background: #fff; }
     .ces-close-btn {
-      background: rgba(255,255,255,.2); border: none; color: #fff;
-      width: 32px; height: 32px; border-radius: 50%;
+      background: #f5f5f5; border: 1px solid #c7cdd1; color: #2d3b45;
+      width: 32px; height: 32px; border-radius: 3px;
       font-size: 18px; cursor: pointer; display: flex;
       align-items: center; justify-content: center;
     }
-    .ces-close-btn:hover { background: rgba(255,255,255,.35); }
+    .ces-close-btn:hover { background: #e8eaec; }
     #ces-tabs {
-      display: flex; border-bottom: 2px solid #e5e7eb;
-      flex-shrink: 0; background: #f9fafb;
+      display: flex; border-bottom: 1px solid #c7cdd1;
+      flex-shrink: 0; background: #f5f5f5;
     }
     .ces-tab {
       padding: 10px 20px; cursor: pointer; border: none;
       background: none; font-size: 14px; font-weight: 500;
-      color: #6b7280; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; transition: all .15s;
+      color: #394b58; border-bottom: 3px solid transparent;
+      margin-bottom: -1px; transition: all .15s;
     }
-    .ces-tab:hover { color: #059669; }
-    .ces-tab.active { color: #059669; border-bottom-color: #059669; font-weight: 600; }
+    .ces-tab:hover { color: #0374b5; background:#fff; }
+    .ces-tab.active { color: #2d3b45; border-bottom-color: #0374b5; font-weight: 700; background:#fff; }
     #ces-body { flex: 1; overflow-y: auto; padding: 20px; }
     .ces-label {
       display: block; font-size: 13px; font-weight: 600;
@@ -112,8 +115,8 @@
       background: #fff; box-sizing: border-box;
     }
     .ces-select:focus, .ces-input:focus, .ces-textarea:focus {
-      outline: none; border-color: #059669;
-      box-shadow: 0 0 0 2px rgba(5,150,105,.15);
+      outline: none; border-color: #0374b5;
+      box-shadow: 0 0 0 2px rgba(3,116,181,.14);
     }
     .ces-textarea { min-height: 120px; resize: vertical; font-family: inherit; }
     .ces-btn {
@@ -123,8 +126,8 @@
       display: inline-flex; align-items: center; gap: 6px;
     }
     .ces-btn:active { transform: scale(.97); }
-    .ces-btn-primary { background: #059669; color: #fff; }
-    .ces-btn-primary:hover { background: #047857; }
+    .ces-btn-primary { background: #0374b5; color: #fff; }
+    .ces-btn-primary:hover { background: #005a8b; }
     .ces-btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
     .ces-btn-secondary { background: #e5e7eb; color: #374151; }
     .ces-btn-secondary:hover { background: #d1d5db; }
@@ -136,8 +139,8 @@
       padding: 14px; margin-bottom: 10px; background: #fff;
       transition: border-color .15s;
     }
-    .ces-card:hover { border-color: #059669; }
-    .ces-card.selected { border-color: #059669; background: #ecfdf5; }
+    .ces-card:hover { border-color: #8aa9bf; }
+    .ces-card.selected { border-color: #0374b5; background: #eef7fc; }
     .ces-msg-row {
       border: 1px solid #e5e7eb; border-radius: 8px;
       padding: 12px; margin-bottom: 8px; background: #fff;
@@ -158,7 +161,7 @@
       padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
       font-size: 13px; font-weight: 500;
     }
-    .ces-status-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .ces-status-success { background: #eef7fc; color: #0b4f71; border: 1px solid #b7d7eb; }
     .ces-status-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
     .ces-status-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .ces-progress {
@@ -166,7 +169,7 @@
       border-radius: 3px; overflow: hidden; margin: 8px 0;
     }
     .ces-progress-bar {
-      height: 100%; background: #059669; transition: width .3s; border-radius: 3px;
+      height: 100%; background: #0374b5; transition: width .3s; border-radius: 3px;
     }
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .ces-send-grid {
@@ -191,7 +194,7 @@
     .ces-checkbox-row {
       display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #374151;
     }
-    .ces-checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #059669; }
+    .ces-checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0374b5; }
     .ces-spinner {
       display: inline-block; width: 16px; height: 16px;
       border: 2px solid #fff; border-top-color: transparent;
@@ -199,25 +202,29 @@
     }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
 
-    #ces-floating-btn {
-      position: fixed;
-      top: 72px;
-      right: 18px;
-      z-index: 99998;
+    #ces-launcher-btn {
       display: flex;
       align-items: center;
       gap: 7px;
-      padding: 9px 13px;
-      border: none;
-      border-radius: 8px;
-      background: #059669;
-      color: #fff;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid #c7cdd1;
+      border-radius: 3px;
+      background: #fff;
+      color: #2d3b45;
       font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      box-shadow: 0 4px 16px rgba(0,0,0,.22);
       cursor: pointer;
     }
-    #ces-floating-btn:hover { background: #047857; }
-    #ces-floating-btn .ces-nav-icon { font-size: 16px; line-height: 1; }
+    #ces-launcher-btn:hover { background: #f5f5f5; border-color:#8aa9bf; }
+    #ces-launcher-btn.ces-launcher-fixed {
+      position: fixed;
+      top: 10px;
+      right: 78px;
+      z-index: 99998;
+      box-shadow: 0 2px 8px rgba(45,59,69,.18);
+    }
+    #ces-launcher-btn.ces-launcher-inline { margin-left: auto; margin-right: 10px; flex: 0 0 auto; }
+    #ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
@@ -990,7 +997,7 @@ Thank you,
           const row = container.querySelector(`#ces-msg-${i}`);
           try {
             await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
-            sent++; if (row) row.style.background = '#ecfdf5';
+            sent++; if (row) row.style.background = '#eef7fc';
           } catch(err) {
             failed++; if (row) row.style.background = '#fef2f2';
           }
@@ -1031,8 +1038,8 @@ Thank you,
         btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
         try {
           await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
-          btn.innerHTML = '&#10003; Sent'; btn.classList.remove('ces-btn-primary'); btn.style.background = '#059669';
-          const row = document.querySelector(`#ces-msg-${idx}`); if (row) row.style.background = '#ecfdf5';
+          btn.innerHTML = '&#10003; Sent'; btn.classList.remove('ces-btn-primary'); btn.style.background = '#0374b5';
+          const row = document.querySelector(`#ces-msg-${idx}`); if (row) row.style.background = '#eef7fc';
         } catch(err) {
           btn.innerHTML = '&#10007; Failed'; btn.classList.add('ces-btn-danger');
           showStatus('Failed to send to ' + msg.studentName + ': ' + err.message, 'error');
@@ -1199,11 +1206,11 @@ Thank you,
     try { data = JSON.parse(pending); } catch(e) { return; }
 
     const bar = document.createElement('div');
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#059669;color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;font-family:-apple-system,sans-serif;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#2d3b45;color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;font-family:-apple-system,sans-serif;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);';
     bar.innerHTML = `
       <span>&#9993; Message ready for <strong>${escapeHtml(data.recipientName)}</strong>: "${escapeHtml(data.subject)}"</span>
       <div style="display:flex;gap:8px;">
-        <button id="ces-insert-compose" style="padding:6px 14px;background:#fff;color:#059669;border:none;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;">Insert into Compose</button>
+        <button id="ces-insert-compose" style="padding:6px 14px;background:#fff;color:#2d3b45;border:none;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;">Insert into Compose</button>
         <button id="ces-dismiss-compose" style="padding:6px 14px;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Dismiss</button>
       </div>
     `;
@@ -1230,20 +1237,52 @@ Thank you,
   }
 
   /* =========================================================
-     FLOATING BUTTON
-     Keeps Message System out of Canvas navigation and toolbars.
+     CANVAS LAUNCHER
   ========================================================= */
-  function addFloatingButton() {
-    if (document.getElementById('ces-floating-btn')) return;
+  function findCanvasLauncherHost() {
+    return document.querySelector('.ic-app-nav-toggle-and-crumbs')
+      || document.querySelector('#breadcrumbs')?.parentElement
+      || document.querySelector('[data-testid="breadcrumbs"]')?.parentElement
+      || document.querySelector('header[role="banner"]')
+      || document.querySelector('#header');
+  }
+
+  function placeCanvasLauncher() {
+    const btn = document.getElementById('ces-launcher-btn');
+    if (!btn) return;
+    const host = findCanvasLauncherHost();
+    if (host) {
+      if (btn.parentElement !== host) host.appendChild(btn);
+      btn.classList.remove('ces-launcher-fixed');
+      btn.classList.add('ces-launcher-inline');
+      if (getComputedStyle(host).display === 'block') {
+        host.style.display = 'flex';
+        host.style.alignItems = 'center';
+      }
+      return;
+    }
+    document.body.appendChild(btn);
+    btn.classList.remove('ces-launcher-inline');
+    btn.classList.add('ces-launcher-fixed');
+  }
+
+  function addCanvasLauncher() {
+    if (document.getElementById('ces-launcher-btn')) {
+      placeCanvasLauncher();
+      return;
+    }
     const btn = document.createElement('button');
-    btn.id = 'ces-floating-btn';
+    btn.id = 'ces-launcher-btn';
     btn.type = 'button';
     btn.title = 'Canvas Message System';
-    btn.innerHTML = '<span class="ces-nav-icon">✉</span><span>Messages</span>';
+    btn.innerHTML = '<span class="ces-nav-icon">&#9993;</span><span>Messages</span>';
     btn.addEventListener('click', openEmailSystem);
     document.body.appendChild(btn);
+    placeCanvasLauncher();
   }
-  addFloatingButton();
+  addCanvasLauncher();
+  const launcherObserver = new MutationObserver(() => placeCanvasLauncher());
+  launcherObserver.observe(document.body, { childList: true, subtree: true });
 
   /* =========================================================
      POPUP MESSAGE LISTENER
