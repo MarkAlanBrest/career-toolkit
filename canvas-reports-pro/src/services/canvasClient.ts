@@ -51,7 +51,6 @@ export class CanvasClient {
   async getAssignments(courseId: CanvasId): Promise<CanvasAssignment[]> {
     return this.getPaginated(`/courses/${courseId}/assignments`, {
       order_by: 'due_at',
-      bucket: 'all',
       per_page: 100,
     });
   }
