@@ -178,7 +178,7 @@ const S: Record<string, React.CSSProperties> = {
     minHeight: '100vh',
     margin: 0,
     background: '#fff',
-    border: 'none',
+    border: '2px solid #111',
     borderRadius: 0,
     padding: 24,
     boxShadow: 'none',
