@@ -27,10 +27,19 @@ function SignupWidget() {
     const refCourse = document.referrer.match(/\/courses\/(\d+)/)?.[1];
     if (refCourse) setCourseId(prev => prev || refCourse);
 
-    if (window.self !== window.top) {
+    let attempts = 0;
+    const requestContext = () => {
+      if (window.self === window.top) return;
       window.parent.postMessage({ type: 'CE_REQUEST_CONTEXT' }, '*');
-    }
-    return () => window.removeEventListener('message', onMsg);
+      attempts += 1;
+      if (attempts >= 8) window.clearInterval(timer);
+    };
+    requestContext();
+    const timer = window.setInterval(requestContext, 500);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('message', onMsg);
+    };
   }, []);
 
   function fmtPhone(v: string) {

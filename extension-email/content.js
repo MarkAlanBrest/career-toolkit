@@ -393,7 +393,8 @@
      DATA FETCHERS
   ========================================================= */
   async function getCourses() {
-    return canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
+    const courses = await canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
+    return courses.filter(c => !c.workflow_state || c.workflow_state === 'available');
   }
   async function getCourse(courseId) {
     const resp = await fetch(`${API}/courses/${courseId}?include[]=term`, { credentials: 'same-origin' });
@@ -602,6 +603,11 @@
 
   function getActiveTabName() {
     return document.querySelector('#ces-tabs .ces-tab.active')?.dataset.tab || 'send';
+  }
+
+  function getSelectedCourseName() {
+    const opt = document.getElementById('ces-course-select')?.selectedOptions?.[0];
+    return opt ? opt.textContent.replace(/\s+-\s+ID\s+\d+\s*$/, '') : '';
   }
 
   function setCourseBadge(courseId, courseName) {
@@ -843,7 +849,7 @@
     }
   }
 
-  function renderSignupRows(signups, courseId) {
+  function renderSignupRows(signups, courseId, courseName = '') {
     if (!signups.length) {
       return '<div style="font-size:13px;color:#6b7280;">No phone numbers found.</div>';
     }
@@ -853,6 +859,8 @@
       const courseLabel = signupCourse && signupCourse !== '-'
         ? `Course ID ${signupCourse}`
         : 'No Canvas course ID saved';
+      const savedClass = String(s.className || '').trim();
+      if (!savedClass || savedClass === '-') s = { ...s, className: courseName };
       return `
         <div class="ces-msg-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <div>
@@ -891,6 +899,7 @@
     currentList.textContent = courseId ? 'Loading current course numbers...' : 'Open from inside a Canvas course to match subscribers.';
 
     try {
+      const courseName = getSelectedCourseName();
       const [courseSignups, allSignups, students] = await Promise.all([
         courseId ? getTextSignups(courseId) : Promise.resolve([]),
         getTextSignups(''),
@@ -902,7 +911,7 @@
         (normalizeName(s.name) && rosterNames.has(normalizeName(s.name)))
       );
 
-      currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId);
+      currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId, courseName);
 
       bindSignupRemoveButtons(currentList, () => loadTextsTab(courseId));
     } catch (err) {
@@ -946,14 +955,22 @@
     if (!select) return;
     try {
       if (!cachedCourses) cachedCourses = await getCourses();
-      select.innerHTML = '<option value="">-- Select a course --</option>';
+      select.innerHTML = '';
+      if (!cachedCourses.length) {
+        select.innerHTML = '<option value="">No published courses found</option>';
+        currentCourseId = '';
+        return;
+      }
+      const selectedCourse = cachedCourses.find(c => String(c.id) === String(lastCourse)) || cachedCourses[0];
+      currentCourseId = String(selectedCourse.id);
       cachedCourses.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
         opt.textContent = c.name + (c.term ? ` (${c.term.name})` : '') + ` - ID ${c.id}`;
-        if (String(c.id) === String(lastCourse)) opt.selected = true;
+        if (String(c.id) === String(currentCourseId)) opt.selected = true;
         select.appendChild(opt);
       });
+      GM_setValue(STORAGE_KEYS.LAST_COURSE, currentCourseId);
     } catch(err) {
       select.innerHTML = '<option value="">Error loading courses</option>';
       showStatus(err?.message || 'Could not load Canvas courses.', 'error');
