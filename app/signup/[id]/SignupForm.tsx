@@ -162,23 +162,23 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
 const S: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: '#f6f7f8',
+    background: 'transparent',
     fontFamily: "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif",
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     boxSizing: 'border-box',
-    padding: 16,
+    padding: 0,
   },
   card: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 720,
     margin: '0 auto',
     background: '#fff',
     border: '1px solid #d9dee3',
     borderRadius: 8,
-    padding: 22,
-    boxShadow: '0 8px 24px rgba(17,24,39,0.08)',
+    padding: 24,
+    boxShadow: 'none',
     boxSizing: 'border-box',
   },
   copy: {
