@@ -2,7 +2,7 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -147,6 +147,8 @@
     DAYS_FORWARD: 'ces_days_forward',
     DAYS_BACK:    'ces_days_back',
     LAST_COURSE:  'ces_last_course',
+    AUTOMATIONS:  'ces_automations',
+    AUTO_LOGS:    'ces_automation_logs',
   };
 
   const DEFAULT_TEMPLATES = {
@@ -169,6 +171,26 @@
       name: 'Student Evaluation',
       subject: 'Your Progress in {{courseName}}',
       body: `Dear {{studentName}},\n\nThis is {{teacherName}} with an update on your progress in {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nPlease don't hesitate to reach out if you have questions about your progress or need additional support.\n\nBest regards,\n{{teacherName}}`,
+    },
+    auto_late: {
+      name: 'Automation: Late Work',
+      subject: 'Past Due Work in {{courseName}}',
+      body: `Dear {{studentName}},\n\nThis is a reminder that the following work in {{courseName}} is past due:\n\n{{missingAssignmentList}}\n\nPlease submit it as soon as possible. If you are stuck or need help making a plan, please reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}`,
+    },
+    auto_upcoming: {
+      name: 'Automation: Upcoming Work',
+      subject: 'Upcoming Work in {{courseName}}',
+      body: `Dear {{studentName}},\n\nHere is the upcoming work in {{courseName}} for the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions and due dates.\n\nBest regards,\n{{teacherName}}`,
+    },
+    auto_midpoint: {
+      name: 'Automation: Midpoint Evaluation',
+      subject: 'Midpoint Progress Check - {{courseName}}',
+      body: `Dear {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I wanted to share a quick progress check.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThis is a good time to review your standing, catch up on any missing work, and reach out if you need support.\n\nBest regards,\n{{teacherName}}`,
+    },
+    auto_low_grade: {
+      name: 'Automation: Low Grade Warning',
+      subject: 'Grade Check-In for {{courseName}}',
+      body: `Dear {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} is below the selected alert threshold.\n\n{{gradeAlertDetail}}\n\nPlease review your feedback in Canvas and reach out so we can discuss next steps while there is still time to improve.\n\nBest regards,\n{{teacherName}}`,
     },
   };
 
@@ -286,7 +308,7 @@
   function getTemplates() {
     const stored = GM_getValue(STORAGE_KEYS.TEMPLATES, null);
     if (stored) {
-      try { return JSON.parse(stored); } catch(e) {}
+      try { return { ...JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)), ...JSON.parse(stored) }; } catch(e) {}
     }
     return JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
   }
@@ -301,6 +323,79 @@
       text = text.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val || '');
     }
     return text;
+  }
+
+  function getAutomations() {
+    const stored = GM_getValue(STORAGE_KEYS.AUTOMATIONS, '[]');
+    try { return JSON.parse(stored) || []; } catch(e) { return []; }
+  }
+
+  function saveAutomations(automations) {
+    GM_setValue(STORAGE_KEYS.AUTOMATIONS, JSON.stringify(automations));
+  }
+
+  function getAutomationLogs() {
+    const stored = GM_getValue(STORAGE_KEYS.AUTO_LOGS, '[]');
+    try { return JSON.parse(stored) || []; } catch(e) { return []; }
+  }
+
+  function saveAutomationLogs(logs) {
+    GM_setValue(STORAGE_KEYS.AUTO_LOGS, JSON.stringify(logs.slice(-500)));
+  }
+
+  function addAutomationLog(entry) {
+    const logs = getAutomationLogs();
+    logs.push({ id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), ...entry });
+    saveAutomationLogs(logs);
+  }
+
+  function makeAutomationId() {
+    return 'auto_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function todayStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function weekStamp() {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), 0, 1);
+    const dayCount = Math.floor((now - first) / 86400000);
+    return `${now.getFullYear()}-W${Math.ceil((dayCount + first.getDay() + 1) / 7)}`;
+  }
+
+  function frequencyStamp(frequency) {
+    if (frequency === 'daily') return todayStamp();
+    if (frequency === 'weekly') return weekStamp();
+    if (frequency === 'always') return String(Date.now());
+    return 'once';
+  }
+
+  function alreadyLogged(logs, automationId, dedupeKey) {
+    return logs.some(log => log.automationId === automationId && log.dedupeKey === dedupeKey && (log.status === 'sent' || log.status === 'draft'));
+  }
+
+  function courseDisplayName(courseId) {
+    const course = (cachedCourses || []).find(c => String(c.id) === String(courseId));
+    return course?.name || 'Selected Course';
+  }
+
+  function getTemplateForAutomation(type) {
+    const templates = getTemplates();
+    const map = {
+      late: 'auto_late',
+      upcoming: 'auto_upcoming',
+      midpoint: 'auto_midpoint',
+      low_grade: 'auto_low_grade',
+    };
+    return templates[map[type]] || DEFAULT_TEMPLATES[map[type]];
+  }
+
+  function buildMessage(template, vars) {
+    return {
+      subject: renderTemplate(template.subject, vars),
+      body: renderTemplate(template.body, vars),
+    };
   }
 
   /* =========================================================
@@ -387,6 +482,165 @@
   }
 
   /* =========================================================
+     AUTOMATED MESSAGES
+  ========================================================= */
+  async function sendOrDraftAutomationMessage(automation, message, logs) {
+    const mode = automation.mode || 'auto';
+    if (mode === 'draft') {
+      addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
+      return 'draft';
+    }
+
+    if (message.kind === 'announcement') {
+      await postAnnouncement(automation.courseId, message.subject, message.body);
+    } else {
+      await sendCanvasMessage(automation.courseId, message.studentId, message.subject, message.body);
+    }
+    logs.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });
+    addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject });
+    return 'sent';
+  }
+
+  async function buildLateAutomationMessages(automation, teacherName) {
+    const students = await getStudents(automation.courseId);
+    const template = getTemplateForAutomation('late');
+    const maxAge = Number(automation.daysBack) || 14;
+    const courseName = automation.courseName || courseDisplayName(automation.courseId);
+    const messages = [];
+    for (const student of students) {
+      const subs = await getSubmissions(automation.courseId, student.id);
+      const missing = getMissingAssignments(subs, maxAge);
+      if (!missing.length) continue;
+      const missingAssignmentList = formatAssignmentList(missing.map(s => s.assignment || s));
+      const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(maxAge), missingAssignmentList };
+      const rendered = buildMessage(template, vars);
+      const assignmentIds = missing.map(s => s.assignment_id || s.assignment?.id || s.id).sort().join(',');
+      messages.push({ kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:late:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`, ...rendered });
+    }
+    return messages;
+  }
+
+  async function buildUpcomingAutomationMessages(automation, teacherName) {
+    const assignments = await getAssignments(automation.courseId);
+    const daysForward = Number(automation.daysForward) || 7;
+    const upcoming = getUpcomingAssignments(assignments, daysForward);
+    if (!upcoming.length) return [];
+    const template = getTemplateForAutomation('upcoming');
+    const courseName = automation.courseName || courseDisplayName(automation.courseId);
+    const assignmentList = formatAssignmentList(upcoming);
+    const assignmentIds = upcoming.map(a => a.id).sort().join(',');
+    const audience = automation.audience || 'announcement';
+    if (audience === 'announcement') {
+      const vars = { studentName: 'Students', teacherName, courseName, daysForward: String(daysForward), assignmentList };
+      const rendered = buildMessage(template, vars);
+      return [{ kind: 'announcement', studentName: 'Students', dedupeKey: `${automation.id}:upcoming:announcement:${assignmentIds}:${frequencyStamp(automation.frequency)}`, ...rendered }];
+    }
+    const students = await getStudents(automation.courseId);
+    return students.map(student => {
+      const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList };
+      return { kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:upcoming:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`, ...buildMessage(template, vars) };
+    });
+  }
+
+  async function buildMidpointAutomationMessages(automation, teacherName) {
+    const start = automation.startDate ? new Date(automation.startDate + 'T00:00:00') : null;
+    const end = automation.endDate ? new Date(automation.endDate + 'T23:59:59') : null;
+    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+    const midpoint = new Date((start.getTime() + end.getTime()) / 2);
+    if (new Date() < midpoint) return [];
+    return generateMessages(automation.courseId, automation.courseName || courseDisplayName(automation.courseId), 'evaluation', Number(automation.daysForward) || 7, Number(automation.daysBack) || 14, teacherName)
+      .then(messages => messages.map(msg => ({ kind: 'message', ...msg, dedupeKey: `${automation.id}:midpoint:${msg.studentId}:once` })));
+  }
+
+  async function buildLowGradeAutomationMessages(automation, teacherName) {
+    const template = getTemplateForAutomation('low_grade');
+    const threshold = Number(automation.threshold) || 70;
+    const courseName = automation.courseName || courseDisplayName(automation.courseId);
+    const messages = [];
+    if ((automation.gradeScope || 'overall') === 'overall') {
+      const enrollments = await getEnrollments(automation.courseId);
+      const students = await getStudents(automation.courseId);
+      for (const student of students) {
+        const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
+        const score = Number(enrollment?.grades?.current_score);
+        if (!Number.isFinite(score) || score >= threshold) continue;
+        const vars = {
+          studentName: student.name || student.sortable_name || 'Student',
+          teacherName,
+          courseName,
+          currentGrade: enrollment?.grades?.current_grade || 'N/A',
+          currentScore: String(score),
+          gradeAlertDetail: `Current course score: ${score}%\nAlert threshold: ${threshold}%`,
+        };
+        messages.push({ kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:low-overall:${student.id}:below-${threshold}:once`, ...buildMessage(template, vars) });
+      }
+      return messages;
+    }
+
+    const students = await getStudents(automation.courseId);
+    for (const student of students) {
+      const subs = await getSubmissions(automation.courseId, student.id);
+      const lowSubs = subs.filter(s => {
+        const score = Number(s.score);
+        const points = Number(s.assignment?.points_possible);
+        return Number.isFinite(score) && Number.isFinite(points) && points > 0 && (score / points) * 100 < threshold;
+      });
+      for (const sub of lowSubs) {
+        const pct = Math.round((Number(sub.score) / Number(sub.assignment.points_possible)) * 1000) / 10;
+        const vars = {
+          studentName: student.name || student.sortable_name || 'Student',
+          teacherName,
+          courseName,
+          currentGrade: '',
+          currentScore: String(pct),
+          gradeAlertDetail: `${sub.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`,
+        };
+        messages.push({ kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:low-assignment:${student.id}:${sub.assignment_id}:below-${threshold}:once`, ...buildMessage(template, vars) });
+      }
+    }
+    return messages;
+  }
+
+  async function buildAutomationMessages(automation, teacherName) {
+    if (automation.type === 'late') return buildLateAutomationMessages(automation, teacherName);
+    if (automation.type === 'upcoming') return buildUpcomingAutomationMessages(automation, teacherName);
+    if (automation.type === 'midpoint') return buildMidpointAutomationMessages(automation, teacherName);
+    if (automation.type === 'low_grade') return buildLowGradeAutomationMessages(automation, teacherName);
+    return [];
+  }
+
+  async function runAutomations(onlyAutomationId) {
+    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+    if (!teacherName) throw new Error('Set your Teacher Name in Settings before running automations.');
+    if (!cachedCourses) cachedCourses = await getCourses();
+    const automations = getAutomations().filter(a => a.active !== false && (!onlyAutomationId || a.id === onlyAutomationId));
+    const sentKeys = getAutomationLogs().filter(l => l.status === 'sent' || l.status === 'draft');
+    let matched = 0, sent = 0, drafted = 0, skipped = 0, failed = 0;
+
+    for (const automation of automations) {
+      try {
+        const messages = await buildAutomationMessages(automation, teacherName);
+        matched += messages.length;
+        for (const message of messages) {
+          if (alreadyLogged(sentKeys, automation.id, message.dedupeKey)) { skipped++; continue; }
+          try {
+            const result = await sendOrDraftAutomationMessage(automation, message, sentKeys);
+            if (result === 'sent') sent++;
+            else drafted++;
+          } catch(err) {
+            failed++;
+            addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'failed', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: err.message });
+          }
+        }
+      } catch(err) {
+        failed++;
+        addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'failed', note: err.message });
+      }
+    }
+    return { checked: automations.length, matched, sent, drafted, skipped, failed };
+  }
+
+  /* =========================================================
      UTILITY
   ========================================================= */
   function escapeHtml(str) {
@@ -417,6 +671,7 @@
         </div>
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
+          <button class="ces-tab" data-tab="automations">Automated Messages</button>
           <button class="ces-tab" data-tab="templates">Email Templates</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
@@ -444,6 +699,7 @@
   async function showTab(tabName) {
     const body = document.getElementById('ces-body');
     if (tabName === 'send') renderSendTab(body);
+    else if (tabName === 'automations') renderAutomationsTab(body);
     else if (tabName === 'templates') renderTemplatesTab(body);
     else if (tabName === 'settings') renderSettingsTab(body);
   }
@@ -674,6 +930,262 @@
   }
 
   /* =========================================================
+     TAB: AUTOMATED MESSAGES
+  ========================================================= */
+  async function renderAutomationsTab(container) {
+    const automations = getAutomations();
+    const logs = getAutomationLogs().slice(-12).reverse();
+    const lastCourse = GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+
+    container.innerHTML = `
+      <div id="ces-status-area"></div>
+      <div class="ces-card">
+        <div class="ces-flex-between ces-mb">
+          <div>
+            <h3 style="margin:0;">Create Automation</h3>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Select a class, message, condition, and frequency.</div>
+          </div>
+          <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Run Check Now</button>
+        </div>
+
+        <label class="ces-label">Class</label>
+        <select class="ces-select" id="ces-auto-course"><option value="">Loading courses...</option></select>
+
+        <div class="ces-grid-2">
+          <div>
+            <label class="ces-label">Message</label>
+            <select class="ces-select" id="ces-auto-type">
+              <option value="late">Late work reminder</option>
+              <option value="upcoming">Upcoming work</option>
+              <option value="midpoint">Midpoint evaluation</option>
+              <option value="low_grade">Low grade warning</option>
+            </select>
+          </div>
+          <div>
+            <label class="ces-label">Frequency</label>
+            <select class="ces-select" id="ces-auto-frequency">
+              <option value="daily">Daily while true</option>
+              <option value="weekly">Weekly while true</option>
+              <option value="once">Once per matching condition</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="ces-auto-fields"></div>
+
+        <div class="ces-grid-2">
+          <div>
+            <label class="ces-label">Send Mode</label>
+            <select class="ces-select" id="ces-auto-mode">
+              <option value="auto">Send automatically</option>
+              <option value="draft">Draft/log only</option>
+            </select>
+          </div>
+          <div>
+            <label class="ces-label">Automation Name</label>
+            <input class="ces-input" id="ces-auto-name" placeholder="Example: Daily late work nudge">
+          </div>
+        </div>
+
+        <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto">Save Automation</button></div>
+        <input type="hidden" id="ces-auto-edit-id" value="">
+      </div>
+
+      <h3 style="margin:18px 0 10px;">Saved Automations</h3>
+      <div id="ces-auto-list"></div>
+
+      <h3 style="margin:18px 0 10px;">Recent Message Log</h3>
+      <div id="ces-auto-log">
+        ${logs.length ? logs.map(log => `
+          <div class="ces-msg-row">
+            <div class="ces-msg-header">
+              <span class="ces-msg-name">${escapeHtml(log.status || 'log')} - ${escapeHtml(log.automationName || 'Automation')}</span>
+              <span style="font-size:12px;color:#6b7280;">${escapeHtml(new Date(log.at).toLocaleString())}</span>
+            </div>
+            <div class="ces-msg-subject">${escapeHtml(log.courseName || '')} ${log.recipientName ? '- ' + escapeHtml(log.recipientName) : ''}</div>
+            <div class="ces-msg-body">${escapeHtml(log.subject || log.note || '')}</div>
+          </div>
+        `).join('') : '<div class="ces-status ces-status-info">No automation messages logged yet.</div>'}
+      </div>
+    `;
+
+    await populateAutomationCourses(container.querySelector('#ces-auto-course'), lastCourse);
+    renderAutomationFields(container);
+    renderAutomationTiles(container.querySelector('#ces-auto-list'), automations);
+
+    container.querySelector('#ces-auto-type').addEventListener('change', () => renderAutomationFields(container));
+    container.querySelector('#ces-run-all-autos').addEventListener('click', async () => {
+      const btn = container.querySelector('#ces-run-all-autos');
+      btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Checking...';
+      try {
+        const result = await runAutomations();
+        renderAutomationsTab(container);
+        setTimeout(() => showStatus(`Checked ${result.checked} automation(s). Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success'), 0);
+      } catch(err) {
+        showStatus(err.message, 'error');
+      }
+      btn.disabled = false; btn.textContent = 'Run Check Now';
+    });
+
+    container.querySelector('#ces-save-auto').addEventListener('click', () => {
+      const courseSelect = container.querySelector('#ces-auto-course');
+      const courseId = courseSelect.value;
+      const courseName = courseSelect.options[courseSelect.selectedIndex]?.text || '';
+      const type = container.querySelector('#ces-auto-type').value;
+      if (!courseId) { showStatus('Select a class first.', 'error'); return; }
+      const editId = container.querySelector('#ces-auto-edit-id').value;
+      const existingAuto = editId ? getAutomations().find(auto => auto.id === editId) : null;
+      const automation = {
+        id: editId || makeAutomationId(),
+        active: existingAuto ? existingAuto.active !== false : true,
+        courseId,
+        courseName,
+        type,
+        name: container.querySelector('#ces-auto-name').value.trim() || defaultAutomationName(type, courseName),
+        frequency: container.querySelector('#ces-auto-frequency').value,
+        mode: container.querySelector('#ces-auto-mode').value,
+        daysBack: Number(container.querySelector('#ces-auto-days-back')?.value || 14),
+        daysForward: Number(container.querySelector('#ces-auto-days-forward')?.value || 7),
+        threshold: Number(container.querySelector('#ces-auto-threshold')?.value || 70),
+        gradeScope: container.querySelector('#ces-auto-grade-scope')?.value || 'overall',
+        audience: container.querySelector('#ces-auto-audience')?.value || 'announcement',
+        startDate: container.querySelector('#ces-auto-start')?.value || '',
+        endDate: container.querySelector('#ces-auto-end')?.value || '',
+        createdAt: existingAuto?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const next = getAutomations().filter(auto => auto.id !== editId);
+      next.push(automation);
+      saveAutomations(next);
+      GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);
+      renderAutomationsTab(container);
+      setTimeout(() => showStatus(editId ? 'Automation updated.' : 'Automation saved.', 'success'), 0);
+    });
+  }
+
+  async function populateAutomationCourses(select, lastCourse) {
+    try {
+      if (!cachedCourses) cachedCourses = await getCourses();
+      select.innerHTML = '<option value="">-- Select a course --</option>';
+      cachedCourses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name + (c.term ? ` (${c.term.name})` : '');
+        if (String(c.id) === String(lastCourse)) opt.selected = true;
+        select.appendChild(opt);
+      });
+    } catch(err) {
+      select.innerHTML = '<option value="">Error loading courses</option>';
+    }
+  }
+
+  function renderAutomationFields(container) {
+    const type = container.querySelector('#ces-auto-type').value;
+    const fields = container.querySelector('#ces-auto-fields');
+    if (type === 'late') {
+      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
+    } else if (type === 'upcoming') {
+      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Send As</label><select class="ces-select" id="ces-auto-audience"><option value="announcement">Course announcement</option><option value="students">Message every student</option></select></div></div>`;
+    } else if (type === 'midpoint') {
+      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
+    } else {
+      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
+    }
+  }
+
+  function defaultAutomationName(type, courseName) {
+    const names = { late: 'Late work reminder', upcoming: 'Upcoming work message', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    return `${names[type] || 'Automation'} - ${courseName}`;
+  }
+
+  function describeAutomation(auto) {
+    if (auto.type === 'late') return `Late work, daily/weekly until submitted or older than ${auto.daysBack || 14} days`;
+    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${auto.audience === 'students' ? 'student messages' : 'announcement'}`;
+    if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}`;
+    if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%`;
+    return '';
+  }
+
+  function renderAutomationTiles(container, automations) {
+    if (!automations.length) {
+      container.innerHTML = '<div class="ces-status ces-status-info">No automations yet. Create one above.</div>';
+      return;
+    }
+    container.innerHTML = automations.map(auto => `
+      <div class="ces-card">
+        <div class="ces-flex-between">
+          <div>
+            <strong>${escapeHtml(auto.name)}</strong>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px;">${escapeHtml(auto.courseName || auto.courseId)}</div>
+            <div style="font-size:13px;color:#374151;margin-top:8px;">${escapeHtml(describeAutomation(auto))}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Paused' : 'Active'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Auto-send'} - ${escapeHtml(auto.frequency || 'once')}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}">Run</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-auto" data-id="${escapeAttr(auto.id)}">Edit</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-toggle-auto" data-id="${escapeAttr(auto.id)}">${auto.active === false ? 'Resume' : 'Pause'}</button>
+            <button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-auto" data-id="${escapeAttr(auto.id)}">Delete</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.ces-run-auto').forEach(btn => btn.addEventListener('click', async () => {
+      btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
+      try {
+        const result = await runAutomations(btn.dataset.id);
+        renderAutomationsTab(document.getElementById('ces-body'));
+        setTimeout(() => showStatus(`Checked 1 automation. Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success'), 0);
+      } catch(err) { showStatus(err.message, 'error'); }
+    }));
+    container.querySelectorAll('.ces-edit-auto').forEach(btn => btn.addEventListener('click', () => {
+      const auto = getAutomations().find(item => item.id === btn.dataset.id);
+      if (!auto) return;
+      const body = document.getElementById('ces-body');
+      const courseSelect = body.querySelector('#ces-auto-course');
+      body.querySelector('#ces-auto-edit-id').value = auto.id;
+      body.querySelector('#ces-auto-type').value = auto.type;
+      body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
+      body.querySelector('#ces-auto-mode').value = auto.mode || 'auto';
+      body.querySelector('#ces-auto-name').value = auto.name || '';
+      if (courseSelect) courseSelect.value = auto.courseId;
+      renderAutomationFields(body);
+      if (body.querySelector('#ces-auto-days-back')) body.querySelector('#ces-auto-days-back').value = auto.daysBack || 14;
+      if (body.querySelector('#ces-auto-days-forward')) body.querySelector('#ces-auto-days-forward').value = auto.daysForward || 7;
+      if (body.querySelector('#ces-auto-threshold')) body.querySelector('#ces-auto-threshold').value = auto.threshold || 70;
+      if (body.querySelector('#ces-auto-grade-scope')) body.querySelector('#ces-auto-grade-scope').value = auto.gradeScope || 'overall';
+      if (body.querySelector('#ces-auto-audience')) body.querySelector('#ces-auto-audience').value = auto.audience || 'announcement';
+      if (body.querySelector('#ces-auto-start')) body.querySelector('#ces-auto-start').value = auto.startDate || '';
+      if (body.querySelector('#ces-auto-end')) body.querySelector('#ces-auto-end').value = auto.endDate || '';
+      body.querySelector('#ces-save-auto').textContent = 'Update Automation';
+      body.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+    container.querySelectorAll('.ces-toggle-auto').forEach(btn => btn.addEventListener('click', () => {
+      const next = getAutomations().map(auto => auto.id === btn.dataset.id ? { ...auto, active: auto.active === false } : auto);
+      saveAutomations(next);
+      renderAutomationsTab(document.getElementById('ces-body'));
+    }));
+    container.querySelectorAll('.ces-delete-auto').forEach(btn => btn.addEventListener('click', () => {
+      if (!confirm('Delete this automation?')) return;
+      saveAutomations(getAutomations().filter(auto => auto.id !== btn.dataset.id));
+      renderAutomationsTab(document.getElementById('ces-body'));
+    }));
+  }
+
+  async function checkAutomationsOnOpen() {
+    const automations = getAutomations().filter(auto => auto.active !== false);
+    if (!automations.length) return;
+    try {
+      const result = await runAutomations();
+      if (result.sent || result.drafted || result.failed) {
+        showStatus(`Automations checked: sent ${result.sent}, drafted ${result.drafted}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success');
+      }
+    } catch(err) {
+      showStatus('Automation check skipped: ' + err.message, 'error');
+    }
+  }
+
+  /* =========================================================
      TAB: TEMPLATES
   ========================================================= */
   function renderTemplatesTab(container) {
@@ -704,7 +1216,7 @@
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <label class="ces-label">Email Body</label>
         <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:200px;">${escapeHtml(tpl.body)}</textarea>
-        <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Available placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{missingAssignmentList}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{upcomingSection}}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Available placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{missingAssignmentList}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{upcomingSection}} {{gradeAlertDetail}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
           <button class="ces-btn ces-btn-secondary" id="ces-tpl-preview">Preview with Sample Data</button>
@@ -721,7 +1233,7 @@
         const subject = container.querySelector('#ces-tpl-subject').value;
         const body    = container.querySelector('#ces-tpl-body').value;
         const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, 'Professor Smith');
-        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing Assignments (past 14 days):\n  - Homework 5', upcomingSection: 'Upcoming Assignments (next 7 days):\n  - Essay 1' };
+        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing Assignments (past 14 days):\n  - Homework 5', upcomingSection: 'Upcoming Assignments (next 7 days):\n  - Essay 1', gradeAlertDetail: 'Current course score: 68%\nAlert threshold: 70%' };
         container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(renderTemplate(body, sampleVars))}</div></div>`;
       });
     }
@@ -846,7 +1358,11 @@
     ].join(';');
     btn.onclick = e => {
       e.stopPropagation();
-      if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
+      if (_overlay) {
+        _overlay.classList.add('ces-open');
+        showTab('send');
+        setTimeout(checkAutomationsOnOpen, 500);
+      }
     };
     document.body.appendChild(btn);
   }
