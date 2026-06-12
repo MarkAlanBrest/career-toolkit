@@ -1665,6 +1665,11 @@ Best regards,
     const logs = getAutomationLogs().slice(-12).reverse();
     const courseId = getSelectedCourseId();
     const courseName = getSelectedCourseName() || courseDisplayName(courseId);
+    const courseOptions = (cachedCourses || []).map(course => {
+      const id = String(course.id);
+      const name = course.name + (course.term ? ` (${course.term.name})` : '') + ` - ID ${course.id}`;
+      return `<option value="${escapeAttr(id)}" ${id === String(courseId) ? 'selected' : ''}>${escapeHtml(name)}</option>`;
+    }).join('');
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
@@ -1672,11 +1677,17 @@ Best regards,
         <div class="ces-flex-between ces-mb">
           <div>
             <h3 style="margin:0;">Create Automation</h3>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Select a class in the top toolbar, then choose the message, trigger, and frequency.</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose one or more published classes, then choose the message, trigger, and frequency.</div>
           </div>
           <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Run Check Now</button>
         </div>
-        ${!courseId ? '<div class="ces-status ces-status-error">Select a Canvas course first.</div>' : `<div class="ces-status ces-status-info">Selected class: ${escapeHtml(courseName || courseId)}</div>`}
+        ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
+
+        <label class="ces-label">Published Classes</label>
+        <select class="ces-select" id="ces-auto-courses" multiple size="${Math.min(Math.max((cachedCourses || []).length, 3), 8)}">
+          ${courseOptions}
+        </select>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published Canvas courses are shown. Hold Ctrl or Shift to select multiple classes. Saving will create one automation tile per class.</div>
 
         <div class="ces-grid-2">
           <div>
@@ -1751,19 +1762,23 @@ Best regards,
     });
 
     container.querySelector('#ces-save-auto').addEventListener('click', () => {
-      const selectedCourseId = getSelectedCourseId();
-      const selectedCourseName = getSelectedCourseName() || courseDisplayName(selectedCourseId);
+      const courseSelect = container.querySelector('#ces-auto-courses');
+      const selectedCourses = [...(courseSelect?.selectedOptions || [])].map(option => ({
+        id: option.value,
+        name: option.textContent.replace(/\s+-\s+ID\s+\d+\s*$/, ''),
+      }));
       const type = container.querySelector('#ces-auto-type').value;
-      if (!selectedCourseId) { showStatus('Select a class first.', 'error'); return; }
+      if (!selectedCourses.length) { showStatus('Select at least one class first.', 'error'); return; }
       const editId = container.querySelector('#ces-auto-edit-id').value;
       const existingAuto = editId ? getAutomations().find(auto => auto.id === editId) : null;
-      const automation = {
-        id: editId || makeAutomationId(),
+      const sharedName = container.querySelector('#ces-auto-name').value.trim();
+      const buildAutomation = (selectedCourse, index) => ({
+        id: editId && selectedCourses.length === 1 ? editId : makeAutomationId(),
         active: existingAuto ? existingAuto.active !== false : true,
-        courseId: selectedCourseId,
-        courseName: selectedCourseName,
+        courseId: selectedCourse.id,
+        courseName: selectedCourse.name,
         type,
-        name: container.querySelector('#ces-auto-name').value.trim() || defaultAutomationName(type, selectedCourseName),
+        name: sharedName || defaultAutomationName(type, selectedCourse.name),
         frequency: container.querySelector('#ces-auto-frequency').value,
         mode: container.querySelector('#ces-auto-mode').value,
         daysBack: Number(container.querySelector('#ces-auto-days-back')?.value || 14),
@@ -1773,14 +1788,14 @@ Best regards,
         audience: container.querySelector('#ces-auto-audience')?.value || 'announcement',
         startDate: container.querySelector('#ces-auto-start')?.value || '',
         endDate: container.querySelector('#ces-auto-end')?.value || '',
-        createdAt: existingAuto?.createdAt || new Date().toISOString(),
+        createdAt: index === 0 && existingAuto?.createdAt ? existingAuto.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      };
+      });
       const next = getAutomations().filter(auto => auto.id !== editId);
-      next.push(automation);
+      next.push(...selectedCourses.map(buildAutomation));
       saveAutomations(next);
       renderAutomationsTab(container);
-      setTimeout(() => showStatus(editId ? 'Automation updated.' : 'Automation saved.', 'success'), 0);
+      setTimeout(() => showStatus(editId && selectedCourses.length === 1 ? 'Automation updated.' : `Saved ${selectedCourses.length} automation${selectedCourses.length === 1 ? '' : 's'}.`, 'success'), 0);
     });
   }
 
@@ -1851,6 +1866,9 @@ Best regards,
       body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
       body.querySelector('#ces-auto-mode').value = auto.mode || 'auto';
       body.querySelector('#ces-auto-name').value = auto.name || '';
+      body.querySelectorAll('#ces-auto-courses option').forEach(option => {
+        option.selected = option.value === String(auto.courseId);
+      });
       renderAutomationFields(body);
       if (body.querySelector('#ces-auto-days-back')) body.querySelector('#ces-auto-days-back').value = auto.daysBack || 14;
       if (body.querySelector('#ces-auto-days-forward')) body.querySelector('#ces-auto-days-forward').value = auto.daysForward || 7;
