@@ -55,9 +55,11 @@ export type CanvasSubmissionComment = {
 };
 
 export type CanvasSubmission = {
+  id?: number;
   assignment_id: number;
   assignment?: CanvasAssignment;
   user_id: number;
+  user?: CanvasUser;
   submitted_at?: string | null;
   graded_at?: string | null;
   grade?: string | null;

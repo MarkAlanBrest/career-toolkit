@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, FileDown, Loader2, Moon, Printer, Search, Sun, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { reportCatalog } from '../data/reportCatalog';
-import { buildCourseHealth, buildMissingWorkRows, buildStudentMetrics } from '../reports/builders';
+import { buildAssignmentAnalytics, buildCourseHealth, buildMissingWorkRows, buildStudentMetrics } from '../reports/builders';
 import { CanvasClient } from '../services/canvasClient';
 import { NotesStore } from '../services/notesStore';
-import type { CanvasCourse, CanvasEnrollment, CanvasSubmission, CanvasUser } from '../types/canvas';
+import type { CanvasAssignment, CanvasCourse, CanvasEnrollment, CanvasSubmission, CanvasUser } from '../types/canvas';
 import type { ReportId, StudentMetrics } from '../types/reports';
 import { downloadCsv } from '../utils/exportCsv';
 import { exportElementPdf } from '../utils/exportPdf';
@@ -27,6 +27,7 @@ export function App({ courseId, onClose }: AppProps) {
   const [course, setCourse] = useState<CanvasCourse | null>(null);
   const [students, setStudents] = useState<CanvasUser[]>([]);
   const [enrollments, setEnrollments] = useState<CanvasEnrollment[]>([]);
+  const [assignments, setAssignments] = useState<CanvasAssignment[]>([]);
   const [submissions, setSubmissions] = useState<CanvasSubmission[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
@@ -37,16 +38,18 @@ export function App({ courseId, onClose }: AppProps) {
       setLoading(true);
       setError('');
       try {
-        const [courseData, studentData, enrollmentData, submissionData] = await Promise.all([
+        const [courseData, studentData, enrollmentData, assignmentData] = await Promise.all([
           client.getCurrentCourse(courseId),
           client.getStudents(courseId),
           client.getEnrollments(courseId),
-          client.getSubmissions(courseId, 'all'),
+          client.getAssignments(courseId),
         ]);
+        const submissionData = await client.getCourseSubmissions(courseId, assignmentData);
         if (!active) return;
         setCourse(courseData);
         setStudents(studentData);
         setEnrollments(enrollmentData);
+        setAssignments(assignmentData);
         setSubmissions(submissionData);
         setSelectedStudentId(studentData[0]?.id || null);
       } catch (err) {
@@ -65,11 +68,33 @@ export function App({ courseId, onClose }: AppProps) {
   const studentMetrics = selectedStudent ? buildStudentMetrics(selectedStudent, enrollments, submissions) : null;
   const courseHealth = course ? buildCourseHealth(course, enrollments, submissions) : null;
   const missingRows = buildMissingWorkRows(students, submissions);
+  const assignmentAnalytics = buildAssignmentAnalytics(assignments, submissions);
   const filteredStudents = students.filter(student => student.name.toLowerCase().includes(studentSearch.toLowerCase()));
 
   function csvRows() {
     if (activeReport === 'missing-work') return missingRows;
     if (activeReport === 'course-health' && courseHealth) return [courseHealth];
+    if (activeReport === 'assignment-analytics') {
+      return assignmentAnalytics.map(row => ({
+        assignment: row.assignment.name,
+        average: row.average,
+        median: row.median,
+        high: row.high,
+        low: row.low,
+        completionPercent: row.completionPercent,
+        missingPercent: row.missingPercent,
+      }));
+    }
+    if (activeReport === 'grade-documentation' && studentMetrics) {
+      return studentMetrics.submissions.map(row => ({
+        assignment: row.assignment?.name || `Assignment ${row.assignment_id}`,
+        dueDate: row.assignment?.due_at || '',
+        submissionDate: row.submitted_at || '',
+        grade: row.grade || row.score || '',
+        missing: row.missing ? 'Yes' : 'No',
+        late: row.late ? 'Yes' : 'No',
+      }));
+    }
     if (studentMetrics) {
       return [{
         student: studentMetrics.student.name,
@@ -143,13 +168,14 @@ export function App({ courseId, onClose }: AppProps) {
             {error && <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
             {!loading && !error && (
               <div ref={printRef} id="crp-print-area" className={`mx-auto max-w-6xl rounded-md border p-6 ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                <DataQualityBar students={students.length} assignments={assignments.length} submissions={submissions.length} />
                 <ReportContextBar
                   students={filteredStudents}
                   selectedStudentId={selectedStudentId}
                   setSelectedStudentId={setSelectedStudentId}
                   studentSearch={studentSearch}
                   setStudentSearch={setStudentSearch}
-                  showStudentSelector={activeReport.startsWith('student') || activeReport === 'grade-documentation' || activeReport === 'communication-timeline'}
+                  showStudentSelector={activeReport.startsWith('student') || activeReport === 'grade-documentation' || activeReport === 'communication-timeline' || activeReport === 'instructor-notes'}
                 />
                 {activeReport === 'student-snapshot' && studentMetrics && <StudentSnapshot metrics={studentMetrics} />}
                 {activeReport === 'student-conference' && studentMetrics && <StudentConference metrics={studentMetrics} />}
@@ -160,7 +186,7 @@ export function App({ courseId, onClose }: AppProps) {
                 {activeReport === 'instructor-notes' && selectedStudent && <InstructorNotes courseId={courseId} student={selectedStudent} notesStore={notesStore} />}
                 {activeReport === 'no-login' && <NoLogin students={students} enrollments={enrollments} />}
                 {activeReport === 'grade-documentation' && studentMetrics && <GradeDocumentation metrics={studentMetrics} />}
-                {activeReport === 'assignment-analytics' && <Placeholder title="Assignment Analytics" />}
+                {activeReport === 'assignment-analytics' && <AssignmentAnalytics rows={assignmentAnalytics} />}
               </div>
             )}
           </div>
@@ -172,6 +198,16 @@ export function App({ courseId, onClose }: AppProps) {
 
 function LoadingState() {
   return <div className="flex h-72 items-center justify-center text-sm opacity-70"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading Canvas report data...</div>;
+}
+
+function DataQualityBar({ students, assignments, submissions }: { students: number; assignments: number; submissions: number }) {
+  return (
+    <div className="crp-no-print mb-4 flex flex-wrap gap-2 text-xs">
+      <span className="rounded-md bg-slate-100 px-2 py-1 font-bold text-slate-700">{students} students</span>
+      <span className="rounded-md bg-slate-100 px-2 py-1 font-bold text-slate-700">{assignments} assignments</span>
+      <span className="rounded-md bg-slate-100 px-2 py-1 font-bold text-slate-700">{submissions} submission records</span>
+    </div>
+  );
 }
 
 function ReportContextBar(props: {
@@ -264,6 +300,26 @@ function MissingWork({ rows }: { rows: ReturnType<typeof buildMissingWorkRows> }
     <section>
       <ReportTitle title="Missing Work Report" subtitle={`${rows.length} missing assignment records`} />
       <DataTable headers={['Student', 'Assignment', 'Due Date', 'Days Overdue']} rows={rows.map(row => [row.studentName, row.assignmentName, formatDate(row.dueDate), row.daysOverdue ?? 'N/A'])} />
+    </section>
+  );
+}
+
+function AssignmentAnalytics({ rows }: { rows: ReturnType<typeof buildAssignmentAnalytics> }) {
+  return (
+    <section>
+      <ReportTitle title="Assignment Analytics Report" subtitle={`${rows.length} assignments analyzed`} />
+      <DataTable
+        headers={['Assignment', 'Average', 'Median', 'High', 'Low', 'Completion', 'Missing']}
+        rows={rows.map(row => [
+          row.assignment.name,
+          formatScore(row.average),
+          formatScore(row.median),
+          row.high ?? 'N/A',
+          row.low ?? 'N/A',
+          formatPercent(row.completionPercent),
+          formatPercent(row.missingPercent),
+        ])}
+      />
     </section>
   );
 }
@@ -369,10 +425,6 @@ function GradeDocumentation({ metrics, compact = false }: { metrics: StudentMetr
       <DataTable headers={['Assignment', 'Due Date', 'Submission Date', 'Grade', 'Missing', 'Late']} rows={rows} />
     </section>
   );
-}
-
-function Placeholder({ title }: { title: string }) {
-  return <EmptyReport message={`${title} is scaffolded in the report catalog and will use the existing assignment analytics builder next.`} />;
 }
 
 function ReportTitle({ title, subtitle }: { title: string; subtitle?: string }) {

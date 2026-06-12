@@ -58,12 +58,33 @@ export class CanvasClient {
 
   async getSubmissions(courseId: CanvasId, studentIds: 'all' | CanvasId[] = 'all'): Promise<CanvasSubmission[]> {
     const ids = studentIds === 'all' ? ['all'] : studentIds.map(String);
-    return this.getPaginated(`/courses/${courseId}/students/submissions`, {
+    const result = await this.getPaginated<CanvasSubmission | { submissions?: CanvasSubmission[] }>(`/courses/${courseId}/students/submissions`, {
       'student_ids[]': ids,
       'include[]': ['assignment', 'submission_comments', 'rubric_assessment', 'read_status'],
       grouped: false,
       per_page: 100,
     });
+    return result.flatMap(item => ('submissions' in item && Array.isArray(item.submissions)) ? item.submissions : item as CanvasSubmission);
+  }
+
+  async getAssignmentSubmissions(courseId: CanvasId, assignmentId: CanvasId): Promise<CanvasSubmission[]> {
+    return this.getPaginated(`/courses/${courseId}/assignments/${assignmentId}/submissions`, {
+      'include[]': ['assignment', 'submission_comments', 'rubric_assessment', 'user', 'read_status'],
+      per_page: 100,
+    });
+  }
+
+  async getCourseSubmissions(courseId: CanvasId, assignments: CanvasAssignment[]): Promise<CanvasSubmission[]> {
+    try {
+      return await this.getSubmissions(courseId, 'all');
+    } catch {
+      const chunks = await mapWithConcurrency(assignments, 4, assignment =>
+        this.getAssignmentSubmissions(courseId, assignment.id).then(rows =>
+          rows.map(row => ({ ...row, assignment: row.assignment || assignment })),
+        ),
+      );
+      return chunks.flat();
+    }
   }
 
   async getDiscussionTopics(courseId: CanvasId): Promise<CanvasDiscussionTopic[]> {
@@ -116,6 +137,20 @@ export class CanvasClient {
     }
     return url.toString();
   }
+}
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let index = 0;
+  async function worker() {
+    while (index < items.length) {
+      const current = index;
+      index += 1;
+      results[current] = await task(items[current]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }
 
 function isPresent(value: QueryValue): value is string | number | boolean {
