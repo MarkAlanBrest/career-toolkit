@@ -469,6 +469,36 @@
       : escapeHtml(message).replace(/\n/g, '<br>');
   }
 
+  function htmlToCanvasInboxText(html) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = String(html || '');
+
+    wrapper.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+    wrapper.querySelectorAll('p, div, li, ol, ul').forEach(el => {
+      if (el.tagName === 'LI') el.prepend('- ');
+      el.append(document.createTextNode('\n'));
+    });
+    wrapper.querySelectorAll('a[href]').forEach(link => {
+      const text = link.textContent.trim();
+      const href = link.getAttribute('href');
+      link.textContent = text && href ? `${text}: ${href}` : href || text;
+    });
+    wrapper.querySelectorAll('img[alt]').forEach(img => {
+      const alt = img.getAttribute('alt');
+      img.replaceWith(document.createTextNode(alt ? `[${alt}]` : ''));
+    });
+
+    return wrapper.textContent
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  function canvasInboxBody(message) {
+    return isHtmlMessage(message) ? htmlToCanvasInboxText(message) : message;
+  }
+
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
@@ -542,7 +572,7 @@
      CANVAS ACTIONS
   ========================================================= */
   async function sendCanvasMessage(courseId, recipientId, subject, body) {
-    return canvasPost('/conversations', { recipients: [String(recipientId)], subject, body, force_new: true, group_conversation: false, context_code: 'course_' + courseId, mode: 'sync' });
+    return canvasPost('/conversations', { recipients: [String(recipientId)], subject, body: canvasInboxBody(body), force_new: true, group_conversation: false, context_code: 'course_' + courseId, mode: 'sync' });
   }
 
   async function postAnnouncement(courseId, title, message) {
@@ -960,7 +990,7 @@
         const idx = parseInt(btn.dataset.idx);
         const msg = generatedMessages[idx];
         window.open(`${CANVAS_BASE}/conversations#filter=type=inbox&user_name=${encodeURIComponent(msg.studentName)}&user_id=${msg.studentId}`, '_blank');
-        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.body, courseId }));
+        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: canvasInboxBody(msg.body), courseId }));
         showStatus(`Compose window opened for ${msg.studentName}. Click "Insert Message" on the compose page.`, 'info');
       });
     });
