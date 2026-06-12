@@ -171,10 +171,12 @@
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .ces-send-grid {
       display:grid;
-      grid-template-columns: minmax(260px, 1.5fr) 110px 110px auto;
-      gap:10px;
-      align-items:end;
+      grid-template-columns: repeat(2, minmax(110px, 150px));
+      gap:10px 12px;
+      align-items:start;
     }
+    .ces-send-message-field { grid-column: 1 / -1; }
+    .ces-send-range-field { max-width: 150px; }
     .ces-send-panel {
       border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; background:#f9fafb; margin-top:12px;
     }
@@ -219,7 +221,8 @@
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
-      .ces-send-grid > div:first-child { grid-column: 1 / -1; }
+      .ces-send-message-field { grid-column: 1 / -1; }
+      .ces-send-range-field { max-width: none; }
       .ces-checkbox-row { align-self:center; margin: 0; }
       .ces-generate-row { flex-direction: column; align-items: stretch; }
       .ces-generate-row #ces-generate-btn { width: 100%; }
@@ -737,16 +740,16 @@
       <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
       ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
       <div class="ces-send-grid">
-        <div>
+        <div class="ces-send-message-field">
           <label class="ces-label">Message</label>
           <select class="ces-select" id="ces-template-select">${templateOptions}</select>
           <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
         </div>
-        <div id="ces-days-forward-wrap">
+        <div class="ces-send-range-field" id="ces-days-forward-wrap">
           <label class="ces-label">Forward</label>
           <input type="number" class="ces-input" id="ces-days-forward" value="${daysForward}" min="1" max="90">
         </div>
-        <div id="ces-days-back-wrap" style="display:none;">
+        <div class="ces-send-range-field" id="ces-days-back-wrap" style="display:none;">
           <label class="ces-label">Back</label>
           <input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365">
         </div>
