@@ -18,16 +18,30 @@ function currentCourseId() {
   return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
 }
 
-function isCanvasCoursePage() {
+function isBlockedCanvasPage() {
+  return /^\/(?:accounts|admin|profile|users|login|logout)\b/.test(window.location.pathname) ||
+    /speed_grader/.test(window.location.href);
+}
+
+function findCanvasToolbarHost(): HTMLElement | null {
+  const existingMessageButton = document.getElementById('ces-launcher-group');
+  return existingMessageButton?.parentElement as HTMLElement ||
+    document.querySelector<HTMLElement>('.ic-app-nav-toggle-and-crumbs') ||
+    document.querySelector<HTMLElement>('#breadcrumbs')?.parentElement ||
+    document.querySelector<HTMLElement>('[data-testid="breadcrumbs"]')?.parentElement ||
+    null;
+}
+
+function isCanvasCourseToolbarPage() {
   if (!currentCourseId()) return false;
-  if (/(instructure|canvas|canvaslms)\.com$/i.test(window.location.hostname)) return true;
-  return !!(
+  if (isBlockedCanvasPage()) return false;
+  const hasCanvasShell = /(instructure|canvas|canvaslms)\.com$/i.test(window.location.hostname) || !!(
     document.querySelector('meta[name="csrf-token"]') &&
     (document.querySelector('#breadcrumbs') ||
       document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
-      document.querySelector('[data-testid="breadcrumbs"]') ||
-      document.querySelector('#content'))
+      document.querySelector('[data-testid="breadcrumbs"]'))
   );
+  return hasCanvasShell && !!findCanvasToolbarHost();
 }
 
 function openReports() {
@@ -50,16 +64,13 @@ function closeReports() {
 }
 
 function injectReportsButton() {
-  if (!isCanvasCoursePage()) return;
+  if (!isCanvasCourseToolbarPage()) {
+    document.getElementById('crp-launcher')?.remove();
+    return;
+  }
   if (document.getElementById('crp-launcher')) return;
   const existingMessageButton = document.getElementById('ces-launcher-group');
-  const canvasHeader =
-    existingMessageButton?.parentElement ||
-    document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
-    document.querySelector('#breadcrumbs')?.parentElement ||
-    document.querySelector('[data-testid="breadcrumbs"]')?.parentElement ||
-    document.querySelector('header[role="banner"]') ||
-    document.querySelector('#header');
+  const canvasHeader = findCanvasToolbarHost();
 
   const button = document.createElement('button');
   button.id = 'crp-launcher';
@@ -88,20 +99,12 @@ function injectReportsButton() {
     return;
   }
 
-  if (canvasHeader) {
-    canvasHeader.appendChild(button);
-    if (getComputedStyle(canvasHeader).display === 'block') {
-      (canvasHeader as HTMLElement).style.display = 'flex';
-      (canvasHeader as HTMLElement).style.alignItems = 'center';
-    }
-    return;
+  if (!canvasHeader) return;
+  canvasHeader.appendChild(button);
+  if (getComputedStyle(canvasHeader).display === 'block') {
+    canvasHeader.style.display = 'flex';
+    canvasHeader.style.alignItems = 'center';
   }
-
-  button.style.position = 'fixed';
-  button.style.top = '10px';
-  button.style.right = '220px';
-  button.style.zIndex = '99998';
-  document.body.appendChild(button);
 }
 
 injectReportsButton();

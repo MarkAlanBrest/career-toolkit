@@ -34,6 +34,13 @@
       || /[?&]assignment_id=/.test(window.location.search) && /speed_grader/.test(window.location.href);
   }
 
+  function isCanvasCourseToolbarPage() {
+    const path = window.location.pathname;
+    if (!/\/courses\/\d+\b/.test(path)) return false;
+    if (/^\/(?:accounts|admin|profile|users|login|logout)\b/.test(path)) return false;
+    return !isSpeedGraderPage();
+  }
+
   if (isSpeedGraderPage()) {
     window.__cesLoaded = false;
     return;
@@ -1545,16 +1552,15 @@ Thank you,
      CANVAS LAUNCHER
   ========================================================= */
   function findCanvasLauncherHost() {
+    if (!isCanvasCourseToolbarPage()) return null;
     return document.querySelector('.ic-app-nav-toggle-and-crumbs')
       || document.querySelector('#breadcrumbs')?.parentElement
-      || document.querySelector('[data-testid="breadcrumbs"]')?.parentElement
-      || document.querySelector('header[role="banner"]')
-      || document.querySelector('#header');
+      || document.querySelector('[data-testid="breadcrumbs"]')?.parentElement;
   }
 
   function placeCanvasLauncher() {
     const group = document.getElementById('ces-launcher-group');
-    if (isSpeedGraderPage()) {
+    if (!isCanvasCourseToolbarPage()) {
       if (group) group.remove();
       return;
     }
@@ -1570,9 +1576,7 @@ Thank you,
       }
       return;
     }
-    document.body.appendChild(group);
-    group.classList.remove('ces-launcher-inline');
-    group.classList.add('ces-launcher-fixed');
+    group.remove();
   }
 
   function openAiSideWindow(url) {
@@ -1584,6 +1588,7 @@ Thank you,
   }
 
   function addCanvasLauncher() {
+    if (!findCanvasLauncherHost()) return;
     if (document.getElementById('ces-launcher-group')) {
       placeCanvasLauncher();
       return;

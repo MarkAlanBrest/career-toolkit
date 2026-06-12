@@ -4,6 +4,12 @@
   // Toolbar is for the Canvas content editor — not for SpeedGrader
   if (/speed_grader/.test(window.location.href)) return;
 
+  function isCanvasCourseEditorPage() {
+    const path = window.location.pathname;
+    if (!/\/courses\/\d+\b/.test(path)) return false;
+    return !/^\/(?:accounts|admin|profile|users|login|logout)\b/.test(path);
+  }
+
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
   const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
@@ -2188,9 +2194,9 @@ Critical rules:
   setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
-  if (document.querySelector(RCE_SEL)) buildToolbar();
+  if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
   }).observe(document.body, { childList:true, subtree:true });
 
 })();
