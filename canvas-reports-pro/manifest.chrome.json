@@ -5,16 +5,12 @@
   "description": "Professional printable reports for Canvas LMS instructors.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
-    "https://*.instructure.com/*",
-    "https://*.canvas.com/*",
-    "https://*.canvaslms.com/*"
+    "https://*/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://*.instructure.com/*",
-        "https://*.canvas.com/*",
-        "https://*.canvaslms.com/*"
+        "https://*/*"
       ],
       "js": ["content.js"],
       "css": ["assets/content.css"],

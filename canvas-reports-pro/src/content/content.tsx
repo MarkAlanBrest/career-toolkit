@@ -10,6 +10,18 @@ function currentCourseId() {
   return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
 }
 
+function isCanvasCoursePage() {
+  if (!currentCourseId()) return false;
+  if (/(instructure|canvas|canvaslms)\.com$/i.test(window.location.hostname)) return true;
+  return !!(
+    document.querySelector('meta[name="csrf-token"]') &&
+    (document.querySelector('#breadcrumbs') ||
+      document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
+      document.querySelector('[data-testid="breadcrumbs"]') ||
+      document.querySelector('#content'))
+  );
+}
+
 function openReports() {
   const courseId = currentCourseId();
   if (!courseId) {
@@ -30,6 +42,7 @@ function closeReports() {
 }
 
 function injectReportsButton() {
+  if (!isCanvasCoursePage()) return;
   if (document.getElementById('crp-launcher')) return;
   const existingMessageButton = document.getElementById('ces-launcher-group');
   const canvasHeader =
