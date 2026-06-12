@@ -249,9 +249,18 @@
 
   const CANVAS_STUDENT_IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
   const CANVAS_STUDENT_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.instructure.candroid';
+  const CANVAS_APP_PROMO_URL = 'https://career-toolkit-ruby.vercel.app/canvas-app';
 
   function qrCodeUrl(url, size = 160) {
     return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=12&data=${encodeURIComponent(url)}`;
+  }
+
+  function buildCanvasAppPromoUrl(courseId, courseName) {
+    const url = new URL(CANVAS_APP_PROMO_URL);
+    url.searchParams.set('audience', 'student');
+    if (courseId) url.searchParams.set('courseId', String(courseId));
+    if (courseName) url.searchParams.set('courseName', String(courseName));
+    return url.toString();
   }
 
   const DEFAULT_TEMPLATES = {
@@ -262,6 +271,9 @@
       inboxBody: `Hi {{studentName}},
 
 Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.
+
+Open this page for QR codes and setup instructions:
+{{canvasAppUrl}}
 
 Before class ends today:
 1. Install the Canvas Student app.
@@ -285,6 +297,7 @@ Thank you,
   <div style="padding:20px 24px;color:#111827;">
     <p style="font-size:15px;line-height:1.55;margin:0 0 14px;">Hi {{studentName}},</p>
     <p style="font-size:15px;line-height:1.55;margin:0 0 18px;">Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.</p>
+    <p style="margin:0 0 18px;"><a href="{{canvasAppUrl}}" style="display:inline-block;background:#0770B8;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:10px 14px;border-radius:6px;">Open setup page</a></p>
     <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
       <div style="flex:1 1 260px;min-width:240px;">
         <div style="font-size:16px;font-weight:800;margin-bottom:10px;">Before class ends today:</div>
@@ -520,14 +533,18 @@ Thank you,
     return isHtmlMessage(message) ? htmlToCanvasInboxText(message) : message;
   }
 
-  function buildGeneratedMessage(student, vars, template) {
+  function buildGeneratedMessage(student, vars, template, courseId) {
+    const enrichedVars = {
+      ...vars,
+      canvasAppUrl: buildCanvasAppPromoUrl(courseId, vars.courseName),
+    };
     return {
       studentId: student.id,
-      studentName: vars.studentName,
+      studentName: enrichedVars.studentName,
       email: student.email || '',
-      subject: renderTemplate(template.subject, vars),
-      body: renderTemplate(template.body, vars),
-      inboxBody: template.inboxBody ? renderTemplate(template.inboxBody, vars) : '',
+      subject: renderTemplate(template.subject, enrichedVars),
+      body: renderTemplate(template.body, enrichedVars),
+      inboxBody: template.inboxBody ? renderTemplate(template.inboxBody, enrichedVars) : '',
     };
   }
 
@@ -548,19 +565,19 @@ Thank you,
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList };
-        messages.push(buildGeneratedMessage(student, vars, template));
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else if (emailType === 'missing') {
       for (const student of students) {
         const missing = getMissingAssignments(await getSubmissions(courseId, student.id), daysBack);
         if (!missing.length) continue;
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missing.map(s => s.assignment || s)) };
-        messages.push(buildGeneratedMessage(student, vars, template));
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else if (emailType === 'welcome') {
       for (const student of students) {
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName };
-        messages.push(buildGeneratedMessage(student, vars, template));
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else if (emailType === 'evaluation') {
       const enrollments = await getEnrollments(courseId);
@@ -574,7 +591,7 @@ Thank you,
         const missingSection = missing.length > 0 ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missing.map(s => s.assignment || s))}` : 'You have no missing assignments. Great work!';
         const upcomingSection = upcoming.length > 0 ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : 'No upcoming assignments in the next ' + daysForward + ' days.';
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection };
-        messages.push(buildGeneratedMessage(student, vars, template));
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     } else {
       const allAssignments = await getAssignments(courseId);
@@ -594,7 +611,7 @@ Thank you,
           missingSection: '',
           upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${assignmentList}` : '',
         };
-        messages.push(buildGeneratedMessage(student, vars, template));
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
     }
     return messages;
@@ -978,10 +995,12 @@ Thank you,
       if (includeAnnouncement) {
         try {
           const templates = getTemplates(); const tpl = templates[emailType];
+          const canvasAppUrl = buildCanvasAppPromoUrl(courseId, courseName);
           await postAnnouncement(courseId,
             tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
             tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
                     .replace(/\{\{courseName\}\}/g, courseName).replace(/\{\{studentName\}\}/g, 'Students')
+                    .replace(/\{\{canvasAppUrl\}\}/g, canvasAppUrl)
                     .replace(/\{\{assignmentList\}\}/g, '(see your individual message)').replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
                     .replace(/\{\{currentGrade\}\}/g, '(see your individual message)').replace(/\{\{currentScore\}\}/g, '(see your individual message)')
                     .replace(/\{\{daysForward\}\}/g, String(document.getElementById('ces-days-forward')?.value || 7))
