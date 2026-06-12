@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 
 const IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
 const ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.instructure.candroid';
@@ -136,7 +136,7 @@ export default function CanvasAppMarketingPage() {
   );
 }
 
-const S: Record<string, React.CSSProperties> = {
+const S: Record<string, CSSProperties> = {
   page: {
     minHeight: '100vh',
     background: '#eef2f5',
