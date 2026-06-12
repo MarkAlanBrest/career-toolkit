@@ -155,12 +155,12 @@
     upcoming: {
       name: 'Upcoming Assignments',
       subject: 'Upcoming Work for {{courseName}}',
-      body: `Hi {{studentName}},\n\nHere is what is coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease review the instructions in Canvas and plan enough time to complete each item before the deadline. If you have questions, reach out before the due date so there is time to help.\n\nBest,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nHere is what is coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nThis is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.\n\nPlease review the instructions in Canvas and plan enough time to complete each item before the deadline. If anything is unclear, reach out before the due date so there is time to help.\n\nBest,\n{{teacherName}}`,
     },
     missing: {
       name: 'Missing Work Reminder',
       subject: 'Missing Work in {{courseName}}',
-      body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nPlease submit the missing work as soon as you are able. If something is preventing you from completing it, reply to this message so we can talk about next steps.\n\nBest,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nMissing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.\n\nIf something is preventing you from completing the work, reply to this message so we can talk about a realistic plan. You do not need to wait until everything is perfect to get started.\n\nBest,\n{{teacherName}}`,
     },
     welcome: {
       name: 'Welcome to Class',
@@ -175,22 +175,22 @@
     auto_late: {
       name: 'Automation: Late Work',
       subject: 'Past Due Work in {{courseName}}',
-      body: `Hi {{studentName}},\n\nThis is an automated reminder that the following work in {{courseName}} is currently past due:\n\n{{missingAssignmentList}}\n\nPlease submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nThis is an automated reminder that the following work in {{courseName}} is currently past due:\n\n{{missingAssignmentList}}\n\nI know late work can feel difficult to restart, but taking action now can still help your progress in the course. Start with the most manageable item, then continue from there.\n\nPlease submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours. I would rather hear from you early than have you try to handle it alone.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_upcoming: {
       name: 'Automation: Upcoming Work',
       subject: 'Upcoming Work in {{courseName}}',
-      body: `Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions, required materials, and submission details. Planning ahead now will help you avoid last-minute issues.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nUse this as a planning checklist for the week. If one of these items will take longer than expected, it is better to find that out now than close to the deadline.\n\nPlease check Canvas for full instructions, required materials, and submission details. Planning ahead now will help you avoid last-minute issues.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_midpoint: {
       name: 'Automation: Midpoint Evaluation',
       subject: 'Midpoint Progress Check for {{courseName}}',
-      body: `Hi {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I am sharing a progress check to help you assess where things stand and what to focus on next.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThis is a useful point in the course to review your habits, catch up where possible, and ask for support before the final stretch.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I am sharing a progress check to help you assess where things stand and what to focus on next.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThere is still time to make meaningful adjustments. If you are doing well, keep protecting the habits that are working. If you are behind, focus first on the items that will have the greatest impact and reach out if you want help prioritizing.\n\nThis is a useful point in the course to review your habits, catch up where possible, and ask for support before the final stretch.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_low_grade: {
       name: 'Automation: Low Grade Warning',
       subject: 'Grade Check-In for {{courseName}}',
-      body: `Hi {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.\n\n{{gradeAlertDetail}}\n\nPlease review your recent feedback in Canvas and consider what needs attention first. If you would like help making a recovery plan, reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.\n\n{{gradeAlertDetail}}\n\nThis message is meant to catch the issue early enough that you can respond. A lower score does not have to define the rest of the course, but it is important to take action soon.\n\nPlease review your recent feedback in Canvas and consider what needs attention first. If you would like help making a recovery plan, reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}`,
     },
   };
 

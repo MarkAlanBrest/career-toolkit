@@ -342,7 +342,7 @@
     return url.toString();
   }
 
-  const TEMPLATE_VERSION_VALUE = '7';
+  const TEMPLATE_VERSION_VALUE = '8';
 
   function templateBody(source) {
     return {
@@ -406,7 +406,9 @@ Here is what is coming up in {{courseName}} over the next {{daysForward}} days.
 
 {{assignmentListHtml}}
 
-> Please review the instructions in Canvas and plan enough time to complete each item before the deadline. If you have questions, reach out before the due date so there is time to help.
+This is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.
+
+> Please review the instructions in Canvas and plan enough time to complete each item before the deadline. If anything is unclear, reach out before the due date so there is time to help.
 
 Best,
 {{teacherName}}`),
@@ -423,7 +425,9 @@ I am reaching out because the following work still appears as missing in {{cours
 
 {{missingAssignmentListHtml}}
 
-> Please submit the missing work as soon as you are able. If something is preventing you from completing it, reply to this message so we can talk about next steps.
+Missing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.
+
+> If something is preventing you from completing the work, reply to this message so we can talk about a realistic plan. You do not need to wait until everything is perfect to get started.
 
 Best,
 {{teacherName}}`),
@@ -487,7 +491,9 @@ This is an automated reminder that the following work in {{courseName}} is curre
 
 {{missingAssignmentListHtml}}
 
-> Please submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours.
+I know late work can feel difficult to restart, but taking action now can still help your progress in the course. Start with the most manageable item, then continue from there.
+
+> Please submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours. I would rather hear from you early than have you try to handle it alone.
 
 Best regards,
 {{teacherName}}`),
@@ -503,6 +509,8 @@ Hi {{studentName}},
 Here is the work coming up in {{courseName}} over the next {{daysForward}} days.
 
 {{assignmentListHtml}}
+
+Use this as a planning checklist for the week. If one of these items will take longer than expected, it is better to find that out now than close to the deadline.
 
 > Please check Canvas for full instructions, required materials, and submission details. Planning ahead now will help you avoid last-minute issues.
 
@@ -527,6 +535,8 @@ We are at the midpoint of {{courseName}}, so I am sharing a progress check to he
 # Coming Up
 {{upcomingSectionHtml}}
 
+There is still time to make meaningful adjustments. If you are doing well, keep protecting the habits that are working. If you are behind, focus first on the items that will have the greatest impact and reach out if you want help prioritizing.
+
 > This is a useful point in the course to review your habits, catch up where possible, and ask for support before the final stretch.
 
 Best regards,
@@ -543,6 +553,8 @@ Hi {{studentName}},
 I am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.
 
 {{gradeAlertDetailHtml}}
+
+This message is meant to catch the issue early enough that you can respond. A lower score does not have to define the rest of the course, but it is important to take action soon.
 
 > Please review your recent feedback in Canvas and consider what needs attention first. If you would like help making a recovery plan, reply to this message or visit office hours.
 
