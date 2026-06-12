@@ -1280,7 +1280,6 @@ Thank you,
     const group = document.getElementById('ces-launcher-group');
     if (isSpeedGraderPage()) {
       if (group) group.remove();
-      document.getElementById('ces-ai-side-panel')?.remove();
       return;
     }
     if (!group) return;
@@ -1300,31 +1299,12 @@ Thank you,
     group.classList.add('ces-launcher-fixed');
   }
 
-  function openAiSidePanel(name, url) {
-    let panel = document.getElementById('ces-ai-side-panel');
-    if (!panel) {
-      panel = document.createElement('aside');
-      panel.id = 'ces-ai-side-panel';
-      panel.innerHTML = `
-        <div id="ces-ai-side-head">
-          <span id="ces-ai-side-title"></span>
-          <div id="ces-ai-side-actions">
-            <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-ai-side-open">Open in New Tab</button>
-            <button class="ces-close-btn" id="ces-ai-side-close" title="Close">&times;</button>
-          </div>
-        </div>
-        <iframe id="ces-ai-side-frame" title="AI Chat"></iframe>
-        <div class="ces-ai-side-note">Some AI chats block embedded views. If this panel is blank or shows an access error, use Open in New Tab.</div>
-      `;
-      document.body.appendChild(panel);
-      panel.querySelector('#ces-ai-side-close')?.addEventListener('click', () => panel.remove());
-    }
-
-    panel.querySelector('#ces-ai-side-title').textContent = name;
-    panel.querySelector('#ces-ai-side-open').onclick = () => window.open(url, '_blank', 'noopener,noreferrer');
-    const frame = panel.querySelector('#ces-ai-side-frame');
-    frame.src = 'about:blank';
-    setTimeout(() => { frame.src = url; }, 30);
+  function openAiSideWindow(url) {
+    const width = 560;
+    const height = Math.max(720, Math.floor((window.screen?.availHeight || 820) * 0.92));
+    const left = Math.max(0, (window.screen?.availWidth || 1200) - width - 12);
+    const top = 20;
+    window.open(url, 'ces_ai_chat', `popup=yes,width=${width},height=${height},left=${left},top=${top},noopener,noreferrer`);
   }
 
   function addCanvasLauncher() {
@@ -1355,24 +1335,22 @@ Thank you,
     const aiSelect = document.createElement('select');
     aiSelect.className = 'ces-ai-select';
     aiSelect.title = 'Choose AI chat';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'AI Chat';
+    aiSelect.appendChild(placeholder);
     aiOptions.forEach(([name, _label, url]) => {
       const opt = document.createElement('option');
       opt.value = url;
       opt.textContent = name;
       aiSelect.appendChild(opt);
     });
-    group.appendChild(aiSelect);
-
-    const aiChatBtn = document.createElement('button');
-    aiChatBtn.className = 'ces-ai-chat-btn';
-    aiChatBtn.type = 'button';
-    aiChatBtn.title = 'Open selected AI chat';
-    aiChatBtn.textContent = 'AI Chat';
-    aiChatBtn.addEventListener('click', () => {
-      const selected = aiOptions.find(([_name, _label, url]) => url === aiSelect.value) || aiOptions[0];
-      openAiSidePanel(selected[0], selected[2]);
+    aiSelect.addEventListener('change', () => {
+      if (!aiSelect.value) return;
+      openAiSideWindow(aiSelect.value);
+      aiSelect.value = '';
     });
-    group.appendChild(aiChatBtn);
+    group.appendChild(aiSelect);
 
     document.body.appendChild(group);
     placeCanvasLauncher();
