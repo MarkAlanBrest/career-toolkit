@@ -718,7 +718,6 @@ Thank you,
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
           <button class="ces-tab" data-tab="templates">Message Templates</button>
-          <button class="ces-tab" data-tab="googleVoice">Google Voice</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
         <div id="ces-body"></div>
@@ -766,7 +765,6 @@ Thank you,
     try {
       if (tabName === 'send') renderSendTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
-      else if (tabName === 'googleVoice') renderGoogleVoiceTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
       renderTabError(body, err);
@@ -1133,77 +1131,6 @@ Thank you,
     }
 
     renderList();
-  }
-
-  /* =========================================================
-     TAB: GOOGLE VOICE
-  ========================================================= */
-  async function renderGoogleVoiceTab(container) {
-    if (!container) return;
-    const courseId = getSelectedCourseId();
-    container.innerHTML = `
-      <div id="ces-status-area"></div>
-      <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
-      <div class="ces-send-panel">
-        <div class="ces-send-panel-head">
-          <div>
-            <div class="ces-send-panel-title">Google Voice</div>
-            <div class="ces-send-panel-sub">Use Google Voice for free one-at-a-time texting outside the blocked embed.</div>
-          </div>
-          <button class="ces-btn ces-btn-primary ces-btn-sm" id="ces-open-google-voice">Open Google Voice</button>
-        </div>
-        <div class="ces-grid-2" style="margin-top:12px;grid-template-columns:minmax(220px,280px) 1fr;">
-          <div>
-            <label class="ces-label" style="margin-top:0;">Student</label>
-            <select class="ces-select" id="ces-google-voice-student">
-              <option value="">Loading students...</option>
-            </select>
-            <p style="font-size:12px;color:#6b7280;line-height:1.45;margin:8px 0 0;">
-              Pick a student here for your own tracking, then open Google Voice and text that student manually.
-            </p>
-          </div>
-          <div class="ces-card" style="background:#f9fafb;margin:0;">
-            <strong>Why this opens separately</strong>
-            <div style="font-size:13px;color:#374151;line-height:1.55;margin-top:6px;">
-              Google blocks Voice/Messages from running inside Canvas. Opening it in its own tab avoids the 403 error and keeps texting free.
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="ces-card" style="margin-top:12px;">
-        <h3 style="margin:0 0 8px;font-size:16px;">Texting Workflow</h3>
-        <ol style="font-size:13px;color:#374151;line-height:1.7;margin:0;padding-left:20px;">
-          <li>Select the student in this tab.</li>
-          <li>Click Open Google Voice.</li>
-          <li>Search for the student's conversation or number in Google Voice.</li>
-          <li>Send or reply to one message at a time.</li>
-        </ol>
-      </div>
-    `;
-
-    loadCurrentCourse(courseId);
-    container.querySelector('#ces-open-google-voice')?.addEventListener('click', () => {
-      window.open('https://voice.google.com/messages', '_blank', 'noopener,noreferrer');
-    });
-
-    const select = container.querySelector('#ces-google-voice-student');
-    if (!courseId) {
-      select.innerHTML = '<option value="">Open from inside a Canvas course</option>';
-      return;
-    }
-    try {
-      const students = await getStudents(courseId);
-      if (!students.length) {
-        select.innerHTML = '<option value="">No students found</option>';
-        return;
-      }
-      select.innerHTML = students
-        .map(student => `<option value="${escapeAttr(String(student.id))}">${escapeHtml(student.name || student.sortable_name || 'Student')}</option>`)
-        .join('');
-    } catch (err) {
-      select.innerHTML = '<option value="">Could not load students</option>';
-      showStatus(err?.message || 'Could not load students for Google Voice.', 'error');
-    }
   }
 
   /* =========================================================

@@ -11,7 +11,6 @@
     "https://*.instructure.com/*",
     "https://*.canvas.com/*",
     "https://*.canvaslms.com/*",
-    "https://voice.google.com/*",
     "https://*.vercel.app/*",
     "https://career-toolkit-ruby.vercel.app/*"
   ],
