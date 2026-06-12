@@ -238,10 +238,13 @@
       background: #fff;
       color: #2d3b45;
       font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 34px;
+      box-sizing: border-box;
+      vertical-align: middle;
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
-    .ces-ai-select { width: 126px; padding: 0 7px; justify-content: flex-start; }
+    .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
     @media (max-width: 720px) {
