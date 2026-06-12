@@ -98,30 +98,15 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
     <div style={S.page}>
       <form onSubmit={submit} noValidate>
         <div style={S.inner}>
-          <label style={S.checkLabel}>
-            <input
-              type="checkbox"
-              aria-label="I agree to receive text messages"
-              checked={optIn}
-              onChange={e => setOptIn(e.target.checked)}
-              style={S.checkbox}
-            />
-            <span style={S.checkText}>I agree to receive text messages</span>
-          </label>
-
-          {studentName.trim() ? (
-            <input type="hidden" value={studentName} />
-          ) : (
-            <input
-              type="text"
-              aria-label="Student name"
-              placeholder="Your name"
-              value={studentName}
-              onChange={e => setStudentName(e.target.value)}
-              required
-              style={S.nameInput}
-            />
-          )}
+          <input
+            type="text"
+            aria-label="Student name"
+            placeholder="Your name"
+            value={studentName}
+            onChange={e => setStudentName(e.target.value)}
+            required
+            style={S.nameInput}
+          />
 
           <input
             type="tel"
@@ -132,6 +117,17 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
             required
             style={S.input}
           />
+
+          <label style={S.checkLabel}>
+            <input
+              type="checkbox"
+              aria-label="I agree to receive text messages"
+              checked={optIn}
+              onChange={e => setOptIn(e.target.checked)}
+              style={S.checkbox}
+            />
+            <span style={S.checkText}>I agree to receive text messages</span>
+          </label>
 
           <button
             type="submit"
@@ -160,9 +156,11 @@ const S: Record<string, React.CSSProperties> = {
   },
   inner: {
     display: 'flex',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: 8,
-    flexWrap: 'wrap',
+    width: 260,
+    maxWidth: '100%',
     background: '#fff',
     border: '1px solid #d1d5db',
     borderRadius: 8,
@@ -174,7 +172,7 @@ const S: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 6,
     cursor: 'pointer',
-    flex: '0 1 auto',
+    alignSelf: 'flex-start',
   },
   checkbox: {
     width: 20,
@@ -191,8 +189,7 @@ const S: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   input: {
-    flex: '0 0 155px',
-    width: 155,
+    width: '100%',
     padding: '9px 11px',
     fontSize: 15,
     fontWeight: 600,
@@ -205,8 +202,7 @@ const S: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
   },
   nameInput: {
-    flex: '0 0 170px',
-    width: 170,
+    width: '100%',
     padding: '9px 11px',
     fontSize: 15,
     fontWeight: 600,
@@ -219,6 +215,7 @@ const S: Record<string, React.CSSProperties> = {
     fontFamily: 'inherit',
   },
   btn: {
+    width: '100%',
     padding: '10px 16px',
     background: '#0770B8',
     color: '#fff',

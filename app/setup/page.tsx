@@ -39,7 +39,7 @@ export default function SetupPage() {
   }
 
   function copyEmbed() {
-    const code = `<iframe src="${signupUrl}" width="100%" height="80" frameborder="0" style="border:none; width:100%; min-height:80px;"></iframe>`;
+    const code = `<iframe src="${signupUrl}" width="100%" height="220" frameborder="0" style="border:none; width:100%; min-height:220px;"></iframe>`;
     navigator.clipboard.writeText(code).then(() => {
       setCopied('embed');
       setTimeout(() => setCopied(null), 2500);
