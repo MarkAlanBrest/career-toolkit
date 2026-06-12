@@ -632,7 +632,8 @@
         </div>
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
-          <button class="ces-tab" data-tab="templates">Email Templates</button>
+          <button class="ces-tab" data-tab="templates">Message Templates</button>
+          <button class="ces-tab" data-tab="googleTexts">Google Texts</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
         <div id="ces-body"></div>
@@ -680,6 +681,7 @@
     try {
       if (tabName === 'send') renderSendTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
+      else if (tabName === 'googleTexts') renderGoogleTextsTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
       renderTabError(body, err);
@@ -733,7 +735,7 @@
           </label>
         </div>
       </div>
-      ${templateOptions ? '' : '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
+      ${templateOptions ? '' : '<div class="ces-status ces-status-error">No message templates found. Add one in Message Templates.</div>'}
       <div class="ces-generate-row">
         <div id="ces-progress-area" style="display:none;flex:1;">
           <div class="ces-status ces-status-info" id="ces-progress-text" style="margin-bottom:6px;">Fetching data...</div>
@@ -1047,6 +1049,76 @@
   }
 
   /* =========================================================
+     TAB: GOOGLE TEXTS
+  ========================================================= */
+  async function renderGoogleTextsTab(container) {
+    if (!container) return;
+    const courseId = getSelectedCourseId();
+    container.innerHTML = `
+      <div id="ces-status-area"></div>
+      <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
+      <div class="ces-send-panel">
+        <div class="ces-send-panel-head">
+          <div>
+            <div class="ces-send-panel-title">Google Texts</div>
+            <div class="ces-send-panel-sub">Send and receive one direct text conversation at a time using Google Messages.</div>
+          </div>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-open-google-texts">Open in Window</button>
+        </div>
+        <div class="ces-grid-2" style="margin-top:12px;grid-template-columns:minmax(220px,280px) 1fr;">
+          <div>
+            <label class="ces-label" style="margin-top:0;">Student</label>
+            <select class="ces-select" id="ces-google-text-student">
+              <option value="">Loading students...</option>
+            </select>
+            <p style="font-size:12px;color:#6b7280;line-height:1.45;margin:8px 0 0;">
+              Pick a student here for your own tracking, then search/select that conversation inside Google Messages.
+            </p>
+          </div>
+          <div class="ces-card" style="background:#f9fafb;margin:0;">
+            <strong>Important</strong>
+            <div style="font-size:13px;color:#374151;line-height:1.55;margin-top:6px;">
+              Google Messages must already be paired with the teacher's phone. If the embedded panel is blank, use Open in Window.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ces-card" style="padding:0;overflow:hidden;margin-top:12px;">
+        <iframe
+          id="ces-google-texts-frame"
+          src="https://messages.google.com/web/conversations"
+          title="Google Messages"
+          style="display:block;width:100%;height:520px;border:0;background:#fff;"
+        ></iframe>
+      </div>
+    `;
+
+    loadCurrentCourse(courseId);
+    container.querySelector('#ces-open-google-texts')?.addEventListener('click', () => {
+      window.open('https://messages.google.com/web/conversations', '_blank', 'noopener,noreferrer');
+    });
+
+    const select = container.querySelector('#ces-google-text-student');
+    if (!courseId) {
+      select.innerHTML = '<option value="">Open from inside a Canvas course</option>';
+      return;
+    }
+    try {
+      const students = await getStudents(courseId);
+      if (!students.length) {
+        select.innerHTML = '<option value="">No students found</option>';
+        return;
+      }
+      select.innerHTML = students
+        .map(student => `<option value="${escapeAttr(String(student.id))}">${escapeHtml(student.name || student.sortable_name || 'Student')}</option>`)
+        .join('');
+    } catch (err) {
+      select.innerHTML = '<option value="">Could not load students</option>';
+      showStatus(err?.message || 'Could not load students for Google Texts.', 'error');
+    }
+  }
+
+  /* =========================================================
      TAB: SETTINGS
   ========================================================= */
   function renderSettingsTab(container) {
@@ -1060,7 +1132,7 @@
         <h3 style="margin:0 0 12px;">Teacher Information</h3>
         <label class="ces-label">Teacher Name</label>
         <input type="text" class="ces-input" id="ces-set-teacher" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
-        <p style="font-size:12px;color:#6b7280;margin-top:4px;">Used in all email templates as {{teacherName}}.</p>
+        <p style="font-size:12px;color:#6b7280;margin-top:4px;">Used in all message templates as {{teacherName}}.</p>
       </div>
       <div class="ces-card">
         <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
