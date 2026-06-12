@@ -234,8 +234,6 @@
   ========================================================= */
   const CANVAS_BASE = window.location.origin;
   const API = CANVAS_BASE + '/api/v1';
-  const TOOLKIT_BASE = 'https://career-toolkit-ruby.vercel.app';
-  const TOOLKIT_ORIGIN = new URL(TOOLKIT_BASE).origin;
 
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
@@ -330,63 +328,6 @@
     const responseText = await resp.text();
     if (!resp.ok) throw new Error(`Canvas API error: ${resp.status} - ${responseText}`);
     try { return JSON.parse(responseText); } catch(e) { return responseText; }
-  }
-
-  let cachedCanvasUser = null;
-  async function getCurrentCanvasUser() {
-    if (cachedCanvasUser) return cachedCanvasUser;
-    try {
-      const resp = await fetch(`${API}/users/self/profile`, { credentials: 'same-origin' });
-      if (!resp.ok) throw new Error(`Canvas user lookup failed: ${resp.status}`);
-      const user = await resp.json();
-      cachedCanvasUser = {
-        id: user.id || '',
-        name: user.name || user.short_name || user.sortable_name || '',
-      };
-    } catch (_err) {
-      const nameEl = document.querySelector('.ic-app-header__logomark-container + * [title], .user_name, [data-testid="user-menu"]');
-      cachedCanvasUser = { id: '', name: nameEl?.textContent?.trim() || '' };
-    }
-    return cachedCanvasUser;
-  }
-
-  async function buildSignupContext() {
-    const courseId = getCurrentCourseId();
-    let courseName = '';
-    try {
-      if (courseId) {
-        const course = await getCourse(courseId);
-        courseName = course.name || '';
-      }
-    } catch (_err) {}
-    const user = await getCurrentCanvasUser();
-    return {
-      type: 'CE_CONTEXT',
-      courseId,
-      course_id: courseId,
-      className: courseName,
-      name: user.name,
-      studentName: user.name,
-      userId: user.id,
-    };
-  }
-
-  async function sendSignupContext(targetWindow) {
-    try {
-      const context = await buildSignupContext();
-      targetWindow.postMessage(context, TOOLKIT_ORIGIN);
-    } catch (_err) {}
-  }
-
-  function bridgeSignupIframes() {
-    document.querySelectorAll('iframe[src]').forEach(frame => {
-      try {
-        const src = new URL(frame.getAttribute('src'), window.location.href);
-        if (src.origin === TOOLKIT_ORIGIN && src.pathname.startsWith('/signup') && frame.contentWindow) {
-          sendSignupContext(frame.contentWindow);
-        }
-      } catch (_err) {}
-    });
   }
 
   /* =========================================================
@@ -548,41 +489,6 @@
     return canvasPost(`/courses/${courseId}/discussion_topics`, { title, message: '<p>' + message.replace(/\n/g, '<br>') + '</p>', is_announcement: true, published: true });
   }
 
-  async function getTextSignups(courseId) {
-    const url = courseId
-      ? `${TOOLKIT_BASE}/api/signup?courseId=${encodeURIComponent(courseId)}`
-      : `${TOOLKIT_BASE}/api/signup`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'Could not load text signups.');
-    return data.signups || [];
-  }
-
-  async function removeTextSignup(id) {
-    const res = await fetch(`${TOOLKIT_BASE}/api/signup?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'Could not remove signup.');
-    return data;
-  }
-
-  async function sendTextMessages(courseId, messages) {
-    const res = await fetch(`${TOOLKIT_BASE}/api/text/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        courseId,
-        messages: messages.map(msg => ({
-          studentName: msg.studentName,
-          subject: msg.subject,
-          body: msg.body,
-        })),
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || data?.failures?.[0]?.error || 'Could not send text messages.');
-    return data;
-  }
-
   /* =========================================================
      UTILITY
   ========================================================= */
@@ -593,11 +499,6 @@
   function escapeAttr(str) {
     if (str == null) return '';
     return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  function formatPhone(digits) {
-    const s = String(digits || '').replace(/\D/g, '');
-    if (s.length !== 10) return String(digits || '');
-    return `(${s.slice(0,3)}) ${s.slice(3,6)}-${s.slice(6)}`;
   }
   function normalizeName(name) {
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -668,7 +569,6 @@
         </div>
         <div id="ces-tabs">
           <button class="ces-tab active" data-tab="send">Send Messages</button>
-          <button class="ces-tab" data-tab="texts">Text Subscribers</button>
           <button class="ces-tab" data-tab="templates">Email Templates</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
@@ -716,7 +616,6 @@
     if (!body) return;
     try {
       if (tabName === 'send') renderSendTab(body);
-      else if (tabName === 'texts') renderTextsTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
@@ -768,10 +667,6 @@
           <label class="ces-checkbox-row" style="margin:0;">
             <input type="checkbox" id="ces-announce-check">
             <span>Canvas Announcement / Notification</span>
-          </label>
-          <label class="ces-checkbox-row" style="margin:0;">
-            <input type="checkbox" id="ces-text-check">
-            <span>Text Message</span>
           </label>
         </div>
       </div>
@@ -838,140 +733,6 @@
     });
 
     updateOptionsVisibility(selectedType);
-  }
-
-  async function loadTextSubscribers(courseId) {
-    const list = document.getElementById('ces-text-signups-list');
-    if (!list) return;
-    if (!courseId) {
-      list.textContent = 'Open from inside a Canvas course to load subscribers.';
-      return;
-    }
-    list.textContent = 'Loading...';
-    try {
-      const signups = await getTextSignups(courseId);
-      if (!signups.length) {
-        list.textContent = 'No text subscribers found for this course yet.';
-        return;
-      }
-      list.innerHTML = signups.map(s => `
-        <div class="ces-msg-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <strong>${escapeHtml(s.name || 'Student')}</strong>
-            <div style="font-size:12px;color:#6b7280;">${escapeHtml(formatPhone(s.phone))} · ${escapeHtml(s.className || '')}</div>
-          </div>
-          <button class="ces-btn ces-btn-danger ces-btn-sm ces-remove-signup" data-id="${escapeAttr(String(s.id))}">Remove</button>
-        </div>
-      `).join('');
-      list.querySelectorAll('.ces-remove-signup').forEach(btn => btn.addEventListener('click', async () => {
-        if (!confirm('Remove this student from text alerts for this course?')) return;
-        btn.disabled = true;
-        btn.textContent = 'Removing...';
-        try {
-          await removeTextSignup(btn.dataset.id);
-          await loadTextSubscribers(courseId);
-        } catch (err) {
-          btn.disabled = false;
-          btn.textContent = 'Remove';
-          showStatus(err?.message || 'Could not remove signup.', 'error');
-        }
-      }));
-    } catch (err) {
-      list.innerHTML = `<span style="color:#b91c1c;">${escapeHtml(err?.message || 'Could not load text subscribers.')}</span>`;
-    }
-  }
-
-  function renderSignupRows(signups, courseId, courseName = '') {
-    if (!signups.length) {
-      return '<div style="font-size:13px;color:#6b7280;">No phone numbers found.</div>';
-    }
-    return signups.map(s => {
-      const signupCourse = String(s.courseId || '');
-      const courseMatch = courseId && signupCourse === String(courseId);
-      const courseLabel = signupCourse && signupCourse !== '-'
-        ? `Course ID ${signupCourse}`
-        : 'No Canvas course ID saved';
-      const savedClass = String(s.className || '').trim();
-      if (!savedClass || savedClass === '-') s = { ...s, className: courseName };
-      return `
-        <div class="ces-msg-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div>
-            <strong>${escapeHtml(s.name || 'Student')}</strong>
-            <div style="font-size:12px;color:#6b7280;">${escapeHtml(formatPhone(s.phone))}</div>
-            <div style="font-size:12px;color:${courseMatch ? '#047857' : '#6b7280'};">
-              ${escapeHtml(courseLabel)}${s.className ? ' · ' + escapeHtml(s.className) : ''}
-            </div>
-          </div>
-          <button class="ces-btn ces-btn-danger ces-btn-sm ces-remove-signup" data-id="${escapeAttr(String(s.id))}">Remove</button>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function bindSignupRemoveButtons(container, reload) {
-    container.querySelectorAll('.ces-remove-signup').forEach(btn => btn.addEventListener('click', async () => {
-      if (!confirm('Remove this student from text alerts?')) return;
-      btn.disabled = true;
-      btn.textContent = 'Removing...';
-      try {
-        await removeTextSignup(btn.dataset.id);
-        await reload();
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Remove';
-        showStatus(err?.message || 'Could not remove signup.', 'error');
-      }
-    }));
-  }
-
-  async function loadTextsTab(courseId) {
-    const currentList = document.getElementById('ces-current-text-list');
-    if (!currentList) return;
-
-    currentList.textContent = courseId ? 'Loading current course numbers...' : 'Open from inside a Canvas course to match subscribers.';
-
-    try {
-      const courseName = getSelectedCourseName();
-      const [courseSignups, allSignups, students] = await Promise.all([
-        courseId ? getTextSignups(courseId) : Promise.resolve([]),
-        getTextSignups(''),
-        courseId ? getStudents(courseId).catch(() => []) : Promise.resolve([]),
-      ]);
-      const rosterNames = new Set(students.map(s => normalizeName(s.name || s.sortable_name)).filter(Boolean));
-      const matched = allSignups.filter(s =>
-        (courseId && String(s.courseId || '') === String(courseId)) ||
-        (normalizeName(s.name) && rosterNames.has(normalizeName(s.name)))
-      );
-
-      currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId, courseName);
-
-      bindSignupRemoveButtons(currentList, () => loadTextsTab(courseId));
-    } catch (err) {
-      const message = escapeHtml(err?.message || 'Could not load text subscribers.');
-      currentList.innerHTML = `<span style="color:#b91c1c;">${message}</span>`;
-    }
-  }
-
-  function renderTextsTab(container) {
-    if (!container) return;
-    const courseId = getSelectedCourseId();
-    container.innerHTML = `
-      <div id="ces-status-area"></div>
-      <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
-      <div class="ces-send-panel">
-        <div class="ces-send-panel-head">
-          <div>
-            <div class="ces-send-panel-title">Current Course Text Subscribers</div>
-            <div class="ces-send-panel-sub">${courseId ? `Matched to Canvas course ID ${escapeHtml(courseId)}.` : 'Open from a Canvas course page to match by course ID.'}</div>
-          </div>
-          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-refresh-texts">Refresh</button>
-        </div>
-        <div id="ces-current-text-list" style="margin-top:10px;font-size:13px;color:#6b7280;">Loading...</div>
-      </div>
-    `;
-    loadCurrentCourse(courseId);
-    loadTextsTab(courseId);
-    container.querySelector('#ces-refresh-texts')?.addEventListener('click', () => loadTextsTab(courseId));
   }
 
   function updateOptionsVisibility(type) {
@@ -1061,14 +822,11 @@
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
       const announceCheck = document.getElementById('ces-announce-check');
       const canvasCheck = document.getElementById('ces-canvas-message-check');
-      const textCheck = document.getElementById('ces-text-check');
       const includeAnnouncement = announceCheck && announceCheck.checked;
       const includeCanvasMessages = !canvasCheck || canvasCheck.checked;
-      const includeTexts = textCheck && textCheck.checked;
       const channels = [
         includeCanvasMessages ? 'Canvas Inbox / Email' : '',
         includeAnnouncement ? 'Canvas Announcement / Notification' : '',
-        includeTexts ? 'Text Message' : '',
       ].filter(Boolean);
       if (!channels.length) {
         showStatus('Choose at least one delivery channel first.', 'error');
@@ -1077,7 +835,7 @@
       if (!confirm(`Send ${generatedMessages.length} message(s) via ${channels.join(', ')}?`)) return;
       const btn = container.querySelector('#ces-send-all-btn');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Sending...';
-      let sent = 0, failed = 0, textSent = 0, textSkipped = 0, textFailed = 0;
+      let sent = 0, failed = 0;
       if (includeCanvasMessages) {
         for (let i = 0; i < generatedMessages.length; i++) {
           const msg = generatedMessages[i];
@@ -1108,22 +866,10 @@
           showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement failed: ${err.message}`, 'error');
         }
       }
-      if (includeTexts) {
-        try {
-          const textResult = await sendTextMessages(courseId, generatedMessages);
-          textSent = textResult.sent || 0;
-          textSkipped = textResult.skipped || 0;
-          textFailed = textResult.failed || 0;
-        } catch (err) {
-          textFailed = generatedMessages.length;
-          showStatus('Text messages failed: ' + err.message, 'error');
-        }
-      }
-      if (!includeAnnouncement || includeTexts) {
+      if (!includeAnnouncement) {
         const parts = [];
         if (includeCanvasMessages) parts.push(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}`);
-        if (includeTexts) parts.push(`Texts: ${textSent} sent${textSkipped ? `, ${textSkipped} no matching number` : ''}${textFailed ? `, ${textFailed} failed` : ''}`);
-        showStatus(parts.join('. ') + '.', failed || textFailed ? 'error' : 'success');
+        showStatus(parts.join('. ') + '.', failed ? 'error' : 'success');
       }
       btn.disabled = false; btn.innerHTML = '&#9993; Send All Selected Channels';
     });
@@ -1340,16 +1086,6 @@
     document.body.appendChild(btn);
   }
   addFloatingButton();
-  bridgeSignupIframes();
-  new MutationObserver(bridgeSignupIframes).observe(document.body, { childList: true, subtree: true });
-
-  window.addEventListener('message', evt => {
-    if (evt.origin !== TOOLKIT_ORIGIN) return;
-    if (evt.data?.type !== 'CE_REQUEST_CONTEXT') return;
-    if (evt.source && typeof evt.source.postMessage === 'function') {
-      sendSignupContext(evt.source);
-    }
-  });
 
   /* =========================================================
      POPUP MESSAGE LISTENER
