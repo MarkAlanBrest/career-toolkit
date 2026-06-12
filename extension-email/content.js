@@ -342,7 +342,7 @@
     return url.toString();
   }
 
-  const TEMPLATE_VERSION_VALUE = '6';
+  const TEMPLATE_VERSION_VALUE = '7';
 
   function templateBody(source) {
     return {
@@ -397,35 +397,35 @@ Thank you,
     upcoming: {
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
-      subject: 'Upcoming Assignments - {{courseName}}',
-      ...templateBody(`# Upcoming Assignments
+      subject: 'Upcoming Work for {{courseName}}',
+      ...templateBody(`# Upcoming Work
 
 Hi {{studentName}},
 
-Here are the assignments coming up in {{courseName}} over the next {{daysForward}} days.
+Here is what is coming up in {{courseName}} over the next {{daysForward}} days.
 
 {{assignmentListHtml}}
 
-> Please submit work before the due date, and reach out early if you are stuck.
+> Please review the instructions in Canvas and plan enough time to complete each item before the deadline. If you have questions, reach out before the due date so there is time to help.
 
-Thank you,
+Best,
 {{teacherName}}`),
     },
     missing: {
       name: 'Missing Work Reminder',
       description: 'Alert students about unsubmitted work',
-      subject: 'Missing Assignments - {{courseName}}',
-      ...templateBody(`# Missing Work Reminder
+      subject: 'Missing Work in {{courseName}}',
+      ...templateBody(`# Missing Work Check-In
 
 Hi {{studentName}},
 
-I am checking in because the following assignments still appear as missing in {{courseName}}.
+I am reaching out because the following work still appears as missing in {{courseName}}.
 
 {{missingAssignmentListHtml}}
 
-> Late work is still better than missing work. Please submit what you can and message me if you need help.
+> Please submit the missing work as soon as you are able. If something is preventing you from completing it, reply to this message so we can talk about next steps.
 
-Sincerely,
+Best,
 {{teacherName}}`),
     },
     welcome: {
@@ -436,30 +436,31 @@ Sincerely,
 
 Hi {{studentName}},
 
-Welcome to {{courseName}}. I am excited to have you in class this term.
+Welcome to {{courseName}}. I am glad you are in the course and look forward to working with you this term.
 
-To get started:
+To start strong, please take a few minutes to:
 
-- Check Canvas regularly for announcements and assignment updates.
-- Review the course syllabus and schedule.
-- Reach out early if you need help or accommodations.
+- Review the syllabus and course schedule.
+- Check Canvas regularly for announcements, modules, and due dates.
+- Set aside consistent time each week for readings, assignments, and review.
+- Reach out early if you have questions, need help, or have approved accommodations.
 
 ---
 
-I look forward to a great semester together.
+I hope this is a productive and engaging semester for you.
 
-Warm regards,
+Welcome,
 {{teacherName}}`),
     },
     evaluation: {
       name: 'Student Evaluation',
       description: 'Share grade status and progress',
-      subject: 'Your Progress in {{courseName}}',
-      ...templateBody(`# Your Progress Update
+      subject: 'Progress Update for {{courseName}}',
+      ...templateBody(`# Course Progress Update
 
 Hi {{studentName}},
 
-Here is a quick update on your current progress in {{courseName}}.
+I am sending a brief progress update for {{courseName}} so you have a clear picture of where things stand.
 
 > Current grade: {{currentGrade}} ({{currentScore}}%)
 
@@ -469,7 +470,7 @@ Here is a quick update on your current progress in {{courseName}}.
 # Coming Up
 {{upcomingSectionHtml}}
 
-> Please reach out if you have questions about your progress or need support.
+> If your current standing is not where you want it to be, this is a good time to make a plan. Please review the items above and reach out if you would like to discuss next steps.
 
 Best regards,
 {{teacherName}}`),
@@ -478,15 +479,15 @@ Best regards,
       name: 'Automation: Late Work',
       description: 'Automatically remind students about past-due missing work',
       subject: 'Past Due Work in {{courseName}}',
-      ...templateBody(`# Past Due Work
+      ...templateBody(`# Past Due Work Reminder
 
 Hi {{studentName}},
 
-This is a reminder that the following work in {{courseName}} is past due.
+This is an automated reminder that the following work in {{courseName}} is currently past due.
 
 {{missingAssignmentListHtml}}
 
-> Please submit it as soon as possible. If you are stuck or need help making a plan, reply to this message or visit office hours.
+> Please submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours.
 
 Best regards,
 {{teacherName}}`),
@@ -495,15 +496,15 @@ Best regards,
       name: 'Automation: Upcoming Work',
       description: 'Automatically send upcoming work reminders',
       subject: 'Upcoming Work in {{courseName}}',
-      ...templateBody(`# Upcoming Work
+      ...templateBody(`# Upcoming Work Reminder
 
 Hi {{studentName}},
 
-Here is the upcoming work in {{courseName}} for the next {{daysForward}} days.
+Here is the work coming up in {{courseName}} over the next {{daysForward}} days.
 
 {{assignmentListHtml}}
 
-> Please check Canvas for full instructions and due dates.
+> Please check Canvas for full instructions, required materials, and submission details. Planning ahead now will help you avoid last-minute issues.
 
 Best regards,
 {{teacherName}}`),
@@ -511,12 +512,12 @@ Best regards,
     auto_midpoint: {
       name: 'Automation: Midpoint Evaluation',
       description: 'Automatically send a midpoint progress check',
-      subject: 'Midpoint Progress Check - {{courseName}}',
+      subject: 'Midpoint Progress Check for {{courseName}}',
       ...templateBody(`# Midpoint Progress Check
 
 Hi {{studentName}},
 
-We are at the midpoint of {{courseName}}, so I wanted to share a quick progress check.
+We are at the midpoint of {{courseName}}, so I am sharing a progress check to help you assess where things stand and what to focus on next.
 
 > Current grade: {{currentGrade}} ({{currentScore}}%)
 
@@ -526,7 +527,7 @@ We are at the midpoint of {{courseName}}, so I wanted to share a quick progress 
 # Coming Up
 {{upcomingSectionHtml}}
 
-> This is a good time to review your standing, catch up on missing work, and reach out if you need support.
+> This is a useful point in the course to review your habits, catch up where possible, and ask for support before the final stretch.
 
 Best regards,
 {{teacherName}}`),
@@ -539,11 +540,11 @@ Best regards,
 
 Hi {{studentName}},
 
-I am reaching out because your current performance in {{courseName}} is below the selected alert threshold.
+I am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.
 
 {{gradeAlertDetailHtml}}
 
-> Please review your feedback in Canvas and reach out so we can discuss next steps while there is still time to improve.
+> Please review your recent feedback in Canvas and consider what needs attention first. If you would like help making a recovery plan, reply to this message or visit office hours.
 
 Best regards,
 {{teacherName}}`),

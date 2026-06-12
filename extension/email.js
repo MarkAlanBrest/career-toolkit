@@ -154,43 +154,43 @@
   const DEFAULT_TEMPLATES = {
     upcoming: {
       name: 'Upcoming Assignments',
-      subject: 'Upcoming Assignments - {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is a reminder from {{teacherName}} about upcoming assignments in {{courseName}} within the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease make sure to complete and submit these assignments before their due dates.\n\nBest regards,\n{{teacherName}}`,
+      subject: 'Upcoming Work for {{courseName}}',
+      body: `Hi {{studentName}},\n\nHere is what is coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease review the instructions in Canvas and plan enough time to complete each item before the deadline. If you have questions, reach out before the due date so there is time to help.\n\nBest,\n{{teacherName}}`,
     },
     missing: {
       name: 'Missing Work Reminder',
-      subject: 'Missing Assignments - {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is {{teacherName}} reaching out about some missing work in {{courseName}}.\n\nAccording to my records, the following assignments from the past {{daysBack}} days have not been submitted:\n\n{{missingAssignmentList}}\n\nI encourage you to complete and submit these assignments as soon as possible. Late submissions are still better than missing work. Please reach out if you need any assistance.\n\nSincerely,\n{{teacherName}}`,
+      subject: 'Missing Work in {{courseName}}',
+      body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nPlease submit the missing work as soon as you are able. If something is preventing you from completing it, reply to this message so we can talk about next steps.\n\nBest,\n{{teacherName}}`,
     },
     welcome: {
       name: 'Welcome to Class',
       subject: 'Welcome to {{courseName}}!',
-      body: `Dear {{studentName}},\n\nWelcome to {{courseName}}! I'm {{teacherName}}, and I'm excited to have you in class this term.\n\nHere are a few things to get started:\n- Check Canvas regularly for announcements and assignment updates\n- Review the course syllabus and schedule\n- Reach out early if you need help or accommodations\n\nI look forward to a great semester together!\n\nWarm regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nWelcome to {{courseName}}. I am glad you are in the course and look forward to working with you this term.\n\nTo start strong, please take a few minutes to:\n- Review the syllabus and course schedule.\n- Check Canvas regularly for announcements, modules, and due dates.\n- Set aside consistent time each week for readings, assignments, and review.\n- Reach out early if you have questions, need help, or have approved accommodations.\n\nI hope this is a productive and engaging semester for you.\n\nWelcome,\n{{teacherName}}`,
     },
     evaluation: {
       name: 'Student Evaluation',
-      subject: 'Your Progress in {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is {{teacherName}} with an update on your progress in {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nPlease don't hesitate to reach out if you have questions about your progress or need additional support.\n\nBest regards,\n{{teacherName}}`,
+      subject: 'Progress Update for {{courseName}}',
+      body: `Hi {{studentName}},\n\nI am sending a brief progress update for {{courseName}} so you have a clear picture of where things stand.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nIf your current standing is not where you want it to be, this is a good time to make a plan. Please review the items above and reach out if you would like to discuss next steps.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_late: {
       name: 'Automation: Late Work',
       subject: 'Past Due Work in {{courseName}}',
-      body: `Dear {{studentName}},\n\nThis is a reminder that the following work in {{courseName}} is past due:\n\n{{missingAssignmentList}}\n\nPlease submit it as soon as possible. If you are stuck or need help making a plan, please reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nThis is an automated reminder that the following work in {{courseName}} is currently past due:\n\n{{missingAssignmentList}}\n\nPlease submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_upcoming: {
       name: 'Automation: Upcoming Work',
       subject: 'Upcoming Work in {{courseName}}',
-      body: `Dear {{studentName}},\n\nHere is the upcoming work in {{courseName}} for the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions and due dates.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions, required materials, and submission details. Planning ahead now will help you avoid last-minute issues.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_midpoint: {
       name: 'Automation: Midpoint Evaluation',
-      subject: 'Midpoint Progress Check - {{courseName}}',
-      body: `Dear {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I wanted to share a quick progress check.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThis is a good time to review your standing, catch up on any missing work, and reach out if you need support.\n\nBest regards,\n{{teacherName}}`,
+      subject: 'Midpoint Progress Check for {{courseName}}',
+      body: `Hi {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I am sharing a progress check to help you assess where things stand and what to focus on next.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThis is a useful point in the course to review your habits, catch up where possible, and ask for support before the final stretch.\n\nBest regards,\n{{teacherName}}`,
     },
     auto_low_grade: {
       name: 'Automation: Low Grade Warning',
       subject: 'Grade Check-In for {{courseName}}',
-      body: `Dear {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} is below the selected alert threshold.\n\n{{gradeAlertDetail}}\n\nPlease review your feedback in Canvas and reach out so we can discuss next steps while there is still time to improve.\n\nBest regards,\n{{teacherName}}`,
+      body: `Hi {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.\n\n{{gradeAlertDetail}}\n\nPlease review your recent feedback in Canvas and consider what needs attention first. If you would like help making a recovery plan, reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}`,
     },
   };
 
