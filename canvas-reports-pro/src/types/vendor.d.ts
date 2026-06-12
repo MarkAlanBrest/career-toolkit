@@ -35,3 +35,8 @@ declare module 'jspdf' {
     save(filename: string): void;
   }
 }
+
+declare module '*.css?inline' {
+  const css: string;
+  export default css;
+}

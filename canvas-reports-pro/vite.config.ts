@@ -11,10 +11,14 @@ export default defineConfig({
         content: 'src/content/content.tsx',
       },
       output: {
+        format: 'iife',
+        name: 'CanvasReportsPro',
         entryFileNames: '[name].js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]',
+        inlineDynamicImports: true,
       },
+      preserveEntrySignatures: false,
     },
   },
 });

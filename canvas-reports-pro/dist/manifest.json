@@ -13,7 +13,6 @@
         "https://*/*"
       ],
       "js": ["content.js"],
-      "css": ["assets/content.css"],
       "run_at": "document_idle"
     }
   ]

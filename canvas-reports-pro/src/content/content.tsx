@@ -1,10 +1,18 @@
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { App } from '../components/App';
-import '../styles.css';
+import cssText from '../styles.css?inline';
 
 let root: Root | null = null;
 let host: HTMLDivElement | null = null;
+
+function injectStyles() {
+  if (document.getElementById('crp-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'crp-styles';
+  style.textContent = cssText;
+  document.head.appendChild(style);
+}
 
 function currentCourseId() {
   return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
@@ -97,4 +105,5 @@ function injectReportsButton() {
 }
 
 injectReportsButton();
+injectStyles();
 new MutationObserver(injectReportsButton).observe(document.body, { childList: true, subtree: true });
