@@ -228,7 +228,7 @@
       border-radius: 3px;
     }
     #ces-launcher-group.ces-launcher-inline { margin-left: auto; margin-right: 10px; flex: 0 0 auto; }
-    .ces-launcher-btn, .ces-ai-btn {
+    .ces-launcher-btn, .ces-ai-chat-btn, .ces-ai-select {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -241,9 +241,44 @@
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
-    .ces-ai-btn { min-width: 42px; padding: 0 8px; font-size: 12px; }
-    .ces-launcher-btn:hover, .ces-ai-btn:hover { background: #f5f5f5; border-color:#8aa9bf; }
+    .ces-ai-select { width: 116px; padding: 0 7px; justify-content: flex-start; }
+    .ces-ai-chat-btn { padding: 0 12px; }
+    .ces-launcher-btn:hover, .ces-ai-chat-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
+    #ces-ai-side-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(520px, 96vw);
+      height: 100vh;
+      z-index: 100001;
+      background: #fff;
+      border-left: 1px solid #c7cdd1;
+      box-shadow: -8px 0 28px rgba(45,59,69,.22);
+      display: flex;
+      flex-direction: column;
+      font-family: Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #ces-ai-side-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-bottom:1px solid #c7cdd1;
+      background:#f5f5f5;
+      color:#2d3b45;
+      font-weight:700;
+    }
+    #ces-ai-side-actions { display:flex; gap:6px; align-items:center; }
+    #ces-ai-side-frame { flex:1; width:100%; border:0; background:#fff; }
+    .ces-ai-side-note {
+      padding:8px 12px;
+      font-size:12px;
+      color:#394b58;
+      border-top:1px solid #e5e7eb;
+      background:#f9fafb;
+    }
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
@@ -1315,22 +1350,36 @@ Thank you,
     messageBtn.addEventListener('click', openEmailSystem);
     group.appendChild(messageBtn);
 
-    [
+    const aiOptions = [
       ['ChatGPT', 'GPT', 'https://chatgpt.com/'],
       ['Claude', 'Claude', 'https://claude.ai/'],
       ['Gemini', 'Gemini', 'https://gemini.google.com/'],
       ['Copilot', 'Copilot', 'https://copilot.microsoft.com/'],
       ['Perplexity', 'Perplexity', 'https://www.perplexity.ai/'],
       ['Grok', 'Grok', 'https://grok.com/'],
-    ].forEach(([name, label, url]) => {
-      const aiBtn = document.createElement('button');
-      aiBtn.className = 'ces-ai-btn';
-      aiBtn.type = 'button';
-      aiBtn.title = `Open ${name}`;
-      aiBtn.textContent = label;
-      aiBtn.addEventListener('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
-      group.appendChild(aiBtn);
+    ];
+
+    const aiSelect = document.createElement('select');
+    aiSelect.className = 'ces-ai-select';
+    aiSelect.title = 'Choose AI chat';
+    aiOptions.forEach(([name, _label, url]) => {
+      const opt = document.createElement('option');
+      opt.value = url;
+      opt.textContent = name;
+      aiSelect.appendChild(opt);
     });
+    group.appendChild(aiSelect);
+
+    const aiChatBtn = document.createElement('button');
+    aiChatBtn.className = 'ces-ai-chat-btn';
+    aiChatBtn.type = 'button';
+    aiChatBtn.title = 'Open selected AI chat';
+    aiChatBtn.textContent = 'AI Chat';
+    aiChatBtn.addEventListener('click', () => {
+      const selected = aiOptions.find(([_name, _label, url]) => url === aiSelect.value) || aiOptions[0];
+      openAiSidePanel(selected[0], selected[2]);
+    });
+    group.appendChild(aiChatBtn);
 
     document.body.appendChild(group);
     placeCanvasLauncher();
