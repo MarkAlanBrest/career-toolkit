@@ -565,6 +565,24 @@
     return data;
   }
 
+  async function sendTextMessages(courseId, messages) {
+    const res = await fetch(`${TOOLKIT_BASE}/api/text/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        courseId,
+        messages: messages.map(msg => ({
+          studentName: msg.studentName,
+          subject: msg.subject,
+          body: msg.body,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || data?.failures?.[0]?.error || 'Could not send text messages.');
+    return data;
+  }
+
   /* =========================================================
      UTILITY
   ========================================================= */
@@ -738,10 +756,24 @@
           <label class="ces-label">Back</label>
           <input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365">
         </div>
-        <label class="ces-checkbox-row" style="margin:0 0 8px;">
-          <input type="checkbox" id="ces-announce-check">
-          <span>Announcement</span>
-        </label>
+      </div>
+      <div class="ces-send-panel">
+        <div class="ces-send-panel-title">Delivery</div>
+        <div class="ces-send-panel-sub">Canvas email and notifications follow each student's Canvas notification settings.</div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
+          <label class="ces-checkbox-row" style="margin:0;">
+            <input type="checkbox" id="ces-canvas-message-check" checked>
+            <span>Canvas Inbox / Email</span>
+          </label>
+          <label class="ces-checkbox-row" style="margin:0;">
+            <input type="checkbox" id="ces-announce-check">
+            <span>Canvas Announcement / Notification</span>
+          </label>
+          <label class="ces-checkbox-row" style="margin:0;">
+            <input type="checkbox" id="ces-text-check">
+            <span>Text Message</span>
+          </label>
+        </div>
       </div>
       ${templateOptions ? '' : '<div class="ces-status ces-status-error">No message templates found. Add one in Email Templates.</div>'}
       <div class="ces-generate-row">
@@ -1008,10 +1040,7 @@
   }
 
   function renderMessagesList(container, courseId, courseName, emailType) {
-    const announceCheck = document.getElementById('ces-announce-check');
-    const includeAnnouncement = announceCheck && announceCheck.checked;
-
-    let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div>`;
+    let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All Selected Channels</button></div>`;
     generatedMessages.forEach((msg, i) => {
       html += `
         <div class="ces-msg-row" id="ces-msg-${i}">
@@ -1030,18 +1059,35 @@
     container.innerHTML = html;
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
-      if (!confirm(`Send ${generatedMessages.length} message(s) via Canvas to all listed students?`)) return;
+      const announceCheck = document.getElementById('ces-announce-check');
+      const canvasCheck = document.getElementById('ces-canvas-message-check');
+      const textCheck = document.getElementById('ces-text-check');
+      const includeAnnouncement = announceCheck && announceCheck.checked;
+      const includeCanvasMessages = !canvasCheck || canvasCheck.checked;
+      const includeTexts = textCheck && textCheck.checked;
+      const channels = [
+        includeCanvasMessages ? 'Canvas Inbox / Email' : '',
+        includeAnnouncement ? 'Canvas Announcement / Notification' : '',
+        includeTexts ? 'Text Message' : '',
+      ].filter(Boolean);
+      if (!channels.length) {
+        showStatus('Choose at least one delivery channel first.', 'error');
+        return;
+      }
+      if (!confirm(`Send ${generatedMessages.length} message(s) via ${channels.join(', ')}?`)) return;
       const btn = container.querySelector('#ces-send-all-btn');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Sending...';
-      let sent = 0, failed = 0;
-      for (let i = 0; i < generatedMessages.length; i++) {
-        const msg = generatedMessages[i];
-        const row = container.querySelector(`#ces-msg-${i}`);
-        try {
-          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
-          sent++; if (row) row.style.background = '#ecfdf5';
-        } catch(err) {
-          failed++; if (row) row.style.background = '#fef2f2';
+      let sent = 0, failed = 0, textSent = 0, textSkipped = 0, textFailed = 0;
+      if (includeCanvasMessages) {
+        for (let i = 0; i < generatedMessages.length; i++) {
+          const msg = generatedMessages[i];
+          const row = container.querySelector(`#ces-msg-${i}`);
+          try {
+            await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
+            sent++; if (row) row.style.background = '#ecfdf5';
+          } catch(err) {
+            failed++; if (row) row.style.background = '#fef2f2';
+          }
         }
       }
       if (includeAnnouncement) {
@@ -1057,14 +1103,29 @@
                     .replace(/\{\{daysBack\}\}/g, String(document.getElementById('ces-days-back')?.value || 14))
                     .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
           );
-          showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Announcement posted!`, 'success');
+          showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement posted.`, 'success');
         } catch(err) {
-          showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Announcement failed: ${err.message}`, 'error');
+          showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement failed: ${err.message}`, 'error');
         }
-      } else {
-        showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}.`, sent > 0 ? 'success' : 'error');
       }
-      btn.disabled = false; btn.innerHTML = '&#9993; Send All via Canvas Message';
+      if (includeTexts) {
+        try {
+          const textResult = await sendTextMessages(courseId, generatedMessages);
+          textSent = textResult.sent || 0;
+          textSkipped = textResult.skipped || 0;
+          textFailed = textResult.failed || 0;
+        } catch (err) {
+          textFailed = generatedMessages.length;
+          showStatus('Text messages failed: ' + err.message, 'error');
+        }
+      }
+      if (!includeAnnouncement || includeTexts) {
+        const parts = [];
+        if (includeCanvasMessages) parts.push(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}`);
+        if (includeTexts) parts.push(`Texts: ${textSent} sent${textSkipped ? `, ${textSkipped} no matching number` : ''}${textFailed ? `, ${textFailed} failed` : ''}`);
+        showStatus(parts.join('. ') + '.', failed || textFailed ? 'error' : 'success');
+      }
+      btn.disabled = false; btn.innerHTML = '&#9993; Send All Selected Channels';
     });
 
     container.querySelectorAll('.ces-send-one').forEach(btn => {
