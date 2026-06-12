@@ -612,6 +612,98 @@
     state.open = false;
   }
 
+  function isBlockedCanvasToolbarPage() {
+    return /^\/(?:accounts|admin|profile|users|login|logout)\b/.test(window.location.pathname) ||
+      /speed_grader/.test(window.location.href);
+  }
+
+  function findCanvasToolbarHost() {
+    const reportsButton = document.getElementById('crp-launcher');
+    const existingMessageButton = document.getElementById('ces-launcher-group');
+    return reportsButton?.parentElement ||
+      existingMessageButton?.parentElement ||
+      document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
+      document.querySelector('#breadcrumbs')?.parentElement ||
+      document.querySelector('[data-testid="breadcrumbs"]')?.parentElement ||
+      null;
+  }
+
+  function isCanvasCourseToolbarPage() {
+    if (!getCourseId() || isBlockedCanvasToolbarPage()) return false;
+    const hasCanvasShell = /(instructure|canvas|canvaslms)\.com$/i.test(window.location.hostname) || !!(
+      document.querySelector('meta[name="csrf-token"]') &&
+      (document.querySelector('#breadcrumbs') ||
+        document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
+        document.querySelector('[data-testid="breadcrumbs"]'))
+    );
+    return hasCanvasShell && !!findCanvasToolbarHost();
+  }
+
+  function placeToolbarLauncher(button) {
+    const reportsButton = document.getElementById('crp-launcher');
+    const messageButton = document.getElementById('ces-launcher-group');
+    const canvasHeader = findCanvasToolbarHost();
+
+    if (reportsButton) {
+      if (reportsButton.nextElementSibling !== button) {
+        reportsButton.insertAdjacentElement('afterend', button);
+      }
+      return true;
+    }
+
+    if (messageButton) {
+      if (messageButton.nextElementSibling !== button) {
+        messageButton.insertAdjacentElement('afterend', button);
+      }
+      return true;
+    }
+
+    if (!canvasHeader) return false;
+    if (button.parentElement !== canvasHeader) {
+      canvasHeader.appendChild(button);
+    }
+    if (getComputedStyle(canvasHeader).display === 'block') {
+      canvasHeader.style.display = 'flex';
+      canvasHeader.style.alignItems = 'center';
+    }
+    return true;
+  }
+
+  function injectToolbarLauncher() {
+    const existing = document.getElementById('csch-launcher');
+    if (!isCanvasCourseToolbarPage()) {
+      existing?.remove();
+      return;
+    }
+
+    const button = existing || document.createElement('button');
+    if (!existing) {
+      button.id = 'csch-launcher';
+      button.type = 'button';
+      button.title = 'Canvas Scheduler';
+      button.textContent = 'Scheduler';
+      button.style.cssText = [
+        'display:inline-flex',
+        'align-items:center',
+        'justify-content:center',
+        'height:36px',
+        'border:1px solid #c7cdd1',
+        'border-radius:3px',
+        'background:#fff',
+        'color:#2d3b45',
+        'font:700 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif',
+        'line-height:34px',
+        'padding:0 12px',
+        'cursor:pointer',
+        'margin-left:6px',
+        'white-space:nowrap'
+      ].join(';');
+      button.addEventListener('click', openApp);
+    }
+
+    placeToolbarLauncher(button);
+  }
+
   /* ── DOM ─────────────────────────────────────────────────────────────── */
 
   const app = document.createElement('div');
@@ -690,33 +782,10 @@
   `;
   document.body.appendChild(app);
 
-  /* ── Floating launcher button ────────────────────────────────────────── */
+  /* ── Canvas toolbar launcher button ──────────────────────────────────── */
 
-  const floatingBtn = document.createElement('button');
-  floatingBtn.id = 'csch-launcher';
-  floatingBtn.type = 'button';
-  floatingBtn.title = 'Canvas Scheduler';
-  floatingBtn.innerHTML = '<span style="font-size:16px;line-height:1;">⊞</span><span>Scheduler</span>';
-  floatingBtn.style.cssText = [
-    'position:fixed',
-    'top:164px',
-    'right:18px',
-    'z-index:99998',
-    'display:flex',
-    'align-items:center',
-    'gap:7px',
-    'padding:9px 13px',
-    'border:none',
-    'border-radius:8px',
-    'background:#0f766e',
-    'color:#fff',
-    'font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-    'box-shadow:0 4px 16px rgba(0,0,0,.22)',
-    'cursor:pointer',
-    'white-space:nowrap'
-  ].join(';');
-  floatingBtn.addEventListener('click', openApp);
-  document.body.appendChild(floatingBtn);
+  injectToolbarLauncher();
+  new MutationObserver(injectToolbarLauncher).observe(document.body, { childList: true, subtree: true });
 
   /* ── Event listeners ─────────────────────────────────────────────────── */
 
