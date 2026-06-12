@@ -244,7 +244,7 @@
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
-    .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; }
+    .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; transform: translateY(1px); }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
     @media (max-width: 720px) {
