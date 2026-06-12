@@ -31,7 +31,7 @@
     const normalized = value
       .map((entry) => Number(entry))
       .filter((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 6);
-    const unique = [...new Set(normalized)].slice(0, 2);
+    const unique = [...new Set(normalized)];
     return unique.length ? unique : [1, 3];
   }
 
@@ -384,7 +384,6 @@
     if (existingIndex >= 0) {
       selected.splice(existingIndex, 1);
     } else {
-      if (selected.length >= 2) { setNotice('Choose up to two due weekdays at a time.', 'info'); return; }
       selected.push(dayIndex);
     }
     selected.sort((a, b) => a - b);
@@ -579,7 +578,7 @@
         </section>
       `;
     }).join('') : `
-      <div class="csch-empty-board">Pick one or two weekdays to generate due-date columns.</div>
+      <div class="csch-empty-board">Pick one or more weekdays to generate due-date columns.</div>
     `;
 
     document.getElementById('csch-load-btn').disabled = state.loading;
@@ -773,7 +772,7 @@
         <main id="csch-right">
           <div class="csch-pane-head">
             <h2>Schedule Board</h2>
-            <span class="csch-pane-note">2 weekdays max</span>
+            <span class="csch-pane-note">Any weekdays</span>
           </div>
           <div id="csch-board"></div>
         </main>
