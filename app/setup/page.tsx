@@ -39,15 +39,7 @@ export default function SetupPage() {
   }
 
   function copyEmbed() {
-    const code = `<div style="display:flex;gap:18px;align-items:stretch;flex-wrap:wrap;margin:16px 0;">
-  <div style="flex:0 0 340px;max-width:340px;min-width:340px;border:1px solid #d1d5db;border-radius:10px;background:#f9fafb;padding:12px;box-sizing:border-box;">
-    <iframe src="${signupUrl}" width="100%" height="280" frameborder="0" style="border:none;width:100%;min-height:280px;display:block;"></iframe>
-  </div>
-  <div style="flex:1 1 280px;min-width:260px;border:1px solid #d1d5db;border-radius:10px;background:#ffffff;padding:18px;box-sizing:border-box;">
-    <h3 style="margin:0 0 8px;font-size:18px;color:#111827;">Sign up for class text alerts</h3>
-    <p style="margin:0;color:#374151;line-height:1.5;">Enter your name and cell phone number to receive class reminders and updates. Your teacher can edit this text directly in Canvas.</p>
-  </div>
-</div>`;
+    const code = `<iframe src="${signupUrl}" width="100%" height="520" frameborder="0" style="border:none;width:100%;min-height:520px;display:block;"></iframe>`;
     navigator.clipboard.writeText(code).then(() => {
       setCopied('embed');
       setTimeout(() => setCopied(null), 2500);

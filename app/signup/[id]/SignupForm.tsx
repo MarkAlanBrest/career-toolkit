@@ -89,15 +89,31 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
   if (step === 'success') {
     return (
       <div style={S.page}>
-        <div style={S.success}>Signed up!</div>
+        <div style={S.card}>
+          <div style={S.success}>Signed up! You will receive class text alerts.</div>
+        </div>
       </div>
     );
   }
 
   return (
     <div style={S.page}>
-      <form onSubmit={submit} noValidate>
-        <div style={S.inner}>
+      <div style={S.card}>
+        <div style={S.copy}>
+          <div style={S.eyebrow}>Don't Miss a Thing</div>
+          <h1 style={S.title}>Sign Up for Text Alerts</h1>
+          <p style={S.description}>
+            Enter your name and phone number to get reminders, deadline notices, and class updates sent straight to your phone.
+          </p>
+          <div style={S.quick}>Takes 10 seconds</div>
+          <ul style={S.list}>
+            <li style={S.listItem}>Assignment reminders</li>
+            <li style={S.listItem}>Class cancellations</li>
+            <li style={S.listItem}>Important deadlines</li>
+          </ul>
+        </div>
+
+        <form onSubmit={submit} noValidate style={S.form}>
           <input
             type="text"
             aria-label="Student name"
@@ -136,9 +152,9 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
           >
             {step === 'submitting' ? 'Signing up...' : 'Sign Up'}
           </button>
-        </div>
-      </form>
-      {errorMsg && <div style={S.error}>{errorMsg}</div>}
+        </form>
+        {errorMsg && <div style={S.error}>{errorMsg}</div>}
+      </div>
     </div>
   );
 }
@@ -146,26 +162,76 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
 const S: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: 'transparent',
+    background: '#f6f7f8',
     fontFamily: "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif",
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     boxSizing: 'border-box',
-    padding: 12,
+    padding: 16,
   },
-  inner: {
+  card: {
+    width: '100%',
+    maxWidth: 520,
+    margin: '0 auto',
+    background: '#fff',
+    border: '1px solid #d9dee3',
+    borderRadius: 8,
+    padding: 22,
+    boxShadow: '0 8px 24px rgba(17,24,39,0.08)',
+    boxSizing: 'border-box',
+  },
+  copy: {
+    color: '#111827',
+    marginBottom: 16,
+  },
+  eyebrow: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 9px',
+    borderRadius: 999,
+    background: '#eef2f5',
+    color: '#374151',
+    fontSize: 12,
+    fontWeight: 800,
+    marginBottom: 10,
+  },
+  title: {
+    margin: 0,
+    color: '#111827',
+    fontSize: 24,
+    fontWeight: 900,
+    lineHeight: 1.15,
+  },
+  description: {
+    margin: '9px 0 12px',
+    color: '#4b5563',
+    fontSize: 14,
+    lineHeight: 1.45,
+  },
+  quick: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: 800,
+    marginBottom: 8,
+  },
+  list: {
+    margin: 0,
+    padding: 0,
+    listStyle: 'none',
+    display: 'grid',
+    gap: 5,
+  },
+  listItem: {
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: 650,
+  },
+  form: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'stretch',
     gap: 8,
-    width: '100%',
-    maxWidth: '100%',
-    background: '#fff',
-    border: '1px solid #d1d5db',
-    borderRadius: 8,
-    padding: 14,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
   },
   checkLabel: {
     display: 'flex',
