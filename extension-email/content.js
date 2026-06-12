@@ -1315,6 +1315,7 @@ Thank you,
     const group = document.getElementById('ces-launcher-group');
     if (isSpeedGraderPage()) {
       if (group) group.remove();
+      document.getElementById('ces-ai-side-panel')?.remove();
       return;
     }
     if (!group) return;
@@ -1332,6 +1333,33 @@ Thank you,
     document.body.appendChild(group);
     group.classList.remove('ces-launcher-inline');
     group.classList.add('ces-launcher-fixed');
+  }
+
+  function openAiSidePanel(name, url) {
+    let panel = document.getElementById('ces-ai-side-panel');
+    if (!panel) {
+      panel = document.createElement('aside');
+      panel.id = 'ces-ai-side-panel';
+      panel.innerHTML = `
+        <div id="ces-ai-side-head">
+          <span id="ces-ai-side-title"></span>
+          <div id="ces-ai-side-actions">
+            <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-ai-side-open">Open in New Tab</button>
+            <button class="ces-close-btn" id="ces-ai-side-close" title="Close">&times;</button>
+          </div>
+        </div>
+        <iframe id="ces-ai-side-frame" title="AI Chat"></iframe>
+        <div class="ces-ai-side-note">Some AI chats block embedded views. If this panel is blank or shows an access error, use Open in New Tab.</div>
+      `;
+      document.body.appendChild(panel);
+      panel.querySelector('#ces-ai-side-close')?.addEventListener('click', () => panel.remove());
+    }
+
+    panel.querySelector('#ces-ai-side-title').textContent = name;
+    panel.querySelector('#ces-ai-side-open').onclick = () => window.open(url, '_blank', 'noopener,noreferrer');
+    const frame = panel.querySelector('#ces-ai-side-frame');
+    frame.src = 'about:blank';
+    setTimeout(() => { frame.src = url; }, 30);
   }
 
   function addCanvasLauncher() {
