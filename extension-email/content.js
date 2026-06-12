@@ -313,7 +313,14 @@
     return url.toString();
   }
 
-  const TEMPLATE_VERSION_VALUE = '3';
+  const TEMPLATE_VERSION_VALUE = '4';
+
+  function templateBody(source) {
+    return {
+      bodyText: source,
+      body: teacherTextToCanvasHtml(source),
+    };
+  }
 
   const DEFAULT_TEMPLATES = {
     canvasApp: {
@@ -341,7 +348,7 @@ ${CANVAS_STUDENT_ANDROID_URL}
 
 Thank you,
 {{teacherName}}`,
-      body: teacherTextToCanvasHtml(`# Canvas Notification Setup
+      ...templateBody(`# Canvas Notification Setup
 
 Hi {{studentName}},
 
@@ -361,7 +368,7 @@ Thank you,
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
       subject: 'Upcoming Assignments - {{courseName}}',
-      body: teacherTextToCanvasHtml(`# Upcoming Assignments
+      ...templateBody(`# Upcoming Assignments
 
 Hi {{studentName}},
 
@@ -378,7 +385,7 @@ Thank you,
       name: 'Missing Work Reminder',
       description: 'Alert students about unsubmitted work',
       subject: 'Missing Assignments - {{courseName}}',
-      body: teacherTextToCanvasHtml(`# Missing Work Reminder
+      ...templateBody(`# Missing Work Reminder
 
 Hi {{studentName}},
 
@@ -395,7 +402,7 @@ Sincerely,
       name: 'Welcome to Class',
       description: 'Send a warm welcome message',
       subject: 'Welcome to {{courseName}}!',
-      body: teacherTextToCanvasHtml(`# Welcome to {{courseName}}
+      ...templateBody(`# Welcome to {{courseName}}
 
 Hi {{studentName}},
 
@@ -418,7 +425,7 @@ Warm regards,
       name: 'Student Evaluation',
       description: 'Share grade status and progress',
       subject: 'Your Progress in {{courseName}}',
-      body: teacherTextToCanvasHtml(`# Your Progress Update
+      ...templateBody(`# Your Progress Update
 
 Hi {{studentName}},
 
@@ -580,14 +587,14 @@ Best regards,
         if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== TEMPLATE_VERSION_VALUE) {
           const customTemplates = {};
           for (const [key, value] of Object.entries(parsed)) {
-            if (!DEFAULT_TEMPLATE_KEYS.has(key)) customTemplates[key] = value;
+            if (!DEFAULT_TEMPLATE_KEYS.has(key)) customTemplates[key] = normalizeTemplateSource(value);
           }
           const upgraded = { ...defaults, ...customTemplates };
           saveTemplates(upgraded);
           GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, TEMPLATE_VERSION_VALUE);
           return upgraded;
         }
-        return { ...defaults, ...parsed };
+        return normalizeTemplateCollection({ ...defaults, ...parsed });
       } catch(e) {}
     }
     GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, TEMPLATE_VERSION_VALUE);
@@ -595,7 +602,18 @@ Best regards,
   }
 
   function saveTemplates(templates) {
-    GM_setValue(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+    GM_setValue(STORAGE_KEYS.TEMPLATES, JSON.stringify(normalizeTemplateCollection(templates)));
+  }
+
+  function normalizeTemplateCollection(templates) {
+    return Object.fromEntries(Object.entries(templates).map(([key, tpl]) => [key, normalizeTemplateSource(tpl)]));
+  }
+
+  function normalizeTemplateSource(tpl) {
+    const next = { ...tpl };
+    next.bodyText = String(next.bodyText || htmlToTeacherText(next.body || ''));
+    next.body = teacherTextToCanvasHtml(next.bodyText);
+    return next;
   }
 
   function renderTemplate(template, vars) {
@@ -1303,7 +1321,7 @@ Best regards,
           name: 'Custom Message',
           description: 'Teacher-created message',
           subject: '{{courseName}} Update',
-          body: teacherTextToCanvasHtml(`# {{courseName}} Update
+          ...templateBody(`# {{courseName}} Update
 
 Hi {{studentName}},
 
@@ -1336,7 +1354,7 @@ Thank you,
 
     function renderEditor(type) {
       const tpl = templates[type];
-      const editableBody = htmlToTeacherText(tpl.body);
+      const editableBody = tpl.bodyText || htmlToTeacherText(tpl.body);
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Message Name</label>
@@ -1374,7 +1392,8 @@ Thank you,
         templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
         templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
         templates[type].subject = container.querySelector('#ces-tpl-subject').value;
-        templates[type].body    = teacherTextToCanvasHtml(container.querySelector('#ces-tpl-body').value);
+        templates[type].bodyText = container.querySelector('#ces-tpl-body').value;
+        templates[type].body    = teacherTextToCanvasHtml(templates[type].bodyText);
         saveTemplates(templates); renderList();
       });
       container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
