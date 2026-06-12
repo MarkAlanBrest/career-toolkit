@@ -53,19 +53,35 @@
       gap: 12px;
     }
     #ces-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
-    #ces-course-badge {
+    #ces-course-control {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 260px;
+      max-width: 430px;
+    }
+    #ces-course-control label {
       font-size: 12px;
       font-weight: 600;
       color: rgba(255,255,255,.92);
+      white-space: nowrap;
+    }
+    #ces-course-select {
+      min-width: 0;
+      flex: 1;
       background: rgba(255,255,255,.16);
-      border-radius: 999px;
-      padding: 4px 10px;
-      max-width: 360px;
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 6px;
+      color: #fff;
+      padding: 6px 28px 6px 9px;
+      font-size: 12px;
+      font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    #ces-course-select option { color: #111827; background: #fff; }
     .ces-close-btn {
       background: rgba(255,255,255,.2); border: none; color: #fff;
       width: 32px; height: 32px; border-radius: 50%;
@@ -207,6 +223,8 @@
       .ces-generate-row { flex-direction: column; align-items: stretch; }
       .ces-generate-row #ces-generate-btn { width: 100%; }
       .ces-send-panel-head { align-items:flex-start; }
+      #ces-header { flex-wrap: wrap; }
+      #ces-course-control { order: 3; width: 100%; max-width: none; }
     }
   `;
   document.head.appendChild(_style);
@@ -578,17 +596,30 @@
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
   }
 
+  function getSelectedCourseId() {
+    return String(currentCourseId || getCurrentCourseId() || '');
+  }
+
+  function getActiveTabName() {
+    return document.querySelector('#ces-tabs .ces-tab.active')?.dataset.tab || 'send';
+  }
+
   function setCourseBadge(courseId, courseName) {
-    const badge = document.getElementById('ces-course-badge');
-    if (!badge) return;
-    badge.textContent = courseId
+    const select = document.getElementById('ces-course-select');
+    if (!select) return;
+    select.title = courseId
       ? `Current Course Loaded${courseName ? ': ' + courseName : ''} ID ${courseId}`
       : 'No course loaded';
   }
 
   function openEmailSystem() {
     if (!_overlay) buildUI();
-    if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
+    if (_overlay) {
+      currentCourseId = getCurrentCourseId() || currentCourseId || GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+      loadCourses(currentCourseId);
+      _overlay.classList.add('ces-open');
+      showTab('send');
+    }
   }
 
   function buildUI() {
@@ -603,7 +634,12 @@
       <div id="ces-panel">
         <div id="ces-header">
           <h2>&#9993; Canvas Message System</h2>
-          <div id="ces-course-badge">No course loaded</div>
+          <div id="ces-course-control">
+            <label for="ces-course-select">Course</label>
+            <select id="ces-course-select" title="Loading courses...">
+              <option value="">Loading courses...</option>
+            </select>
+          </div>
           <button class="ces-close-btn" id="ces-close">&times;</button>
         </div>
         <div id="ces-tabs">
@@ -620,6 +656,11 @@
 
     overlay.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('ces-open'); });
+    overlay.querySelector('#ces-course-select')?.addEventListener('change', e => {
+      currentCourseId = e.target.value || getCurrentCourseId();
+      GM_setValue(STORAGE_KEYS.LAST_COURSE, currentCourseId);
+      showTab(getActiveTabName());
+    });
     overlay.querySelectorAll('.ces-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         overlay.querySelectorAll('.ces-tab').forEach(t => t.classList.remove('active'));
@@ -627,6 +668,8 @@
         showTab(tab.dataset.tab);
       });
     });
+    currentCourseId = getCurrentCourseId() || GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+    loadCourses(currentCourseId);
     showTab('send');
   }
 
@@ -662,7 +705,7 @@
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '') || 'Teacher';
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
-    const courseId    = getCurrentCourseId();
+    const courseId    = getSelectedCourseId();
     const templates   = getTemplates();
     const templateEntries = Object.entries(templates);
     const firstType = templateEntries[0]?.[0] || 'welcome';
@@ -721,7 +764,7 @@
 
     container.querySelector('#ces-generate-btn').addEventListener('click', async () => {
       const courseBox = container.querySelector('#ces-current-course');
-      const courseId = courseBox?.dataset.courseId || getCurrentCourseId();
+      const courseId = courseBox?.dataset.courseId || getSelectedCourseId();
       const courseName = courseBox?.dataset.courseName || `Course ${courseId}`;
       if (!courseId) { showStatus('Open Message System from inside a Canvas course first.', 'error'); return; }
 
@@ -858,8 +901,6 @@
         (courseId && String(s.courseId || '') === String(courseId)) ||
         (normalizeName(s.name) && rosterNames.has(normalizeName(s.name)))
       );
-      const matchedIds = new Set(matched.map(s => String(s.id)));
-      const unmatched = allSignups.filter(s => !matchedIds.has(String(s.id)));
 
       currentList.innerHTML = renderSignupRows(matched.length ? matched : courseSignups, courseId);
 
@@ -872,7 +913,7 @@
 
   function renderTextsTab(container) {
     if (!container) return;
-    const courseId = getCurrentCourseId();
+    const courseId = getSelectedCourseId();
     container.innerHTML = `
       <div id="ces-status-area"></div>
       <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
@@ -909,7 +950,7 @@
       cachedCourses.forEach(c => {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = c.name + (c.term ? ` (${c.term.name})` : '');
+        opt.textContent = c.name + (c.term ? ` (${c.term.name})` : '') + ` - ID ${c.id}`;
         if (String(c.id) === String(lastCourse)) opt.selected = true;
         select.appendChild(opt);
       });
