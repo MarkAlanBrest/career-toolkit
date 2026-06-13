@@ -380,9 +380,8 @@
     return course?.name || 'Selected Course';
   }
 
-  function getTemplateForAutomation(type, templateKey) {
+  function getTemplateForAutomation(type) {
     const templates = getTemplates();
-    if (templateKey && templates[templateKey]) return templates[templateKey];
     const map = {
       late: 'auto_late',
       upcoming: 'auto_upcoming',
@@ -402,9 +401,9 @@
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
-  async function generateMessages(courseId, courseName, emailType, daysForward, daysBack, teacherName, templateKey) {
+  async function generateMessages(courseId, courseName, emailType, daysForward, daysBack, teacherName) {
     const templates = getTemplates();
-    const template = (templateKey && templates[templateKey]) ? templates[templateKey] : templates[emailType];
+    const template = templates[emailType];
     if (!template) throw new Error('Unknown email type: ' + emailType);
 
     const students = await getStudents(courseId);
@@ -504,7 +503,7 @@
 
   async function buildLateAutomationMessages(automation, teacherName) {
     const students = await getStudents(automation.courseId);
-    const template = getTemplateForAutomation('late', automation.templateKey);
+    const template = getTemplateForAutomation('late');
     const maxAge = Number(automation.daysBack) || 14;
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const messages = [];
@@ -526,7 +525,7 @@
     const daysForward = Number(automation.daysForward) || 7;
     const upcoming = getUpcomingAssignments(assignments, daysForward);
     if (!upcoming.length) return [];
-    const template = getTemplateForAutomation('upcoming', automation.templateKey);
+    const template = getTemplateForAutomation('upcoming');
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const assignmentList = formatAssignmentList(upcoming);
     const assignmentIds = upcoming.map(a => a.id).sort().join(',');
@@ -549,12 +548,12 @@
     if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
     const midpoint = new Date((start.getTime() + end.getTime()) / 2);
     if (new Date() < midpoint) return [];
-    return generateMessages(automation.courseId, automation.courseName || courseDisplayName(automation.courseId), 'evaluation', Number(automation.daysForward) || 7, Number(automation.daysBack) || 14, teacherName, automation.templateKey)
+    return generateMessages(automation.courseId, automation.courseName || courseDisplayName(automation.courseId), 'evaluation', Number(automation.daysForward) || 7, Number(automation.daysBack) || 14, teacherName)
       .then(messages => messages.map(msg => ({ kind: 'message', ...msg, dedupeKey: `${automation.id}:midpoint:${msg.studentId}:once` })));
   }
 
   async function buildLowGradeAutomationMessages(automation, teacherName) {
-    const template = getTemplateForAutomation('low_grade', automation.templateKey);
+    const template = getTemplateForAutomation('low_grade');
     const threshold = Number(automation.threshold) || 70;
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const messages = [];
@@ -972,12 +971,6 @@
           </div>
         </div>
 
-        <label class="ces-label">Template</label>
-        <select class="ces-select" id="ces-auto-template">
-          <option value="">— Default for this message type —</option>
-          ${Object.entries(getTemplates()).map(([key, tpl]) => `<option value="${escapeAttr(key)}">${escapeHtml(tpl.name)}</option>`).join('')}
-        </select>
-
         <div id="ces-auto-fields"></div>
 
         <div class="ces-grid-2">
@@ -1056,7 +1049,6 @@
         threshold: Number(container.querySelector('#ces-auto-threshold')?.value || 70),
         gradeScope: container.querySelector('#ces-auto-grade-scope')?.value || 'overall',
         audience: container.querySelector('#ces-auto-audience')?.value || 'announcement',
-        templateKey: container.querySelector('#ces-auto-template')?.value || '',
         startDate: container.querySelector('#ces-auto-start')?.value || '',
         endDate: container.querySelector('#ces-auto-end')?.value || '',
         createdAt: existingAuto?.createdAt || new Date().toISOString(),
@@ -1107,16 +1099,11 @@
   }
 
   function describeAutomation(auto) {
-    let desc = '';
-    if (auto.type === 'late') desc = `Late work, daily/weekly until submitted or older than ${auto.daysBack || 14} days`;
-    else if (auto.type === 'upcoming') desc = `Looks ${auto.daysForward || 7} days ahead; sends as ${auto.audience === 'students' ? 'student messages' : 'announcement'}`;
-    else if (auto.type === 'midpoint') desc = `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}`;
-    else if (auto.type === 'low_grade') desc = `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%`;
-    if (auto.templateKey) {
-      const tpl = getTemplates()[auto.templateKey];
-      if (tpl) desc += ` · Template: ${tpl.name}`;
-    }
-    return desc;
+    if (auto.type === 'late') return `Late work, daily/weekly until submitted or older than ${auto.daysBack || 14} days`;
+    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${auto.audience === 'students' ? 'student messages' : 'announcement'}`;
+    if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}`;
+    if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%`;
+    return '';
   }
 
   function renderAutomationTiles(container, automations) {
@@ -1170,7 +1157,6 @@
       if (body.querySelector('#ces-auto-audience')) body.querySelector('#ces-auto-audience').value = auto.audience || 'announcement';
       if (body.querySelector('#ces-auto-start')) body.querySelector('#ces-auto-start').value = auto.startDate || '';
       if (body.querySelector('#ces-auto-end')) body.querySelector('#ces-auto-end').value = auto.endDate || '';
-      if (body.querySelector('#ces-auto-template')) body.querySelector('#ces-auto-template').value = auto.templateKey || '';
       body.querySelector('#ces-save-auto').textContent = 'Update Automation';
       body.scrollTo({ top: 0, behavior: 'smooth' });
     }));
