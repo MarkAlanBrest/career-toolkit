@@ -1770,7 +1770,23 @@ Best regards,
       <div id="ces-status-area"></div>
       ${teacherName === 'Teacher' ? '<div class="ces-status ces-status-info">Teacher Name is not set. Messages will use "Teacher" until you update Settings.</div>' : ''}
       <input type="hidden" id="ces-current-course" data-course-id="${escapeAttr(courseId)}" data-course-name="">
-      ${!courseId ? '<div class="ces-status ces-status-error">Open Message System from inside a Canvas course.</div>' : ''}
+      ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
+      <label class="ces-label">Dashboard Classes</label>
+      <div class="ces-course-picker" id="ces-manual-course-picker" data-selected-ids="">
+        <div class="ces-course-box">
+          <div class="ces-course-box-head"><span>Available Dashboard Classes</span><span id="ces-course-available-count">0</span></div>
+          <div class="ces-course-list" id="ces-course-available"></div>
+        </div>
+        <div class="ces-course-transfer">
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-add-all-manual-courses">Add All</button>
+          <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-manual-courses">Clear</button>
+        </div>
+        <div class="ces-course-box">
+          <div class="ces-course-box-head"><span>Selected Classes</span><span id="ces-course-selected-count">0</span></div>
+          <div class="ces-course-list" id="ces-course-selected"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published courses visible on your Canvas Dashboard are shown, newest first. Click a class to move it between lists.</div>
       <div class="ces-send-grid">
         <div class="ces-send-message-field">
           <label class="ces-label">Message</label>
@@ -1808,6 +1824,24 @@ Best regards,
     `;
 
     loadCurrentCourse(courseId);
+    renderAutomationCoursePicker(container, courseId ? [courseId] : []);
+    const manualPicker = container.querySelector('#ces-manual-course-picker');
+    if (manualPicker) {
+      manualPicker.addEventListener('click', event => {
+        const row = event.target.closest('.ces-course-row');
+        if (!row) return;
+        const selected = new Set((manualPicker.dataset.selectedIds || '').split(',').filter(Boolean));
+        if (row.dataset.action === 'add') selected.add(row.dataset.courseId);
+        else selected.delete(row.dataset.courseId);
+        renderAutomationCoursePicker(container, [...selected]);
+      });
+    }
+    container.querySelector('#ces-add-all-manual-courses')?.addEventListener('click', () => {
+      renderAutomationCoursePicker(container, newestPublishedCourses().map(course => String(course.id)));
+    });
+    container.querySelector('#ces-clear-manual-courses')?.addEventListener('click', () => {
+      renderAutomationCoursePicker(container, []);
+    });
 
     let selectedType = firstType;
     const templateSelect = container.querySelector('#ces-template-select');
@@ -1830,13 +1864,8 @@ Best regards,
     refreshTemplateControls();
 
     container.querySelector('#ces-generate-btn').addEventListener('click', async () => {
-      const courseBox = container.querySelector('#ces-current-course');
-      const courseId = courseBox?.dataset.courseId || getSelectedCourseId();
-      const courseName = courseBox?.dataset.courseName || `Course ${courseId}`;
-      if (!courseId) { showStatus('Open Message System from inside a Canvas course first.', 'error'); return; }
-
-      currentCourseId = courseId;
-      GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);
+      const selectedCourses = getManualSelectedCourses(container);
+      if (!selectedCourses.length) { showStatus('Select at least one class first.', 'error'); return; }
 
       const rules = templateRuleDefaults(selectedType, templates[selectedType]);
       const df = rules.daysForward || 7;
@@ -1849,14 +1878,24 @@ Best regards,
       setProgress('Fetching student data from Canvas...', 10);
 
       try {
-        generatedMessages = await generateMessages(courseId, courseName, selectedType, df, db, teacherName);
+        generatedMessages = [];
+        for (const [index, selectedCourse] of selectedCourses.entries()) {
+          setProgress(`Fetching data for ${selectedCourse.name}...`, Math.max(10, Math.round((index / selectedCourses.length) * 80)));
+          const courseMessages = await generateMessages(selectedCourse.id, selectedCourse.name, selectedType, df, db, teacherName);
+          generatedMessages.push(...courseMessages.map(message => ({
+            ...message,
+            courseId: selectedCourse.id,
+            courseName: selectedCourse.name,
+            templateKey: selectedType,
+          })));
+        }
         setProgress('Done!', 100);
         if (!generatedMessages.length) {
           showStatus('No messages to send. No students matched the criteria for ' + selectedType + '.', 'info');
           container.querySelector('#ces-messages-area').innerHTML = '';
         } else {
           showStatus(`Generated ${generatedMessages.length} message(s). Review below and send.`, 'success');
-          renderMessagesList(container.querySelector('#ces-messages-area'), courseId, courseName, selectedType);
+          renderMessagesList(container.querySelector('#ces-messages-area'), selectedType);
         }
       } catch(err) {
         showStatus('Error: ' + err.message, 'error');
@@ -2102,6 +2141,22 @@ Best regards,
       const course = coursesById.get(String(id));
       return { id: String(id), name: course ? coursePickerLabel(course) : `Course ${id}` };
     });
+  }
+
+  function getSelectedCoursesFromPicker(container, pickerId) {
+    const selectedIds = (container.querySelector(`#${pickerId}`)?.dataset.selectedIds || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    const coursesById = new Map((cachedCourses || []).map(course => [String(course.id), course]));
+    return selectedIds.map(id => {
+      const course = coursesById.get(String(id));
+      return { id: String(id), name: course ? coursePickerLabel(course) : `Course ${id}` };
+    });
+  }
+
+  function getManualSelectedCourses(container) {
+    return getSelectedCoursesFromPicker(container, 'ces-manual-course-picker');
   }
 
   /* =========================================================
