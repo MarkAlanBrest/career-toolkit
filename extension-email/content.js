@@ -806,6 +806,35 @@ Best regards,
     return String(tpl?.name || fallback).replace(/^Automation:\s*/i, '');
   }
 
+  const TEMPLATE_VARIABLES = [
+    ['{{studentId}}', 'Student ID'],
+    ['{{studentName}}', 'Student Name'],
+    ['{{studentEmail}}', 'Student Email'],
+    ['{{courseId}}', 'Course ID'],
+    ['{{teacherName}}', 'Teacher Name'],
+    ['{{courseName}}', 'Course Name'],
+    ['{{daysForward}}', 'Days Forward'],
+    ['{{daysBack}}', 'Days Back'],
+    ['{{assignmentList}}', 'Upcoming Assignments Text'],
+    ['{{assignmentListHtml}}', 'Upcoming Assignments'],
+    ['{{missingAssignmentList}}', 'Missing Assignments Text'],
+    ['{{missingAssignmentListHtml}}', 'Missing Assignments'],
+    ['{{currentGrade}}', 'Current Grade'],
+    ['{{currentScore}}', 'Current Score'],
+    ['{{gradeAlertDetail}}', 'Grade Alert Details Text'],
+    ['{{gradeAlertDetailHtml}}', 'Grade Alert Details'],
+    ['{{missingSection}}', 'Missing Work Section Text'],
+    ['{{missingSectionHtml}}', 'Missing Work Section'],
+    ['{{upcomingSection}}', 'Upcoming Work Section Text'],
+    ['{{upcomingSectionHtml}}', 'Upcoming Work Section'],
+    ['{{canvasAppUrl}}', 'Canvas App Setup Link'],
+  ];
+
+  function templateUsesGradeData(tpl) {
+    const text = `${tpl?.subject || ''}\n${tpl?.body || ''}\n${tpl?.bodyText || ''}`;
+    return /\{\{(?:currentGrade|currentScore|gradeAlertDetail|gradeAlertDetailHtml)\}\}/.test(text);
+  }
+
   function sanitizeCanvasEmailHtml(html) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = String(html || '');
@@ -956,6 +985,9 @@ Best regards,
   function buildGeneratedMessage(student, vars, template, courseId) {
     const enrichedVars = {
       ...vars,
+      studentId: String(student.id || ''),
+      studentEmail: student.email || '',
+      courseId: String(courseId || ''),
       canvasAppUrl: buildCanvasAppPromoUrl(courseId, vars.courseName),
     };
     return {
@@ -1033,6 +1065,38 @@ Best regards,
     return AUTOMATION_TEMPLATE_KEYS[type]?.[0] || 'auto_upcoming';
   }
 
+  function templateKeyToType(key) {
+    if (!key) return 'upcoming';
+    for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS || {})) {
+      if (keys.includes(key)) return type;
+    }
+    return 'upcoming';
+  }
+
+  function templateAutomationType(key, tpl) {
+    return tpl?.automationType || templateKeyToType(key);
+  }
+
+  function templateHasPrivateCriteria(key, tpl) {
+    const type = templateAutomationType(key, tpl);
+    return ['late', 'midpoint', 'low_grade'].includes(type) || templateUsesGradeData(tpl);
+  }
+
+  function templateRuleDefaults(key, tpl = {}) {
+    const type = templateAutomationType(key, tpl);
+    const privateCriteria = templateHasPrivateCriteria(key, tpl);
+    return {
+      type,
+      daysForward: Number(tpl.daysForward || 7),
+      daysBack: Number(tpl.daysBack || 14),
+      threshold: Number(tpl.threshold || 70),
+      gradeScope: tpl.gradeScope || 'overall',
+      startDate: tpl.startDate || '',
+      endDate: tpl.endDate || '',
+      excludeAnnouncements: privateCriteria || tpl.excludeAnnouncements === true,
+    };
+  }
+
   function isCustomTemplateKey(key) {
     return String(key || '').startsWith('custom_') || !DEFAULT_TEMPLATE_KEYS.has(key);
   }
@@ -1054,6 +1118,22 @@ Best regards,
     const key = typeof automationOrType === 'string' ? automationTemplateDefault(type) : (automationOrType?.templateKey || automationTemplateDefault(type));
     const fallbackKey = automationTemplateDefault(type);
     return templates[key] || templates[fallbackKey] || DEFAULT_TEMPLATES[fallbackKey];
+  }
+
+  function automationWithTemplateRules(automation) {
+    const tpl = getTemplates()[automation.templateKey] || {};
+    const rules = templateRuleDefaults(automation.templateKey || automationTemplateDefault(automation.type), tpl);
+    return {
+      ...automation,
+      type: rules.type,
+      daysForward: rules.daysForward,
+      daysBack: rules.daysBack,
+      threshold: rules.threshold,
+      gradeScope: rules.gradeScope,
+      startDate: rules.startDate,
+      endDate: rules.endDate,
+      delivery: rules.excludeAnnouncements ? 'students' : (automation.delivery || 'both'),
+    };
   }
 
   function buildAutomationGeneratedMessage(student, vars, template, courseId, extra = {}) {
@@ -1374,16 +1454,17 @@ Best regards,
     let matched = 0, sent = 0, drafted = 0, skipped = 0, failed = 0;
     for (const automation of automations) {
       try {
-        const messages = await buildAutomationMessages(automation, teacherName);
+        const resolvedAutomation = automationWithTemplateRules(automation);
+        const messages = await buildAutomationMessages(resolvedAutomation, teacherName);
         matched += messages.length;
         for (const message of messages) {
-          if (alreadyLogged(sentKeys, automation.id, message.dedupeKey)) { skipped++; continue; }
+          if (alreadyLogged(sentKeys, resolvedAutomation.id, message.dedupeKey)) { skipped++; continue; }
           try {
-            const result = await sendOrDraftAutomationMessage(automation, message, sentKeys);
+            const result = await sendOrDraftAutomationMessage(resolvedAutomation, message, sentKeys);
             if (result === 'sent') sent++; else drafted++;
           } catch(err) {
             failed++;
-            addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'failed', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: err.message });
+            addAutomationLog({ automationId: resolvedAutomation.id, automationName: resolvedAutomation.name, courseId: resolvedAutomation.courseId, courseName: resolvedAutomation.courseName, status: 'failed', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: err.message });
           }
         }
       } catch(err) {
@@ -1599,8 +1680,13 @@ Best regards,
     function refreshTemplateControls() {
       selectedType = templateSelect?.value || firstType;
       const tpl = templates[selectedType];
+      const rules = templateRuleDefaults(selectedType, tpl);
       if (templateDesc) templateDesc.textContent = tpl?.description || tpl?.subject || '';
-      updateOptionsVisibility(selectedType);
+      const forwardInput = container.querySelector('#ces-days-forward');
+      const backInput = container.querySelector('#ces-days-back');
+      if (forwardInput) forwardInput.value = rules.daysForward || 7;
+      if (backInput) backInput.value = rules.daysBack || 14;
+      updateOptionsVisibility(rules.type);
     }
     templateSelect?.addEventListener('change', refreshTemplateControls);
     refreshTemplateControls();
@@ -1642,7 +1728,7 @@ Best regards,
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     });
 
-    updateOptionsVisibility(selectedType);
+    updateOptionsVisibility(templateRuleDefaults(selectedType, templates[selectedType]).type);
   }
 
   function updateOptionsVisibility(type) {
@@ -1929,6 +2015,7 @@ Best regards,
           <div>
             <label class="ces-label">Message Template</label>
             <select class="ces-select" id="ces-auto-template">${automationTemplateOptions('upcoming')}</select>
+            <div id="ces-auto-template-summary" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
           </div>
           <div>
             <label class="ces-label">Frequency</label>
@@ -1937,20 +2024,6 @@ Best regards,
               <option value="weekly">Weekly while true</option>
               <option value="once">Once per matching condition</option>
             </select>
-          </div>
-        </div>
-        <div id="ces-auto-fields"></div>
-        <div class="ces-grid-2">
-          <div>
-            <label class="ces-label">Send Mode</label>
-            <select class="ces-select" id="ces-auto-mode">
-              <option value="auto">Send automatically</option>
-              <option value="draft">Draft/log only</option>
-            </select>
-          </div>
-          <div>
-            <label class="ces-label">Automation Name</label>
-            <input class="ces-input" id="ces-auto-name" placeholder="Example: Daily late work nudge">
           </div>
         </div>
         <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto">Save Automation</button></div>
@@ -1975,13 +2048,11 @@ Best regards,
       </div>
     `;
 
-    renderAutomationFields(container);
+    renderAutomationTemplateSummary(container);
     renderAutomationCoursePicker(container, courseId ? [courseId] : []);
     renderAutomationTiles(container.querySelector('#ces-auto-list'), automations);
 
-    // When the selected template changes, re-render the fields to match the
-    // inferred automation type for that template.
-    container.querySelector('#ces-auto-template')?.addEventListener('change', () => renderAutomationFields(container));
+    container.querySelector('#ces-auto-template')?.addEventListener('change', () => renderAutomationTemplateSummary(container));
     container.querySelector('#ces-auto-course-picker').addEventListener('click', event => {
       const row = event.target.closest('.ces-course-row');
       if (!row) return;
@@ -2013,11 +2084,12 @@ Best regards,
     container.querySelector('#ces-save-auto').addEventListener('click', () => {
       const selectedCourses = getAutomationSelectedCourses(container);
       const selectedTemplateKey = container.querySelector('#ces-auto-template')?.value || automationTemplateDefault('upcoming');
-      const type = templateKeyToType(selectedTemplateKey);
+      const selectedTemplate = getTemplates()[selectedTemplateKey] || {};
+      const rules = templateRuleDefaults(selectedTemplateKey, selectedTemplate);
+      const type = rules.type;
       if (!selectedCourses.length) { showStatus('Select at least one class first.', 'error'); return; }
       const editId = container.querySelector('#ces-auto-edit-id').value;
       const existingAuto = editId ? getAutomations().find(auto => auto.id === editId) : null;
-      const sharedName = container.querySelector('#ces-auto-name').value.trim();
       const buildAutomation = (selectedCourse, index) => ({
         id: editId && selectedCourses.length === 1 ? editId : makeAutomationId(),
         active: existingAuto ? existingAuto.active !== false : true,
@@ -2025,18 +2097,18 @@ Best regards,
         courseId: selectedCourse.id,
         courseName: selectedCourse.name,
         type,
-        name: sharedName || defaultAutomationName(type, selectedCourse.name),
+        name: `${templateDisplayName(selectedTemplate, selectedTemplateKey)} - ${selectedCourse.name}`,
         templateKey: selectedTemplateKey || automationTemplateDefault(type),
         frequency: container.querySelector('#ces-auto-frequency').value,
-        mode: container.querySelector('#ces-auto-mode').value,
-        daysBack: Number(container.querySelector('#ces-auto-days-back')?.value || 14),
-        daysForward: Number(container.querySelector('#ces-auto-days-forward')?.value || 7),
-        threshold: Number(container.querySelector('#ces-auto-threshold')?.value || 70),
-        gradeScope: container.querySelector('#ces-auto-grade-scope')?.value || 'overall',
+        mode: 'auto',
+        daysBack: rules.daysBack,
+        daysForward: rules.daysForward,
+        threshold: rules.threshold,
+        gradeScope: rules.gradeScope,
         audience: container.querySelector('#ces-auto-audience')?.value || 'students',
-        delivery: automationContainsPersonalInfo({ type }) ? 'students' : (container.querySelector('#ces-auto-delivery')?.value || container.querySelector('#ces-auto-audience')?.value || 'students'),
-        startDate: container.querySelector('#ces-auto-start')?.value || '',
-        endDate: container.querySelector('#ces-auto-end')?.value || '',
+        delivery: rules.excludeAnnouncements ? 'students' : 'both',
+        startDate: rules.startDate,
+        endDate: rules.endDate,
         createdAt: index === 0 && existingAuto?.createdAt ? existingAuto.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -2048,51 +2120,25 @@ Best regards,
     });
   }
 
-  function deliveryFieldHtml(type) {
-    if (automationContainsPersonalInfo({ type })) {
-      return `<div class="ces-status ces-status-info">Announcements are blocked for this automation because it can include private student information such as grades, missing work, or individual progress details. These messages will be sent only as private student messages.</div><input type="hidden" id="ces-auto-delivery" value="students">`;
-    }
-    const defaultDelivery = type === 'upcoming' ? 'both' : 'students';
-    const announcementOnly = type === 'upcoming'
-      ? '<option value="announcement">Course announcement only</option>'
-      : '<option value="announcement">Course announcement only (general reminder)</option>';
-    const note = type === 'upcoming'
-      ? 'Uses the selected upcoming work template'
-      : 'Announcements are general and do not include private student details';
-    return `<div class="ces-grid-2"><div><label class="ces-label">Send As</label><select class="ces-select" id="ces-auto-delivery"><option value="students"${defaultDelivery === 'students' ? ' selected' : ''}>Student messages only</option>${announcementOnly}<option value="both"${defaultDelivery === 'both' ? ' selected' : ''}>Both: student messages + announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
+  function automationRuleSummary(key, tpl) {
+    const rules = templateRuleDefaults(key, tpl);
+    const labels = { late: 'Late work', upcoming: 'Upcoming work', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    const parts = [`Rule: ${labels[rules.type] || 'Upcoming work'}`];
+    if (rules.type === 'upcoming') parts.push(`looks ahead ${rules.daysForward} day${rules.daysForward === 1 ? '' : 's'}`);
+    if (rules.type === 'late') parts.push(`checks missing work from the last ${rules.daysBack} day${rules.daysBack === 1 ? '' : 's'}`);
+    if (rules.type === 'midpoint') parts.push(`midpoint between ${rules.startDate || 'start date'} and ${rules.endDate || 'end date'}`);
+    if (rules.type === 'low_grade') parts.push(`${rules.gradeScope === 'assignment' ? 'assignment' : 'overall'} grade below ${rules.threshold}%`);
+    parts.push(rules.excludeAnnouncements ? 'announcements excluded' : 'student messages + announcements allowed');
+    return parts.join(' - ');
   }
 
-  function automationTemplateFieldHtml(type, selectedKey = '') {
-    // If a top-level template selector already exists, avoid rendering a second
-    // template select inside the fields to prevent duplication.
-    if (document.getElementById('ces-auto-template')) {
-      return `<div class="ces-grid-2"><div></div><div><label class="ces-label">Template Use</label><input class="ces-input" value="Saved message used when this trigger matches" disabled></div></div>`;
-    }
-    return `<div class="ces-grid-2"><div><label class="ces-label">Message Template</label><select class="ces-select" id="ces-auto-template">${automationTemplateOptions(type, selectedKey)}</select></div><div><label class="ces-label">Template Use</label><input class="ces-input" value="Saved message used when this trigger matches" disabled></div></div>`;
-  }
-
-  function templateKeyToType(key) {
-    if (!key) return 'upcoming';
-    for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS || {})) {
-      if (keys.includes(key)) return type;
-    }
-    // If the key isn't in the known groups, fall back to 'upcoming'.
-    return 'upcoming';
-  }
-
-  function renderAutomationFields(container) {
-    const tplEl = container.querySelector('#ces-auto-template');
-    const type = tplEl ? templateKeyToType(tplEl.value) : (container.querySelector('#ces-auto-type')?.value || 'upcoming');
-    const fields = container.querySelector('#ces-auto-fields');
-    if (type === 'late') {
-      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
-    } else if (type === 'upcoming') {
-      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in look-ahead window" disabled></div></div>`;
-    } else if (type === 'midpoint') {
-      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
-    } else {
-      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
-    }
+  function renderAutomationTemplateSummary(container) {
+    const select = container.querySelector('#ces-auto-template');
+    const summary = container.querySelector('#ces-auto-template-summary');
+    if (!select || !summary) return;
+    const templates = getTemplates();
+    const tpl = templates[select.value] || {};
+    summary.textContent = automationRuleSummary(select.value, tpl);
   }
 
   function defaultAutomationName(type, courseName) {
@@ -2149,19 +2195,9 @@ Best regards,
       const body = document.getElementById('ces-body');
       body.querySelector('#ces-auto-edit-id').value = auto.id;
       body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
-      body.querySelector('#ces-auto-mode').value = auto.mode || 'auto';
-      body.querySelector('#ces-auto-name').value = auto.name || '';
       renderAutomationCoursePicker(body, [String(auto.courseId)]);
-      renderAutomationFields(body);
       if (body.querySelector('#ces-auto-template')) body.querySelector('#ces-auto-template').value = auto.templateKey || automationTemplateDefault(auto.type);
-      if (body.querySelector('#ces-auto-days-back')) body.querySelector('#ces-auto-days-back').value = auto.daysBack || 14;
-      if (body.querySelector('#ces-auto-days-forward')) body.querySelector('#ces-auto-days-forward').value = auto.daysForward || 7;
-      if (body.querySelector('#ces-auto-threshold')) body.querySelector('#ces-auto-threshold').value = auto.threshold || 70;
-      if (body.querySelector('#ces-auto-grade-scope')) body.querySelector('#ces-auto-grade-scope').value = auto.gradeScope || 'overall';
-      if (body.querySelector('#ces-auto-audience')) body.querySelector('#ces-auto-audience').value = auto.audience || 'announcement';
-      if (body.querySelector('#ces-auto-delivery')) body.querySelector('#ces-auto-delivery').value = automationDelivery(auto);
-      if (body.querySelector('#ces-auto-start')) body.querySelector('#ces-auto-start').value = auto.startDate || '';
-      if (body.querySelector('#ces-auto-end')) body.querySelector('#ces-auto-end').value = auto.endDate || '';
+      renderAutomationTemplateSummary(body);
       body.querySelector('#ces-save-auto').textContent = 'Update Automation';
       body.scrollTo({ top: 0, behavior: 'smooth' });
     }));
@@ -2242,7 +2278,7 @@ Best regards,
       html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">+ New Custom Message</button></div>`;
       for (const [type, tpl] of Object.entries(templates)) {
         const canDelete = !DEFAULT_TEMPLATE_KEYS.has(type);
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(templateDisplayName(tpl, type))}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(templateDisplayName(tpl, type))}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(automationRuleSummary(type, tpl))}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
@@ -2252,6 +2288,12 @@ Best regards,
           name: 'Custom Message',
           description: 'Teacher-created message',
           subject: '{{courseName}} Update',
+          automationType: 'upcoming',
+          daysForward: 7,
+          daysBack: 14,
+          threshold: 70,
+          gradeScope: 'overall',
+          excludeAnnouncements: false,
           ...templateBody(`# {{courseName}} Update
 
 Hi {{studentName}},
@@ -2285,6 +2327,10 @@ Thank you,
 
     function renderEditor(type) {
       const tpl = templates[type];
+      const rules = templateRuleDefaults(type, tpl);
+      const gradeWarning = templateHasPrivateCriteria(type, tpl)
+        ? '<div class="ces-status ces-status-error">This message can include student grade, missing-work, or progress details. Announcements are excluded to protect student privacy.</div>'
+        : '';
       const editableBody = tpl.bodyText || htmlToTeacherText(tpl.body);
       const editorHtml = tpl.bodyMode === 'html' ? sanitizeCanvasEmailHtml(tpl.body || '') : teacherTextToCanvasHtml(editableBody);
       container.innerHTML = `
@@ -2296,6 +2342,29 @@ Thank you,
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <div class="ces-editor-subject-preview"><strong>Subject:</strong> <span id="ces-subject-preview">${escapeHtml(tpl.subject)}</span></div>
+        <div class="ces-card" style="margin:14px 0;">
+          <h3 style="margin:0 0 10px;">Automation Rules</h3>
+          <div class="ces-grid-2">
+            <div>
+              <label class="ces-label">When This Message Sends</label>
+              <select class="ces-select" id="ces-tpl-auto-type">
+                <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
+                <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
+                <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Midpoint evaluation</option>
+                <option value="low_grade"${rules.type === 'low_grade' ? ' selected' : ''}>Low grade warning</option>
+              </select>
+            </div>
+            <div>
+              <label class="ces-label">Announcements</label>
+              <label class="ces-checkbox-row" style="margin-top:8px;">
+                <input type="checkbox" id="ces-tpl-exclude-announcements"${rules.excludeAnnouncements ? ' checked' : ''}>
+                <span>Exclude announcements</span>
+              </label>
+            </div>
+          </div>
+          <div id="ces-tpl-privacy-warning">${gradeWarning}</div>
+          <div class="ces-grid-2" id="ces-tpl-rule-fields"></div>
+        </div>
         <label class="ces-label">Message Body</label>
         <div class="ces-editor-shell">
           <div id="ces-format-toolbar" class="ces-editor-toolbar">
@@ -2322,11 +2391,14 @@ Thank you,
             <button type="button" class="ces-editor-btn" data-block="callout" title="Insert callout">Callout</button>
             <button type="button" class="ces-editor-btn" data-block="divider" title="Insert line">Line</button>
             <button type="button" class="ces-editor-btn" data-block="signature" title="Insert signature">Signature</button>
+            <select class="ces-select" id="ces-variable-insert" title="Insert Canvas variable">
+              <option value="">Insert Variable</option>
+              ${TEMPLATE_VARIABLES.map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHtml(label)}</option>`).join('')}
+            </select>
           </div>
           <div id="ces-tpl-body" class="ces-email-editor" contenteditable="true">${editorHtml}</div>
         </div>
         <div style="font-size:12px;color:#6b7280;margin-top:6px;">This is the message preview and editor. Saved formatting uses Canvas-safe email HTML.</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{assignmentListHtml}} {{missingAssignmentList}} {{missingAssignmentListHtml}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{missingSectionHtml}} {{upcomingSection}} {{upcomingSectionHtml}} {{canvasAppUrl}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
         </div>
@@ -2335,7 +2407,48 @@ Thank you,
       const editor = container.querySelector('#ces-tpl-body');
       const subjectInput = container.querySelector('#ces-tpl-subject');
       const subjectPreview = container.querySelector('#ces-subject-preview');
+      const autoTypeSelect = container.querySelector('#ces-tpl-auto-type');
+      const excludeAnnouncements = container.querySelector('#ces-tpl-exclude-announcements');
+      const ruleFields = container.querySelector('#ces-tpl-rule-fields');
+      const privacyWarning = container.querySelector('#ces-tpl-privacy-warning');
       let savedEditorRange = null;
+      function ruleTypeIsPrivate(ruleType) {
+        return ['late', 'midpoint', 'low_grade'].includes(ruleType);
+      }
+      function refreshRuleFields() {
+        const ruleType = autoTypeSelect.value;
+        if (ruleType === 'upcoming') {
+          ruleFields.innerHTML = `
+            <div><label class="ces-label">Days Forward</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
+            <div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in the look-ahead window" disabled></div>
+          `;
+        } else if (ruleType === 'late') {
+          ruleFields.innerHTML = `
+            <div><label class="ces-label">Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365"></div>
+            <div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div>
+          `;
+        } else if (ruleType === 'midpoint') {
+          ruleFields.innerHTML = `
+            <div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-tpl-start" value="${escapeAttr(tpl.startDate || '')}"></div>
+            <div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-tpl-end" value="${escapeAttr(tpl.endDate || '')}"></div>
+            <div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
+            <div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365"></div>
+          `;
+        } else {
+          ruleFields.innerHTML = `
+            <div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-tpl-grade-scope"><option value="overall"${(tpl.gradeScope || 'overall') === 'overall' ? ' selected' : ''}>Overall course grade</option><option value="assignment"${tpl.gradeScope === 'assignment' ? ' selected' : ''}>Individual assignment score</option></select></div>
+            <div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-tpl-threshold" value="${escapeAttr(tpl.threshold || 70)}" min="1" max="100"></div>
+          `;
+        }
+        if (ruleTypeIsPrivate(ruleType) || templateUsesGradeData({ subject: subjectInput.value, body: editor.innerHTML })) {
+          excludeAnnouncements.checked = true;
+          excludeAnnouncements.disabled = true;
+          privacyWarning.innerHTML = '<div class="ces-status ces-status-error">This message can include student grade, missing-work, or progress details. Announcements are excluded to protect student privacy.</div>';
+        } else {
+          excludeAnnouncements.disabled = false;
+          privacyWarning.innerHTML = '';
+        }
+      }
       const rememberEditorSelection = () => {
         const selection = window.getSelection();
         if (!selection || !selection.rangeCount) return;
@@ -2357,7 +2470,11 @@ Thank you,
       });
       subjectInput.addEventListener('input', () => {
         subjectPreview.textContent = subjectInput.value || '(no subject)';
+        refreshRuleFields();
       });
+      autoTypeSelect.addEventListener('change', refreshRuleFields);
+      editor.addEventListener('input', refreshRuleFields);
+      refreshRuleFields();
       container.querySelectorAll('#ces-format-toolbar [data-command]').forEach(btn => {
         btn.addEventListener('click', () => {
           restoreEditorSelection();
@@ -2391,11 +2508,28 @@ Thank you,
         applyEditorStyle(editor, { color: e.target.value });
         rememberEditorSelection();
       });
+      container.querySelector('#ces-variable-insert').addEventListener('change', e => {
+        if (!e.target.value) return;
+        restoreEditorSelection();
+        document.execCommand('insertText', false, e.target.value);
+        rememberEditorSelection();
+        e.target.value = '';
+      });
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
         const body = sanitizeCanvasEmailHtml(editor.innerHTML);
+        const automationType = autoTypeSelect.value;
+        const privateCriteria = ruleTypeIsPrivate(automationType) || templateUsesGradeData({ subject: subjectInput.value, body });
         templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Custom Message';
         templates[type].description = container.querySelector('#ces-tpl-desc').value.trim();
         templates[type].subject = subjectInput.value;
+        templates[type].automationType = automationType;
+        templates[type].daysForward = Number(container.querySelector('#ces-tpl-days-forward')?.value || 7);
+        templates[type].daysBack = Number(container.querySelector('#ces-tpl-days-back')?.value || 14);
+        templates[type].threshold = Number(container.querySelector('#ces-tpl-threshold')?.value || 70);
+        templates[type].gradeScope = container.querySelector('#ces-tpl-grade-scope')?.value || 'overall';
+        templates[type].startDate = container.querySelector('#ces-tpl-start')?.value || '';
+        templates[type].endDate = container.querySelector('#ces-tpl-end')?.value || '';
+        templates[type].excludeAnnouncements = privateCriteria || excludeAnnouncements.checked;
         templates[type].bodyMode = 'html';
         templates[type].body = body;
         templates[type].bodyText = htmlToTeacherText(body);

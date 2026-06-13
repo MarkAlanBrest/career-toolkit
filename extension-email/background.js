@@ -311,9 +311,69 @@ function templateKeyForType(type) {
   return { late: 'auto_late', upcoming: 'auto_upcoming', midpoint: 'auto_midpoint', low_grade: 'auto_low_grade' }[type];
 }
 
+const AUTOMATION_TEMPLATE_KEYS = {
+  late: ['auto_late', 'missing'],
+  upcoming: ['auto_upcoming', 'upcoming'],
+  midpoint: ['auto_midpoint', 'evaluation'],
+  low_grade: ['auto_low_grade'],
+};
+
+function templateKeyToType(key) {
+  if (!key) return 'upcoming';
+  for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS)) {
+    if (keys.includes(key)) return type;
+  }
+  return 'upcoming';
+}
+
+function templateUsesGradeData(template) {
+  const text = `${template?.subject || ''}\n${template?.body || ''}\n${template?.bodyText || ''}`;
+  return /\{\{(?:currentGrade|currentScore|gradeAlertDetail|gradeAlertDetailHtml)\}\}/.test(text);
+}
+
+function templateAutomationType(key, template) {
+  return template?.automationType || templateKeyToType(key);
+}
+
+function templateHasPrivateCriteria(key, template) {
+  const type = templateAutomationType(key, template);
+  return ['late', 'midpoint', 'low_grade'].includes(type) || templateUsesGradeData(template);
+}
+
+function templateRuleDefaults(key, template = {}) {
+  const type = templateAutomationType(key, template);
+  const privateCriteria = templateHasPrivateCriteria(key, template);
+  return {
+    type,
+    daysForward: Number(template.daysForward || 7),
+    daysBack: Number(template.daysBack || 14),
+    threshold: Number(template.threshold || 70),
+    gradeScope: template.gradeScope || 'overall',
+    startDate: template.startDate || '',
+    endDate: template.endDate || '',
+    excludeAnnouncements: privateCriteria || template.excludeAnnouncements === true,
+  };
+}
+
 function templateForAutomation(automation, templates) {
   const fallbackKey = templateKeyForType(automation.type);
   return templates[automation.templateKey] || templates[fallbackKey] || DEFAULT_TEMPLATES[fallbackKey];
+}
+
+function automationWithTemplateRules(automation, templates) {
+  const template = templates[automation.templateKey] || {};
+  const rules = templateRuleDefaults(automation.templateKey || templateKeyForType(automation.type), template);
+  return {
+    ...automation,
+    type: rules.type,
+    daysForward: rules.daysForward,
+    daysBack: rules.daysBack,
+    threshold: rules.threshold,
+    gradeScope: rules.gradeScope,
+    startDate: rules.startDate,
+    endDate: rules.endDate,
+    delivery: rules.excludeAnnouncements ? 'students' : (automation.delivery || 'both'),
+  };
 }
 
 async function buildAutomationMessages(automation, context) {
@@ -331,8 +391,11 @@ async function buildAutomationMessages(automation, context) {
       const missingAssignments = missing.map(submission => submission.assignment || submission);
       if (!wantsStudentMessages(automation)) continue;
       const vars = {
+        studentId: String(student.id || ''),
         studentName: student.name || student.sortable_name || 'Student',
+        studentEmail: student.email || '',
         teacherName,
+        courseId: String(automation.courseId || ''),
         courseName,
         daysBack: String(maxAge),
         missingAssignmentList: formatAssignmentList(missingAssignments),
@@ -357,6 +420,7 @@ async function buildAutomationMessages(automation, context) {
     if (!upcoming.length) return [];
     const vars = {
       teacherName,
+      courseId: String(automation.courseId || ''),
       courseName,
       daysForward: String(daysForward),
       assignmentList: formatAssignmentList(upcoming),
@@ -377,6 +441,8 @@ async function buildAutomationMessages(automation, context) {
     if (wantsStudentMessages(automation)) {
       messages.push(...(await getStudents(base, token, automation.courseId)).map(student => {
         const studentVars = { ...vars, studentName: student.name || student.sortable_name || 'Student' };
+        studentVars.studentId = String(student.id || '');
+        studentVars.studentEmail = student.email || '';
         return {
           kind: 'message',
           studentId: student.id,
@@ -405,8 +471,11 @@ async function buildAutomationMessages(automation, context) {
       const missingAssignments = missing.map(submission => submission.assignment || submission);
       if (!wantsStudentMessages(automation)) continue;
       const vars = {
+        studentId: String(student.id || ''),
         studentName: student.name || student.sortable_name || 'Student',
+        studentEmail: student.email || '',
         teacherName,
+        courseId: String(automation.courseId || ''),
         courseName,
         currentGrade: enrollment?.grades?.current_grade || 'N/A',
         currentScore: String(enrollment?.grades?.current_score || 'N/A'),
@@ -441,8 +510,11 @@ async function buildAutomationMessages(automation, context) {
         if (!wantsStudentMessages(automation)) continue;
         const detail = `Current course score: ${score}%\nAlert threshold: ${threshold}%`;
         const vars = {
+          studentId: String(student.id || ''),
           studentName: student.name || student.sortable_name || 'Student',
+          studentEmail: student.email || '',
           teacherName,
+          courseId: String(automation.courseId || ''),
           courseName,
           currentGrade: enrollment?.grades?.current_grade || 'N/A',
           currentScore: String(score),
@@ -470,8 +542,11 @@ async function buildAutomationMessages(automation, context) {
         const pct = Math.round((score / points) * 1000) / 10;
         const detail = `${submission.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`;
         const vars = {
+          studentId: String(student.id || ''),
           studentName: student.name || student.sortable_name || 'Student',
+          studentEmail: student.email || '',
           teacherName,
+          courseId: String(automation.courseId || ''),
           courseName,
           currentGrade: '',
           currentScore: String(pct),
@@ -514,25 +589,26 @@ async function runAutomations() {
       continue;
     }
     try {
-      const messages = await buildAutomationMessages(automation, { base, token, teacherName, templates });
+      const resolvedAutomation = automationWithTemplateRules(automation, templates);
+      const messages = await buildAutomationMessages(resolvedAutomation, { base, token, teacherName, templates });
       for (const message of messages) {
-        if (alreadyLogged(sentKeys, automation.id, message.dedupeKey)) continue;
+        if (alreadyLogged(sentKeys, resolvedAutomation.id, message.dedupeKey)) continue;
         try {
-          if ((automation.mode || 'auto') === 'draft') {
-            await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
-            sentKeys.push({ automationId: automation.id, status: 'draft', dedupeKey: message.dedupeKey });
+          if ((resolvedAutomation.mode || 'auto') === 'draft') {
+            await addAutomationLog({ automationId: resolvedAutomation.id, automationName: resolvedAutomation.name, courseId: resolvedAutomation.courseId, courseName: resolvedAutomation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
+            sentKeys.push({ automationId: resolvedAutomation.id, status: 'draft', dedupeKey: message.dedupeKey });
           } else if (message.kind === 'announcement') {
-            assertAnnouncementAllowed(automation, message);
-            await postAnnouncement(base, token, automation.courseId, message.subject, message.body);
-            sentKeys.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });
-            await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: 'Students', subject: message.subject });
+            assertAnnouncementAllowed(resolvedAutomation, message);
+            await postAnnouncement(base, token, resolvedAutomation.courseId, message.subject, message.body);
+            sentKeys.push({ automationId: resolvedAutomation.id, status: 'sent', dedupeKey: message.dedupeKey });
+            await addAutomationLog({ automationId: resolvedAutomation.id, automationName: resolvedAutomation.name, courseId: resolvedAutomation.courseId, courseName: resolvedAutomation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: 'Students', subject: message.subject });
           } else {
-            await sendCanvasMessage(base, token, automation.courseId, message.studentId, message.subject, message.body);
-            sentKeys.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });
-            await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: message.studentName, subject: message.subject });
+            await sendCanvasMessage(base, token, resolvedAutomation.courseId, message.studentId, message.subject, message.body);
+            sentKeys.push({ automationId: resolvedAutomation.id, status: 'sent', dedupeKey: message.dedupeKey });
+            await addAutomationLog({ automationId: resolvedAutomation.id, automationName: resolvedAutomation.name, courseId: resolvedAutomation.courseId, courseName: resolvedAutomation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: message.studentName, subject: message.subject });
           }
         } catch (error) {
-          await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'failed', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: error.message });
+          await addAutomationLog({ automationId: resolvedAutomation.id, automationName: resolvedAutomation.name, courseId: resolvedAutomation.courseId, courseName: resolvedAutomation.courseName, status: 'failed', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: error.message });
         }
       }
     } catch (error) {
