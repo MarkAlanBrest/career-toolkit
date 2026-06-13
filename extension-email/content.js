@@ -327,6 +327,14 @@
     }
     .ces-launcher-btn.ces-launcher-action:hover { background:#047857; border-color:#065f46; color:#fff; }
     .ces-launcher-btn.ces-launcher-action .ces-nav-icon { color:#fff; }
+    .ces-launcher-btn.ces-launcher-action.ces-launcher-done,
+    .ces-launcher-btn.ces-launcher-action.ces-launcher-done:hover,
+    .ces-launcher-btn.ces-launcher-action:disabled {
+      background:#e5e7eb; border-color:#c7cdd1; color:#6b7280;
+      box-shadow:none; cursor:not-allowed;
+    }
+    .ces-launcher-btn.ces-launcher-action.ces-launcher-done .ces-nav-icon,
+    .ces-launcher-btn.ces-launcher-action:disabled .ces-nav-icon { color:#6b7280; }
     .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; margin: 0; align-self: center; transform: none; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
@@ -1300,7 +1308,6 @@ Best regards,
   let _overlay = null;
   let automationCheckInFlight = false;
   const AUTO_MENU_CHECK_INTERVAL_MS = 15 * 60 * 1000;
-  const AUTO_MANUAL_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
 
   function getCurrentCourseId() {
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
@@ -2044,6 +2051,28 @@ Best regards,
     }
   }
 
+  function isSameLocalDay(timestamp) {
+    const value = Number(timestamp || 0);
+    if (!value) return false;
+    return new Date(value).toDateString() === new Date().toDateString();
+  }
+
+  function setAutomationToolbarState(button) {
+    if (!button) return;
+    const lastCheck = GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0);
+    if (isSameLocalDay(lastCheck)) {
+      button.classList.add('ces-launcher-done');
+      button.disabled = true;
+      button.title = 'Automated messages have already been checked today';
+      button.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Messages Sent</span>';
+      return;
+    }
+    button.classList.remove('ces-launcher-done');
+    button.disabled = false;
+    button.title = 'Run automated message check now';
+    button.innerHTML = '<span class="ces-nav-icon">&#9658;</span><span>Send Messages</span>';
+  }
+
   /* =========================================================
      TAB: TEMPLATES
   ========================================================= */
@@ -2425,27 +2454,21 @@ Thank you,
     const checkBtn = document.createElement('button');
     checkBtn.className = 'ces-launcher-btn ces-launcher-action';
     checkBtn.type = 'button';
-    checkBtn.title = 'Run automated message check now';
-    checkBtn.innerHTML = '<span class="ces-nav-icon">&#9658;</span><span>Send Messages</span>';
+    setAutomationToolbarState(checkBtn);
     checkBtn.addEventListener('click', async e => {
       e.stopPropagation();
-      const original = checkBtn.innerHTML;
-      const lastCheck = Number(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0) || 0);
-      if (Date.now() - lastCheck < AUTO_MANUAL_CHECK_COOLDOWN_MS) {
-        checkBtn.disabled = true;
-        checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Recently Checked</span>';
-        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 2200);
+      if (checkBtn.disabled || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0))) {
+        setAutomationToolbarState(checkBtn);
         return;
       }
       checkBtn.disabled = true;
       checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking...</span>';
       try {
         await checkAutomationsOnOpen({ force: true, silent: true });
-        checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Checked</span>';
-        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 1800);
+        setAutomationToolbarState(checkBtn);
       } catch (_err) {
         checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
-        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 2200);
+        setTimeout(() => setAutomationToolbarState(checkBtn), 2200);
       }
     });
     group.appendChild(checkBtn);
