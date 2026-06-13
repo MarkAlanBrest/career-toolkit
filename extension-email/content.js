@@ -375,6 +375,7 @@
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
     LAST_AUTO_CHECK: 'ces_last_auto_check',
+    LAST_AUTO_SUCCESS: 'ces_last_auto_success',
   };
 
   const CANVAS_STUDENT_IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
@@ -2031,23 +2032,33 @@ Best regards,
   }
 
   async function checkAutomationsOnOpen(options = {}) {
-    if (!getAutomations().some(auto => auto.active !== false)) return;
-    if (automationCheckInFlight) return;
+    if (!getAutomations().some(auto => auto.active !== false)) {
+      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0 };
+    }
+    if (automationCheckInFlight) {
+      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0, busy: true };
+    }
     const force = !!options.force;
     const silent = !!options.silent;
     const lastCheck = Number(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0) || 0);
-    if (!force && Date.now() - lastCheck < AUTO_MENU_CHECK_INTERVAL_MS) return;
+    if (!force && Date.now() - lastCheck < AUTO_MENU_CHECK_INTERVAL_MS) {
+      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0, throttled: true };
+    }
     automationCheckInFlight = true;
     GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
     try {
       const result = await runAutomations();
       GM_setValue(STORAGE_KEYS.LAST_AUTO_CHECK, String(Date.now()));
+      if (result.sent || result.drafted || result.skipped) {
+        GM_setValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, String(Date.now()));
+      }
       if (!silent && (result.sent || result.drafted || result.failed)) {
         showStatus(`Automations checked: sent ${result.sent}, drafted ${result.drafted}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success');
       }
+      return result;
     } catch(err) {
-      GM_setValue(STORAGE_KEYS.LAST_AUTO_CHECK, String(Date.now()));
       if (!silent) showStatus('Automation check skipped: ' + err.message, 'error');
+      throw err;
     } finally {
       automationCheckInFlight = false;
     }
@@ -2061,11 +2072,11 @@ Best regards,
 
   function setAutomationToolbarState(button) {
     if (!button) return;
-    const lastCheck = GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0);
-    if (isSameLocalDay(lastCheck)) {
+    const lastSuccess = GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0);
+    if (isSameLocalDay(lastSuccess)) {
       button.classList.add('ces-launcher-done');
       button.disabled = true;
-      button.title = 'Automated messages have already been checked today';
+      button.title = 'Automated messages have already been sent today';
       button.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Messages Sent</span>';
       return;
     }
@@ -2459,16 +2470,35 @@ Thank you,
     setAutomationToolbarState(checkBtn);
     checkBtn.addEventListener('click', async e => {
       e.stopPropagation();
-      if (checkBtn.disabled || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0))) {
+      if (checkBtn.disabled || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) {
         setAutomationToolbarState(checkBtn);
         return;
       }
       checkBtn.disabled = true;
       checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking...</span>';
       try {
-        await checkAutomationsOnOpen({ force: true, silent: true });
-        setAutomationToolbarState(checkBtn);
+        const result = await checkAutomationsOnOpen({ force: true, silent: true });
+        const completedMessages = result && (result.sent || result.drafted || result.skipped);
+        if (completedMessages) {
+          GM_setValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, String(Date.now()));
+          setAutomationToolbarState(checkBtn);
+          return;
+        }
+        checkBtn.classList.remove('ces-launcher-done');
+        checkBtn.disabled = false;
+        if (result && result.busy) {
+          checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Already Running</span>';
+        } else if (result && !result.checked) {
+          checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>No Automations</span>';
+        } else if (result && result.failed) {
+          checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
+        } else {
+          checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Nothing Due</span>';
+        }
+        setTimeout(() => setAutomationToolbarState(checkBtn), 2200);
       } catch (_err) {
+        checkBtn.classList.remove('ces-launcher-done');
+        checkBtn.disabled = false;
         checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
         setTimeout(() => setAutomationToolbarState(checkBtn), 2200);
       }
