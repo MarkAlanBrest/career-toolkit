@@ -396,6 +396,7 @@ async function buildAutomationMessages(automation, context) {
       const enrollment = enrollments.find(item => item.user_id === student.id && item.grades);
       const missing = getMissingAssignments(await getSubmissions(base, token, automation.courseId, student.id), Number(automation.daysBack) || 14);
       const missingAssignments = missing.map(submission => submission.assignment || submission);
+      if (!wantsStudentMessages(automation)) continue;
       const vars = {
         studentName: student.name || student.sortable_name || 'Student',
         teacherName,
@@ -418,6 +419,14 @@ async function buildAutomationMessages(automation, context) {
         dedupeKey: `${automation.id}:midpoint:${student.id}:once`,
       });
     }
+    if (wantsAnnouncement(automation)) {
+      messages.push(buildAutomationAnnouncement(
+        automation,
+        `Midpoint Check-In for ${courseName}`,
+        `We are at the midpoint of ${courseName}.\n\nPlease take a few minutes to review your current grade, missing work, upcoming assignments, and recent feedback in Canvas. This is a good time to make adjustments while there is still time to improve your progress.\n\nIf you have questions or need help making a plan, please reach out.\n\nBest regards,\n${teacherName}`,
+        'midpoint'
+      ));
+    }
     return messages;
   }
 
@@ -426,10 +435,13 @@ async function buildAutomationMessages(automation, context) {
     const messages = [];
     if ((automation.gradeScope || 'overall') === 'overall') {
       const enrollments = await getEnrollments(base, token, automation.courseId);
+      let lowOverallMatches = 0;
       for (const student of await getStudents(base, token, automation.courseId)) {
         const enrollment = enrollments.find(item => item.user_id === student.id && item.grades);
         const score = Number(enrollment?.grades?.current_score);
         if (!Number.isFinite(score) || score >= threshold) continue;
+        lowOverallMatches++;
+        if (!wantsStudentMessages(automation)) continue;
         const detail = `Current course score: ${score}%\nAlert threshold: ${threshold}%`;
         const vars = {
           studentName: student.name || student.sortable_name || 'Student',
@@ -449,14 +461,25 @@ async function buildAutomationMessages(automation, context) {
           dedupeKey: `${automation.id}:low-overall:${student.id}:below-${threshold}:once`,
         });
       }
+      if (wantsAnnouncement(automation) && lowOverallMatches) {
+        messages.push(buildAutomationAnnouncement(
+          automation,
+          `Grade Check Reminder for ${courseName}`,
+          `This is a class reminder to review your current grade, recent feedback, and any missing work in ${courseName}.\n\nIf your grade is lower than you want it to be, please take action now: check Canvas, complete what you can, and reach out if you need help making a recovery plan.\n\nBest regards,\n${teacherName}`,
+          `low-overall:below-${threshold}`
+        ));
+      }
       return messages;
     }
+    let lowAssignmentMatches = 0;
     for (const student of await getStudents(base, token, automation.courseId)) {
       const submissions = await getSubmissions(base, token, automation.courseId, student.id);
       for (const submission of submissions) {
         const score = Number(submission.score);
         const points = Number(submission.assignment?.points_possible);
         if (!Number.isFinite(score) || !Number.isFinite(points) || points <= 0 || (score / points) * 100 >= threshold) continue;
+        lowAssignmentMatches++;
+        if (!wantsStudentMessages(automation)) continue;
         const pct = Math.round((score / points) * 1000) / 10;
         const detail = `${submission.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`;
         const vars = {
@@ -477,6 +500,14 @@ async function buildAutomationMessages(automation, context) {
           dedupeKey: `${automation.id}:low-assignment:${student.id}:${submission.assignment_id}:below-${threshold}:once`,
         });
       }
+    }
+    if (wantsAnnouncement(automation) && lowAssignmentMatches) {
+      messages.push(buildAutomationAnnouncement(
+        automation,
+        `Assignment Grade Check for ${courseName}`,
+        `This is a class reminder to review your recent assignment scores and feedback in ${courseName}.\n\nIf an assignment score is lower than expected, please use the feedback to decide what to do next and reach out if you need help understanding the material or making a plan.\n\nBest regards,\n${teacherName}`,
+        `low-assignment:below-${threshold}`
+      ));
     }
     return messages;
   }

@@ -6,7 +6,7 @@
   window.__cesLoaded = true;
 
   // Storage shim — pre-load all keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_last_auto_check'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_last_auto_check', 'ces_last_auto_success'];
   function canUseChromeStorage() {
     return !!(globalThis.chrome && chrome.storage && chrome.storage.local);
   }
@@ -2017,13 +2017,14 @@ Best regards,
   }
 
   function deliveryFieldHtml(type) {
+    const defaultDelivery = type === 'upcoming' ? 'both' : 'students';
     const announcementOnly = type === 'upcoming'
       ? '<option value="announcement">Course announcement only</option>'
       : '<option value="announcement">Course announcement only (general reminder)</option>';
     const note = type === 'upcoming'
       ? 'Uses the selected upcoming work template'
       : 'Announcements are general and do not include private student details';
-    return `<div class="ces-grid-2"><div><label class="ces-label">Delivery</label><select class="ces-select" id="ces-auto-delivery"><option value="students">Message students</option>${announcementOnly}<option value="both">Message students + course announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
+    return `<div class="ces-grid-2"><div><label class="ces-label">Delivery</label><select class="ces-select" id="ces-auto-delivery"><option value="students"${defaultDelivery === 'students' ? ' selected' : ''}>Message students</option>${announcementOnly}<option value="both"${defaultDelivery === 'both' ? ' selected' : ''}>Message students + course announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
   }
 
   function renderAutomationFields(container) {
