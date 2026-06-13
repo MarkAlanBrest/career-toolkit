@@ -1039,8 +1039,11 @@ Best regards,
 
   function automationTemplateOptions(type, selectedKey = '') {
     const templates = getTemplates();
-    const allowed = new Set(AUTOMATION_TEMPLATE_KEYS[type] || []);
-    const entries = Object.entries(templates).filter(([key]) => allowed.has(key) || isCustomTemplateKey(key));
+    // Allow choosing any saved template for automations. Previously this filtered
+    // templates to a small allowed set per automation type which prevented
+    // selecting other default templates. Show all templates so users can pick
+    // the exact message they want.
+    const entries = Object.entries(templates);
     if (!entries.some(([key]) => key === selectedKey)) selectedKey = automationTemplateDefault(type);
     return entries.map(([key, tpl]) => `<option value="${escapeAttr(key)}"${key === selectedKey ? ' selected' : ''}>${escapeHtml(templateDisplayName(tpl, key))}</option>`).join('');
   }
