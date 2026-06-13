@@ -14,18 +14,32 @@ const CHECK_MINUTES = 60;
 
 const DEFAULT_TEMPLATES = {
   auto_late: {
+    automationType: 'late',
+    daysBack: 14,
+    excludeAnnouncements: true,
     subject: 'Past Due Work in {{courseName}}',
-    body: 'Hi {{studentName}},\n\nThis is a reminder that the following work in {{courseName}} is currently past due:\n\n{{missingAssignmentList}}\n\nPlease submit what you can as soon as possible. If you need help making a plan, reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}',
+    body: 'Hi {{studentName}},\n\nI am reaching out because the following work in {{courseName}} still appears as past due:\n\n{{missingAssignmentList}}\n\nLate work can feel difficult to restart, but taking action now can still help your progress in the course. Please submit what you can as soon as possible. If you need help making a plan, reply to this message or visit office hours.\n\nBest regards,\n{{teacherName}}',
   },
   auto_upcoming: {
+    automationType: 'upcoming',
+    daysForward: 7,
+    excludeAnnouncements: false,
     subject: 'Upcoming Work in {{courseName}}',
-    body: 'Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions, required materials, and submission details.\n\nBest regards,\n{{teacherName}}',
+    body: 'Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease use this as a planning checklist. Open each item in Canvas, review the directions, and set aside enough time to complete the work carefully.\n\nBest regards,\n{{teacherName}}',
   },
   auto_midpoint: {
+    automationType: 'midpoint',
+    daysForward: 7,
+    daysBack: 14,
+    excludeAnnouncements: true,
     subject: 'Progress Evaluation for {{courseName}}',
     body: 'Hi {{studentName}},\n\nI am sharing a progress evaluation for {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThere is still time to make meaningful adjustments. Please reach out if you want help prioritizing next steps.\n\nBest regards,\n{{teacherName}}',
   },
   auto_low_grade: {
+    automationType: 'low_grade',
+    threshold: 70,
+    gradeScope: 'overall',
+    excludeAnnouncements: true,
     subject: 'Grade Check-In for {{courseName}}',
     body: 'Hi {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.\n\n{{gradeAlertDetail}}\n\nThis message is meant to catch the issue early enough that you can respond. Please review your recent feedback in Canvas and reach out if you would like help making a recovery plan.\n\nBest regards,\n{{teacherName}}',
   },

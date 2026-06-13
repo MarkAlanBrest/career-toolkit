@@ -405,7 +405,7 @@
     return url.toString();
   }
 
-  const TEMPLATE_VERSION_VALUE = '8';
+  const TEMPLATE_VERSION_VALUE = '9';
 
   function templateBody(source) {
     return {
@@ -419,6 +419,8 @@
       name: 'Canvas Student App Setup',
       description: 'Help students install the Canvas app and turn on notifications',
       subject: 'Set Up Canvas Notifications for {{courseName}}',
+      automationType: 'plain',
+      excludeAnnouncements: false,
       inboxBody: `Hi {{studentName}},
 
 Please set up the Canvas Student app for {{courseName}}. This is the best way to receive course announcements, reminders, and schedule changes on your phone.
@@ -461,6 +463,9 @@ Thank you,
       name: 'Upcoming Assignments',
       description: 'Remind students of upcoming due dates',
       subject: 'Upcoming Work for {{courseName}}',
+      automationType: 'upcoming',
+      daysForward: 7,
+      excludeAnnouncements: false,
       ...templateBody(`# Upcoming Work
 
 Hi {{studentName}},
@@ -469,9 +474,9 @@ Here is what is coming up in {{courseName}} over the next {{daysForward}} days.
 
 {{assignmentListHtml}}
 
-This is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.
+Please use this as a planning checklist. A few minutes of review now can prevent a stressful last-minute rush later.
 
-> Please review the instructions in Canvas and plan enough time to complete each item before the deadline. If anything is unclear, reach out before the due date so there is time to help.
+> Open each item in Canvas, review the directions, and set aside enough time to complete the work carefully. If anything is unclear, please reach out before the due date so there is time to help.
 
 Best,
 {{teacherName}}`),
@@ -480,6 +485,9 @@ Best,
       name: 'Missing Work Reminder',
       description: 'Alert students about unsubmitted work',
       subject: 'Missing Work in {{courseName}}',
+      automationType: 'late',
+      daysBack: 14,
+      excludeAnnouncements: true,
       ...templateBody(`# Missing Work Check-In
 
 Hi {{studentName}},
@@ -499,6 +507,8 @@ Best,
       name: 'Welcome to Class',
       description: 'Send a warm welcome message',
       subject: 'Welcome to {{courseName}}!',
+      automationType: 'plain',
+      excludeAnnouncements: false,
       ...templateBody(`# Welcome to {{courseName}}
 
 Hi {{studentName}},
@@ -523,6 +533,10 @@ Welcome,
       name: 'Student Evaluation',
       description: 'Share grade status and progress',
       subject: 'Progress Update for {{courseName}}',
+      automationType: 'midpoint',
+      daysForward: 7,
+      daysBack: 14,
+      excludeAnnouncements: true,
       ...templateBody(`# Course Progress Update
 
 Hi {{studentName}},
@@ -546,15 +560,18 @@ Best regards,
       name: 'Automation: Late Work',
       description: 'Automatically remind students about past-due missing work',
       subject: 'Past Due Work in {{courseName}}',
+      automationType: 'late',
+      daysBack: 14,
+      excludeAnnouncements: true,
       ...templateBody(`# Past Due Work Reminder
 
 Hi {{studentName}},
 
-This is an automated reminder that the following work in {{courseName}} is currently past due.
+I am reaching out because the following work in {{courseName}} still appears as past due.
 
 {{missingAssignmentListHtml}}
 
-I know late work can feel difficult to restart, but taking action now can still help your progress in the course. Start with the most manageable item, then continue from there.
+Late work can feel difficult to restart, but taking action now can still help your progress in the course. Start with the most manageable item, then continue from there.
 
 > Please submit what you can as soon as possible. If you are stuck, unsure where to begin, or need to discuss your options, reply to this message or come to office hours. I would rather hear from you early than have you try to handle it alone.
 
@@ -565,6 +582,9 @@ Best regards,
       name: 'Automation: Upcoming Work',
       description: 'Automatically send upcoming work reminders',
       subject: 'Upcoming Work in {{courseName}}',
+      automationType: 'upcoming',
+      daysForward: 7,
+      excludeAnnouncements: false,
       ...templateBody(`# Upcoming Work Reminder
 
 Hi {{studentName}},
@@ -584,11 +604,15 @@ Best regards,
       name: 'Automation: Evaluation',
       description: 'Automatically send a progress evaluation on a selected date',
       subject: 'Progress Evaluation for {{courseName}}',
+      automationType: 'midpoint',
+      daysForward: 7,
+      daysBack: 14,
+      excludeAnnouncements: true,
       ...templateBody(`# Progress Evaluation
 
 Hi {{studentName}},
 
-I am sharing a progress evaluation for {{courseName}} to help you assess where things stand and what to focus on next.
+I am sharing a progress evaluation for {{courseName}} so you have a clear snapshot of where things stand and what to focus on next.
 
 > Current grade: {{currentGrade}} ({{currentScore}}%)
 
@@ -609,6 +633,10 @@ Best regards,
       name: 'Automation: Low Grade Warning',
       description: 'Automatically warn students when grades fall below a threshold',
       subject: 'Grade Check-In for {{courseName}}',
+      automationType: 'low_grade',
+      threshold: 70,
+      gradeScope: 'overall',
+      excludeAnnouncements: true,
       ...templateBody(`# Grade Check-In
 
 Hi {{studentName}},
@@ -1563,6 +1591,28 @@ Best regards,
     return { checked: automations.length, matched, sent, drafted, skipped, failed };
   }
 
+  async function previewAutomationQueue(onlyAutomationId) {
+    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '') || 'Teacher';
+    if (!cachedCourses) cachedCourses = await getCourses();
+    const automations = getAutomations().filter(a => a.active !== false && (!onlyAutomationId || a.id === onlyAutomationId));
+    const sentKeys = getAutomationLogs().filter(l => l.status === 'sent' || l.status === 'draft');
+    let matched = 0, queued = 0, skipped = 0, failed = 0;
+    for (const automation of automations) {
+      try {
+        const resolvedAutomation = automationWithTemplateRules(automation);
+        const messages = await buildAutomationMessages(resolvedAutomation, teacherName);
+        matched += messages.length;
+        for (const message of messages) {
+          if (alreadyLogged(sentKeys, resolvedAutomation.id, message.dedupeKey)) skipped++;
+          else queued++;
+        }
+      } catch (_err) {
+        failed++;
+      }
+    }
+    return { checked: automations.length, matched, queued, skipped, failed };
+  }
+
   /* =========================================================
      UTILITY
   ========================================================= */
@@ -1586,6 +1636,7 @@ Best regards,
   let currentCourseId = null;
   let _overlay = null;
   let automationCheckInFlight = false;
+  let automationQueuePreviewInFlight = false;
   const AUTO_MENU_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
   function getCurrentCourseId() {
@@ -1648,6 +1699,7 @@ Best regards,
           <button class="ces-tab active" data-tab="send">Send Messages</button>
           <button class="ces-tab" data-tab="automations">Automated Messages</button>
           <button class="ces-tab" data-tab="templates">Message Templates</button>
+          <button class="ces-tab" data-tab="logs">Logs</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
         <div id="ces-body"></div>
@@ -1696,6 +1748,7 @@ Best regards,
       if (tabName === 'send') renderSendTab(body);
       else if (tabName === 'automations') renderAutomationsTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
+      else if (tabName === 'logs') renderLogsTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
       renderTabError(body, err);
@@ -2056,7 +2109,6 @@ Best regards,
   ========================================================= */
   function renderAutomationsTab(container) {
     const automations = getAutomations();
-    const logs = getAutomationLogs().slice(-12).reverse();
     const courseId = getSelectedCourseId();
 
     container.innerHTML = `
@@ -2069,7 +2121,7 @@ Best regards,
           </div>
           <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Test Check Now</button>
         </div>
-        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings, and also check once when the Messages button loads in Canvas. Test Check Now is only for testing or sending immediately.</div>
+        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings. Duplicate protection prevents the same automation message from sending again for the same matching condition.</div>
         ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
 
         <label class="ces-label">Dashboard Classes</label>
@@ -2110,20 +2162,6 @@ Best regards,
 
       <h3 style="margin:18px 0 10px;">Saved Automations</h3>
       <div id="ces-auto-list"></div>
-
-      <h3 style="margin:18px 0 10px;">Recent Message Log</h3>
-      <div id="ces-auto-log">
-        ${logs.length ? logs.map(log => `
-          <div class="ces-msg-row">
-            <div class="ces-msg-header">
-              <span class="ces-msg-name">${escapeHtml(log.status || 'log')} - ${escapeHtml(log.automationName || 'Automation')}</span>
-              <span style="font-size:12px;color:#6b7280;">${escapeHtml(new Date(log.at).toLocaleString())}</span>
-            </div>
-            <div class="ces-msg-subject">${escapeHtml(log.courseName || '')} ${log.recipientName ? '- ' + escapeHtml(log.recipientName) : ''}</div>
-            <div class="ces-msg-body">${escapeHtml(log.subject || log.note || '')}</div>
-          </div>
-        `).join('') : '<div class="ces-status ces-status-info">No automation messages logged yet.</div>'}
-      </div>
     `;
 
     renderAutomationTemplateSummary(container);
@@ -2204,7 +2242,7 @@ Best regards,
     if (rules.type === 'plain') parts.push('no Canvas criteria');
     if (rules.type === 'upcoming') parts.push(`looks ahead ${rules.daysForward} day${rules.daysForward === 1 ? '' : 's'}`);
     if (rules.type === 'late') parts.push(`checks missing work from the last ${rules.daysBack} day${rules.daysBack === 1 ? '' : 's'}`);
-    if (rules.type === 'midpoint') parts.push(`runs on ${rules.evaluationDate || 'evaluation date'}`);
+    if (rules.type === 'midpoint') parts.push(`runs once when checked on or after ${rules.evaluationDate || 'evaluation date'}`);
     if (rules.type === 'low_grade') parts.push(`${rules.gradeScope === 'assignment' ? 'assignment' : 'overall'} grade below ${rules.threshold}%`);
     parts.push(rules.excludeAnnouncements ? 'announcements excluded' : 'student messages + announcements allowed');
     return parts.join(' - ');
@@ -2291,6 +2329,41 @@ Best regards,
     }));
   }
 
+  function renderLogsTab(container) {
+    const logs = getAutomationLogs().slice().reverse();
+    const statuses = [...new Set(logs.map(log => log.status || 'log'))].sort();
+    container.innerHTML = `
+      <div id="ces-status-area"></div>
+      <div class="ces-flex-between ces-mb">
+        <div>
+          <h3 style="margin:0;">Message Logs</h3>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;">Review sent, draft, skipped, and failed automated message activity.</div>
+        </div>
+        <select class="ces-select" id="ces-log-filter" style="width:180px;">
+          <option value="">All statuses</option>
+          ${statuses.map(status => `<option value="${escapeAttr(status)}">${escapeHtml(status)}</option>`).join('')}
+        </select>
+      </div>
+      <div id="ces-log-list"></div>
+    `;
+    function renderLogList() {
+      const filter = container.querySelector('#ces-log-filter')?.value || '';
+      const visible = filter ? logs.filter(log => (log.status || 'log') === filter) : logs;
+      container.querySelector('#ces-log-list').innerHTML = visible.length ? visible.map(log => `
+        <div class="ces-msg-row">
+          <div class="ces-msg-header">
+            <span class="ces-msg-name">${escapeHtml(log.status || 'log')} - ${escapeHtml(log.automationName || 'Automation')}</span>
+            <span style="font-size:12px;color:#6b7280;">${escapeHtml(log.at ? new Date(log.at).toLocaleString() : '')}</span>
+          </div>
+          <div class="ces-msg-subject">${escapeHtml(log.courseName || '')}${log.recipientName ? ' - ' + escapeHtml(log.recipientName) : ''}</div>
+          <div class="ces-msg-body">${escapeHtml(log.subject || log.note || '')}</div>
+        </div>
+      `).join('') : '<div class="ces-status ces-status-info">No logs match this filter.</div>';
+    }
+    container.querySelector('#ces-log-filter')?.addEventListener('change', renderLogList);
+    renderLogList();
+  }
+
   async function checkAutomationsOnOpen(options = {}) {
     if (!getAutomations().some(auto => auto.active !== false)) {
       return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0 };
@@ -2346,6 +2419,33 @@ Best regards,
     button.innerHTML = '<span class="ces-nav-icon">&#9658;</span><span>Send Messages</span>';
   }
 
+  async function refreshAutomationToolbarQueue(button) {
+    if (!button || button.disabled || automationQueuePreviewInFlight || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) return;
+    if (!getAutomations().some(auto => auto.active !== false)) return;
+    automationQueuePreviewInFlight = true;
+    const original = button.innerHTML;
+    button.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking Queue...</span>';
+    try {
+      const preview = await previewAutomationQueue();
+      if (!button || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) return;
+      button.classList.remove('ces-launcher-done');
+      button.disabled = false;
+      if (preview.queued > 0) {
+        button.title = `${preview.queued} automated message${preview.queued === 1 ? '' : 's'} ready to send`;
+        button.innerHTML = `<span class="ces-nav-icon">&#9658;</span><span>${preview.queued} Messages Queued</span>`;
+      } else if (preview.checked) {
+        button.title = preview.skipped ? 'All matching automated messages were already sent' : 'No automated messages are currently due';
+        button.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Nothing Due</span>';
+      } else {
+        button.innerHTML = original;
+      }
+    } catch (_err) {
+      setAutomationToolbarState(button);
+    } finally {
+      automationQueuePreviewInFlight = false;
+    }
+  }
+
   /* =========================================================
      TAB: TEMPLATES
   ========================================================= */
@@ -2357,7 +2457,10 @@ Best regards,
       html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">+ New Custom Message</button></div>`;
       for (const [type, tpl] of Object.entries(templates)) {
         const canDelete = !DEFAULT_TEMPLATE_KEYS.has(type);
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(templateDisplayName(tpl, type))}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(automationRuleSummary(type, tpl))}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
+        const privateBadge = templateHasPrivateCriteria(type, tpl)
+          ? '<span style="display:inline-flex;align-items:center;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:800;margin-left:8px;">Private data - announcements blocked</span>'
+          : '';
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(templateDisplayName(tpl, type))}</strong>${privateBadge}<div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(automationRuleSummary(type, tpl))}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
@@ -2860,15 +2963,16 @@ Thank you,
         } else {
           checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Nothing Due</span>';
         }
-        setTimeout(() => setAutomationToolbarState(checkBtn), 2200);
+        setTimeout(() => { setAutomationToolbarState(checkBtn); refreshAutomationToolbarQueue(checkBtn); }, 2200);
       } catch (_err) {
         checkBtn.classList.remove('ces-launcher-done');
         checkBtn.disabled = false;
         checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
-        setTimeout(() => setAutomationToolbarState(checkBtn), 2200);
+        setTimeout(() => { setAutomationToolbarState(checkBtn); refreshAutomationToolbarQueue(checkBtn); }, 2200);
       }
     });
     group.appendChild(checkBtn);
+    refreshAutomationToolbarQueue(checkBtn);
 
     const aiOptions = [
       ['ChatGPT', 'GPT', 'https://chatgpt.com/'],
