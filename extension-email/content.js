@@ -248,6 +248,33 @@
     .ces-send-panel-sub { font-size:12px; color:#6b7280; margin-top:2px; }
     .ces-generate-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
     .ces-generate-row #ces-generate-btn { min-width:170px; justify-content:center; }
+    .ces-course-picker {
+      display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+      gap:10px; align-items:stretch; margin-top:6px;
+    }
+    .ces-course-box {
+      border:1px solid #d1d5db; border-radius:8px; background:#fff;
+      min-height:220px; max-height:320px; overflow:auto;
+    }
+    .ces-course-box-head {
+      position:sticky; top:0; z-index:1;
+      display:flex; justify-content:space-between; gap:8px; align-items:center;
+      padding:8px 10px; background:#f9fafb; border-bottom:1px solid #e5e7eb;
+      font-size:12px; font-weight:800; color:#374151;
+    }
+    .ces-course-list { display:grid; gap:0; }
+    .ces-course-row {
+      width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto;
+      gap:8px; align-items:center; text-align:left; padding:9px 10px;
+      border:0; border-bottom:1px solid #f0f2f4; background:#fff; color:#111827;
+      cursor:pointer; font:inherit;
+    }
+    .ces-course-row:hover { background:#eef7fc; }
+    .ces-course-row-title { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ces-course-row-meta { font-size:11px; color:#6b7280; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ces-course-row-action { font-size:16px; font-weight:800; color:#0374b5; }
+    .ces-course-transfer { display:grid; align-content:center; gap:8px; }
+    .ces-course-empty { padding:14px 10px; font-size:13px; color:#6b7280; }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
     .ces-mt { margin-top: 16px; }
     .ces-mb { margin-bottom: 16px; }
@@ -300,6 +327,8 @@
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
+      .ces-course-picker { grid-template-columns:1fr; }
+      .ces-course-transfer { grid-template-columns:1fr 1fr; }
       .ces-send-message-field { grid-column: 1 / -1; }
       .ces-send-range-field { max-width: none; }
       .ces-checkbox-row { align-self:center; margin: 0; }
@@ -323,6 +352,7 @@
     TEMPLATE_VERSION: 'ces_templates_version',
     TEACHER_NAME: 'ces_teacher_name',
     API_TOKEN:    'ces_canvas_api_token',
+    CANVAS_BASE:  'ces_canvas_base',
     DAYS_FORWARD: 'ces_days_forward',
     DAYS_BACK:    'ces_days_back',
     LAST_COURSE:  'ces_last_course',
@@ -1273,6 +1303,7 @@ Best regards,
   function openEmailSystem() {
     if (!_overlay) buildUI();
     if (_overlay) {
+      GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
       currentCourseId = getCurrentCourseId() || currentCourseId || GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
       loadCourses(currentCourseId);
       _overlay.classList.add('ces-open');
@@ -1657,6 +1688,62 @@ Best regards,
     });
   }
 
+  function courseSortTime(course) {
+    const candidates = [course.start_at, course.created_at, course.updated_at, course.end_at];
+    for (const value of candidates) {
+      const time = value ? new Date(value).getTime() : NaN;
+      if (Number.isFinite(time)) return time;
+    }
+    return Number(course.id) || 0;
+  }
+
+  function newestPublishedCourses() {
+    return [...(cachedCourses || [])].sort((a, b) => courseSortTime(b) - courseSortTime(a));
+  }
+
+  function coursePickerLabel(course) {
+    return course.name + (course.term ? ` (${course.term.name})` : '');
+  }
+
+  function renderCourseRows(courses, action) {
+    if (!courses.length) return '<div class="ces-course-empty">No classes to show.</div>';
+    return courses.map(course => `
+      <button type="button" class="ces-course-row" data-course-id="${escapeAttr(String(course.id))}" data-action="${action}">
+        <span>
+          <span class="ces-course-row-title">${escapeHtml(course.name || `Course ${course.id}`)}</span>
+          <span class="ces-course-row-meta">${escapeHtml((course.term?.name || 'Published course') + ` - ID ${course.id}`)}</span>
+        </span>
+        <span class="ces-course-row-action">${action === 'add' ? '+' : '-'}</span>
+      </button>
+    `).join('');
+  }
+
+  function renderAutomationCoursePicker(container, selectedIds) {
+    const picker = container.querySelector('#ces-auto-course-picker');
+    if (!picker) return;
+    const selectedSet = new Set(selectedIds.map(String));
+    const courses = newestPublishedCourses();
+    const available = courses.filter(course => !selectedSet.has(String(course.id)));
+    const selected = courses.filter(course => selectedSet.has(String(course.id)));
+    picker.dataset.selectedIds = selected.map(course => course.id).join(',');
+    picker.querySelector('#ces-course-available').innerHTML = renderCourseRows(available, 'add');
+    picker.querySelector('#ces-course-selected').innerHTML = renderCourseRows(selected, 'remove');
+    picker.querySelector('#ces-course-available-count').textContent = String(available.length);
+    picker.querySelector('#ces-course-selected-count').textContent = String(selected.length);
+  }
+
+  function getAutomationSelectedCourses(container) {
+    const selectedIds = (container.querySelector('#ces-auto-course-picker')?.dataset.selectedIds || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    const coursesById = new Map((cachedCourses || []).map(course => [String(course.id), course]));
+    return selectedIds.map(id => {
+      const course = coursesById.get(String(id));
+      return { id: String(id), name: course ? coursePickerLabel(course) : `Course ${id}` };
+    });
+  }
+
   /* =========================================================
      TAB: AUTOMATED MESSAGES
   ========================================================= */
@@ -1664,12 +1751,6 @@ Best regards,
     const automations = getAutomations();
     const logs = getAutomationLogs().slice(-12).reverse();
     const courseId = getSelectedCourseId();
-    const courseName = getSelectedCourseName() || courseDisplayName(courseId);
-    const courseOptions = (cachedCourses || []).map(course => {
-      const id = String(course.id);
-      const name = course.name + (course.term ? ` (${course.term.name})` : '') + ` - ID ${course.id}`;
-      return `<option value="${escapeAttr(id)}" ${id === String(courseId) ? 'selected' : ''}>${escapeHtml(name)}</option>`;
-    }).join('');
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
@@ -1679,15 +1760,27 @@ Best regards,
             <h3 style="margin:0;">Create Automation</h3>
             <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose one or more published classes, then choose the message, trigger, and frequency.</div>
           </div>
-          <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Run Check Now</button>
+          <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Test Check Now</button>
         </div>
+        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings. Test Check Now is only for testing or sending immediately.</div>
         ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
 
         <label class="ces-label">Published Classes</label>
-        <select class="ces-select" id="ces-auto-courses" multiple size="${Math.min(Math.max((cachedCourses || []).length, 3), 8)}">
-          ${courseOptions}
-        </select>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published Canvas courses are shown. Hold Ctrl or Shift to select multiple classes. Saving will create one automation tile per class.</div>
+        <div class="ces-course-picker" id="ces-auto-course-picker" data-selected-ids="">
+          <div class="ces-course-box">
+            <div class="ces-course-box-head"><span>Available Published Classes</span><span id="ces-course-available-count">0</span></div>
+            <div class="ces-course-list" id="ces-course-available"></div>
+          </div>
+          <div class="ces-course-transfer">
+            <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-add-all-courses">Add All</button>
+            <button type="button" class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-courses">Clear</button>
+          </div>
+          <div class="ces-course-box">
+            <div class="ces-course-box-head"><span>Selected Classes</span><span id="ces-course-selected-count">0</span></div>
+            <div class="ces-course-list" id="ces-course-selected"></div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published Canvas courses are shown, newest first. Click a class to move it between lists. Saving creates one automation tile per selected class.</div>
 
         <div class="ces-grid-2">
           <div>
@@ -1745,9 +1838,25 @@ Best regards,
     `;
 
     renderAutomationFields(container);
+    renderAutomationCoursePicker(container, courseId ? [courseId] : []);
     renderAutomationTiles(container.querySelector('#ces-auto-list'), automations);
 
     container.querySelector('#ces-auto-type').addEventListener('change', () => renderAutomationFields(container));
+    container.querySelector('#ces-auto-course-picker').addEventListener('click', event => {
+      const row = event.target.closest('.ces-course-row');
+      if (!row) return;
+      const picker = container.querySelector('#ces-auto-course-picker');
+      const selected = new Set((picker.dataset.selectedIds || '').split(',').filter(Boolean));
+      if (row.dataset.action === 'add') selected.add(row.dataset.courseId);
+      else selected.delete(row.dataset.courseId);
+      renderAutomationCoursePicker(container, [...selected]);
+    });
+    container.querySelector('#ces-add-all-courses').addEventListener('click', () => {
+      renderAutomationCoursePicker(container, newestPublishedCourses().map(course => String(course.id)));
+    });
+    container.querySelector('#ces-clear-courses').addEventListener('click', () => {
+      renderAutomationCoursePicker(container, []);
+    });
     container.querySelector('#ces-run-all-autos').addEventListener('click', async () => {
       const btn = container.querySelector('#ces-run-all-autos');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Checking...';
@@ -1758,15 +1867,11 @@ Best regards,
       } catch(err) {
         showStatus(err.message, 'error');
       }
-      btn.disabled = false; btn.textContent = 'Run Check Now';
+      btn.disabled = false; btn.textContent = 'Test Check Now';
     });
 
     container.querySelector('#ces-save-auto').addEventListener('click', () => {
-      const courseSelect = container.querySelector('#ces-auto-courses');
-      const selectedCourses = [...(courseSelect?.selectedOptions || [])].map(option => ({
-        id: option.value,
-        name: option.textContent.replace(/\s+-\s+ID\s+\d+\s*$/, ''),
-      }));
+      const selectedCourses = getAutomationSelectedCourses(container);
       const type = container.querySelector('#ces-auto-type').value;
       if (!selectedCourses.length) { showStatus('Select at least one class first.', 'error'); return; }
       const editId = container.querySelector('#ces-auto-edit-id').value;
@@ -1775,6 +1880,7 @@ Best regards,
       const buildAutomation = (selectedCourse, index) => ({
         id: editId && selectedCourses.length === 1 ? editId : makeAutomationId(),
         active: existingAuto ? existingAuto.active !== false : true,
+        canvasBase: CANVAS_BASE,
         courseId: selectedCourse.id,
         courseName: selectedCourse.name,
         type,
@@ -1866,9 +1972,7 @@ Best regards,
       body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
       body.querySelector('#ces-auto-mode').value = auto.mode || 'auto';
       body.querySelector('#ces-auto-name').value = auto.name || '';
-      body.querySelectorAll('#ces-auto-courses option').forEach(option => {
-        option.selected = option.value === String(auto.courseId);
-      });
+      renderAutomationCoursePicker(body, [String(auto.courseId)]);
       renderAutomationFields(body);
       if (body.querySelector('#ces-auto-days-back')) body.querySelector('#ces-auto-days-back').value = auto.daysBack || 14;
       if (body.querySelector('#ces-auto-days-forward')) body.querySelector('#ces-auto-days-forward').value = auto.daysForward || 7;
@@ -2160,7 +2264,8 @@ Thank you,
       <div class="ces-card" style="background:#f9fafb;">
         <h3 style="margin:0 0 8px;">How It Works</h3>
         <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
-          <li>Uses your Canvas login, or the Canvas API token above when provided.</li>
+          <li>Manual sends use your Canvas login, or the Canvas API token above when provided.</li>
+          <li>Background automations require the Canvas API token so checks can run when this panel is closed.</li>
           <li>Messages sent through Canvas's built-in Inbox system.</li>
           <li>Announcements posted directly to the selected course.</li>
           <li>All templates and settings saved in browser storage.</li>
@@ -2172,6 +2277,7 @@ Thank you,
     container.querySelector('#ces-save-settings').addEventListener('click', () => {
       GM_setValue(STORAGE_KEYS.TEACHER_NAME, container.querySelector('#ces-set-teacher').value.trim());
       GM_setValue(STORAGE_KEYS.API_TOKEN, container.querySelector('#ces-set-api-token').value.trim());
+      GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
       GM_setValue(STORAGE_KEYS.DAYS_FORWARD, parseInt(container.querySelector('#ces-set-forward').value) || 7);
       GM_setValue(STORAGE_KEYS.DAYS_BACK,    parseInt(container.querySelector('#ces-set-back').value) || 14);
       const statusArea = document.getElementById('ces-settings-status');
