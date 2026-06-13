@@ -662,9 +662,25 @@ Best regards,
   /* =========================================================
      DATA FETCHERS
   ========================================================= */
+  function dashboardCourseId(card) {
+    const raw = card?.assetString || card?.asset_string || card?.href || card?.url || card?.id || '';
+    const match = String(raw).match(/(?:course_|\/courses\/)(\d+)|^(\d+)$/);
+    return match ? String(match[1] || match[2]) : '';
+  }
+
   async function getCourses() {
     const courses = await canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
-    return courses.filter(c => !c.workflow_state || c.workflow_state === 'available');
+    const publishedCourses = courses.filter(c => !c.workflow_state || c.workflow_state === 'available');
+    try {
+      const dashboardCards = await canvasGet('/dashboard/dashboard_cards');
+      const dashboardIds = new Set(dashboardCards.map(dashboardCourseId).filter(Boolean));
+      if (dashboardIds.size) {
+        return publishedCourses.filter(course => dashboardIds.has(String(course.id)));
+      }
+    } catch (_err) {
+      // If Dashboard Cards are unavailable, keep the published-course fallback.
+    }
+    return publishedCourses;
   }
   async function getCourse(courseId) {
     const resp = await fetch(`${API}/courses/${courseId}?include[]=term`, { credentials: 'same-origin', headers: canvasHeaders() });
@@ -1520,7 +1536,7 @@ Best regards,
       if (!cachedCourses) cachedCourses = await getCourses();
       select.innerHTML = '';
       if (!cachedCourses.length) {
-        select.innerHTML = '<option value="">No published courses found</option>';
+        select.innerHTML = '<option value="">No dashboard courses found</option>';
         currentCourseId = '';
         return;
       }
@@ -1768,10 +1784,10 @@ Best regards,
         <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings, and also check once when the Messages button loads in Canvas. Test Check Now is only for testing or sending immediately.</div>
         ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
 
-        <label class="ces-label">Published Classes</label>
+        <label class="ces-label">Dashboard Classes</label>
         <div class="ces-course-picker" id="ces-auto-course-picker" data-selected-ids="">
           <div class="ces-course-box">
-            <div class="ces-course-box-head"><span>Available Published Classes</span><span id="ces-course-available-count">0</span></div>
+            <div class="ces-course-box-head"><span>Available Dashboard Classes</span><span id="ces-course-available-count">0</span></div>
             <div class="ces-course-list" id="ces-course-available"></div>
           </div>
           <div class="ces-course-transfer">
@@ -1783,7 +1799,7 @@ Best regards,
             <div class="ces-course-list" id="ces-course-selected"></div>
           </div>
         </div>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published Canvas courses are shown, newest first. Click a class to move it between lists. Saving creates one automation tile per selected class.</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published courses visible on your Canvas Dashboard are shown, newest first. Click a class to move it between lists. Saving creates one automation tile per selected class.</div>
 
         <div class="ces-grid-2">
           <div>
