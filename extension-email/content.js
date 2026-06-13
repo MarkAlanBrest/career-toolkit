@@ -242,6 +242,21 @@
     }
     .ces-send-message-field { grid-column: 1 / -1; }
     .ces-send-range-field { max-width: 150px; }
+    .ces-send-rule-field { grid-column: 1 / -1; max-width: none; }
+    .ces-rule-summary-box {
+      width: 100%;
+      min-height: 38px;
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #f9fafb;
+      color: #374151;
+      font-size: 13px;
+      line-height: 1.45;
+      box-sizing: border-box;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
     .ces-send-panel {
       border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; background:#f9fafb; margin-top:12px;
     }
@@ -566,14 +581,14 @@ Best regards,
 {{teacherName}}`),
     },
     auto_midpoint: {
-      name: 'Automation: Midpoint Evaluation',
-      description: 'Automatically send a midpoint progress check',
-      subject: 'Midpoint Progress Check for {{courseName}}',
-      ...templateBody(`# Midpoint Progress Check
+      name: 'Automation: Evaluation',
+      description: 'Automatically send a progress evaluation on a selected date',
+      subject: 'Progress Evaluation for {{courseName}}',
+      ...templateBody(`# Progress Evaluation
 
 Hi {{studentName}},
 
-We are at the midpoint of {{courseName}}, so I am sharing a progress check to help you assess where things stand and what to focus on next.
+I am sharing a progress evaluation for {{courseName}} to help you assess where things stand and what to focus on next.
 
 > Current grade: {{currentGrade}} ({{currentScore}}%)
 
@@ -1092,8 +1107,7 @@ Best regards,
       daysBack: Number(tpl.daysBack || 14),
       threshold: Number(tpl.threshold || 70),
       gradeScope: tpl.gradeScope || 'overall',
-      startDate: tpl.startDate || '',
-      endDate: tpl.endDate || '',
+      evaluationDate: tpl.evaluationDate || tpl.startDate || '',
       excludeAnnouncements: privateCriteria || tpl.excludeAnnouncements === true,
     };
   }
@@ -1131,8 +1145,7 @@ Best regards,
       daysBack: rules.daysBack,
       threshold: rules.threshold,
       gradeScope: rules.gradeScope,
-      startDate: rules.startDate,
-      endDate: rules.endDate,
+      evaluationDate: rules.evaluationDate,
       delivery: rules.excludeAnnouncements ? 'students' : (automation.delivery || 'both'),
     };
   }
@@ -1425,10 +1438,9 @@ Best regards,
   }
 
   async function buildMidpointAutomationMessages(automation, teacherName) {
-    const start = automation.startDate ? new Date(automation.startDate + 'T00:00:00') : null;
-    const end = automation.endDate ? new Date(automation.endDate + 'T23:59:59') : null;
-    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-    if (new Date() < new Date((start.getTime() + end.getTime()) / 2)) return [];
+    const evaluationDate = automation.evaluationDate ? new Date(automation.evaluationDate + 'T00:00:00') : null;
+    if (!evaluationDate || Number.isNaN(evaluationDate.getTime())) return [];
+    if (new Date() < evaluationDate) return [];
     if (!wantsStudentMessages(automation)) return [];
     const template = getTemplateForAutomation(automation);
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
@@ -1712,9 +1724,9 @@ Best regards,
           <select class="ces-select" id="ces-template-select">${templateOptions}</select>
           <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
         </div>
-        <div class="ces-send-range-field">
+        <div class="ces-send-rule-field">
           <label class="ces-label">Message Rule</label>
-          <input class="ces-input" id="ces-template-rule-summary" value="" disabled>
+          <div class="ces-rule-summary-box" id="ces-template-rule-summary"></div>
         </div>
       </div>
       <div class="ces-send-panel">
@@ -1753,7 +1765,7 @@ Best regards,
       const rules = templateRuleDefaults(selectedType, tpl);
       if (templateDesc) templateDesc.textContent = tpl?.description || tpl?.subject || '';
       const ruleSummary = container.querySelector('#ces-template-rule-summary');
-      if (ruleSummary) ruleSummary.value = automationRuleSummary(selectedType, tpl);
+      if (ruleSummary) ruleSummary.textContent = automationRuleSummary(selectedType, tpl);
       const announceCheck = container.querySelector('#ces-announce-check');
       if (announceCheck) {
         announceCheck.checked = !rules.excludeAnnouncements && announceCheck.checked;
@@ -2173,8 +2185,7 @@ Best regards,
         gradeScope: rules.gradeScope,
         audience: container.querySelector('#ces-auto-audience')?.value || 'students',
         delivery: rules.excludeAnnouncements ? 'students' : 'both',
-        startDate: rules.startDate,
-        endDate: rules.endDate,
+        evaluationDate: rules.evaluationDate,
         createdAt: index === 0 && existingAuto?.createdAt ? existingAuto.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -2188,12 +2199,12 @@ Best regards,
 
   function automationRuleSummary(key, tpl) {
     const rules = templateRuleDefaults(key, tpl);
-    const labels = { plain: 'Plain email', late: 'Late work', upcoming: 'Upcoming work', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    const labels = { plain: 'Plain email', late: 'Late work', upcoming: 'Upcoming work', midpoint: 'Evaluation', low_grade: 'Low grade warning' };
     const parts = [`Rule: ${labels[rules.type] || 'Plain email'}`];
     if (rules.type === 'plain') parts.push('no Canvas criteria');
     if (rules.type === 'upcoming') parts.push(`looks ahead ${rules.daysForward} day${rules.daysForward === 1 ? '' : 's'}`);
     if (rules.type === 'late') parts.push(`checks missing work from the last ${rules.daysBack} day${rules.daysBack === 1 ? '' : 's'}`);
-    if (rules.type === 'midpoint') parts.push(`midpoint between ${rules.startDate || 'start date'} and ${rules.endDate || 'end date'}`);
+    if (rules.type === 'midpoint') parts.push(`runs on ${rules.evaluationDate || 'evaluation date'}`);
     if (rules.type === 'low_grade') parts.push(`${rules.gradeScope === 'assignment' ? 'assignment' : 'overall'} grade below ${rules.threshold}%`);
     parts.push(rules.excludeAnnouncements ? 'announcements excluded' : 'student messages + announcements allowed');
     return parts.join(' - ');
@@ -2209,7 +2220,7 @@ Best regards,
   }
 
   function defaultAutomationName(type, courseName) {
-    const names = { plain: 'Scheduled message', late: 'Late work reminder', upcoming: 'Upcoming work message', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    const names = { plain: 'Scheduled message', late: 'Late work reminder', upcoming: 'Upcoming work message', midpoint: 'Evaluation', low_grade: 'Low grade warning' };
     return `${names[type] || 'Automation'} - ${courseName}`;
   }
 
@@ -2221,7 +2232,7 @@ Best regards,
     if (auto.type === 'plain') return `No Canvas criteria${templateText}`;
     if (auto.type === 'late') return `Late work until submitted or older than ${auto.daysBack || 14} days${templateText}`;
     if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${deliveryText}${templateText}`;
-    if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}${templateText}`;
+    if (auto.type === 'midpoint') return `Sends once on ${auto.evaluationDate || 'evaluation date'}${templateText}`;
     if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%${templateText}`;
     return '';
   }
@@ -2419,7 +2430,7 @@ Thank you,
                 <option value="plain"${rules.type === 'plain' ? ' selected' : ''}>Plain email / no rules</option>
                 <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
                 <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
-                <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Midpoint evaluation</option>
+                <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Evaluation</option>
                 <option value="low_grade"${rules.type === 'low_grade' ? ' selected' : ''}>Low grade warning</option>
               </select>
             </div>
@@ -2503,8 +2514,8 @@ Thank you,
           `;
         } else if (ruleType === 'midpoint') {
           ruleFields.innerHTML = `
-            <div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-tpl-start" value="${escapeAttr(tpl.startDate || '')}"></div>
-            <div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-tpl-end" value="${escapeAttr(tpl.endDate || '')}"></div>
+            <div><label class="ces-label">Evaluation Date</label><input class="ces-input" type="date" id="ces-tpl-evaluation-date" value="${escapeAttr(tpl.evaluationDate || tpl.startDate || '')}"></div>
+            <div><label class="ces-label">Condition</label><input class="ces-input" value="Send once on or after this date" disabled></div>
             <div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
             <div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365"></div>
           `;
@@ -2601,8 +2612,9 @@ Thank you,
         templates[type].daysBack = Number(container.querySelector('#ces-tpl-days-back')?.value || 14);
         templates[type].threshold = Number(container.querySelector('#ces-tpl-threshold')?.value || 70);
         templates[type].gradeScope = container.querySelector('#ces-tpl-grade-scope')?.value || 'overall';
-        templates[type].startDate = container.querySelector('#ces-tpl-start')?.value || '';
-        templates[type].endDate = container.querySelector('#ces-tpl-end')?.value || '';
+        templates[type].evaluationDate = container.querySelector('#ces-tpl-evaluation-date')?.value || '';
+        templates[type].startDate = '';
+        templates[type].endDate = '';
         templates[type].excludeAnnouncements = privateCriteria || excludeAnnouncements.checked;
         templates[type].bodyMode = 'html';
         templates[type].body = body;

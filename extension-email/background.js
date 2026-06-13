@@ -22,8 +22,8 @@ const DEFAULT_TEMPLATES = {
     body: 'Hi {{studentName}},\n\nHere is the work coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nPlease check Canvas for full instructions, required materials, and submission details.\n\nBest regards,\n{{teacherName}}',
   },
   auto_midpoint: {
-    subject: 'Midpoint Progress Check for {{courseName}}',
-    body: 'Hi {{studentName}},\n\nWe are at the midpoint of {{courseName}}, so I am sharing a progress check.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThere is still time to make meaningful adjustments. Please reach out if you want help prioritizing next steps.\n\nBest regards,\n{{teacherName}}',
+    subject: 'Progress Evaluation for {{courseName}}',
+    body: 'Hi {{studentName}},\n\nI am sharing a progress evaluation for {{courseName}}.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nThere is still time to make meaningful adjustments. Please reach out if you want help prioritizing next steps.\n\nBest regards,\n{{teacherName}}',
   },
   auto_low_grade: {
     subject: 'Grade Check-In for {{courseName}}',
@@ -350,8 +350,7 @@ function templateRuleDefaults(key, template = {}) {
     daysBack: Number(template.daysBack || 14),
     threshold: Number(template.threshold || 70),
     gradeScope: template.gradeScope || 'overall',
-    startDate: template.startDate || '',
-    endDate: template.endDate || '',
+    evaluationDate: template.evaluationDate || template.startDate || '',
     excludeAnnouncements: privateCriteria || template.excludeAnnouncements === true,
   };
 }
@@ -371,8 +370,7 @@ function automationWithTemplateRules(automation, templates) {
     daysBack: rules.daysBack,
     threshold: rules.threshold,
     gradeScope: rules.gradeScope,
-    startDate: rules.startDate,
-    endDate: rules.endDate,
+    evaluationDate: rules.evaluationDate,
     delivery: rules.excludeAnnouncements ? 'students' : (automation.delivery || 'both'),
   };
 }
@@ -509,10 +507,9 @@ async function buildAutomationMessages(automation, context) {
   }
 
   if (automation.type === 'midpoint') {
-    const start = automation.startDate ? new Date(`${automation.startDate}T00:00:00`) : null;
-    const end = automation.endDate ? new Date(`${automation.endDate}T23:59:59`) : null;
-    if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-    if (new Date() < new Date((start.getTime() + end.getTime()) / 2)) return [];
+    const evaluationDate = automation.evaluationDate ? new Date(`${automation.evaluationDate}T00:00:00`) : null;
+    if (!evaluationDate || Number.isNaN(evaluationDate.getTime())) return [];
+    if (new Date() < evaluationDate) return [];
     const enrollments = await getEnrollments(base, token, automation.courseId);
     const assignments = await getAssignments(base, token, automation.courseId);
     const upcoming = getUpcomingAssignments(assignments, Number(automation.daysForward) || 7);
