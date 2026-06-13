@@ -308,10 +308,11 @@ async function getTemplates() {
 }
 
 function templateKeyForType(type) {
-  return { late: 'auto_late', upcoming: 'auto_upcoming', midpoint: 'auto_midpoint', low_grade: 'auto_low_grade' }[type];
+  return { plain: 'welcome', late: 'auto_late', upcoming: 'auto_upcoming', midpoint: 'auto_midpoint', low_grade: 'auto_low_grade' }[type] || 'welcome';
 }
 
 const AUTOMATION_TEMPLATE_KEYS = {
+  plain: ['welcome', 'canvasApp'],
   late: ['auto_late', 'missing'],
   upcoming: ['auto_upcoming', 'upcoming'],
   midpoint: ['auto_midpoint', 'evaluation'],
@@ -323,7 +324,7 @@ function templateKeyToType(key) {
   for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS)) {
     if (keys.includes(key)) return type;
   }
-  return 'upcoming';
+  return 'plain';
 }
 
 function templateUsesGradeData(template) {
@@ -380,6 +381,57 @@ async function buildAutomationMessages(automation, context) {
   const { base, token, teacherName, templates } = context;
   const template = templateForAutomation(automation, templates);
   const courseName = automation.courseName || `Course ${automation.courseId}`;
+
+  if (automation.type === 'plain') {
+    const baseVars = {
+      teacherName,
+      courseId: String(automation.courseId || ''),
+      courseName,
+      daysForward: String(Number(automation.daysForward) || 7),
+      daysBack: String(Number(automation.daysBack) || 14),
+      assignmentList: '',
+      assignmentListHtml: '',
+      missingAssignmentList: '',
+      missingAssignmentListHtml: '',
+      currentGrade: '',
+      currentScore: '',
+      gradeAlertDetail: '',
+      gradeAlertDetailHtml: '',
+      missingSection: '',
+      missingSectionHtml: '',
+      upcomingSection: '',
+      upcomingSectionHtml: '',
+    };
+    const messages = [];
+    if (wantsAnnouncement(automation)) {
+      const vars = { ...baseVars, studentName: 'Students', studentId: '', studentEmail: '' };
+      messages.push({
+        kind: 'announcement',
+        studentName: 'Students',
+        subject: renderTemplate(template.subject, vars),
+        body: announcementBody(template, vars),
+        dedupeKey: `${automation.id}:plain:announcement:${frequencyStamp(automation.frequency)}`,
+      });
+    }
+    if (!wantsStudentMessages(automation)) return messages;
+    messages.push(...(await getStudents(base, token, automation.courseId)).map(student => {
+      const vars = {
+        ...baseVars,
+        studentId: String(student.id || ''),
+        studentName: student.name || student.sortable_name || 'Student',
+        studentEmail: student.email || '',
+      };
+      return {
+        kind: 'message',
+        studentId: student.id,
+        studentName: vars.studentName,
+        subject: renderTemplate(template.subject, vars),
+        body: messageBody(template, vars),
+        dedupeKey: `${automation.id}:plain:${student.id}:${frequencyStamp(automation.frequency)}`,
+      };
+    }));
+    return messages;
+  }
 
   if (automation.type === 'late') {
     const students = await getStudents(base, token, automation.courseId);

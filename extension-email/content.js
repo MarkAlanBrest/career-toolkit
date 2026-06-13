@@ -1055,6 +1055,7 @@ Best regards,
   }
 
   const AUTOMATION_TEMPLATE_KEYS = {
+    plain: ['welcome', 'canvasApp'],
     late: ['auto_late', 'missing'],
     upcoming: ['auto_upcoming', 'upcoming'],
     midpoint: ['auto_midpoint', 'evaluation'],
@@ -1062,7 +1063,7 @@ Best regards,
   };
 
   function automationTemplateDefault(type) {
-    return AUTOMATION_TEMPLATE_KEYS[type]?.[0] || 'auto_upcoming';
+    return AUTOMATION_TEMPLATE_KEYS[type]?.[0] || 'welcome';
   }
 
   function templateKeyToType(key) {
@@ -1070,7 +1071,7 @@ Best regards,
     for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS || {})) {
       if (keys.includes(key)) return type;
     }
-    return 'upcoming';
+    return 'plain';
   }
 
   function templateAutomationType(key, tpl) {
@@ -1185,32 +1186,57 @@ Best regards,
     const templates = getTemplates();
     const template = templates[emailType];
     if (!template) throw new Error('Unknown email type: ' + emailType);
+    const rules = templateRuleDefaults(emailType, template);
+    const ruleType = rules.type;
+    daysForward = Number(daysForward || rules.daysForward || 7);
+    daysBack = Number(daysBack || rules.daysBack || 14);
 
     const students = await getStudents(courseId);
     if (!students.length) throw new Error('No students found in this course.');
     const messages = [];
 
-    if (emailType === 'upcoming') {
+    if (ruleType === 'plain') {
+      for (const student of students) {
+        const vars = {
+          studentName: student.name || student.sortable_name || 'Student',
+          studentId: String(student.id || ''),
+          studentEmail: student.email || '',
+          teacherName,
+          courseId: String(courseId || ''),
+          courseName,
+          daysForward: String(daysForward),
+          daysBack: String(daysBack),
+          assignmentList: '',
+          assignmentListHtml: '',
+          missingAssignmentList: '',
+          missingAssignmentListHtml: '',
+          currentGrade: '',
+          currentScore: '',
+          gradeAlertDetail: '',
+          gradeAlertDetailHtml: '',
+          missingSection: '',
+          missingSectionHtml: '',
+          upcomingSection: '',
+          upcomingSectionHtml: '',
+        };
+        messages.push(buildGeneratedMessage(student, vars, template, courseId));
+      }
+    } else if (ruleType === 'upcoming') {
       const upcoming = getUpcomingAssignments(await getAssignments(courseId), daysForward);
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList, assignmentListHtml: formatAssignmentListHtml(upcoming, 'No upcoming assignments in this date range.') };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', studentId: String(student.id || ''), studentEmail: student.email || '', teacherName, courseId: String(courseId || ''), courseName, daysForward: String(daysForward), assignmentList, assignmentListHtml: formatAssignmentListHtml(upcoming, 'No upcoming assignments in this date range.') };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
-    } else if (emailType === 'missing') {
+    } else if (ruleType === 'late') {
       for (const student of students) {
         const missing = getMissingAssignments(await getSubmissions(courseId, student.id), daysBack);
         if (!missing.length) continue;
         const missingAssignments = missing.map(s => s.assignment || s);
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missingAssignments), missingAssignmentListHtml: formatAssignmentListHtml(missingAssignments, 'No missing assignments found.') };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', studentId: String(student.id || ''), studentEmail: student.email || '', teacherName, courseId: String(courseId || ''), courseName, daysBack: String(daysBack), missingAssignmentList: formatAssignmentList(missingAssignments), missingAssignmentListHtml: formatAssignmentListHtml(missingAssignments, 'No missing assignments found.') };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
-    } else if (emailType === 'welcome') {
-      for (const student of students) {
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName };
-        messages.push(buildGeneratedMessage(student, vars, template, courseId));
-      }
-    } else if (emailType === 'evaluation') {
+    } else if (ruleType === 'midpoint') {
       const enrollments = await getEnrollments(courseId);
       const allAssignments = await getAssignments(courseId);
       const upcoming = getUpcomingAssignments(allAssignments, daysForward);
@@ -1224,32 +1250,34 @@ Best regards,
         const upcomingSection = upcoming.length > 0 ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : 'No upcoming assignments in the next ' + daysForward + ' days.';
         const missingSectionHtml = missing.length > 0 ? formatAssignmentListHtml(missingAssignments) : '<p style="margin:0;color:#047857;font-size:14px;line-height:1.5;">You have no missing assignments. Great work.</p>';
         const upcomingSectionHtml = upcoming.length > 0 ? formatAssignmentListHtml(upcoming) : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.5;">No upcoming assignments in the next ${daysForward} days.</p>`;
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection, missingSectionHtml, upcomingSectionHtml };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', studentId: String(student.id || ''), studentEmail: student.email || '', teacherName, courseId: String(courseId || ''), courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection, missingSectionHtml, upcomingSectionHtml };
         messages.push(buildGeneratedMessage(student, vars, template, courseId));
       }
-    } else {
-      const allAssignments = await getAssignments(courseId);
-      const upcoming = getUpcomingAssignments(allAssignments, daysForward);
-      const assignmentList = formatAssignmentList(upcoming);
+    } else if (ruleType === 'low_grade') {
+      const threshold = Number(rules.threshold) || 70;
+      const gradeScope = rules.gradeScope || 'overall';
+      const enrollments = gradeScope === 'overall' ? await getEnrollments(courseId) : [];
       for (const student of students) {
-        const vars = {
-          studentName: student.name || student.sortable_name || 'Student',
-          teacherName,
-          courseName,
-          daysForward: String(daysForward),
-          daysBack: String(daysBack),
-          assignmentList,
-          assignmentListHtml: formatAssignmentListHtml(upcoming),
-          missingAssignmentList: '',
-          missingAssignmentListHtml: '',
-          currentGrade: '',
-          currentScore: '',
-          missingSection: '',
-          missingSectionHtml: '',
-          upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${assignmentList}` : '',
-          upcomingSectionHtml: upcoming.length ? formatAssignmentListHtml(upcoming) : '',
-        };
-        messages.push(buildGeneratedMessage(student, vars, template, courseId));
+        if (gradeScope === 'overall') {
+          const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
+          const score = Number(enrollment?.grades?.current_score);
+          if (!Number.isFinite(score) || score >= threshold) continue;
+          const detail = `Current course score: ${score}%\nAlert threshold: ${threshold}%`;
+          const vars = { studentName: student.name || student.sortable_name || 'Student', studentId: String(student.id || ''), studentEmail: student.email || '', teacherName, courseId: String(courseId || ''), courseName, currentGrade: enrollment?.grades?.current_grade || 'N/A', currentScore: String(score), gradeAlertDetail: detail, gradeAlertDetailHtml: `<p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${escapeHtml(detail).replace(/\n/g, '<br>')}</p>` };
+          messages.push(buildGeneratedMessage(student, vars, template, courseId));
+        } else {
+          const lowSubs = (await getSubmissions(courseId, student.id)).filter(s => {
+            const score = Number(s.score);
+            const points = Number(s.assignment?.points_possible);
+            return Number.isFinite(score) && Number.isFinite(points) && points > 0 && (score / points) * 100 < threshold;
+          });
+          for (const sub of lowSubs) {
+            const pct = Math.round((Number(sub.score) / Number(sub.assignment.points_possible)) * 1000) / 10;
+            const detail = `${sub.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`;
+            const vars = { studentName: student.name || student.sortable_name || 'Student', studentId: String(student.id || ''), studentEmail: student.email || '', teacherName, courseId: String(courseId || ''), courseName, currentGrade: '', currentScore: String(pct), gradeAlertDetail: detail, gradeAlertDetailHtml: `<p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${escapeHtml(detail).replace(/\n/g, '<br>')}</p>` };
+            messages.push(buildGeneratedMessage(student, vars, template, courseId));
+          }
+        }
       }
     }
     return messages;
@@ -1287,6 +1315,53 @@ Best regards,
     logs.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });
     addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject });
     return 'sent';
+  }
+
+  async function buildPlainAutomationMessages(automation, teacherName) {
+    const template = getTemplateForAutomation(automation);
+    const courseName = automation.courseName || courseDisplayName(automation.courseId);
+    const baseVars = {
+      teacherName,
+      courseId: String(automation.courseId || ''),
+      courseName,
+      daysForward: String(Number(automation.daysForward) || 7),
+      daysBack: String(Number(automation.daysBack) || 14),
+      assignmentList: '',
+      assignmentListHtml: '',
+      missingAssignmentList: '',
+      missingAssignmentListHtml: '',
+      currentGrade: '',
+      currentScore: '',
+      gradeAlertDetail: '',
+      gradeAlertDetailHtml: '',
+      missingSection: '',
+      missingSectionHtml: '',
+      upcomingSection: '',
+      upcomingSectionHtml: '',
+    };
+    const messages = [];
+    if (wantsAnnouncement(automation)) {
+      const vars = { ...baseVars, studentName: 'Students', studentId: '', studentEmail: '' };
+      messages.push({
+        kind: 'announcement',
+        studentName: 'Students',
+        subject: renderTemplate(template.subject, vars),
+        body: renderTemplate(template.body, vars),
+        inboxBody: template.inboxBody ? renderTemplate(template.inboxBody, vars) : '',
+        dedupeKey: `${automation.id}:plain:announcement:${frequencyStamp(automation.frequency)}`,
+      });
+    }
+    if (!wantsStudentMessages(automation)) return messages;
+    messages.push(...(await getStudents(automation.courseId)).map(student => {
+      const vars = {
+        ...baseVars,
+        studentName: student.name || student.sortable_name || 'Student',
+        studentId: String(student.id || ''),
+        studentEmail: student.email || '',
+      };
+      return buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:plain:${student.id}:${frequencyStamp(automation.frequency)}` });
+    }));
+    return messages;
   }
 
   async function buildLateAutomationMessages(automation, teacherName) {
@@ -1439,6 +1514,7 @@ Best regards,
   }
 
   async function buildAutomationMessages(automation, teacherName) {
+    if (automation.type === 'plain') return buildPlainAutomationMessages(automation, teacherName);
     if (automation.type === 'late') return buildLateAutomationMessages(automation, teacherName);
     if (automation.type === 'upcoming') return buildUpcomingAutomationMessages(automation, teacherName);
     if (automation.type === 'midpoint') return buildMidpointAutomationMessages(automation, teacherName);
@@ -1617,8 +1693,6 @@ Best regards,
   function renderSendTab(container) {
     if (!container) return;
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '') || 'Teacher';
-    const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
-    const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
     const courseId    = getSelectedCourseId();
     const templates   = getTemplates();
     const templateEntries = Object.entries(templates);
@@ -1638,13 +1712,9 @@ Best regards,
           <select class="ces-select" id="ces-template-select">${templateOptions}</select>
           <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
         </div>
-        <div class="ces-send-range-field" id="ces-days-forward-wrap">
-          <label class="ces-label">Forward</label>
-          <input type="number" class="ces-input" id="ces-days-forward" value="${daysForward}" min="1" max="90">
-        </div>
-        <div class="ces-send-range-field" id="ces-days-back-wrap" style="display:none;">
-          <label class="ces-label">Back</label>
-          <input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365">
+        <div class="ces-send-range-field">
+          <label class="ces-label">Message Rule</label>
+          <input class="ces-input" id="ces-template-rule-summary" value="" disabled>
         </div>
       </div>
       <div class="ces-send-panel">
@@ -1682,11 +1752,14 @@ Best regards,
       const tpl = templates[selectedType];
       const rules = templateRuleDefaults(selectedType, tpl);
       if (templateDesc) templateDesc.textContent = tpl?.description || tpl?.subject || '';
-      const forwardInput = container.querySelector('#ces-days-forward');
-      const backInput = container.querySelector('#ces-days-back');
-      if (forwardInput) forwardInput.value = rules.daysForward || 7;
-      if (backInput) backInput.value = rules.daysBack || 14;
-      updateOptionsVisibility(rules.type);
+      const ruleSummary = container.querySelector('#ces-template-rule-summary');
+      if (ruleSummary) ruleSummary.value = automationRuleSummary(selectedType, tpl);
+      const announceCheck = container.querySelector('#ces-announce-check');
+      if (announceCheck) {
+        announceCheck.checked = !rules.excludeAnnouncements && announceCheck.checked;
+        announceCheck.disabled = !!rules.excludeAnnouncements;
+        announceCheck.closest('label')?.setAttribute('title', rules.excludeAnnouncements ? 'Announcements are excluded by this message rule.' : 'Canvas Announcement / Notification');
+      }
     }
     templateSelect?.addEventListener('change', refreshTemplateControls);
     refreshTemplateControls();
@@ -1700,8 +1773,9 @@ Best regards,
       currentCourseId = courseId;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);
 
-      const df = parseInt(container.querySelector('#ces-days-forward').value) || 7;
-      const db = parseInt(container.querySelector('#ces-days-back').value) || 14;
+      const rules = templateRuleDefaults(selectedType, templates[selectedType]);
+      const df = rules.daysForward || 7;
+      const db = rules.daysBack || 14;
       const btn = container.querySelector('#ces-generate-btn');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Generating...';
 
@@ -1728,15 +1802,6 @@ Best regards,
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     });
 
-    updateOptionsVisibility(templateRuleDefaults(selectedType, templates[selectedType]).type);
-  }
-
-  function updateOptionsVisibility(type) {
-    const fwWrap = document.getElementById('ces-days-forward-wrap');
-    const bkWrap = document.getElementById('ces-days-back-wrap');
-    if (!fwWrap || !bkWrap) return;
-    fwWrap.style.display = (type === 'upcoming' || type === 'evaluation') ? 'block' : 'none';
-    bkWrap.style.display = (type === 'missing'  || type === 'evaluation') ? 'block' : 'none';
   }
 
   async function loadCourses(lastCourse) {
@@ -1865,6 +1930,7 @@ Best regards,
       if (includeAnnouncement) {
         try {
           const templates = getTemplates(); const tpl = templates[emailType];
+          const rules = templateRuleDefaults(emailType, tpl);
           const canvasAppUrl = buildCanvasAppPromoUrl(courseId, courseName);
           await postAnnouncement(courseId,
             tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
@@ -1873,8 +1939,8 @@ Best regards,
                     .replace(/\{\{canvasAppUrl\}\}/g, canvasAppUrl)
                     .replace(/\{\{assignmentList\}\}/g, '(see your individual message)').replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
                     .replace(/\{\{currentGrade\}\}/g, '(see your individual message)').replace(/\{\{currentScore\}\}/g, '(see your individual message)')
-                    .replace(/\{\{daysForward\}\}/g, String(document.getElementById('ces-days-forward')?.value || 7))
-                    .replace(/\{\{daysBack\}\}/g, String(document.getElementById('ces-days-back')?.value || 14))
+                    .replace(/\{\{daysForward\}\}/g, String(rules.daysForward || 7))
+                    .replace(/\{\{daysBack\}\}/g, String(rules.daysBack || 14))
                     .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
           );
           showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement posted.`, 'success');
@@ -2122,8 +2188,9 @@ Best regards,
 
   function automationRuleSummary(key, tpl) {
     const rules = templateRuleDefaults(key, tpl);
-    const labels = { late: 'Late work', upcoming: 'Upcoming work', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
-    const parts = [`Rule: ${labels[rules.type] || 'Upcoming work'}`];
+    const labels = { plain: 'Plain email', late: 'Late work', upcoming: 'Upcoming work', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    const parts = [`Rule: ${labels[rules.type] || 'Plain email'}`];
+    if (rules.type === 'plain') parts.push('no Canvas criteria');
     if (rules.type === 'upcoming') parts.push(`looks ahead ${rules.daysForward} day${rules.daysForward === 1 ? '' : 's'}`);
     if (rules.type === 'late') parts.push(`checks missing work from the last ${rules.daysBack} day${rules.daysBack === 1 ? '' : 's'}`);
     if (rules.type === 'midpoint') parts.push(`midpoint between ${rules.startDate || 'start date'} and ${rules.endDate || 'end date'}`);
@@ -2142,7 +2209,7 @@ Best regards,
   }
 
   function defaultAutomationName(type, courseName) {
-    const names = { late: 'Late work reminder', upcoming: 'Upcoming work message', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
+    const names = { plain: 'Scheduled message', late: 'Late work reminder', upcoming: 'Upcoming work message', midpoint: 'Midpoint evaluation', low_grade: 'Low grade warning' };
     return `${names[type] || 'Automation'} - ${courseName}`;
   }
 
@@ -2151,6 +2218,7 @@ Best regards,
     const deliveryText = delivery === 'both' ? 'student messages + announcement' : delivery === 'students' ? 'student messages' : 'course announcement';
     const template = getTemplates()[auto.templateKey || automationTemplateDefault(auto.type)];
     const templateText = template ? `; message: ${templateDisplayName(template, auto.templateKey)}` : '';
+    if (auto.type === 'plain') return `No Canvas criteria${templateText}`;
     if (auto.type === 'late') return `Late work until submitted or older than ${auto.daysBack || 14} days${templateText}`;
     if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${deliveryText}${templateText}`;
     if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}${templateText}`;
@@ -2288,7 +2356,7 @@ Best regards,
           name: 'Custom Message',
           description: 'Teacher-created message',
           subject: '{{courseName}} Update',
-          automationType: 'upcoming',
+          automationType: 'plain',
           daysForward: 7,
           daysBack: 14,
           threshold: 70,
@@ -2343,11 +2411,12 @@ Thank you,
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <div class="ces-editor-subject-preview"><strong>Subject:</strong> <span id="ces-subject-preview">${escapeHtml(tpl.subject)}</span></div>
         <div class="ces-card" style="margin:14px 0;">
-          <h3 style="margin:0 0 10px;">Automation Rules</h3>
+          <h3 style="margin:0 0 10px;">Message Rules</h3>
           <div class="ces-grid-2">
             <div>
               <label class="ces-label">When This Message Sends</label>
               <select class="ces-select" id="ces-tpl-auto-type">
+                <option value="plain"${rules.type === 'plain' ? ' selected' : ''}>Plain email / no rules</option>
                 <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
                 <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
                 <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Midpoint evaluation</option>
@@ -2417,7 +2486,12 @@ Thank you,
       }
       function refreshRuleFields() {
         const ruleType = autoTypeSelect.value;
-        if (ruleType === 'upcoming') {
+        if (ruleType === 'plain') {
+          ruleFields.innerHTML = `
+            <div><label class="ces-label">Condition</label><input class="ces-input" value="No Canvas criteria; send to selected students/course" disabled></div>
+            <div><label class="ces-label">Use Case</label><input class="ces-input" value="General course email, welcome note, reminder, or custom message" disabled></div>
+          `;
+        } else if (ruleType === 'upcoming') {
           ruleFields.innerHTML = `
             <div><label class="ces-label">Days Forward</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
             <div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in the look-ahead window" disabled></div>
@@ -2437,7 +2511,7 @@ Thank you,
         } else {
           ruleFields.innerHTML = `
             <div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-tpl-grade-scope"><option value="overall"${(tpl.gradeScope || 'overall') === 'overall' ? ' selected' : ''}>Overall course grade</option><option value="assignment"${tpl.gradeScope === 'assignment' ? ' selected' : ''}>Individual assignment score</option></select></div>
-            <div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-tpl-threshold" value="${escapeAttr(tpl.threshold || 70)}" min="1" max="100"></div>
+            <div><label class="ces-label">Low Grade Threshold (%)</label><input class="ces-input" type="number" id="ces-tpl-threshold" value="${escapeAttr(tpl.threshold || 70)}" min="1" max="100"></div>
           `;
         }
         if (ruleTypeIsPrivate(ruleType) || templateUsesGradeData({ subject: subjectInput.value, body: editor.innerHTML })) {
