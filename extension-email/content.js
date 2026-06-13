@@ -7,8 +7,10 @@
 
   // Storage shim — pre-load all keys used by the email system
   const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_last_auto_check'];
-  const hasChromeStorage = !!(globalThis.chrome && chrome.storage && chrome.storage.local);
-  const _store = hasChromeStorage
+  function canUseChromeStorage() {
+    return !!(globalThis.chrome && chrome.storage && chrome.storage.local);
+  }
+  const _store = canUseChromeStorage()
     ? await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve))
     : EMAIL_KEYS.reduce((acc, key) => {
         try {
@@ -20,7 +22,7 @@
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
     _store[key] = val;
-    if (hasChromeStorage) {
+    if (canUseChromeStorage()) {
       chrome.storage.local.set({ [key]: val });
       return;
     }
