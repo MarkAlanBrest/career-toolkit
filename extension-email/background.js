@@ -465,6 +465,7 @@ async function runAutomations() {
         try {
           if ((automation.mode || 'auto') === 'draft') {
             await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
+            sentKeys.push({ automationId: automation.id, status: 'draft', dedupeKey: message.dedupeKey });
           } else if (message.kind === 'announcement') {
             await postAnnouncement(base, token, automation.courseId, message.subject, message.body);
             sentKeys.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });

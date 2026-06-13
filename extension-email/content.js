@@ -1113,6 +1113,7 @@ Best regards,
   ========================================================= */
   async function sendOrDraftAutomationMessage(automation, message, logs) {
     if ((automation.mode || 'auto') === 'draft') {
+      logs.push({ automationId: automation.id, status: 'draft', dedupeKey: message.dedupeKey });
       addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
       return 'draft';
     }
@@ -1299,6 +1300,7 @@ Best regards,
   let _overlay = null;
   let automationCheckInFlight = false;
   const AUTO_MENU_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+  const AUTO_MANUAL_CHECK_COOLDOWN_MS = 5 * 60 * 1000;
 
   function getCurrentCourseId() {
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
@@ -2428,6 +2430,13 @@ Thank you,
     checkBtn.addEventListener('click', async e => {
       e.stopPropagation();
       const original = checkBtn.innerHTML;
+      const lastCheck = Number(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0) || 0);
+      if (Date.now() - lastCheck < AUTO_MANUAL_CHECK_COOLDOWN_MS) {
+        checkBtn.disabled = true;
+        checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Recently Checked</span>';
+        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 2200);
+        return;
+      }
       checkBtn.disabled = true;
       checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking...</span>';
       try {
