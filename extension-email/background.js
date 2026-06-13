@@ -173,7 +173,12 @@ function alreadyLogged(logs, automationId, dedupeKey) {
   return logs.some(log => log.automationId === automationId && log.dedupeKey === dedupeKey && (log.status === 'sent' || log.status === 'draft'));
 }
 
+function automationContainsPersonalInfo(automation) {
+  return ['late', 'midpoint', 'low_grade'].includes(automation?.type);
+}
+
 function automationDelivery(automation) {
+  if (automationContainsPersonalInfo(automation)) return 'students';
   if (automation.delivery) return automation.delivery;
   return (automation.audience || 'announcement') === 'students' ? 'students' : 'announcement';
 }
@@ -184,8 +189,16 @@ function wantsStudentMessages(automation) {
 }
 
 function wantsAnnouncement(automation) {
+  if (automationContainsPersonalInfo(automation)) return false;
   const delivery = automationDelivery(automation);
   return delivery === 'announcement' || delivery === 'both';
+}
+
+function assertAnnouncementAllowed(automation, message) {
+  if (message.kind !== 'announcement') return;
+  if (automationContainsPersonalInfo(automation)) {
+    throw new Error('Announcement blocked: this automation may include student grades, late work, or other private student information.');
+  }
 }
 
 function plainAnnouncementBody(text) {
@@ -307,12 +320,10 @@ async function buildAutomationMessages(automation, context) {
     const students = await getStudents(base, token, automation.courseId);
     const maxAge = Number(automation.daysBack) || 14;
     const messages = [];
-    const announcementAssignments = new Map();
     for (const student of students) {
       const missing = getMissingAssignments(await getSubmissions(base, token, automation.courseId, student.id), maxAge);
       if (!missing.length) continue;
       const missingAssignments = missing.map(submission => submission.assignment || submission);
-      missingAssignments.forEach(assignment => announcementAssignments.set(String(assignment.id || assignment.name), assignment));
       if (!wantsStudentMessages(automation)) continue;
       const vars = {
         studentName: student.name || student.sortable_name || 'Student',
@@ -331,15 +342,6 @@ async function buildAutomationMessages(automation, context) {
         body: messageBody(template, vars),
         dedupeKey: `${automation.id}:late:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
       });
-    }
-    if (wantsAnnouncement(automation) && announcementAssignments.size) {
-      const assignments = [...announcementAssignments.values()];
-      messages.push(buildAutomationAnnouncement(
-        automation,
-        `Past Due Work Reminder for ${courseName}`,
-        `This is a class reminder to check Canvas for any past due work in ${courseName}.\n\n${formatAssignmentList(assignments)}\n\nIf any of these items show as missing for you, please submit what you can as soon as possible or reach out if you need help making a plan.\n\nThank you,\n${teacherName}`,
-        `late:${assignments.map(item => item.id || item.name).sort().join(',')}`
-      ));
     }
     return messages;
   }
@@ -419,14 +421,6 @@ async function buildAutomationMessages(automation, context) {
         dedupeKey: `${automation.id}:midpoint:${student.id}:once`,
       });
     }
-    if (wantsAnnouncement(automation)) {
-      messages.push(buildAutomationAnnouncement(
-        automation,
-        `Midpoint Check-In for ${courseName}`,
-        `We are at the midpoint of ${courseName}.\n\nPlease take a few minutes to review your current grade, missing work, upcoming assignments, and recent feedback in Canvas. This is a good time to make adjustments while there is still time to improve your progress.\n\nIf you have questions or need help making a plan, please reach out.\n\nBest regards,\n${teacherName}`,
-        'midpoint'
-      ));
-    }
     return messages;
   }
 
@@ -435,12 +429,10 @@ async function buildAutomationMessages(automation, context) {
     const messages = [];
     if ((automation.gradeScope || 'overall') === 'overall') {
       const enrollments = await getEnrollments(base, token, automation.courseId);
-      let lowOverallMatches = 0;
       for (const student of await getStudents(base, token, automation.courseId)) {
         const enrollment = enrollments.find(item => item.user_id === student.id && item.grades);
         const score = Number(enrollment?.grades?.current_score);
         if (!Number.isFinite(score) || score >= threshold) continue;
-        lowOverallMatches++;
         if (!wantsStudentMessages(automation)) continue;
         const detail = `Current course score: ${score}%\nAlert threshold: ${threshold}%`;
         const vars = {
@@ -461,24 +453,14 @@ async function buildAutomationMessages(automation, context) {
           dedupeKey: `${automation.id}:low-overall:${student.id}:below-${threshold}:once`,
         });
       }
-      if (wantsAnnouncement(automation) && lowOverallMatches) {
-        messages.push(buildAutomationAnnouncement(
-          automation,
-          `Grade Check Reminder for ${courseName}`,
-          `This is a class reminder to review your current grade, recent feedback, and any missing work in ${courseName}.\n\nIf your grade is lower than you want it to be, please take action now: check Canvas, complete what you can, and reach out if you need help making a recovery plan.\n\nBest regards,\n${teacherName}`,
-          `low-overall:below-${threshold}`
-        ));
-      }
       return messages;
     }
-    let lowAssignmentMatches = 0;
     for (const student of await getStudents(base, token, automation.courseId)) {
       const submissions = await getSubmissions(base, token, automation.courseId, student.id);
       for (const submission of submissions) {
         const score = Number(submission.score);
         const points = Number(submission.assignment?.points_possible);
         if (!Number.isFinite(score) || !Number.isFinite(points) || points <= 0 || (score / points) * 100 >= threshold) continue;
-        lowAssignmentMatches++;
         if (!wantsStudentMessages(automation)) continue;
         const pct = Math.round((score / points) * 1000) / 10;
         const detail = `${submission.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`;
@@ -500,14 +482,6 @@ async function buildAutomationMessages(automation, context) {
           dedupeKey: `${automation.id}:low-assignment:${student.id}:${submission.assignment_id}:below-${threshold}:once`,
         });
       }
-    }
-    if (wantsAnnouncement(automation) && lowAssignmentMatches) {
-      messages.push(buildAutomationAnnouncement(
-        automation,
-        `Assignment Grade Check for ${courseName}`,
-        `This is a class reminder to review your recent assignment scores and feedback in ${courseName}.\n\nIf an assignment score is lower than expected, please use the feedback to decide what to do next and reach out if you need help understanding the material or making a plan.\n\nBest regards,\n${teacherName}`,
-        `low-assignment:below-${threshold}`
-      ));
     }
     return messages;
   }
@@ -543,6 +517,7 @@ async function runAutomations() {
             await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'draft', dedupeKey: message.dedupeKey, recipientName: message.studentName || 'Students', subject: message.subject, note: 'Matched condition; draft mode did not send.' });
             sentKeys.push({ automationId: automation.id, status: 'draft', dedupeKey: message.dedupeKey });
           } else if (message.kind === 'announcement') {
+            assertAnnouncementAllowed(automation, message);
             await postAnnouncement(base, token, automation.courseId, message.subject, message.body);
             sentKeys.push({ automationId: automation.id, status: 'sent', dedupeKey: message.dedupeKey });
             await addAutomationLog({ automationId: automation.id, automationName: automation.name, courseId: automation.courseId, courseName: automation.courseName, status: 'sent', dedupeKey: message.dedupeKey, recipientName: 'Students', subject: message.subject });
