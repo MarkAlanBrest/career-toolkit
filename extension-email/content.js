@@ -321,6 +321,12 @@
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
+    .ces-launcher-btn.ces-launcher-action {
+      background:#059669; border-color:#047857; color:#fff;
+      box-shadow:0 1px 4px rgba(5,150,105,.28);
+    }
+    .ces-launcher-btn.ces-launcher-action:hover { background:#047857; border-color:#065f46; color:#fff; }
+    .ces-launcher-btn.ces-launcher-action .ces-nav-icon { color:#fff; }
     .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; margin: 0; align-self: center; transform: none; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
@@ -1327,7 +1333,6 @@ Best regards,
       loadCourses(currentCourseId);
       _overlay.classList.add('ces-open');
       showTab('send');
-      setTimeout(checkAutomationsOnOpen, 500);
     }
   }
 
@@ -2415,6 +2420,27 @@ Thank you,
     messageBtn.addEventListener('click', openEmailSystem);
     group.appendChild(messageBtn);
 
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'ces-launcher-btn ces-launcher-action';
+    checkBtn.type = 'button';
+    checkBtn.title = 'Run automated message check now';
+    checkBtn.innerHTML = '<span class="ces-nav-icon">&#9658;</span><span>Send Messages</span>';
+    checkBtn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const original = checkBtn.innerHTML;
+      checkBtn.disabled = true;
+      checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking...</span>';
+      try {
+        await checkAutomationsOnOpen({ force: true, silent: true });
+        checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Checked</span>';
+        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 1800);
+      } catch (_err) {
+        checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
+        setTimeout(() => { checkBtn.innerHTML = original; checkBtn.disabled = false; }, 2200);
+      }
+    });
+    group.appendChild(checkBtn);
+
     const aiOptions = [
       ['ChatGPT', 'GPT', 'https://chatgpt.com/'],
       ['Claude', 'Claude', 'https://claude.ai/'],
@@ -2446,7 +2472,6 @@ Thank you,
 
     document.body.appendChild(group);
     placeCanvasLauncher();
-    setTimeout(() => checkAutomationsOnOpen({ silent: true }), 1200);
   }
   addCanvasLauncher();
   const launcherObserver = new MutationObserver(() => placeCanvasLauncher());
