@@ -1901,7 +1901,7 @@ Best regards,
         <div class="ces-flex-between ces-mb">
           <div>
             <h3 style="margin:0;">Create Automation</h3>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose one or more published classes, then choose the message, trigger, and frequency.</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose classes, select the message template, then pick frequency and options.</div>
           </div>
           <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Test Check Now</button>
         </div>
@@ -1927,13 +1927,8 @@ Best regards,
 
         <div class="ces-grid-2">
           <div>
-            <label class="ces-label">Trigger</label>
-            <select class="ces-select" id="ces-auto-type">
-              <option value="late">Late work reminder</option>
-              <option value="upcoming">Upcoming work</option>
-              <option value="midpoint">Midpoint evaluation</option>
-              <option value="low_grade">Low grade warning</option>
-            </select>
+            <label class="ces-label">Message Template</label>
+            <select class="ces-select" id="ces-auto-template">${automationTemplateOptions('upcoming')}</select>
           </div>
           <div>
             <label class="ces-label">Frequency</label>
@@ -1984,7 +1979,9 @@ Best regards,
     renderAutomationCoursePicker(container, courseId ? [courseId] : []);
     renderAutomationTiles(container.querySelector('#ces-auto-list'), automations);
 
-    container.querySelector('#ces-auto-type').addEventListener('change', () => renderAutomationFields(container));
+    // When the selected template changes, re-render the fields to match the
+    // inferred automation type for that template.
+    container.querySelector('#ces-auto-template')?.addEventListener('change', () => renderAutomationFields(container));
     container.querySelector('#ces-auto-course-picker').addEventListener('click', event => {
       const row = event.target.closest('.ces-course-row');
       if (!row) return;
@@ -2015,7 +2012,8 @@ Best regards,
 
     container.querySelector('#ces-save-auto').addEventListener('click', () => {
       const selectedCourses = getAutomationSelectedCourses(container);
-      const type = container.querySelector('#ces-auto-type').value;
+      const selectedTemplateKey = container.querySelector('#ces-auto-template')?.value || automationTemplateDefault('upcoming');
+      const type = templateKeyToType(selectedTemplateKey);
       if (!selectedCourses.length) { showStatus('Select at least one class first.', 'error'); return; }
       const editId = container.querySelector('#ces-auto-edit-id').value;
       const existingAuto = editId ? getAutomations().find(auto => auto.id === editId) : null;
@@ -2028,7 +2026,7 @@ Best regards,
         courseName: selectedCourse.name,
         type,
         name: sharedName || defaultAutomationName(type, selectedCourse.name),
-        templateKey: container.querySelector('#ces-auto-template')?.value || automationTemplateDefault(type),
+        templateKey: selectedTemplateKey || automationTemplateDefault(type),
         frequency: container.querySelector('#ces-auto-frequency').value,
         mode: container.querySelector('#ces-auto-mode').value,
         daysBack: Number(container.querySelector('#ces-auto-days-back')?.value || 14),
@@ -2065,11 +2063,26 @@ Best regards,
   }
 
   function automationTemplateFieldHtml(type, selectedKey = '') {
+    // If a top-level template selector already exists, avoid rendering a second
+    // template select inside the fields to prevent duplication.
+    if (document.getElementById('ces-auto-template')) {
+      return `<div class="ces-grid-2"><div></div><div><label class="ces-label">Template Use</label><input class="ces-input" value="Saved message used when this trigger matches" disabled></div></div>`;
+    }
     return `<div class="ces-grid-2"><div><label class="ces-label">Message Template</label><select class="ces-select" id="ces-auto-template">${automationTemplateOptions(type, selectedKey)}</select></div><div><label class="ces-label">Template Use</label><input class="ces-input" value="Saved message used when this trigger matches" disabled></div></div>`;
   }
 
+  function templateKeyToType(key) {
+    if (!key) return 'upcoming';
+    for (const [type, keys] of Object.entries(AUTOMATION_TEMPLATE_KEYS || {})) {
+      if (keys.includes(key)) return type;
+    }
+    // If the key isn't in the known groups, fall back to 'upcoming'.
+    return 'upcoming';
+  }
+
   function renderAutomationFields(container) {
-    const type = container.querySelector('#ces-auto-type').value;
+    const tplEl = container.querySelector('#ces-auto-template');
+    const type = tplEl ? templateKeyToType(tplEl.value) : (container.querySelector('#ces-auto-type')?.value || 'upcoming');
     const fields = container.querySelector('#ces-auto-fields');
     if (type === 'late') {
       fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
@@ -2135,7 +2148,6 @@ Best regards,
       if (!auto) return;
       const body = document.getElementById('ces-body');
       body.querySelector('#ces-auto-edit-id').value = auto.id;
-      body.querySelector('#ces-auto-type').value = auto.type;
       body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
       body.querySelector('#ces-auto-mode').value = auto.mode || 'auto';
       body.querySelector('#ces-auto-name').value = auto.name || '';
