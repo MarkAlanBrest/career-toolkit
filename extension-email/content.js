@@ -53,16 +53,16 @@
   _style.textContent = `
     #ces-overlay {
       position: fixed; inset: 0; z-index: 100000;
-      background: rgba(0,0,0,.45);
-      display: none; align-items: center; justify-content: center;
+      background: #fff;
+      display: none; align-items: stretch; justify-content: stretch;
     }
     #ces-overlay.ces-open { display: flex; }
     #ces-panel {
-      width: 96vw; max-width: 980px;
-      height: 90vh; max-height: 820px;
-      background: #fff; border-radius: 4px;
-      border: 1px solid #c7cdd1;
-      box-shadow: 0 12px 32px rgba(45,59,69,.24);
+      width: 100vw; max-width: none;
+      height: 100vh; max-height: none;
+      background: #fff; border-radius: 0;
+      border: 0;
+      box-shadow: none;
       display: flex; flex-direction: column;
       font-family: Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
       color: #111827; overflow: hidden;
@@ -113,7 +113,7 @@
     .ces-close-btn:hover { background: #e8eaec; }
     #ces-tabs {
       display: flex; border-bottom: 1px solid #c7cdd1;
-      flex-shrink: 0; background: #f5f5f5;
+      flex-shrink: 0; background: #f5f5f5; overflow-x:auto;
     }
     .ces-tab {
       padding: 10px 20px; cursor: pointer; border: none;
@@ -123,7 +123,7 @@
     }
     .ces-tab:hover { color: #0374b5; background:#fff; }
     .ces-tab.active { color: #2d3b45; border-bottom-color: #0374b5; font-weight: 700; background:#fff; }
-    #ces-body { flex: 1; overflow-y: auto; padding: 20px; }
+    #ces-body { flex: 1; overflow-y: auto; padding: 24px 32px; }
     .ces-label {
       display: block; font-size: 13px; font-weight: 600;
       color: #374151; margin-bottom: 4px; margin-top: 12px;
@@ -271,7 +271,7 @@
     }
     .ces-course-box {
       border:1px solid #d1d5db; border-radius:8px; background:#fff;
-      min-height:220px; max-height:320px; overflow:auto;
+      min-height:260px; max-height:420px; overflow:auto;
     }
     .ces-course-box-head {
       position:sticky; top:0; z-index:1;
@@ -293,6 +293,10 @@
     .ces-course-transfer { display:grid; align-content:center; gap:8px; }
     .ces-course-empty { padding:14px 10px; font-size:13px; color:#6b7280; }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
+    .ces-help-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .ces-help-card { border:1px solid #e5e7eb; border-radius:8px; background:#fff; padding:16px; }
+    .ces-help-card h3 { margin:0 0 8px; font-size:16px; color:#111827; }
+    .ces-help-card p, .ces-help-card li { font-size:13px; line-height:1.65; color:#374151; }
     .ces-mt { margin-top: 16px; }
     .ces-mb { margin-bottom: 16px; }
     .ces-checkbox-row {
@@ -368,6 +372,7 @@
       .ces-send-panel-head { align-items:flex-start; }
       #ces-header { flex-wrap: wrap; }
       #ces-course-control { order: 3; width: 100%; max-width: none; }
+      .ces-help-grid { grid-template-columns:1fr; }
     }
   `;
   document.head.appendChild(_style);
@@ -1700,6 +1705,7 @@ Best regards,
           <button class="ces-tab" data-tab="automations">Automated Messages</button>
           <button class="ces-tab" data-tab="templates">Message Templates</button>
           <button class="ces-tab" data-tab="logs">Logs</button>
+          <button class="ces-tab" data-tab="help">Help</button>
           <button class="ces-tab" data-tab="settings">Settings</button>
         </div>
         <div id="ces-body"></div>
@@ -1749,6 +1755,7 @@ Best regards,
       else if (tabName === 'automations') renderAutomationsTab(body);
       else if (tabName === 'templates') renderTemplatesTab(body);
       else if (tabName === 'logs') renderLogsTab(body);
+      else if (tabName === 'help') renderHelpTab(body);
       else if (tabName === 'settings') renderSettingsTab(body);
     } catch (err) {
       renderTabError(body, err);
@@ -1790,12 +1797,12 @@ Best regards,
       <div class="ces-send-grid">
         <div class="ces-send-message-field">
           <label class="ces-label">Message</label>
-          <select class="ces-select" id="ces-template-select">${templateOptions}</select>
-          <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
+          <select class="ces-select" id="ces-template-select" title="Choose the saved message template to generate. The template's Message Rule controls who receives it.">${templateOptions}</select>
+          <div id="ces-template-desc" style="font-size:12px;color:#6b7280;margin-top:4px;" title="Short description of the selected saved message."></div>
         </div>
         <div class="ces-send-rule-field">
           <label class="ces-label">Message Rule</label>
-          <div class="ces-rule-summary-box" id="ces-template-rule-summary"></div>
+          <div class="ces-rule-summary-box" id="ces-template-rule-summary" title="This rule is saved inside the selected message template and controls who receives the message."></div>
         </div>
       </div>
       <div class="ces-send-panel">
@@ -1803,11 +1810,11 @@ Best regards,
         <div class="ces-send-panel-sub">Canvas email and notifications follow each student's Canvas notification settings.</div>
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:8px;">
           <label class="ces-checkbox-row" style="margin:0;">
-            <input type="checkbox" id="ces-canvas-message-check" checked>
+            <input type="checkbox" id="ces-canvas-message-check" checked title="Send private Canvas Inbox messages to matching students.">
             <span>Canvas Inbox / Email</span>
           </label>
           <label class="ces-checkbox-row" style="margin:0;">
-            <input type="checkbox" id="ces-announce-check">
+            <input type="checkbox" id="ces-announce-check" title="Post a course announcement for each selected class when the message rule allows announcements.">
             <span>Canvas Announcement / Notification</span>
           </label>
         </div>
@@ -1818,13 +1825,13 @@ Best regards,
           <div class="ces-status ces-status-info" id="ces-progress-text" style="margin-bottom:6px;">Fetching data...</div>
           <div class="ces-progress"><div class="ces-progress-bar" id="ces-progress-bar" style="width:0%"></div></div>
         </div>
-        <button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button>
+        <button class="ces-btn ces-btn-primary" id="ces-generate-btn" title="Preview matching recipients before sending. No messages are sent until you click Send.">&#128269; Generate Messages</button>
       </div>
       <div id="ces-messages-area" class="ces-mt"></div>
     `;
 
     loadCurrentCourse(courseId);
-    renderAutomationCoursePicker(container, courseId ? [courseId] : []);
+    renderCoursePicker(container, 'ces-manual-course-picker', courseId ? [courseId] : []);
     const manualPicker = container.querySelector('#ces-manual-course-picker');
     if (manualPicker) {
       manualPicker.addEventListener('click', event => {
@@ -1833,14 +1840,14 @@ Best regards,
         const selected = new Set((manualPicker.dataset.selectedIds || '').split(',').filter(Boolean));
         if (row.dataset.action === 'add') selected.add(row.dataset.courseId);
         else selected.delete(row.dataset.courseId);
-        renderAutomationCoursePicker(container, [...selected]);
+        renderCoursePicker(container, 'ces-manual-course-picker', [...selected]);
       });
     }
     container.querySelector('#ces-add-all-manual-courses')?.addEventListener('click', () => {
-      renderAutomationCoursePicker(container, newestPublishedCourses().map(course => String(course.id)));
+      renderCoursePicker(container, 'ces-manual-course-picker', newestPublishedCourses().map(course => String(course.id)));
     });
     container.querySelector('#ces-clear-manual-courses')?.addEventListener('click', () => {
-      renderAutomationCoursePicker(container, []);
+      renderCoursePicker(container, 'ces-manual-course-picker', []);
     });
 
     let selectedType = firstType;
@@ -1931,10 +1938,10 @@ Best regards,
       GM_setValue(STORAGE_KEYS.LAST_COURSE, currentCourseId);
       const body = document.getElementById('ces-body');
       if (body?.querySelector('#ces-manual-course-picker') && !body.querySelector('#ces-manual-course-picker')?.dataset.selectedIds) {
-        renderAutomationCoursePicker(body, currentCourseId ? [currentCourseId] : []);
+        renderCoursePicker(body, 'ces-manual-course-picker', currentCourseId ? [currentCourseId] : []);
       }
       if (body?.querySelector('#ces-auto-course-picker') && !body.querySelector('#ces-auto-course-picker')?.dataset.selectedIds) {
-        renderAutomationCoursePicker(body, currentCourseId ? [currentCourseId] : []);
+        renderCoursePicker(body, 'ces-auto-course-picker', currentCourseId ? [currentCourseId] : []);
       }
     } catch(err) {
       select.innerHTML = '<option value="">Error loading courses</option>';
@@ -2128,7 +2135,7 @@ Best regards,
   function renderCourseRows(courses, action) {
     if (!courses.length) return '<div class="ces-course-empty">No classes to show.</div>';
     return courses.map(course => `
-      <button type="button" class="ces-course-row" data-course-id="${escapeAttr(String(course.id))}" data-action="${action}">
+      <button type="button" class="ces-course-row" data-course-id="${escapeAttr(String(course.id))}" data-action="${action}" title="${action === 'add' ? 'Add this class to the selected list.' : 'Remove this class from the selected list.'}">
         <span>
           <span class="ces-course-row-title">${escapeHtml(course.name || `Course ${course.id}`)}</span>
           <span class="ces-course-row-meta">${escapeHtml((course.term?.name || 'Published course') + ` - ID ${course.id}`)}</span>
@@ -2138,8 +2145,8 @@ Best regards,
     `).join('');
   }
 
-  function renderAutomationCoursePicker(container, selectedIds) {
-    const picker = container.querySelector('#ces-auto-course-picker');
+  function renderCoursePicker(container, pickerId, selectedIds) {
+    const picker = container.querySelector(`#${pickerId}`);
     if (!picker) return;
     const selectedSet = new Set(selectedIds.map(String));
     const courses = newestPublishedCourses();
@@ -2150,6 +2157,10 @@ Best regards,
     picker.querySelector('#ces-course-selected').innerHTML = renderCourseRows(selected, 'remove');
     picker.querySelector('#ces-course-available-count').textContent = String(available.length);
     picker.querySelector('#ces-course-selected-count').textContent = String(selected.length);
+  }
+
+  function renderAutomationCoursePicker(container, selectedIds) {
+    renderCoursePicker(container, 'ces-auto-course-picker', selectedIds);
   }
 
   function getAutomationSelectedCourses(container) {
@@ -2220,19 +2231,19 @@ Best regards,
         <div class="ces-grid-2">
           <div>
             <label class="ces-label">Message Template</label>
-            <select class="ces-select" id="ces-auto-template">${automationTemplateOptions('upcoming')}</select>
+            <select class="ces-select" id="ces-auto-template" title="Choose the saved message template. Its Message Rule controls when and to whom the automation sends.">${automationTemplateOptions('upcoming')}</select>
             <div id="ces-auto-template-summary" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
           </div>
           <div>
             <label class="ces-label">Frequency</label>
-            <select class="ces-select" id="ces-auto-frequency">
+            <select class="ces-select" id="ces-auto-frequency" title="Choose how often this automation may send when its message rule matches. Duplicate protection still prevents repeat sends for the same condition.">
               <option value="daily">Daily while true</option>
               <option value="weekly">Weekly while true</option>
               <option value="once">Once per matching condition</option>
             </select>
           </div>
         </div>
-        <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto">Save Automation</button></div>
+        <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto" title="Save one automation for each selected class.">Save Automation</button></div>
         <input type="hidden" id="ces-auto-edit-id" value="">
       </div>
 
@@ -2366,10 +2377,10 @@ Best regards,
             <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Paused' : 'Active'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Auto-send'} - ${escapeHtml(auto.frequency || 'once')} - ${escapeHtml(automationDelivery(auto) === 'both' ? 'Messages + announcement' : automationDelivery(auto) === 'students' ? 'Messages' : 'Announcement')}</div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}">Run</button>
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-auto" data-id="${escapeAttr(auto.id)}">Edit</button>
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-toggle-auto" data-id="${escapeAttr(auto.id)}">${auto.active === false ? 'Resume' : 'Pause'}</button>
-            <button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-auto" data-id="${escapeAttr(auto.id)}">Delete</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}" title="Run this automation now using duplicate protection.">Run</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-auto" data-id="${escapeAttr(auto.id)}" title="Load this automation into the form for editing.">Edit</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-toggle-auto" data-id="${escapeAttr(auto.id)}" title="${auto.active === false ? 'Resume scheduled checks for this automation.' : 'Pause scheduled checks for this automation.'}">${auto.active === false ? 'Resume' : 'Pause'}</button>
+            <button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-auto" data-id="${escapeAttr(auto.id)}" title="Delete this saved automation.">Delete</button>
           </div>
         </div>
       </div>
@@ -2438,6 +2449,67 @@ Best regards,
     }
     container.querySelector('#ces-log-filter')?.addEventListener('change', renderLogList);
     renderLogList();
+  }
+
+  function renderHelpTab(container) {
+    container.innerHTML = `
+      <div class="ces-flex-between ces-mb">
+        <div>
+          <h3 style="margin:0;">Help Manual</h3>
+          <div style="font-size:12px;color:#6b7280;margin-top:2px;">Quick reference for manual messages, message rules, automations, privacy, and logs.</div>
+        </div>
+      </div>
+      <div class="ces-help-grid">
+        <div class="ces-help-card">
+          <h3>Manual Messages</h3>
+          <ol>
+            <li>Select one or more dashboard classes.</li>
+            <li>Choose a saved message template.</li>
+            <li>Review the Message Rule summary.</li>
+            <li>Click Generate Messages and review recipients.</li>
+            <li>Send all selected channels, or send one student at a time.</li>
+          </ol>
+        </div>
+        <div class="ces-help-card">
+          <h3>Message Rules</h3>
+          <p>Message rules live inside each template. A template can be a plain email, upcoming-work reminder, late-work reminder, evaluation, or low-grade warning.</p>
+          <p>Rules decide who gets a message. For example, late-work messages only send when missing work exists, and upcoming-work messages only send when upcoming assignments exist.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Automated Messages</h3>
+          <ol>
+            <li>Select the classes on the left/right picker.</li>
+            <li>Choose the saved message template.</li>
+            <li>Choose frequency.</li>
+            <li>Save the automation.</li>
+          </ol>
+          <p>The automation uses the rule stored in the selected message template.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Privacy</h3>
+          <p>If a message can include grades, missing work, evaluations, or progress details, announcements are blocked automatically.</p>
+          <p>Templates with private data show a private-data badge. Those messages go through Canvas Inbox/email only.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Duplicate Protection</h3>
+          <p>Automations use a duplicate key for each matching condition. If the same message was already sent or drafted, it is skipped instead of sent again.</p>
+          <p>The green toolbar button shows queued messages when matches are available.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Logs</h3>
+          <p>The Logs tab records manual sends, automated sends, announcements, drafts, skipped messages, and failures.</p>
+          <p>Use the status filter to review sent, failed, or draft activity.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Background Checks</h3>
+          <p>Background automations require a Canvas API token in Settings. Without a token, manual sends still work while you are in Canvas, but scheduled checks cannot run reliably while the panel is closed.</p>
+        </div>
+        <div class="ces-help-card">
+          <h3>Hover Help</h3>
+          <p>Most controls include hover text. Pause over buttons, class pickers, template selectors, and send controls to see what they do.</p>
+        </div>
+      </div>
+    `;
   }
 
   async function checkAutomationsOnOpen(options = {}) {
@@ -2594,18 +2666,18 @@ Thank you,
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(templateDisplayName(tpl, type))}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Message Name</label>
-        <input type="text" class="ces-input" id="ces-tpl-name" value="${escapeAttr(tpl.name)}">
+        <input type="text" class="ces-input" id="ces-tpl-name" value="${escapeAttr(tpl.name)}" title="Name shown in the Message dropdown.">
         <label class="ces-label">Short Description</label>
-        <input type="text" class="ces-input" id="ces-tpl-desc" value="${escapeAttr(tpl.description || '')}">
+        <input type="text" class="ces-input" id="ces-tpl-desc" value="${escapeAttr(tpl.description || '')}" title="Short note that helps teachers understand when to use this template.">
         <label class="ces-label">Subject Line</label>
-        <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
+        <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}" title="Canvas message or announcement subject. Variables like {{courseName}} can be used.">
         <div class="ces-editor-subject-preview"><strong>Subject:</strong> <span id="ces-subject-preview">${escapeHtml(tpl.subject)}</span></div>
         <div class="ces-card" style="margin:14px 0;">
           <h3 style="margin:0 0 10px;">Message Rules</h3>
           <div class="ces-grid-2">
             <div>
               <label class="ces-label">When This Message Sends</label>
-              <select class="ces-select" id="ces-tpl-auto-type">
+              <select class="ces-select" id="ces-tpl-auto-type" title="Choose the rule this message uses for manual and automated sending. Plain email has no Canvas criteria.">
                 <option value="plain"${rules.type === 'plain' ? ' selected' : ''}>Plain email / no rules</option>
                 <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
                 <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
@@ -2616,7 +2688,7 @@ Thank you,
             <div>
               <label class="ces-label">Announcements</label>
               <label class="ces-checkbox-row" style="margin-top:8px;">
-                <input type="checkbox" id="ces-tpl-exclude-announcements"${rules.excludeAnnouncements ? ' checked' : ''}>
+                <input type="checkbox" id="ces-tpl-exclude-announcements"${rules.excludeAnnouncements ? ' checked' : ''} title="When checked, this template cannot be posted as a course announcement.">
                 <span>Exclude announcements</span>
               </label>
             </div>
@@ -2683,25 +2755,25 @@ Thank you,
           `;
         } else if (ruleType === 'upcoming') {
           ruleFields.innerHTML = `
-            <div><label class="ces-label">Days Forward</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
+            <div><label class="ces-label">Days Forward</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90" title="How many days ahead Canvas should look for upcoming assignments."></div>
             <div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in the look-ahead window" disabled></div>
           `;
         } else if (ruleType === 'late') {
           ruleFields.innerHTML = `
-            <div><label class="ces-label">Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365"></div>
+            <div><label class="ces-label">Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365" title="How far back Canvas should look for past-due missing work."></div>
             <div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div>
           `;
         } else if (ruleType === 'midpoint') {
           ruleFields.innerHTML = `
-            <div><label class="ces-label">Evaluation Date</label><input class="ces-input" type="date" id="ces-tpl-evaluation-date" value="${escapeAttr(tpl.evaluationDate || tpl.startDate || '')}"></div>
+            <div><label class="ces-label">Evaluation Date</label><input class="ces-input" type="date" id="ces-tpl-evaluation-date" value="${escapeAttr(tpl.evaluationDate || tpl.startDate || '')}" title="The evaluation sends once when checked on or after this date."></div>
             <div><label class="ces-label">Condition</label><input class="ces-input" value="Send once on or after this date" disabled></div>
-            <div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90"></div>
-            <div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365"></div>
+            <div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-tpl-days-forward" value="${escapeAttr(tpl.daysForward || 7)}" min="1" max="90" title="How many days ahead to include in the evaluation."></div>
+            <div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-tpl-days-back" value="${escapeAttr(tpl.daysBack || 14)}" min="1" max="365" title="How far back to include missing work in the evaluation."></div>
           `;
         } else {
           ruleFields.innerHTML = `
-            <div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-tpl-grade-scope"><option value="overall"${(tpl.gradeScope || 'overall') === 'overall' ? ' selected' : ''}>Overall course grade</option><option value="assignment"${tpl.gradeScope === 'assignment' ? ' selected' : ''}>Individual assignment score</option></select></div>
-            <div><label class="ces-label">Low Grade Threshold (%)</label><input class="ces-input" type="number" id="ces-tpl-threshold" value="${escapeAttr(tpl.threshold || 70)}" min="1" max="100"></div>
+            <div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-tpl-grade-scope" title="Choose whether to check the overall course grade or individual assignment scores."><option value="overall"${(tpl.gradeScope || 'overall') === 'overall' ? ' selected' : ''}>Overall course grade</option><option value="assignment"${tpl.gradeScope === 'assignment' ? ' selected' : ''}>Individual assignment score</option></select></div>
+            <div><label class="ces-label">Low Grade Threshold (%)</label><input class="ces-input" type="number" id="ces-tpl-threshold" value="${escapeAttr(tpl.threshold || 70)}" min="1" max="100" title="Students below this percentage match the low-grade rule."></div>
           `;
         }
         if (ruleTypeIsPrivate(ruleType) || templateUsesGradeData({ subject: subjectInput.value, body: editor.innerHTML })) {
