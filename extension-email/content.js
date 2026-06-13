@@ -1965,14 +1965,15 @@ Best regards,
     if (barEl)  barEl.style.width = pct + '%';
   }
 
-  function renderMessagesList(container, courseId, courseName, emailType) {
+  function renderMessagesList(container, emailType) {
     const preview = generatedMessages[0];
     const previewBody = preview.studentName ? preview.body.replaceAll(preview.studentName, '{{studentName}}') : preview.body;
     const previewSubject = preview.studentName ? preview.subject.replaceAll(preview.studentName, '{{studentName}}') : preview.subject;
     const uniqueSubjects = new Set(generatedMessages.map(msg => msg.subject)).size;
+    const uniqueCourses = new Set(generatedMessages.map(msg => String(msg.courseId || ''))).size;
     let html = `
       <div class="ces-flex-between ces-mb">
-        <strong>${generatedMessages.length} student${generatedMessages.length === 1 ? '' : 's'} ready</strong>
+        <strong>${generatedMessages.length} message${generatedMessages.length === 1 ? '' : 's'} ready${uniqueCourses > 1 ? ` across ${uniqueCourses} classes` : ''}</strong>
         <button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All Selected Channels</button>
       </div>
       <div class="ces-review-preview">
@@ -1991,7 +1992,7 @@ Best regards,
     generatedMessages.forEach((msg, i) => {
       html += `
         <div class="ces-recipient-row" id="ces-msg-${i}">
-          <div class="ces-recipient-name" title="${escapeAttr(msg.studentName)}">${escapeHtml(msg.studentName)}</div>
+          <div class="ces-recipient-name" title="${escapeAttr(msg.studentName)}">${escapeHtml(msg.studentName)}${uniqueCourses > 1 ? `<span style="font-weight:500;color:#6b7280;"> - ${escapeHtml(msg.courseName || '')}</span>` : ''}</div>
           <div class="ces-msg-actions">
             <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
             <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Compose</button>
@@ -2024,9 +2025,11 @@ Best regards,
           const msg = generatedMessages[i];
           const row = container.querySelector(`#ces-msg-${i}`);
           try {
-            await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
+            await sendCanvasMessage(msg.courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
+            addAutomationLog({ automationId: 'manual_' + (msg.templateKey || emailType), automationName: 'Manual Message', courseId: msg.courseId, courseName: msg.courseName, status: 'sent', dedupeKey: `manual:${Date.now()}:${msg.courseId}:${msg.studentId}:${i}`, recipientName: msg.studentName, subject: msg.subject, note: 'Manual Canvas Inbox / Email send.' });
             sent++; if (row) row.style.background = '#eef7fc';
           } catch(err) {
+            addAutomationLog({ automationId: 'manual_' + (msg.templateKey || emailType), automationName: 'Manual Message', courseId: msg.courseId, courseName: msg.courseName, status: 'failed', recipientName: msg.studentName, subject: msg.subject, note: err.message });
             failed++; if (row) row.style.background = '#fef2f2';
           }
         }
