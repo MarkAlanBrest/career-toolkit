@@ -1929,6 +1929,13 @@ Best regards,
         select.appendChild(opt);
       });
       GM_setValue(STORAGE_KEYS.LAST_COURSE, currentCourseId);
+      const body = document.getElementById('ces-body');
+      if (body?.querySelector('#ces-manual-course-picker') && !body.querySelector('#ces-manual-course-picker')?.dataset.selectedIds) {
+        renderAutomationCoursePicker(body, currentCourseId ? [currentCourseId] : []);
+      }
+      if (body?.querySelector('#ces-auto-course-picker') && !body.querySelector('#ces-auto-course-picker')?.dataset.selectedIds) {
+        renderAutomationCoursePicker(body, currentCourseId ? [currentCourseId] : []);
+      }
     } catch(err) {
       select.innerHTML = '<option value="">Error loading courses</option>';
       showStatus(err?.message || 'Could not load Canvas courses.', 'error');
@@ -2035,25 +2042,34 @@ Best regards,
         }
       }
       if (includeAnnouncement) {
-        try {
-          const templates = getTemplates(); const tpl = templates[emailType];
-          const rules = templateRuleDefaults(emailType, tpl);
-          const canvasAppUrl = buildCanvasAppPromoUrl(courseId, courseName);
-          await postAnnouncement(courseId,
-            tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
-            tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
-                    .replace(/\{\{courseName\}\}/g, courseName).replace(/\{\{studentName\}\}/g, 'Students')
-                    .replace(/\{\{canvasAppUrl\}\}/g, canvasAppUrl)
-                    .replace(/\{\{assignmentList\}\}/g, '(see your individual message)').replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
-                    .replace(/\{\{currentGrade\}\}/g, '(see your individual message)').replace(/\{\{currentScore\}\}/g, '(see your individual message)')
-                    .replace(/\{\{daysForward\}\}/g, String(rules.daysForward || 7))
-                    .replace(/\{\{daysBack\}\}/g, String(rules.daysBack || 14))
-                    .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
-          );
-          showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement posted.`, 'success');
-        } catch(err) {
-          showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcement failed: ${err.message}`, 'error');
+        let announcements = 0;
+        let announcementFailed = 0;
+        const templates = getTemplates(); const tpl = templates[emailType];
+        const rules = templateRuleDefaults(emailType, tpl);
+        const courses = new Map(generatedMessages.map(msg => [String(msg.courseId), msg.courseName || `Course ${msg.courseId}`]));
+        for (const [courseId, courseName] of courses.entries()) {
+          const subject = tpl.subject.replace(/\{\{courseName\}\}/g, courseName);
+          try {
+            const canvasAppUrl = buildCanvasAppPromoUrl(courseId, courseName);
+            await postAnnouncement(courseId,
+              subject,
+              tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
+                      .replace(/\{\{courseName\}\}/g, courseName).replace(/\{\{studentName\}\}/g, 'Students')
+                      .replace(/\{\{canvasAppUrl\}\}/g, canvasAppUrl)
+                      .replace(/\{\{assignmentList\}\}/g, '(see your individual message)').replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
+                      .replace(/\{\{currentGrade\}\}/g, '(see your individual message)').replace(/\{\{currentScore\}\}/g, '(see your individual message)')
+                      .replace(/\{\{daysForward\}\}/g, String(rules.daysForward || 7))
+                      .replace(/\{\{daysBack\}\}/g, String(rules.daysBack || 14))
+                      .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
+            );
+            announcements++;
+            addAutomationLog({ automationId: 'manual_' + emailType, automationName: 'Manual Announcement', courseId, courseName, status: 'sent', dedupeKey: `manual-announcement:${Date.now()}:${courseId}`, recipientName: 'Students', subject, note: 'Manual Canvas Announcement / Notification send.' });
+          } catch(err) {
+            announcementFailed++;
+            addAutomationLog({ automationId: 'manual_' + emailType, automationName: 'Manual Announcement', courseId, courseName, status: 'failed', recipientName: 'Students', subject, note: err.message });
+          }
         }
+        showStatus(`Canvas: ${sent} sent${failed ? `, ${failed} failed` : ''}. Announcements: ${announcements} posted${announcementFailed ? `, ${announcementFailed} failed` : ''}.`, failed || announcementFailed ? 'error' : 'success');
       }
       if (!includeAnnouncement) {
         const parts = [];
@@ -2069,10 +2085,12 @@ Best regards,
         const msg = generatedMessages[idx];
         btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
         try {
-          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
+          await sendCanvasMessage(msg.courseId, msg.studentId, msg.subject, msg.inboxBody || msg.body);
+          addAutomationLog({ automationId: 'manual_' + (msg.templateKey || emailType), automationName: 'Manual Message', courseId: msg.courseId, courseName: msg.courseName, status: 'sent', dedupeKey: `manual:${Date.now()}:${msg.courseId}:${msg.studentId}:${idx}`, recipientName: msg.studentName, subject: msg.subject, note: 'Manual Canvas Inbox / Email send.' });
           btn.innerHTML = '&#10003; Sent'; btn.classList.remove('ces-btn-primary'); btn.style.background = '#0374b5';
           const row = document.querySelector(`#ces-msg-${idx}`); if (row) row.style.background = '#eef7fc';
         } catch(err) {
+          addAutomationLog({ automationId: 'manual_' + (msg.templateKey || emailType), automationName: 'Manual Message', courseId: msg.courseId, courseName: msg.courseName, status: 'failed', recipientName: msg.studentName, subject: msg.subject, note: err.message });
           btn.innerHTML = '&#10007; Failed'; btn.classList.add('ces-btn-danger');
           showStatus('Failed to send to ' + msg.studentName + ': ' + err.message, 'error');
         }
@@ -2084,7 +2102,7 @@ Best regards,
         const idx = parseInt(btn.dataset.idx);
         const msg = generatedMessages[idx];
         window.open(`${CANVAS_BASE}/conversations#filter=type=inbox&user_name=${encodeURIComponent(msg.studentName)}&user_id=${msg.studentId}`, '_blank');
-        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.inboxBody || canvasInboxBody(msg.body), courseId }));
+        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.inboxBody || canvasInboxBody(msg.body), courseId: msg.courseId }));
         showStatus(`Compose window opened for ${msg.studentName}. Click "Insert Message" on the compose page.`, 'info');
       });
     });
