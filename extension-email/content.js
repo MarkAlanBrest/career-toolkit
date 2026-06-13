@@ -6,7 +6,7 @@
   window.__cesLoaded = true;
 
   // Storage shim — pre-load all keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_templates_version', 'ces_teacher_name', 'ces_canvas_api_token', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_last_auto_check'];
   const hasChromeStorage = !!(globalThis.chrome && chrome.storage && chrome.storage.local);
   const _store = hasChromeStorage
     ? await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve))
@@ -358,6 +358,7 @@
     LAST_COURSE:  'ces_last_course',
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
+    LAST_AUTO_CHECK: 'ces_last_auto_check',
   };
 
   const CANVAS_STUDENT_IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
@@ -1274,6 +1275,8 @@ Best regards,
   let generatedMessages = [];
   let currentCourseId = null;
   let _overlay = null;
+  let automationCheckInFlight = false;
+  const AUTO_MENU_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
   function getCurrentCourseId() {
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
@@ -1762,7 +1765,7 @@ Best regards,
           </div>
           <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Test Check Now</button>
         </div>
-        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings. Test Check Now is only for testing or sending immediately.</div>
+        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings, and also check once when the Messages button loads in Canvas. Test Check Now is only for testing or sending immediately.</div>
         ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
 
         <label class="ces-label">Published Classes</label>
@@ -1995,15 +1998,26 @@ Best regards,
     }));
   }
 
-  async function checkAutomationsOnOpen() {
+  async function checkAutomationsOnOpen(options = {}) {
     if (!getAutomations().some(auto => auto.active !== false)) return;
+    if (automationCheckInFlight) return;
+    const force = !!options.force;
+    const silent = !!options.silent;
+    const lastCheck = Number(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0) || 0);
+    if (!force && Date.now() - lastCheck < AUTO_MENU_CHECK_INTERVAL_MS) return;
+    automationCheckInFlight = true;
+    GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
     try {
       const result = await runAutomations();
-      if (result.sent || result.drafted || result.failed) {
+      GM_setValue(STORAGE_KEYS.LAST_AUTO_CHECK, String(Date.now()));
+      if (!silent && (result.sent || result.drafted || result.failed)) {
         showStatus(`Automations checked: sent ${result.sent}, drafted ${result.drafted}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success');
       }
     } catch(err) {
-      showStatus('Automation check skipped: ' + err.message, 'error');
+      GM_setValue(STORAGE_KEYS.LAST_AUTO_CHECK, String(Date.now()));
+      if (!silent) showStatus('Automation check skipped: ' + err.message, 'error');
+    } finally {
+      automationCheckInFlight = false;
     }
   }
 
@@ -2416,6 +2430,7 @@ Thank you,
 
     document.body.appendChild(group);
     placeCanvasLauncher();
+    setTimeout(() => checkAutomationsOnOpen({ silent: true }), 1200);
   }
   addCanvasLauncher();
   const launcherObserver = new MutationObserver(() => placeCanvasLauncher());
