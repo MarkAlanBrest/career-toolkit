@@ -311,9 +311,14 @@ function templateKeyForType(type) {
   return { late: 'auto_late', upcoming: 'auto_upcoming', midpoint: 'auto_midpoint', low_grade: 'auto_low_grade' }[type];
 }
 
+function templateForAutomation(automation, templates) {
+  const fallbackKey = templateKeyForType(automation.type);
+  return templates[automation.templateKey] || templates[fallbackKey] || DEFAULT_TEMPLATES[fallbackKey];
+}
+
 async function buildAutomationMessages(automation, context) {
   const { base, token, teacherName, templates } = context;
-  const template = templates[templateKeyForType(automation.type)] || DEFAULT_TEMPLATES[templateKeyForType(automation.type)];
+  const template = templateForAutomation(automation, templates);
   const courseName = automation.courseName || `Course ${automation.courseId}`;
 
   if (automation.type === 'late') {

@@ -802,6 +802,10 @@ Best regards,
     return next;
   }
 
+  function templateDisplayName(tpl, fallback = 'Message') {
+    return String(tpl?.name || fallback).replace(/^Automation:\s*/i, '');
+  }
+
   function sanitizeCanvasEmailHtml(html) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = String(html || '');
@@ -1018,10 +1022,35 @@ Best regards,
     return course?.name || `Course ${courseId}`;
   }
 
-  function getTemplateForAutomation(type) {
+  const AUTOMATION_TEMPLATE_KEYS = {
+    late: ['auto_late', 'missing'],
+    upcoming: ['auto_upcoming', 'upcoming'],
+    midpoint: ['auto_midpoint', 'evaluation'],
+    low_grade: ['auto_low_grade'],
+  };
+
+  function automationTemplateDefault(type) {
+    return AUTOMATION_TEMPLATE_KEYS[type]?.[0] || 'auto_upcoming';
+  }
+
+  function isCustomTemplateKey(key) {
+    return String(key || '').startsWith('custom_') || !DEFAULT_TEMPLATE_KEYS.has(key);
+  }
+
+  function automationTemplateOptions(type, selectedKey = '') {
     const templates = getTemplates();
-    const map = { late: 'auto_late', upcoming: 'auto_upcoming', midpoint: 'auto_midpoint', low_grade: 'auto_low_grade' };
-    return templates[map[type]] || DEFAULT_TEMPLATES[map[type]];
+    const allowed = new Set(AUTOMATION_TEMPLATE_KEYS[type] || []);
+    const entries = Object.entries(templates).filter(([key]) => allowed.has(key) || isCustomTemplateKey(key));
+    if (!entries.some(([key]) => key === selectedKey)) selectedKey = automationTemplateDefault(type);
+    return entries.map(([key, tpl]) => `<option value="${escapeAttr(key)}"${key === selectedKey ? ' selected' : ''}>${escapeHtml(templateDisplayName(tpl, key))}</option>`).join('');
+  }
+
+  function getTemplateForAutomation(automationOrType) {
+    const templates = getTemplates();
+    const type = typeof automationOrType === 'string' ? automationOrType : automationOrType?.type;
+    const key = typeof automationOrType === 'string' ? automationTemplateDefault(type) : (automationOrType?.templateKey || automationTemplateDefault(type));
+    const fallbackKey = automationTemplateDefault(type);
+    return templates[key] || templates[fallbackKey] || DEFAULT_TEMPLATES[fallbackKey];
   }
 
   function buildAutomationGeneratedMessage(student, vars, template, courseId, extra = {}) {
@@ -1179,7 +1208,7 @@ Best regards,
 
   async function buildLateAutomationMessages(automation, teacherName) {
     const students = await getStudents(automation.courseId);
-    const template = getTemplateForAutomation('late');
+    const template = getTemplateForAutomation(automation);
     const maxAge = Number(automation.daysBack) || 14;
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const messages = [];
@@ -1205,7 +1234,7 @@ Best regards,
   async function buildUpcomingAutomationMessages(automation, teacherName) {
     const upcoming = getUpcomingAssignments(await getAssignments(automation.courseId), Number(automation.daysForward) || 7);
     if (!upcoming.length) return [];
-    const template = getTemplateForAutomation('upcoming');
+    const template = getTemplateForAutomation(automation);
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const daysForward = Number(automation.daysForward) || 7;
     const assignmentIds = upcoming.map(a => a.id).sort().join(',');
@@ -1242,15 +1271,41 @@ Best regards,
     const end = automation.endDate ? new Date(automation.endDate + 'T23:59:59') : null;
     if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
     if (new Date() < new Date((start.getTime() + end.getTime()) / 2)) return [];
-    const messages = await generateMessages(automation.courseId, automation.courseName || courseDisplayName(automation.courseId), 'evaluation', Number(automation.daysForward) || 7, Number(automation.daysBack) || 14, teacherName);
-    const output = wantsStudentMessages(automation)
-      ? messages.map(msg => ({ kind: 'message', ...msg, dedupeKey: `${automation.id}:midpoint:${msg.studentId}:once` }))
-      : [];
-    return output;
+    if (!wantsStudentMessages(automation)) return [];
+    const template = getTemplateForAutomation(automation);
+    const courseName = automation.courseName || courseDisplayName(automation.courseId);
+    const daysForward = Number(automation.daysForward) || 7;
+    const daysBack = Number(automation.daysBack) || 14;
+    const enrollments = await getEnrollments(automation.courseId);
+    const assignments = await getAssignments(automation.courseId);
+    const upcoming = getUpcomingAssignments(assignments, daysForward);
+    const messages = [];
+    for (const student of await getStudents(automation.courseId)) {
+      const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
+      const grade = enrollment?.grades?.current_grade || 'N/A';
+      const score = enrollment?.grades?.current_score || 'N/A';
+      const missing = getMissingAssignments(await getSubmissions(automation.courseId, student.id), daysBack);
+      const missingAssignments = missing.map(s => s.assignment || s);
+      const vars = {
+        studentName: student.name || student.sortable_name || 'Student',
+        teacherName,
+        courseName,
+        currentGrade: grade,
+        currentScore: String(score),
+        daysForward: String(daysForward),
+        daysBack: String(daysBack),
+        missingSection: missing.length ? `Missing Assignments (past ${daysBack} days):\n${formatAssignmentList(missingAssignments)}` : 'You have no missing assignments. Great work!',
+        upcomingSection: upcoming.length ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}` : `No upcoming assignments in the next ${daysForward} days.`,
+        missingSectionHtml: missing.length ? formatAssignmentListHtml(missingAssignments) : '<p style="margin:0;color:#047857;font-size:14px;line-height:1.5;">You have no missing assignments. Great work.</p>',
+        upcomingSectionHtml: upcoming.length ? formatAssignmentListHtml(upcoming) : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.5;">No upcoming assignments in the next ${daysForward} days.</p>`,
+      };
+      messages.push(buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:midpoint:${student.id}:once` }));
+    }
+    return messages;
   }
 
   async function buildLowGradeAutomationMessages(automation, teacherName) {
-    const template = getTemplateForAutomation('low_grade');
+    const template = getTemplateForAutomation(automation);
     const threshold = Number(automation.threshold) || 70;
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const messages = [];
@@ -1485,7 +1540,7 @@ Best regards,
     const templateEntries = Object.entries(templates);
     const firstType = templateEntries[0]?.[0] || 'welcome';
     const templateOptions = templateEntries.map(([key, tpl]) => `
-      <option value="${escapeAttr(key)}">${escapeHtml(tpl.name || key)}</option>
+      <option value="${escapeAttr(key)}">${escapeHtml(templateDisplayName(tpl, key))}</option>
     `).join('');
 
     container.innerHTML = `
@@ -1869,7 +1924,7 @@ Best regards,
 
         <div class="ces-grid-2">
           <div>
-            <label class="ces-label">Message</label>
+            <label class="ces-label">Trigger</label>
             <select class="ces-select" id="ces-auto-type">
               <option value="late">Late work reminder</option>
               <option value="upcoming">Upcoming work</option>
@@ -1970,6 +2025,7 @@ Best regards,
         courseName: selectedCourse.name,
         type,
         name: sharedName || defaultAutomationName(type, selectedCourse.name),
+        templateKey: container.querySelector('#ces-auto-template')?.value || automationTemplateDefault(type),
         frequency: container.querySelector('#ces-auto-frequency').value,
         mode: container.querySelector('#ces-auto-mode').value,
         daysBack: Number(container.querySelector('#ces-auto-days-back')?.value || 14),
@@ -2005,17 +2061,21 @@ Best regards,
     return `<div class="ces-grid-2"><div><label class="ces-label">Send As</label><select class="ces-select" id="ces-auto-delivery"><option value="students"${defaultDelivery === 'students' ? ' selected' : ''}>Student messages only</option>${announcementOnly}<option value="both"${defaultDelivery === 'both' ? ' selected' : ''}>Both: student messages + announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
   }
 
+  function automationTemplateFieldHtml(type, selectedKey = '') {
+    return `<div class="ces-grid-2"><div><label class="ces-label">Message Template</label><select class="ces-select" id="ces-auto-template">${automationTemplateOptions(type, selectedKey)}</select></div><div><label class="ces-label">Template Use</label><input class="ces-input" value="Saved message used when this trigger matches" disabled></div></div>`;
+  }
+
   function renderAutomationFields(container) {
     const type = container.querySelector('#ces-auto-type').value;
     const fields = container.querySelector('#ces-auto-fields');
     if (type === 'late') {
-      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
+      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
     } else if (type === 'upcoming') {
-      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in look-ahead window" disabled></div></div>`;
+      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in look-ahead window" disabled></div></div>`;
     } else if (type === 'midpoint') {
-      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
+      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
     } else {
-      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
+      fields.innerHTML = `${automationTemplateFieldHtml(type)}${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
     }
   }
 
@@ -2027,10 +2087,12 @@ Best regards,
   function describeAutomation(auto) {
     const delivery = automationDelivery(auto);
     const deliveryText = delivery === 'both' ? 'student messages + announcement' : delivery === 'students' ? 'student messages' : 'course announcement';
-    if (auto.type === 'late') return `Late work until submitted or older than ${auto.daysBack || 14} days`;
-    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${deliveryText}`;
-    if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}`;
-    if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%`;
+    const template = getTemplates()[auto.templateKey || automationTemplateDefault(auto.type)];
+    const templateText = template ? `; message: ${templateDisplayName(template, auto.templateKey)}` : '';
+    if (auto.type === 'late') return `Late work until submitted or older than ${auto.daysBack || 14} days${templateText}`;
+    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${deliveryText}${templateText}`;
+    if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}${templateText}`;
+    if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%${templateText}`;
     return '';
   }
 
@@ -2076,6 +2138,7 @@ Best regards,
       body.querySelector('#ces-auto-name').value = auto.name || '';
       renderAutomationCoursePicker(body, [String(auto.courseId)]);
       renderAutomationFields(body);
+      if (body.querySelector('#ces-auto-template')) body.querySelector('#ces-auto-template').value = auto.templateKey || automationTemplateDefault(auto.type);
       if (body.querySelector('#ces-auto-days-back')) body.querySelector('#ces-auto-days-back').value = auto.daysBack || 14;
       if (body.querySelector('#ces-auto-days-forward')) body.querySelector('#ces-auto-days-forward').value = auto.daysForward || 7;
       if (body.querySelector('#ces-auto-threshold')) body.querySelector('#ces-auto-threshold').value = auto.threshold || 70;
@@ -2160,11 +2223,11 @@ Best regards,
     const templates = getTemplates();
 
     function renderList() {
-      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize email templates. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
+      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Saved messages can be used for one-time sends or selected when scheduling automated messages. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
       html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">+ New Custom Message</button></div>`;
       for (const [type, tpl] of Object.entries(templates)) {
         const canDelete = !DEFAULT_TEMPLATE_KEYS.has(type);
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(templateDisplayName(tpl, type))}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">${escapeHtml(tpl.description || '')}</div><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><div style="display:flex;gap:6px;flex-shrink:0;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${canDelete ? `<button class="ces-btn ces-btn-danger ces-btn-sm ces-del-tpl" data-type="${type}">Delete</button>` : ''}</div></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
@@ -2210,7 +2273,7 @@ Thank you,
       const editableBody = tpl.bodyText || htmlToTeacherText(tpl.body);
       const editorHtml = tpl.bodyMode === 'html' ? sanitizeCanvasEmailHtml(tpl.body || '') : teacherTextToCanvasHtml(editableBody);
       container.innerHTML = `
-        <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
+        <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(templateDisplayName(tpl, type))}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Message Name</label>
         <input type="text" class="ces-input" id="ces-tpl-name" value="${escapeAttr(tpl.name)}">
         <label class="ces-label">Short Description</label>
