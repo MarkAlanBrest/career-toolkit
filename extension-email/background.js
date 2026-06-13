@@ -173,6 +173,35 @@ function alreadyLogged(logs, automationId, dedupeKey) {
   return logs.some(log => log.automationId === automationId && log.dedupeKey === dedupeKey && (log.status === 'sent' || log.status === 'draft'));
 }
 
+function automationDelivery(automation) {
+  if (automation.delivery) return automation.delivery;
+  return (automation.audience || 'announcement') === 'students' ? 'students' : 'announcement';
+}
+
+function wantsStudentMessages(automation) {
+  const delivery = automationDelivery(automation);
+  return delivery === 'students' || delivery === 'both';
+}
+
+function wantsAnnouncement(automation) {
+  const delivery = automationDelivery(automation);
+  return delivery === 'announcement' || delivery === 'both';
+}
+
+function plainAnnouncementBody(text) {
+  return `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`;
+}
+
+function buildAutomationAnnouncement(automation, subject, body, dedupePart) {
+  return {
+    kind: 'announcement',
+    studentName: 'Students',
+    subject,
+    body: plainAnnouncementBody(body),
+    dedupeKey: `${automation.id}:${dedupePart}:announcement:${frequencyStamp(automation.frequency)}`,
+  };
+}
+
 function baseForAutomation(automation, fallbackBase) {
   return String(automation.canvasBase || fallbackBase || '').replace(/\/$/, '');
 }
@@ -278,10 +307,13 @@ async function buildAutomationMessages(automation, context) {
     const students = await getStudents(base, token, automation.courseId);
     const maxAge = Number(automation.daysBack) || 14;
     const messages = [];
+    const announcementAssignments = new Map();
     for (const student of students) {
       const missing = getMissingAssignments(await getSubmissions(base, token, automation.courseId, student.id), maxAge);
       if (!missing.length) continue;
       const missingAssignments = missing.map(submission => submission.assignment || submission);
+      missingAssignments.forEach(assignment => announcementAssignments.set(String(assignment.id || assignment.name), assignment));
+      if (!wantsStudentMessages(automation)) continue;
       const vars = {
         studentName: student.name || student.sortable_name || 'Student',
         teacherName,
@@ -300,6 +332,15 @@ async function buildAutomationMessages(automation, context) {
         dedupeKey: `${automation.id}:late:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
       });
     }
+    if (wantsAnnouncement(automation) && announcementAssignments.size) {
+      const assignments = [...announcementAssignments.values()];
+      messages.push(buildAutomationAnnouncement(
+        automation,
+        `Past Due Work Reminder for ${courseName}`,
+        `This is a class reminder to check Canvas for any past due work in ${courseName}.\n\n${formatAssignmentList(assignments)}\n\nIf any of these items show as missing for you, please submit what you can as soon as possible or reach out if you need help making a plan.\n\nThank you,\n${teacherName}`,
+        `late:${assignments.map(item => item.id || item.name).sort().join(',')}`
+      ));
+    }
     return messages;
   }
 
@@ -315,27 +356,31 @@ async function buildAutomationMessages(automation, context) {
       assignmentListHtml: formatAssignmentListHtml(upcoming),
     };
     const assignmentIds = upcoming.map(assignment => assignment.id).sort().join(',');
-    if ((automation.audience || 'announcement') === 'announcement') {
+    const messages = [];
+    if (wantsAnnouncement(automation)) {
       const announcementVars = { ...vars, studentName: 'Students' };
-      return [{
+      messages.push({
         kind: 'announcement',
         studentName: 'Students',
         subject: renderTemplate(template.subject, announcementVars),
         body: announcementBody(template, announcementVars),
         dedupeKey: `${automation.id}:upcoming:announcement:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
-      }];
+      });
     }
-    return (await getStudents(base, token, automation.courseId)).map(student => {
-      const studentVars = { ...vars, studentName: student.name || student.sortable_name || 'Student' };
-      return {
-        kind: 'message',
-        studentId: student.id,
-        studentName: studentVars.studentName,
-        subject: renderTemplate(template.subject, studentVars),
-        body: messageBody(template, studentVars),
-        dedupeKey: `${automation.id}:upcoming:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
-      };
-    });
+    if (wantsStudentMessages(automation)) {
+      messages.push(...(await getStudents(base, token, automation.courseId)).map(student => {
+        const studentVars = { ...vars, studentName: student.name || student.sortable_name || 'Student' };
+        return {
+          kind: 'message',
+          studentId: student.id,
+          studentName: studentVars.studentName,
+          subject: renderTemplate(template.subject, studentVars),
+          body: messageBody(template, studentVars),
+          dedupeKey: `${automation.id}:upcoming:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
+        };
+      }));
+    }
+    return messages;
   }
 
   if (automation.type === 'midpoint') {

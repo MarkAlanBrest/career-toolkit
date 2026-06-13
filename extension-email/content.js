@@ -1028,6 +1028,31 @@ Best regards,
     return { kind: 'message', ...buildGeneratedMessage(student, vars, template, courseId), ...extra };
   }
 
+  function automationDelivery(automation) {
+    if (automation.delivery) return automation.delivery;
+    return (automation.audience || 'announcement') === 'students' ? 'students' : 'announcement';
+  }
+
+  function wantsStudentMessages(automation) {
+    const delivery = automationDelivery(automation);
+    return delivery === 'students' || delivery === 'both';
+  }
+
+  function wantsAnnouncement(automation) {
+    const delivery = automationDelivery(automation);
+    return delivery === 'announcement' || delivery === 'both';
+  }
+
+  function buildAutomationAnnouncement(automation, subject, body, dedupePart) {
+    return {
+      kind: 'announcement',
+      studentName: 'Students',
+      subject,
+      body,
+      dedupeKey: `${automation.id}:${dedupePart}:announcement:${frequencyStamp(automation.frequency)}`,
+    };
+  }
+
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
@@ -1144,10 +1169,13 @@ Best regards,
     const maxAge = Number(automation.daysBack) || 14;
     const courseName = automation.courseName || courseDisplayName(automation.courseId);
     const messages = [];
+    const announcementAssignments = new Map();
     for (const student of students) {
       const missing = getMissingAssignments(await getSubmissions(automation.courseId, student.id), maxAge);
       if (!missing.length) continue;
       const missingAssignments = missing.map(s => s.assignment || s);
+      missingAssignments.forEach(assignment => announcementAssignments.set(String(assignment.id || assignment.name), assignment));
+      if (!wantsStudentMessages(automation)) continue;
       const vars = {
         studentName: student.name || student.sortable_name || 'Student',
         teacherName,
@@ -1158,6 +1186,15 @@ Best regards,
       };
       const assignmentIds = missing.map(s => s.assignment_id || s.assignment?.id || s.id).sort().join(',');
       messages.push(buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:late:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}` }));
+    }
+    if (wantsAnnouncement(automation) && announcementAssignments.size) {
+      const assignments = [...announcementAssignments.values()];
+      messages.push(buildAutomationAnnouncement(
+        automation,
+        `Past Due Work Reminder for ${courseName}`,
+        `This is a class reminder to check Canvas for any past due work in ${courseName}.\n\n${formatAssignmentList(assignments)}\n\nIf any of these items show as missing for you, please submit what you can as soon as possible or reach out if you need help making a plan.\n\nThank you,\n${teacherName}`,
+        `late:${assignments.map(item => item.id || item.name).sort().join(',')}`
+      ));
     }
     return messages;
   }
@@ -1176,21 +1213,25 @@ Best regards,
       assignmentList: formatAssignmentList(upcoming),
       assignmentListHtml: formatAssignmentListHtml(upcoming, 'No upcoming assignments in this date range.'),
     };
-    if ((automation.audience || 'announcement') === 'announcement') {
+    const messages = [];
+    if (wantsAnnouncement(automation)) {
       const vars = { ...baseVars, studentName: 'Students' };
-      return [{
+      messages.push({
         kind: 'announcement',
         studentName: 'Students',
         subject: renderTemplate(template.subject, vars),
         body: renderTemplate(template.body, vars),
         inboxBody: template.inboxBody ? renderTemplate(template.inboxBody, vars) : '',
         dedupeKey: `${automation.id}:upcoming:announcement:${assignmentIds}:${frequencyStamp(automation.frequency)}`,
-      }];
+      });
     }
-    return (await getStudents(automation.courseId)).map(student => {
-      const vars = { ...baseVars, studentName: student.name || student.sortable_name || 'Student' };
-      return buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:upcoming:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}` });
-    });
+    if (wantsStudentMessages(automation)) {
+      messages.push(...(await getStudents(automation.courseId)).map(student => {
+        const vars = { ...baseVars, studentName: student.name || student.sortable_name || 'Student' };
+        return buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:upcoming:${student.id}:${assignmentIds}:${frequencyStamp(automation.frequency)}` });
+      }));
+    }
+    return messages;
   }
 
   async function buildMidpointAutomationMessages(automation, teacherName) {
@@ -1199,7 +1240,18 @@ Best regards,
     if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
     if (new Date() < new Date((start.getTime() + end.getTime()) / 2)) return [];
     const messages = await generateMessages(automation.courseId, automation.courseName || courseDisplayName(automation.courseId), 'evaluation', Number(automation.daysForward) || 7, Number(automation.daysBack) || 14, teacherName);
-    return messages.map(msg => ({ kind: 'message', ...msg, dedupeKey: `${automation.id}:midpoint:${msg.studentId}:once` }));
+    const output = wantsStudentMessages(automation)
+      ? messages.map(msg => ({ kind: 'message', ...msg, dedupeKey: `${automation.id}:midpoint:${msg.studentId}:once` }))
+      : [];
+    if (wantsAnnouncement(automation) && messages.length) {
+      output.push(buildAutomationAnnouncement(
+        automation,
+        `Midpoint Check-In for ${automation.courseName || courseDisplayName(automation.courseId)}`,
+        `We are at the midpoint of ${automation.courseName || courseDisplayName(automation.courseId)}.\n\nPlease take a few minutes to review your current grade, missing work, upcoming assignments, and recent feedback in Canvas. This is a good time to make adjustments while there is still time to improve your progress.\n\nIf you have questions or need help making a plan, please reach out.\n\nBest regards,\n${teacherName}`,
+        'midpoint'
+      ));
+    }
+    return output;
   }
 
   async function buildLowGradeAutomationMessages(automation, teacherName) {
@@ -1209,10 +1261,13 @@ Best regards,
     const messages = [];
     if ((automation.gradeScope || 'overall') === 'overall') {
       const enrollments = await getEnrollments(automation.courseId);
+      let lowOverallMatches = 0;
       for (const student of await getStudents(automation.courseId)) {
         const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
         const score = Number(enrollment?.grades?.current_score);
         if (!Number.isFinite(score) || score >= threshold) continue;
+        lowOverallMatches++;
+        if (!wantsStudentMessages(automation)) continue;
         const detail = `Current course score: ${score}%\nAlert threshold: ${threshold}%`;
         const vars = {
           studentName: student.name || student.sortable_name || 'Student',
@@ -1225,14 +1280,25 @@ Best regards,
         };
         messages.push(buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:low-overall:${student.id}:below-${threshold}:once` }));
       }
+      if (wantsAnnouncement(automation) && lowOverallMatches) {
+        messages.push(buildAutomationAnnouncement(
+          automation,
+          `Grade Check Reminder for ${courseName}`,
+          `This is a class reminder to review your current grade, recent feedback, and any missing work in ${courseName}.\n\nIf your grade is lower than you want it to be, please take action now: check Canvas, complete what you can, and reach out if you need help making a recovery plan.\n\nBest regards,\n${teacherName}`,
+          `low-overall:below-${threshold}`
+        ));
+      }
       return messages;
     }
+    let lowAssignmentMatches = 0;
     for (const student of await getStudents(automation.courseId)) {
       const lowSubs = (await getSubmissions(automation.courseId, student.id)).filter(s => {
         const score = Number(s.score);
         const points = Number(s.assignment?.points_possible);
         return Number.isFinite(score) && Number.isFinite(points) && points > 0 && (score / points) * 100 < threshold;
       });
+      lowAssignmentMatches += lowSubs.length;
+      if (!wantsStudentMessages(automation)) continue;
       for (const sub of lowSubs) {
         const pct = Math.round((Number(sub.score) / Number(sub.assignment.points_possible)) * 1000) / 10;
         const detail = `${sub.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`;
@@ -1247,6 +1313,14 @@ Best regards,
         };
         messages.push(buildAutomationGeneratedMessage(student, vars, template, automation.courseId, { dedupeKey: `${automation.id}:low-assignment:${student.id}:${sub.assignment_id}:below-${threshold}:once` }));
       }
+    }
+    if (wantsAnnouncement(automation) && lowAssignmentMatches) {
+      messages.push(buildAutomationAnnouncement(
+        automation,
+        `Assignment Grade Check for ${courseName}`,
+        `This is a class reminder to review your recent assignment scores and feedback in ${courseName}.\n\nIf an assignment score is lower than expected, please use the feedback to decide what to do next and reach out if you need help understanding the material or making a plan.\n\nBest regards,\n${teacherName}`,
+        `low-assignment:below-${threshold}`
+      ));
     }
     return messages;
   }
@@ -1928,6 +2002,7 @@ Best regards,
         threshold: Number(container.querySelector('#ces-auto-threshold')?.value || 70),
         gradeScope: container.querySelector('#ces-auto-grade-scope')?.value || 'overall',
         audience: container.querySelector('#ces-auto-audience')?.value || 'announcement',
+        delivery: container.querySelector('#ces-auto-delivery')?.value || container.querySelector('#ces-auto-audience')?.value || 'students',
         startDate: container.querySelector('#ces-auto-start')?.value || '',
         endDate: container.querySelector('#ces-auto-end')?.value || '',
         createdAt: index === 0 && existingAuto?.createdAt ? existingAuto.createdAt : new Date().toISOString(),
@@ -1941,17 +2016,27 @@ Best regards,
     });
   }
 
+  function deliveryFieldHtml(type) {
+    const announcementOnly = type === 'upcoming'
+      ? '<option value="announcement">Course announcement only</option>'
+      : '<option value="announcement">Course announcement only (general reminder)</option>';
+    const note = type === 'upcoming'
+      ? 'Uses the selected upcoming work template'
+      : 'Announcements are general and do not include private student details';
+    return `<div class="ces-grid-2"><div><label class="ces-label">Delivery</label><select class="ces-select" id="ces-auto-delivery"><option value="students">Message students</option>${announcementOnly}<option value="both">Message students + course announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
+  }
+
   function renderAutomationFields(container) {
     const type = container.querySelector('#ces-auto-type').value;
     const fields = container.querySelector('#ces-auto-fields');
     if (type === 'late') {
-      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
+      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Past Due Age Window</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send while missing work is no more than this many days old.</div></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Past due and unsubmitted" disabled></div></div>`;
     } else if (type === 'upcoming') {
-      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Send As</label><select class="ces-select" id="ces-auto-audience"><option value="announcement">Course announcement</option><option value="students">Message every student</option></select></div></div>`;
+      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Look Ahead Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Condition</label><input class="ces-input" value="Assignments due in look-ahead window" disabled></div></div>`;
     } else if (type === 'midpoint') {
-      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
+      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Class Start Date</label><input class="ces-input" type="date" id="ces-auto-start"></div><div><label class="ces-label">Class End Date</label><input class="ces-input" type="date" id="ces-auto-end"></div></div><div class="ces-grid-2"><div><label class="ces-label">Upcoming Days</label><input class="ces-input" type="number" id="ces-auto-days-forward" value="7" min="1" max="90"></div><div><label class="ces-label">Missing Work Days Back</label><input class="ces-input" type="number" id="ces-auto-days-back" value="14" min="1" max="365"></div></div>`;
     } else {
-      fields.innerHTML = `<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
+      fields.innerHTML = `${deliveryFieldHtml(type)}<div class="ces-grid-2"><div><label class="ces-label">Grade Scope</label><select class="ces-select" id="ces-auto-grade-scope"><option value="overall">Overall course grade</option><option value="assignment">Individual assignment score</option></select></div><div><label class="ces-label">Warning Threshold</label><input class="ces-input" type="number" id="ces-auto-threshold" value="70" min="1" max="100"></div></div>`;
     }
   }
 
@@ -1961,8 +2046,10 @@ Best regards,
   }
 
   function describeAutomation(auto) {
+    const delivery = automationDelivery(auto);
+    const deliveryText = delivery === 'both' ? 'student messages + announcement' : delivery === 'students' ? 'student messages' : 'course announcement';
     if (auto.type === 'late') return `Late work until submitted or older than ${auto.daysBack || 14} days`;
-    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${auto.audience === 'students' ? 'student messages' : 'announcement'}`;
+    if (auto.type === 'upcoming') return `Looks ${auto.daysForward || 7} days ahead; sends as ${deliveryText}`;
     if (auto.type === 'midpoint') return `Sends once after midpoint between ${auto.startDate || '?'} and ${auto.endDate || '?'}`;
     if (auto.type === 'low_grade') return `${auto.gradeScope === 'assignment' ? 'Assignment' : 'Overall'} grade below ${auto.threshold || 70}%`;
     return '';
@@ -1980,7 +2067,7 @@ Best regards,
             <strong>${escapeHtml(auto.name)}</strong>
             <div style="font-size:12px;color:#6b7280;margin-top:3px;">${escapeHtml(auto.courseName || auto.courseId)}</div>
             <div style="font-size:13px;color:#374151;margin-top:8px;">${escapeHtml(describeAutomation(auto))}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Paused' : 'Active'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Auto-send'} - ${escapeHtml(auto.frequency || 'once')}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Paused' : 'Active'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Auto-send'} - ${escapeHtml(auto.frequency || 'once')} - ${escapeHtml(automationDelivery(auto) === 'both' ? 'Messages + announcement' : automationDelivery(auto) === 'students' ? 'Messages' : 'Announcement')}</div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
             <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}">Run</button>
@@ -2015,6 +2102,7 @@ Best regards,
       if (body.querySelector('#ces-auto-threshold')) body.querySelector('#ces-auto-threshold').value = auto.threshold || 70;
       if (body.querySelector('#ces-auto-grade-scope')) body.querySelector('#ces-auto-grade-scope').value = auto.gradeScope || 'overall';
       if (body.querySelector('#ces-auto-audience')) body.querySelector('#ces-auto-audience').value = auto.audience || 'announcement';
+      if (body.querySelector('#ces-auto-delivery')) body.querySelector('#ces-auto-delivery').value = automationDelivery(auto);
       if (body.querySelector('#ces-auto-start')) body.querySelector('#ces-auto-start').value = auto.startDate || '';
       if (body.querySelector('#ces-auto-end')) body.querySelector('#ces-auto-end').value = auto.endDate || '';
       body.querySelector('#ces-save-auto').textContent = 'Update Automation';
