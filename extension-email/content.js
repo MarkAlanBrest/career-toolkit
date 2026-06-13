@@ -2002,7 +2002,7 @@ Best regards,
     const note = type === 'upcoming'
       ? 'Uses the selected upcoming work template'
       : 'Announcements are general and do not include private student details';
-    return `<div class="ces-grid-2"><div><label class="ces-label">Delivery</label><select class="ces-select" id="ces-auto-delivery"><option value="students"${defaultDelivery === 'students' ? ' selected' : ''}>Message students</option>${announcementOnly}<option value="both"${defaultDelivery === 'both' ? ' selected' : ''}>Message students + course announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
+    return `<div class="ces-grid-2"><div><label class="ces-label">Send As</label><select class="ces-select" id="ces-auto-delivery"><option value="students"${defaultDelivery === 'students' ? ' selected' : ''}>Student messages only</option>${announcementOnly}<option value="both"${defaultDelivery === 'both' ? ' selected' : ''}>Both: student messages + announcement</option></select></div><div><label class="ces-label">Announcement Note</label><input class="ces-input" value="${note}" disabled></div></div>`;
   }
 
   function renderAutomationFields(container) {
