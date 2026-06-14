@@ -338,6 +338,20 @@
 
   // ── AI GRADER ──────────────────────────────────────────────────────────────
   async function renderAIGrader() {
+    panelBody.innerHTML = '';
+
+    // Disabled outside SpeedGrader
+    if (!/speed_grader/.test(window.location.href)) {
+      const wrap = el('div', `text-align:center;padding:52px 16px;`);
+      const icon = el('div', `font-size:36px;margin-bottom:14px;opacity:.3;`);
+      icon.textContent = '🎓';
+      const msg = el('div', `font-size:13px;color:${DS.muted};line-height:1.7;`);
+      msg.textContent = 'AI Grader only works in SpeedGrader. Open an assignment in SpeedGrader to activate.';
+      wrap.appendChild(icon); wrap.appendChild(msg);
+      panelBody.appendChild(wrap);
+      return;
+    }
+
     const stored = await new Promise(r =>
       chrome.storage.local.get(['ce_claude_context', 'ce_criteria'], r)
     );
@@ -348,10 +362,10 @@
     let streaming   = false;
     let activePort  = null;
     let fileReady   = false;
-    let actionBar   = null;
     let onStreamDone = (text) => {
-      const m = text.match(/SCORE:\s*(\d+)/i);
-      if (m) { const g = document.getElementById('ce-grade-in'); if (g && !g.value) g.value = m[1]; }
+      lastResponse = text;
+      const ib = document.getElementById('ce-insert-btn');
+      if (ib) ib.style.display = '';
     };
 
     function criteriaKey()   { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
@@ -376,28 +390,7 @@
       return t;
     }
 
-    // ── STUDENT CARD ─────────────────────────────────────────────────────────
-    function buildStudentCard() {
-      const card = el('div', `
-        background:${DS.gray};border-radius:3px;padding:10px 12px;flex-shrink:0;
-      `);
-      if (ctx?.studentName) {
-        const n = el('div', `font-size:14px;font-weight:700;color:${DS.text};`);
-        n.textContent = ctx.studentName;
-        card.appendChild(n);
-        const parts = [ctx.assignmentName, ctx.attachments?.length ? '📎 ' + ctx.attachments.map(a => a.filename).join(', ') : null].filter(Boolean);
-        if (parts.length) {
-          const m = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
-          m.textContent = parts.join('  ·  ');
-          card.appendChild(m);
-        }
-      } else {
-        const e = el('div', `font-size:12px;color:${DS.muted};text-align:center;`);
-        e.textContent = 'Open SpeedGrader to load a student';
-        card.appendChild(e);
-      }
-      return card;
-    }
+    // student card removed — name already visible in SpeedGrader
 
     // ── CHAT AREA ─────────────────────────────────────────────────────────────
     const chatArea = el('div', `
@@ -520,78 +513,65 @@
       streamToClaudeAPI([...chatHistory]);
     }
 
-    function extractComments() {
-      const last = [...chatHistory].reverse().find(m => m.role === 'assistant');
-      if (!last) return '';
-      const match = last.content.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const lines = (match ? match[1] : last.content).split('\n');
-      return lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
-    }
+    // ── INSERT INTO SPEEDGRADER ───────────────────────────────────────────────
+    function insertIntoSpeedGrader() {
+      if (!lastResponse) return;
 
-    // ── ACTION BAR ────────────────────────────────────────────────────────────
-    function buildActionBar() {
-      actionBar = el('div', `display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;`);
-      rebuildActionBar();
-      return actionBar;
-    }
+      // Extract score
+      const scoreMatch = lastResponse.match(/SCORE:\s*(\d+)/i);
+      const grade = scoreMatch ? scoreMatch[1] : '';
 
-    function rebuildActionBar() {
-      if (!actionBar) return;
-      actionBar.innerHTML = '';
-      const hasFiles = ctx?.attachments?.length > 0;
-      const hasText  = ctx?.subText && !ctx.subText.startsWith('[File upload');
-      if (hasFiles && !fileReady && !hasText) {
-        const g = btn('📎 Grab File', `background:${DS.gray};color:${DS.text};border:1px solid ${DS.border};`);
-        g.addEventListener('click', grabFile);
-        actionBar.appendChild(g);
-      } else if (fileReady || hasText) {
-        const ok = el('span', `font-size:11px;color:${DS.green};align-self:center;`);
-        ok.textContent = '✓ File ready';
-        actionBar.appendChild(ok);
+      // Extract comments, strip TEACHER CHECK line
+      const feedbackMatch = lastResponse.match(/FEEDBACK:\s*([\s\S]+)/i);
+      const lines   = (feedbackMatch ? feedbackMatch[1] : lastResponse).split('\n');
+      const comment = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
+
+      // Insert grade into SpeedGrader grade field
+      if (grade) {
+        const gradeEl = document.querySelector(
+          'input.grading_value, input[data-testid="grading-box-extended-grade-input"], ' +
+          '#grade_container input, input.grade'
+        );
+        if (gradeEl) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+          if (setter) setter.call(gradeEl, grade);
+          gradeEl.dispatchEvent(new Event('input',  { bubbles: true }));
+          gradeEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
       }
-      const g = btn('✦ Grade Student', `background:${DS.blue};color:#fff;flex:1;`);
-      g.addEventListener('click', gradeStudent);
-      actionBar.appendChild(g);
-      const c = btn('⎘ Copy', `background:${DS.gray};color:${DS.text};border:1px solid ${DS.border};`);
-      c.addEventListener('click', () => {
-        const text = extractComments();
-        if (!text) return;
-        navigator.clipboard.writeText(text).then(() => { c.textContent = '✓ Copied'; setTimeout(() => { c.textContent = '⎘ Copy'; }, 2000); });
-      });
-      actionBar.appendChild(c);
+
+      // Insert comment into SpeedGrader comment box
+      if (comment) {
+        const commentEl = document.querySelector('#speed_grader_comment_textarea');
+        if (commentEl) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+          if (setter) setter.call(commentEl, comment);
+          commentEl.dispatchEvent(new Event('input',  { bubbles: true }));
+          commentEl.dispatchEvent(new Event('change', { bubbles: true }));
+          commentEl.focus();
+        }
+      }
+
+      // Flash insert button
+      const ib = document.getElementById('ce-insert-btn');
+      if (ib) { ib.textContent = '✓ Inserted'; setTimeout(() => { ib.textContent = '↓ Insert Grade & Comments'; }, 2500); }
     }
 
-    // ── SAVE ROW ──────────────────────────────────────────────────────────────
-    function buildSaveRow() {
-      const row     = el('div', `display:flex;align-items:center;gap:8px;flex-shrink:0;`);
-      const lab     = el('label', `font-size:12px;font-weight:600;color:${DS.text};white-space:nowrap;flex-shrink:0;`);
-      lab.textContent = 'Grade:';
-      const gradeIn = el('input', `
-        width:72px;padding:7px 8px;flex-shrink:0;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;
-      `, { id:'ce-grade-in', type:'text', placeholder:'0–100' });
-      gradeIn.addEventListener('focus', () => gradeIn.style.borderColor = DS.blue);
-      gradeIn.addEventListener('blur',  () => gradeIn.style.borderColor = DS.border);
-      const saveBtn = btn('💾 Save to Canvas', `background:${DS.green};color:#fff;flex:1;`);
-      saveBtn.id = 'ce-grade-save';
-      const saveMsg = el('span', `font-size:11px;flex-shrink:0;`);
-      saveBtn.addEventListener('click', async () => {
-        if (!ctx?.courseId) { saveMsg.style.color='#C0392B'; saveMsg.textContent='No student loaded'; return; }
-        const grade   = gradeIn.value.trim();
-        const comment = extractComments();
-        if (!grade && !comment) { saveMsg.style.color='#C0392B'; saveMsg.textContent='Grade student first'; return; }
-        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
-        const body = {};
-        if (grade)   body.submission = { posted_grade: grade };
-        if (comment) body.comment    = { text_comment: comment };
-        const res = await new Promise(r => chrome.runtime.sendMessage({ type:'CANVAS_API', payload:{ url:`${ctx.canvasOrigin}/api/v1/courses/${ctx.courseId}/assignments/${ctx.assignmentId}/submissions/${ctx.studentId}`, token:ctx.token, method:'PUT', body } }, r));
-        saveBtn.disabled = false; saveBtn.textContent = '💾 Save to Canvas';
-        if (res?.error) { saveMsg.style.color='#C0392B'; saveMsg.textContent='Error: '+res.error; }
-        else { saveMsg.style.color=DS.green; saveMsg.textContent='✓ Saved'; setTimeout(()=>{saveMsg.textContent='';},3000); }
-      });
-      row.appendChild(lab); row.appendChild(gradeIn); row.appendChild(saveBtn); row.appendChild(saveMsg);
-      return row;
+    // ── BOTTOM BUTTONS ────────────────────────────────────────────────────────
+    function buildBottomBar() {
+      const bar = el('div', `display:flex;flex-direction:column;gap:6px;flex-shrink:0;`);
+
+      const gradeBtn = btn('✦ Grade Student', `background:${DS.blue};color:#fff;`);
+      gradeBtn.id = 'ce-grade-btn';
+      gradeBtn.addEventListener('click', gradeStudent);
+      bar.appendChild(gradeBtn);
+
+      const insertBtn = btn('↓ Insert Grade & Comments', `background:${DS.green};color:#fff;display:none;`);
+      insertBtn.id = 'ce-insert-btn';
+      insertBtn.addEventListener('click', insertIntoSpeedGrader);
+      bar.appendChild(insertBtn);
+
+      return bar;
     }
 
     // ── CHAT INPUT ────────────────────────────────────────────────────────────
@@ -631,11 +611,8 @@
 
     function buildGradeTab() {
       content.innerHTML = '';
-      content.appendChild(buildStudentCard());
       content.appendChild(chatArea);
-      content.appendChild(buildActionBar());
-      content.appendChild(buildSaveRow());
-      content.appendChild(buildChatInput('Ask a follow-up…'));
+      content.appendChild(buildBottomBar());
     }
 
     // ── CRITERIA TAB ──────────────────────────────────────────────────────────
