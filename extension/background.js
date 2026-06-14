@@ -6,7 +6,57 @@ const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 // Keep service worker alive during long AI requests
 chrome.runtime.onConnect.addListener(port => {
   if (port.name === 'ce-keepalive') port.onDisconnect.addListener(() => {});
+  if (port.name === 'ce-stream') handleStreamPort(port);
 });
+
+async function handleStreamPort(port) {
+  port.onMessage.addListener(async (msg) => {
+    if (msg.type !== 'STREAM_GENERATE') return;
+    try {
+      const { messages, max_tokens, model } = msg.payload;
+      const stored = await chrome.storage.local.get('ce_license_key');
+      const licenseKey = stored.ce_license_key || '';
+
+      const res = await fetch(`${API_BASE}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, max_tokens, model, licenseKey }),
+      });
+
+      if (!res.ok) {
+        let errData; try { errData = await res.json(); } catch { errData = {}; }
+        port.postMessage({ type: 'error', error: errData?.error || `HTTP ${res.status}` });
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') continue;
+          try {
+            const evt = JSON.parse(raw);
+            if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+              port.postMessage({ type: 'chunk', text: evt.delta.text });
+            }
+          } catch { }
+        }
+      }
+      port.postMessage({ type: 'done' });
+    } catch(e) {
+      try { port.postMessage({ type: 'error', error: e.message }); } catch { }
+    }
+  });
+}
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'GENERATE') {
