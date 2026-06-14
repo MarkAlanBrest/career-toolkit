@@ -117,49 +117,6 @@
       saveContext();
     }
 
-    // ── OPEN CLAUDE ───────────────────────────────────────────────────────────
-    function openClaude() {
-      saveContext();
-      chrome.runtime.sendMessage({
-        type: 'OPEN_CLAUDE_SPLIT',
-        payload: {
-          screenWidth:  window.screen.width,
-          screenHeight: window.screen.availHeight,
-          screenTop:    window.screen.availTop  || 0,
-          screenLeft:   window.screen.availLeft || 0,
-        },
-      });
-    }
-
-    // ── INJECT BUTTON (replaces Canvas "Message Student" button) ───────────────
-    let _btn = null;
-
-    function injectButton() {
-      if (_btn) return;
-      const msgBtn = document.querySelector(
-        '#message_student_link, a.message_student_link, button.message_student_link, ' +
-        '[data-testid="message-student-button"], [data-testid="send_message_student"], ' +
-        'button[aria-label="Send message to student"], a[aria-label="Send message to student"]'
-      );
-      if (!msgBtn) return;
-
-      msgBtn.style.setProperty('display', 'none', 'important');
-
-      _btn = document.createElement('button');
-      _btn.id = 'ce-open-claude-btn';
-      _btn.textContent = '✦ Open AI Grader';
-      _btn.style.cssText = [
-        'display:inline-flex', 'align-items:center', 'gap:6px',
-        'padding:6px 14px', 'border:none', 'border-radius:4px',
-        'background:#0770B8', 'color:#fff',
-        'font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        'cursor:pointer', 'white-space:nowrap',
-      ].join(';');
-      _btn.onclick = openClaude;
-
-      msgBtn.parentNode.insertBefore(_btn, msgBtn.nextSibling);
-    }
-
     // ── NAVIGATION TRACKING ───────────────────────────────────────────────────
     let lastStudentId    = getUrlParts().studentId;
     let lastAssignmentId = getUrlParts().assignmentId;
@@ -190,13 +147,6 @@
       new MutationObserver(() => setTimeout(onNavChange, 200))
         .observe(nameEl, { childList: true, subtree: true, characterData: true });
     }
-
-    // Poll for the Message Student button (Canvas renders it late)
-    let _btnTries = 0;
-    const _btnPoll = setInterval(() => {
-      injectButton();
-      if (_btn || ++_btnTries > 40) clearInterval(_btnPoll);
-    }, 400);
 
     // Initial load
     fetchSubmission();

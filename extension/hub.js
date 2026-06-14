@@ -358,10 +358,11 @@
     let ctx         = stored.ce_claude_context || null;
     let allCriteria = stored.ce_criteria       || {};
     let activeTab   = 'grade';
-    let chatHistory = [];
-    let streaming   = false;
-    let activePort  = null;
-    let fileReady   = false;
+    let chatHistory  = [];
+    let streaming    = false;
+    let activePort   = null;
+    let fileReady    = false;
+    let lastResponse = null;
     let onStreamDone = (text) => {
       lastResponse = text;
       const ib = document.getElementById('ce-insert-btn');
@@ -479,7 +480,6 @@
         fileReady = true;
         status.textContent = '✓ File ready';
         status.style.color = DS.green;
-        rebuildActionBar();
       } catch(e) {
         status.textContent = 'File error: ' + e.message;
         status.style.color = '#C0392B';
