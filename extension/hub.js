@@ -424,6 +424,12 @@
       let fullText = '';
       const port   = chrome.runtime.connect({ name: 'ce-stream' });
       activePort   = port;
+      port.onDisconnect.addListener(() => {
+        if (!streaming) return;
+        streaming = false; activePort = null;
+        setInputsDisabled(false);
+        if (!fullText) { bubble.textContent = 'Connection lost — please try again.'; bubble.style.color = '#C0392B'; }
+      });
       port.onMessage.addListener(msg => {
         if (msg.type === 'chunk') {
           fullText += msg.text;
@@ -514,6 +520,8 @@
     }
 
     async function gradeStudent() {
+      // Auto-clear stuck state: streaming=true but no live port means a prior stream crashed
+      if (streaming && !activePort) { streaming = false; }
       if (streaming) return;
       const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
       if (needsFile) await grabFile();
@@ -531,22 +539,63 @@
       if (gradeBtn)  { gradeBtn.textContent = '⟳ Grading…'; gradeBtn.disabled = true; }
       if (insertBtn) insertBtn.style.display = 'none';
 
+      // Progress indicator
+      const progressEl = el('div', `
+        padding:14px 10px;font-size:12px;color:${DS.muted};text-align:center;
+        display:flex;flex-direction:column;align-items:center;gap:8px;
+      `);
+      const dotsEl = el('div', `font-size:20px;letter-spacing:4px;`);
+      dotsEl.textContent = '···';
+      const progText = el('div', '');
+      progText.textContent = 'Grading submission…';
+      progressEl.appendChild(dotsEl);
+      progressEl.appendChild(progText);
+      chatArea.appendChild(progressEl);
+
+      let dotFrame = 0;
+      const dotAnim = setInterval(() => {
+        const frames = ['·  ','·· ','···','  ·',' ··'];
+        dotsEl.textContent = frames[dotFrame % frames.length];
+        dotFrame++;
+      }, 350);
+
+      function stopProgress() {
+        clearInterval(dotAnim);
+        if (progressEl.parentNode) progressEl.parentNode.removeChild(progressEl);
+      }
+
+      function resetBtn() {
+        if (gradeBtn) { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
+      }
+
       let fullText = '';
       const port   = chrome.runtime.connect({ name: 'ce-stream' });
       activePort   = port;
+
+      port.onDisconnect.addListener(() => {
+        if (!streaming) return;
+        streaming = false; activePort = null;
+        stopProgress(); resetBtn();
+        const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);
+        errEl.textContent = fullText
+          ? 'Connection dropped — partial response below.'
+          : 'Connection lost. Try reloading the extension.';
+        chatArea.appendChild(errEl);
+        if (fullText) showResultCard(fullText);
+      });
 
       port.onMessage.addListener(msg => {
         if (msg.type === 'chunk') { fullText += msg.text; }
         if (msg.type === 'done') {
           streaming = false; activePort = null;
-          if (gradeBtn)  { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
+          stopProgress(); resetBtn();
           lastResponse = fullText;
           showResultCard(fullText);
           if (insertBtn) insertBtn.style.display = '';
         }
         if (msg.type === 'error') {
           streaming = false; activePort = null;
-          if (gradeBtn) { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
+          stopProgress(); resetBtn();
           const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);
           errEl.textContent = 'Error: ' + msg.error;
           chatArea.appendChild(errEl);
@@ -934,8 +983,12 @@
     // ── STORAGE LISTENER ──────────────────────────────────────────────────────
     const listener = changes => {
       if (!changes.ce_claude_context) return;
+      // Cancel any in-progress stream for the previous student
+      if (activePort) { try { activePort.disconnect(); } catch(_) {} activePort = null; }
+      streaming = false;
       ctx = changes.ce_claude_context.newValue;
       fileReady = false; chatHistory = []; chatArea.innerHTML = '';
+      lastResponse = null;
       if (activeTab === 'grade') buildGradeTab();
     };
     chrome.storage.onChanged.addListener(listener);
