@@ -522,10 +522,13 @@
     async function gradeStudent() {
       // Auto-clear stuck state: streaming=true but no live port means a prior stream crashed
       if (streaming && !activePort) { streaming = false; }
-      if (streaming) return;
+      if (streaming) { console.log('[CE] gradeStudent: already streaming, skipping'); return; }
+      console.log('[CE] gradeStudent start — ctx:', JSON.stringify({ student: ctx?.studentName, sub: ctx?.subText?.slice(0,80), atts: ctx?.attachments?.length }));
       const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
       if (needsFile) await grabFile();
-      streamForGrading(buildGradePrompt());
+      const prompt = buildGradePrompt();
+      console.log('[CE] prompt built, length:', prompt.length, '— first 200:', prompt.slice(0,200));
+      streamForGrading(prompt);
     }
 
     // ── DEDICATED GRADE STREAM (no raw text, formats result card) ────────────
@@ -573,6 +576,7 @@
       activePort   = port;
 
       port.onDisconnect.addListener(() => {
+        console.log('[CE] port disconnected. streaming:', streaming, 'fullText len:', fullText.length, 'lastError:', chrome.runtime.lastError?.message);
         if (!streaming) return;
         streaming = false; activePort = null;
         stopProgress(); resetBtn();
@@ -585,8 +589,10 @@
       });
 
       port.onMessage.addListener(msg => {
+        console.log('[CE] port msg:', msg.type, msg.type === 'chunk' ? `+${msg.text?.length}chars` : msg.error || '');
         if (msg.type === 'chunk') { fullText += msg.text; }
         if (msg.type === 'done') {
+          console.log('[CE] grading done. fullText length:', fullText.length, '— preview:', fullText.slice(0,100));
           streaming = false; activePort = null;
           stopProgress(); resetBtn();
           lastResponse = fullText;
@@ -594,6 +600,7 @@
           if (insertBtn) insertBtn.style.display = '';
         }
         if (msg.type === 'error') {
+          console.error('[CE] grading error:', msg.error);
           streaming = false; activePort = null;
           stopProgress(); resetBtn();
           const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);

@@ -16,6 +16,7 @@ async function handleStreamPort(port) {
       const { messages, max_tokens, model } = msg.payload;
       const stored = await chrome.storage.local.get('ce_license_key');
       const licenseKey = stored.ce_license_key || '';
+      console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'licenseKey present:', !!licenseKey, 'msg count:', messages?.length);
 
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
@@ -23,8 +24,10 @@ async function handleStreamPort(port) {
         body: JSON.stringify({ messages, max_tokens, model, licenseKey }),
       });
 
+      console.log('[CE-BG] fetch response status:', res.status, res.ok ? 'OK' : 'FAILED');
       if (!res.ok) {
         let errData; try { errData = await res.json(); } catch { errData = {}; }
+        console.error('[CE-BG] API error:', errData);
         port.postMessage({ type: 'error', error: errData?.error || `HTTP ${res.status}` });
         return;
       }
