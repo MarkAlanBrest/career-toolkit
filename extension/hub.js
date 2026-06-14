@@ -360,18 +360,16 @@
           },
         });
       }
-      const sw = window.screen.width;
-      const sh = window.screen.availHeight;
-      const w  = Math.min(580, Math.max(460, Math.round(sw * 0.30)));
       chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
         const p = AI_PROVIDERS.find(x => x.id === ce_ai_provider) || AI_PROVIDERS[0];
         chrome.runtime.sendMessage({
           type: 'OPEN_CLAUDE_SPLIT',
           payload: {
-            url: p.url,
-            left: (window.screen.availLeft || 0) + sw - w - TOOLBAR_W,
-            top:  window.screen.availTop || 0,
-            width: w, height: sh,
+            url:          p.url,
+            screenWidth:  window.screen.availWidth,
+            screenHeight: window.screen.availHeight,
+            screenTop:    window.screen.availTop  || 0,
+            screenLeft:   window.screen.availLeft || 0,
           },
         });
       });
@@ -640,16 +638,17 @@
   }
 
   function openQuickAI() {
-    const sw = window.screen.width;
-    const sh = window.screen.availHeight;
-    const st = window.screen.availTop  || 0;
-    const sl = window.screen.availLeft || 0;
-    const w  = Math.min(580, Math.max(460, Math.round(sw * 0.30)));
     chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
       const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
       chrome.runtime.sendMessage({
         type: 'OPEN_CLAUDE_SPLIT',
-        payload: { url: provider.url, left: sl + sw - w - TOOLBAR_W, top: st, width: w, height: sh },
+        payload: {
+          url:         provider.url,
+          screenWidth:  window.screen.availWidth,
+          screenHeight: window.screen.availHeight,
+          screenTop:    window.screen.availTop  || 0,
+          screenLeft:   window.screen.availLeft || 0,
+        },
       });
     });
   }

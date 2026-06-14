@@ -58,10 +58,10 @@ async function handleStreamPort(port) {
   });
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GENERATE') {
     handleGenerate(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
-    return true; // keep message channel open for async response
+    return true;
   }
   if (msg.type === 'CANVAS_API') {
     handleCanvasApi(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
@@ -72,16 +72,39 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.type === 'OPEN_CLAUDE_SPLIT') {
-    handleOpenClaudeSplit(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    handleOpenClaudeSplit(msg.payload, sender).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
 });
 
-async function handleOpenClaudeSplit({ url, left, top, width, height }) {
+async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {
+  const sl = screenLeft || 0;
+  const st = screenTop  || 0;
+
+  // Canvas gets the left 62%, AI chat gets the right 38%
+  const canvasW = Math.round(screenWidth * 0.62);
+  const aiW     = screenWidth - canvasW;
+
+  // Resize the Canvas window to the left side
+  const canvasWindowId = sender?.tab?.windowId;
+  if (canvasWindowId) {
+    await chrome.windows.update(canvasWindowId, {
+      state:  'normal',
+      left:   sl,
+      top:    st,
+      width:  canvasW,
+      height: screenHeight,
+    });
+  }
+
+  // Open AI chat on the right side
   await chrome.windows.create({
-    url: url || 'https://claude.ai/new',
-    left, top, width, height,
-    type: 'normal',
+    url:    url || 'https://claude.ai/new',
+    left:   sl + canvasW,
+    top:    st,
+    width:  aiW,
+    height: screenHeight,
+    type:   'normal',
   });
 }
 
