@@ -147,16 +147,19 @@ async function handleGenerate(payload) {
     throw new Error(errData?.error || `HTTP ${res.status}`);
   }
 
-  // Consume the SSE stream and accumulate the full text
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let rawBody = '';
   let fullText = '';
+  let gotChunks = false;
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    const decoded = decoder.decode(value, { stream: true });
+    rawBody += decoded;
+    buffer  += decoded;
     const lines = buffer.split('\n');
     buffer = lines.pop() || '';
     for (const line of lines) {
@@ -167,9 +170,18 @@ async function handleGenerate(payload) {
         const evt = JSON.parse(raw);
         if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
           fullText += evt.delta.text;
+          gotChunks = true;
         }
-      } catch { /* incomplete chunk, skip */ }
+      } catch { }
     }
+  }
+
+  // Fallback: endpoint returned plain JSON instead of SSE
+  if (!gotChunks) {
+    try {
+      const data = JSON.parse(rawBody.trim());
+      fullText = data?.content?.[0]?.text || '';
+    } catch { }
   }
 
   return { content: [{ type: 'text', text: fullText }] };

@@ -358,193 +358,17 @@
     );
     let ctx         = stored.ce_claude_context || null;
     let allCriteria = stored.ce_criteria       || {};
-    let streaming       = false;
-    let activePort      = null;
-    let fileReady       = false;
     let criteriaEditing = false;
 
     function criteriaKey()   { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
     function savedCriteria() { const k = criteriaKey(); return k ? (allCriteria[k] || '') : ''; }
 
-    // ── STUDENT NAME BAR ──────────────────────────────────────────────────────
-    const nameBar = el('div', `
-      display:flex;align-items:center;gap:8px;padding:6px 10px;
-      background:${DS.blueBg};border:1px solid #B8D4EA;border-radius:3px;flex-shrink:0;
-    `);
-    const nameLabel = el('span', `font-size:11px;font-weight:600;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
-    nameLabel.textContent = 'Grading:';
-    const nameVal = el('span', `font-size:13px;font-weight:700;color:${DS.blue};`);
-    nameVal.textContent = ctx?.studentName || '—';
-    nameBar.appendChild(nameLabel);
-    nameBar.appendChild(nameVal);
-
-    // ── GRADE BUTTON ──────────────────────────────────────────────────────────
-    const gradeBtn = btn('✦ Grade & Fill In', `background:${DS.blue};color:#fff;`);
-    gradeBtn.id = 'ce-grade-btn';
-    gradeBtn.addEventListener('click', gradeStudent);
-
-    // ── STATUS ────────────────────────────────────────────────────────────────
-    const statusEl = el('div', `font-size:12px;min-height:18px;text-align:center;`);
-
-    function showStatus(msg, type) {
-      statusEl.textContent = msg;
-      const colors = { muted: DS.muted, blue: DS.blue, green: DS.green, error: '#C0392B' };
-      statusEl.style.color = colors[type] || DS.muted;
-    }
+    // ── HINT ──────────────────────────────────────────────────────────────────
+    const hint = el('div', `font-size:12px;color:${DS.muted};text-align:center;flex-shrink:0;padding:2px 0 6px;`);
+    hint.textContent = 'Set grading criteria below. Use the ✦ AI Grade button in SpeedGrader.';
 
     // ── CRITERIA CONTENT ──────────────────────────────────────────────────────
     const content = el('div', `flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden;`);
-
-    // ── GRADE PROMPT ──────────────────────────────────────────────────────────
-    function buildGradePrompt() {
-      const st       = ctx?.settings || {};
-      const criteria = savedCriteria();
-      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
-      const tot      = critTot ? parseInt(critTot, 10) : (st.totalPoints || 100);
-      const fn       = ctx?.studentName?.split(' ')[0] || 'the student';
-
-      let p = `Grade this student assignment.\n`;
-      if (ctx?.assignmentName) p += `Assignment: ${ctx.assignmentName}\n`;
-      p += '\n';
-
-      if (criteria) {
-        p += `${criteria}\n\n`;
-      } else {
-        const intensity = { lenient: 'Be generous.', balanced: 'Grade fairly.', strict: 'Hold to high standards.' };
-        const tone      = { encouraging: 'Warm and supportive.', neutral: 'Objective and professional.', direct: 'Concise, focus on improvements.' };
-        p += `Grading: ${intensity[st.gradingIntensity] || intensity.balanced}  Tone: ${tone[st.feedbackTone] || tone.encouraging}\n`;
-        p += `Total points: ${tot}\n\n`;
-        if (st.rubricText) p += `RUBRIC:\n${st.rubricText}\n\n`;
-        if (st.answerKey)  p += `ANSWER KEY:\n${st.answerKey}\n\n`;
-      }
-
-      p += `SUBMISSION:\n${(ctx?.subText || '(no submission)').slice(0, 18000)}\n\n`;
-      p += `Respond in EXACTLY this format:\nSCORE: [number]/${tot}\nFEEDBACK:\n- TEACHER CHECK: [items to verify manually]\n- [Address ${fn} by name, overall]\n- [Specific finding]\n- [Another finding]\n\nUse 3–5 bullets. First must be TEACHER CHECK.`;
-      return p;
-    }
-
-    // ── SKIP CHECK ────────────────────────────────────────────────────────────
-    function isAlreadyGraded() {
-      const gradeEl   = document.querySelector('input.grading_value, input[data-testid="grading-box-extended-grade-input"], #grade_container input, input.grade');
-      const commentEl = document.querySelector('#speed_grader_comment_textarea');
-      return (gradeEl?.value?.trim()) || (commentEl?.value?.trim());
-    }
-
-    // ── FILE GRAB ─────────────────────────────────────────────────────────────
-    async function grabFile() {
-      if (!ctx?.attachments?.length) return;
-      const parts = [];
-      for (const att of ctx.attachments) {
-        showStatus(`Reading ${att.filename}…`, 'blue');
-        let url = att.url;
-        if (att.id && ctx.token) {
-          try {
-            const info = await new Promise(r => chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url: `${ctx.canvasOrigin}/api/v1/files/${att.id}`, token: ctx.token } }, r));
-            if (info?.url) url = info.url;
-          } catch(_) {}
-        }
-        const res = await new Promise(r => chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { fileUrl: url, token: ctx.token, filename: att.filename, mimeType: att.mimeType } }, r));
-        if (res?.error) throw new Error(res.error);
-        const text = res?.text?.trim();
-        if (!text) throw new Error(`Could not extract text from ${att.filename}`);
-        parts.push(`[${att.filename}]\n${text}`);
-      }
-      ctx.subText = parts.join('\n\n');
-      chrome.storage.local.set({ ce_claude_context: ctx });
-      fileReady = true;
-    }
-
-    // ── INSERT INTO CANVAS ────────────────────────────────────────────────────
-    function insertIntoCanvas(text) {
-      const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
-      const grade         = scoreMatch ? scoreMatch[1] : '';
-      const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n');
-      const comment       = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
-
-      if (grade) {
-        const gradeEl = document.querySelector('input.grading_value, input[data-testid="grading-box-extended-grade-input"], #grade_container input, input.grade');
-        if (gradeEl) {
-          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (setter) setter.call(gradeEl, grade);
-          gradeEl.dispatchEvent(new Event('input',  { bubbles: true }));
-          gradeEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-      if (comment) {
-        const commentEl = document.querySelector('#speed_grader_comment_textarea');
-        if (commentEl) {
-          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-          if (setter) setter.call(commentEl, comment);
-          commentEl.dispatchEvent(new Event('input',  { bubbles: true }));
-          commentEl.dispatchEvent(new Event('change', { bubbles: true }));
-          commentEl.focus();
-        }
-      }
-
-      const gradeLabel = grade ? `Score: ${grade} — ` : '';
-      showStatus(`✓ ${gradeLabel}review and save in Canvas`, 'green');
-    }
-
-    // ── STREAM ────────────────────────────────────────────────────────────────
-    function streamForGrading(prompt) {
-      if (streaming) return;
-      streaming = true;
-      let fullText = '';
-      const port = chrome.runtime.connect({ name: 'ce-stream' });
-      activePort = port;
-
-      port.onDisconnect.addListener(() => {
-        if (!streaming) return;
-        streaming = false; activePort = null;
-        gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
-        if (fullText) insertIntoCanvas(fullText);
-        else showStatus('Connection lost — try again', 'error');
-      });
-
-      port.onMessage.addListener(msg => {
-        if (msg.type === 'chunk') fullText += msg.text;
-        if (msg.type === 'done') {
-          streaming = false; activePort = null;
-          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
-          insertIntoCanvas(fullText);
-        }
-        if (msg.type === 'error') {
-          streaming = false; activePort = null;
-          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
-          showStatus('Error: ' + msg.error, 'error');
-        }
-      });
-
-      port.postMessage({ type: 'STREAM_GENERATE', payload: {
-        messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: 'claude-haiku-4-5-20251001'
-      }});
-    }
-
-    // ── GRADE STUDENT ─────────────────────────────────────────────────────────
-    async function gradeStudent() {
-      if (streaming && !activePort) streaming = false;
-      if (streaming) return;
-
-      if (isAlreadyGraded()) {
-        showStatus('Already graded — skipped', 'muted');
-        return;
-      }
-
-      gradeBtn.textContent = '⟳ Grading…'; gradeBtn.disabled = true;
-
-      const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
-      if (needsFile) {
-        try { await grabFile(); } catch(e) {
-          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
-          showStatus('File error: ' + e.message, 'error');
-          return;
-        }
-      }
-
-      showStatus('Grading…', 'blue');
-      streamForGrading(buildGradePrompt());
-    }
 
     // ── CRITERIA SECTION ──────────────────────────────────────────────────────
     function buildCriteriaSection() {
@@ -688,24 +512,22 @@
 
     // ── STORAGE LISTENER ──────────────────────────────────────────────────────
     const listener = changes => {
-      if (!changes.ce_claude_context) return;
-      if (activePort) { try { activePort.disconnect(); } catch(_) {} activePort = null; }
-      streaming = false; fileReady = false;
-      ctx = changes.ce_claude_context.newValue;
-      nameVal.textContent = ctx?.studentName || '—';
-      showStatus('', 'muted');
+      const prevKey = criteriaKey();
+      if (changes.ce_claude_context) {
+        ctx = changes.ce_claude_context.newValue;
+        // Rebuild criteria when assignment changes (criteria is keyed per assignment)
+        if (criteriaKey() !== prevKey) { criteriaEditing = false; buildCriteriaSection(); }
+      }
+      if (changes.ce_criteria) {
+        allCriteria = changes.ce_criteria.newValue || {};
+        buildCriteriaSection();
+      }
     };
     chrome.storage.onChanged.addListener(listener);
-    _panelCleanup = () => {
-      chrome.storage.onChanged.removeListener(listener);
-      if (activePort) try { activePort.disconnect(); } catch(_) {}
-    };
+    _panelCleanup = () => chrome.storage.onChanged.removeListener(listener);
 
     // ── LAYOUT ────────────────────────────────────────────────────────────────
-    panelBody.appendChild(nameBar);
-    panelBody.appendChild(gradeBtn);
-    panelBody.appendChild(statusEl);
-    panelBody.appendChild(divider());
+    panelBody.appendChild(hint);
     panelBody.appendChild(content);
     buildCriteriaSection();
   }
