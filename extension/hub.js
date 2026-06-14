@@ -23,7 +23,9 @@
     font:   '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif',
   };
 
-  const TOOLBAR_W = 52;
+  const TOOLBAR_W  = 52;
+  const SPEEDGRADER = /speed_grader/.test(window.location.href);
+  const TOP_OFFSET  = SPEEDGRADER ? 60 : 0;
 
   const AI_PROVIDERS = [
     { id: 'claude',      label: 'Claude (claude.ai)',     url: 'https://claude.ai/new' },
@@ -56,7 +58,7 @@
 
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
   const toolbar = el('div', `
-    position:fixed;top:0;right:0;bottom:0;width:${TOOLBAR_W}px;
+    position:fixed;top:${TOP_OFFSET}px;right:0;bottom:0;width:${TOOLBAR_W}px;
     z-index:2147483640;
     background:${DS.navBg};
     box-shadow:-2px 0 10px rgba(0,0,0,.25);
@@ -151,7 +153,7 @@
 
   // ── PANEL ──────────────────────────────────────────────────────────────────
   const panel = el('div', `
-    position:fixed;top:0;bottom:0;right:${TOOLBAR_W}px;
+    position:fixed;top:${TOP_OFFSET}px;bottom:0;right:${TOOLBAR_W}px;
     width:30vw;min-width:460px;max-width:580px;
     z-index:2147483639;
     background:${DS.white};
@@ -367,6 +369,7 @@
       lastResponse = text;
       const ib = document.getElementById('ce-insert-btn');
       if (ib) ib.style.display = '';
+      if (activeTab === 'grade') showResult(text);
     };
 
     function criteriaKey()   { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
@@ -488,17 +491,27 @@
 
     // ── GRADE PROMPT ──────────────────────────────────────────────────────────
     function buildGradePrompt() {
-      const st  = ctx?.settings || {};
-      const tot = st.totalPoints || 100;
-      const fn  = ctx?.studentName?.split(' ')[0] || 'the student';
-      const intensity = { lenient: 'Be generous.', balanced: 'Grade fairly.', strict: 'Hold to high standards.' };
-      const tone      = { encouraging: 'Warm and supportive.', neutral: 'Objective and professional.', direct: 'Concise, focus on improvements.' };
-      let p = `Grade this student assignment.\nStudent: ${ctx?.studentName || 'Student'}\n`;
+      const st       = ctx?.settings || {};
+      const criteria = savedCriteria();
+      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
+      const tot      = critTot ? parseInt(critTot, 10) : (st.totalPoints || 100);
+      const fn       = ctx?.studentName?.split(' ')[0] || 'the student';
+
+      let p = `Grade this student assignment.\n`;
       if (ctx?.assignmentName) p += `Assignment: ${ctx.assignmentName}\n`;
-      p += `\nGrading: ${intensity[st.gradingIntensity] || intensity.balanced}  Tone: ${tone[st.feedbackTone] || tone.encouraging}\n`;
-      p += `Total points: ${tot}\n\n`;
-      if (st.rubricText) p += `RUBRIC:\n${st.rubricText}\n\n`;
-      if (st.answerKey)  p += `ANSWER KEY:\n${st.answerKey}\n\n`;
+      p += '\n';
+
+      if (criteria) {
+        p += `${criteria}\n\n`;
+      } else {
+        const intensity = { lenient: 'Be generous.', balanced: 'Grade fairly.', strict: 'Hold to high standards.' };
+        const tone      = { encouraging: 'Warm and supportive.', neutral: 'Objective and professional.', direct: 'Concise, focus on improvements.' };
+        p += `Grading: ${intensity[st.gradingIntensity] || intensity.balanced}  Tone: ${tone[st.feedbackTone] || tone.encouraging}\n`;
+        p += `Total points: ${tot}\n\n`;
+        if (st.rubricText) p += `RUBRIC:\n${st.rubricText}\n\n`;
+        if (st.answerKey)  p += `ANSWER KEY:\n${st.answerKey}\n\n`;
+      }
+
       p += `SUBMISSION:\n${(ctx?.subText || '(no submission)').slice(0, 18000)}\n\n`;
       p += `Respond in EXACTLY this format:\nSCORE: [number]/${tot}\nFEEDBACK:\n- TEACHER CHECK: [items to verify manually]\n- [Address ${fn} by name, overall]\n- [Specific finding]\n- [Another finding]\n\nUse 3–5 bullets. First must be TEACHER CHECK.`;
       return p;
@@ -606,12 +619,77 @@
       streamToClaudeAPI([...chatHistory]);
     }
 
+    // ── RESULT CARD ───────────────────────────────────────────────────────────
+    function showResult(text) {
+      const resultArea = document.getElementById('ce-result-area');
+      if (!resultArea) return;
+      resultArea.innerHTML = '';
+
+      const criteria = savedCriteria();
+      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
+      const tot      = critTot ? parseInt(critTot, 10) : (ctx?.settings?.totalPoints || 100);
+
+      const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
+      const grade         = scoreMatch ? scoreMatch[1] : null;
+      const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
+      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n').filter(l => l.trim());
+      const tcLine        = lines.find(l => /TEACHER CHECK/i.test(l)) || '';
+      const comments      = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim());
+
+      const card = el('div', `
+        background:${DS.gray};border:1px solid ${DS.border};border-radius:4px;
+        padding:12px 14px;margin-top:6px;
+      `);
+
+      if (grade) {
+        const scoreEl = el('div', `font-size:22px;font-weight:700;color:${DS.blue};margin-bottom:8px;`);
+        scoreEl.textContent = `${grade} / ${tot}`;
+        card.appendChild(scoreEl);
+      }
+
+      if (comments.length) {
+        const commEl = el('div', `font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;`);
+        commEl.textContent = comments.join('\n');
+        card.appendChild(commEl);
+      }
+
+      if (tcLine) {
+        const tcWrap = el('div', `margin-top:8px;padding:6px 8px;background:#FFF8E1;border-radius:3px;border:1px solid #FFE082;`);
+        const tcEl   = el('div', `font-size:11px;color:#7C5A00;line-height:1.6;`);
+        tcEl.textContent = tcLine;
+        tcWrap.appendChild(tcEl);
+        card.appendChild(tcWrap);
+      }
+
+      resultArea.appendChild(card);
+    }
+
     // ── GRADE TAB ─────────────────────────────────────────────────────────────
     const content = el('div', `flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding-top:10px;overflow:hidden;`);
 
     function buildGradeTab() {
       content.innerHTML = '';
+
+      if (ctx?.studentName) {
+        const nameBar = el('div', `
+          display:flex;align-items:center;gap:8px;padding:6px 10px;
+          background:${DS.blueBg};border:1px solid #B8D4EA;border-radius:3px;flex-shrink:0;
+        `);
+        const nameLabel = el('span', `font-size:11px;font-weight:600;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
+        nameLabel.textContent = 'Grading:';
+        const nameVal = el('span', `font-size:13px;font-weight:700;color:${DS.blue};`);
+        nameVal.textContent = ctx.studentName;
+        nameBar.appendChild(nameLabel);
+        nameBar.appendChild(nameVal);
+        content.appendChild(nameBar);
+      }
+
       content.appendChild(chatArea);
+
+      const resultArea = el('div', 'flex-shrink:0;');
+      resultArea.id = 'ce-result-area';
+      content.appendChild(resultArea);
+
       content.appendChild(buildBottomBar());
     }
 
