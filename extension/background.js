@@ -155,9 +155,19 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
 
   // If given a Canvas file URL + token, fetch the file here (token stays in browser)
   if (!base64 && fileUrl && token) {
-    const fileRes = await fetch(fileUrl, {
+    // First request: authenticated, manual redirect (Canvas often redirects to S3)
+    let fileRes = await fetch(fileUrl, {
       headers: { 'Authorization': `Bearer ${token}` },
+      redirect: 'manual',
     });
+    // If redirected (Canvas → S3), follow without auth header so S3 doesn't reject it
+    if (fileRes.status >= 300 && fileRes.status < 400) {
+      const loc = fileRes.headers.get('location');
+      if (loc) fileRes = await fetch(loc);
+    } else if (fileRes.type === 'opaqueredirect') {
+      // Fallback: retry without manual redirect
+      fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+    }
     if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
     const buffer = await fileRes.arrayBuffer();
     const bytes = new Uint8Array(buffer);

@@ -122,21 +122,40 @@
     try {
       const parts = [];
       for (const att of ctx.attachments) {
+        setStatus(`Reading ${att.filename}…`);
+
+        // Step 1: Get a fresh download URL from the Canvas Files API
+        // (the URL in the submission response can be a short-lived redirect)
+        let downloadUrl = att.url;
+        if (att.id && ctx.token) {
+          try {
+            const infoRes = await new Promise(resolve =>
+              chrome.runtime.sendMessage({
+                type: 'CANVAS_API',
+                payload: { url: `${location.origin}/api/v1/files/${att.id}`, token: ctx.token },
+              }, resolve)
+            );
+            if (infoRes?.url) downloadUrl = infoRes.url;
+          } catch(_) {}
+        }
+
         const res = await new Promise(resolve =>
           chrome.runtime.sendMessage({
             type: 'PARSE_FILE',
-            payload: { fileUrl: att.url, token: ctx.token, filename: att.filename, mimeType: att.mimeType },
+            payload: { fileUrl: downloadUrl, token: ctx.token, filename: att.filename, mimeType: att.mimeType },
           }, resolve)
         );
         if (res?.error) throw new Error(res.error);
-        parts.push(`[${att.filename}]\n${res?.text || '(no text extracted)'}`);
+        const extracted = res?.text?.trim();
+        if (!extracted) throw new Error(`Could not extract text from ${att.filename} — file may be an image or unsupported format`);
+        parts.push(`[${att.filename}]\n${extracted}`);
       }
       ctx.subText = parts.join('\n\n');
       chrome.storage.local.set({ [CONTEXT_KEY]: ctx });
       fileReady = true;
       renderBar();
     } catch(e) {
-      setStatus('Error: ' + e.message, true);
+      setStatus('File error: ' + e.message, true);
     }
   }
 
