@@ -2967,19 +2967,12 @@ Thank you,
     window.open(url, 'ces_ai_chat', `popup=yes,width=${width},height=${height},left=${left},top=${top},noopener,noreferrer`);
   }
 
-  function openAutomationsTab() {
-    openEmailSystem();
-    const overlay = document.getElementById('ces-overlay');
-    overlay?.querySelectorAll('.ces-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === 'automations'));
-    showTab('automations');
-  }
-
   function automationMenuItemText(auto) {
     const template = getTemplates()[auto.templateKey || automationTemplateDefault(auto.type)];
     const templateName = template ? templateDisplayName(template, auto.templateKey) : auto.name || 'Automated message';
     return {
-      title: auto.name || templateName,
-      subtitle: `${auto.courseName || courseDisplayName(auto.courseId)} - ${describeAutomation(auto)}`,
+      title: templateName,
+      subtitle: auto.courseName || courseDisplayName(auto.courseId),
     };
   }
 
@@ -2996,10 +2989,6 @@ Thank you,
           </button>
         `;
       }).join('') : '<div class="ces-automation-menu-status">No saved automated messages yet.</div>'}
-      <button type="button" class="ces-automation-menu-item" data-action="manage">
-        <span class="ces-automation-menu-title">Manage Automated Messages</span>
-        <span class="ces-automation-menu-sub">Create, edit, hide, or delete saved toolbar actions.</span>
-      </button>
       <div class="ces-automation-menu-status" id="ces-auto-menu-status">Automated messages only run when selected here.</div>
     `;
   }
@@ -3073,11 +3062,6 @@ Thank you,
       e.stopPropagation();
       const item = e.target.closest('.ces-automation-menu-item');
       if (!item) return;
-      if (item.dataset.action === 'manage') {
-        automationMenu.classList.remove('ces-open');
-        openAutomationsTab();
-        return;
-      }
       if (item.dataset.autoId) runAutomationFromMenu(item.dataset.autoId, automationMenu, item);
     });
     document.addEventListener('click', e => {
