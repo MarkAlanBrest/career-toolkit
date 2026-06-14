@@ -609,8 +609,9 @@
       const sidebar = findSidebar();
       if (sidebar) {
         sg.floating = false; sg.open = true;
-        container.style.cssText = 'width:100%;min-height:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;overflow-y:auto;box-sizing:border-box;';
-        sidebar.insertBefore(container, sidebar.firstChild);
+        sidebar.style.position = 'relative';
+        container.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;overflow-y:auto;box-sizing:border-box;z-index:100;';
+        sidebar.appendChild(container);
         render();
         if (sg.token) fetchSubmission();
       } else {
