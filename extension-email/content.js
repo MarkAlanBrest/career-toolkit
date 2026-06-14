@@ -162,6 +162,23 @@
     .ces-editor-shell { border:1px solid #d1d5db; border-radius:6px; overflow:hidden; background:#fff; }
     .ces-editor-shell .ces-email-editor { border:none; border-radius:0; }
     .ces-editor-subject-preview { font-size:13px;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:9px 10px;margin-bottom:10px; }
+    .ces-template-editor-layout {
+      display:grid;
+      grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);
+      gap:18px;
+      align-items:start;
+      margin-top:14px;
+    }
+    .ces-template-editor-main, .ces-template-editor-rules { min-width:0; }
+    .ces-template-editor-rules .ces-card { margin:0; }
+    .ces-template-editor-rules .ces-grid-2 { grid-template-columns:1fr; }
+    .ces-settings-layout {
+      display:grid;
+      grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);
+      gap:18px;
+      align-items:start;
+    }
+    .ces-settings-column { min-width:0; }
     .ces-btn {
       padding: 8px 16px; border: none; border-radius: 6px;
       font-size: 14px; font-weight: 600; cursor: pointer;
@@ -359,6 +376,10 @@
     .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; margin: 0; align-self: center; transform: none; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
+    @media (max-width: 980px) {
+      .ces-template-editor-layout { grid-template-columns:1fr; }
+      .ces-settings-layout { grid-template-columns:1fr; }
+    }
     @media (max-width: 720px) {
       #ces-body { padding: 14px; }
       .ces-send-grid { grid-template-columns: 1fr 1fr; }
@@ -2672,64 +2693,70 @@ Thank you,
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}" title="Canvas message or announcement subject. Variables like {{courseName}} can be used.">
         <div class="ces-editor-subject-preview"><strong>Subject:</strong> <span id="ces-subject-preview">${escapeHtml(tpl.subject)}</span></div>
-        <div class="ces-card" style="margin:14px 0;">
-          <h3 style="margin:0 0 10px;">Message Rules</h3>
-          <div class="ces-grid-2">
-            <div>
-              <label class="ces-label">When This Message Sends</label>
-              <select class="ces-select" id="ces-tpl-auto-type" title="Choose the rule this message uses for manual and automated sending. Plain email has no Canvas criteria.">
-                <option value="plain"${rules.type === 'plain' ? ' selected' : ''}>Plain email / no rules</option>
-                <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
-                <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
-                <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Evaluation</option>
-                <option value="low_grade"${rules.type === 'low_grade' ? ' selected' : ''}>Low grade warning</option>
-              </select>
+        <div class="ces-template-editor-layout">
+          <div class="ces-template-editor-main">
+            <label class="ces-label">Message Body</label>
+            <div class="ces-editor-shell">
+              <div id="ces-format-toolbar" class="ces-editor-toolbar">
+                <select class="ces-select" id="ces-editor-font" title="Font">
+                  <option value="">Font</option>
+                  <option value="Arial,Helvetica,sans-serif">Arial</option>
+                  <option value="Georgia,serif">Georgia</option>
+                  <option value="'Trebuchet MS',Arial,sans-serif">Trebuchet</option>
+                  <option value="Verdana,Arial,sans-serif">Verdana</option>
+                </select>
+                <select class="ces-select" id="ces-editor-size" title="Text size">
+                  <option value="">Size</option>
+                  <option value="13px">Small</option>
+                  <option value="15px">Normal</option>
+                  <option value="18px">Large</option>
+                  <option value="22px">Heading</option>
+                </select>
+                <input class="ces-input" id="ces-editor-color" type="color" value="#111827" title="Text color">
+                <button type="button" class="ces-editor-btn" data-command="bold" title="Bold">B</button>
+                <button type="button" class="ces-editor-btn" data-command="italic" title="Italic"><em>I</em></button>
+                <button type="button" class="ces-editor-btn" data-command="underline" title="Underline"><u>U</u></button>
+                <button type="button" class="ces-editor-btn" data-command="insertUnorderedList" title="Bulleted list">&bull; List</button>
+                <button type="button" class="ces-editor-btn" data-block="heading" title="Insert heading">Heading</button>
+                <button type="button" class="ces-editor-btn" data-block="callout" title="Insert callout">Callout</button>
+                <button type="button" class="ces-editor-btn" data-block="divider" title="Insert line">Line</button>
+                <button type="button" class="ces-editor-btn" data-block="signature" title="Insert signature">Signature</button>
+                <select class="ces-select" id="ces-variable-insert" title="Insert Canvas variable">
+                  <option value="">Insert Variable</option>
+                  ${TEMPLATE_VARIABLES.map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHtml(label)}</option>`).join('')}
+                </select>
+              </div>
+              <div id="ces-tpl-body" class="ces-email-editor" contenteditable="true">${editorHtml}</div>
             </div>
-            <div>
-              <label class="ces-label">Announcements</label>
-              <label class="ces-checkbox-row" style="margin-top:8px;">
-                <input type="checkbox" id="ces-tpl-exclude-announcements"${rules.excludeAnnouncements ? ' checked' : ''} title="When checked, this template cannot be posted as a course announcement.">
-                <span>Exclude announcements</span>
-              </label>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">This is the message preview and editor. Saved formatting uses Canvas-safe email HTML.</div>
+          </div>
+          <div class="ces-template-editor-rules">
+            <div class="ces-card">
+              <h3 style="margin:0 0 10px;">Message Rules</h3>
+              <div class="ces-grid-2">
+                <div>
+                  <label class="ces-label">When This Message Sends</label>
+                  <select class="ces-select" id="ces-tpl-auto-type" title="Choose the rule this message uses for manual and automated sending. Plain email has no Canvas criteria.">
+                    <option value="plain"${rules.type === 'plain' ? ' selected' : ''}>Plain email / no rules</option>
+                    <option value="upcoming"${rules.type === 'upcoming' ? ' selected' : ''}>Upcoming work</option>
+                    <option value="late"${rules.type === 'late' ? ' selected' : ''}>Late work</option>
+                    <option value="midpoint"${rules.type === 'midpoint' ? ' selected' : ''}>Evaluation</option>
+                    <option value="low_grade"${rules.type === 'low_grade' ? ' selected' : ''}>Low grade warning</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ces-label">Announcements</label>
+                  <label class="ces-checkbox-row" style="margin-top:8px;">
+                    <input type="checkbox" id="ces-tpl-exclude-announcements"${rules.excludeAnnouncements ? ' checked' : ''} title="When checked, this template cannot be posted as a course announcement.">
+                    <span>Exclude announcements</span>
+                  </label>
+                </div>
+              </div>
+              <div id="ces-tpl-privacy-warning">${gradeWarning}</div>
+              <div class="ces-grid-2" id="ces-tpl-rule-fields"></div>
             </div>
           </div>
-          <div id="ces-tpl-privacy-warning">${gradeWarning}</div>
-          <div class="ces-grid-2" id="ces-tpl-rule-fields"></div>
         </div>
-        <label class="ces-label">Message Body</label>
-        <div class="ces-editor-shell">
-          <div id="ces-format-toolbar" class="ces-editor-toolbar">
-            <select class="ces-select" id="ces-editor-font" title="Font">
-              <option value="">Font</option>
-              <option value="Arial,Helvetica,sans-serif">Arial</option>
-              <option value="Georgia,serif">Georgia</option>
-              <option value="'Trebuchet MS',Arial,sans-serif">Trebuchet</option>
-              <option value="Verdana,Arial,sans-serif">Verdana</option>
-            </select>
-            <select class="ces-select" id="ces-editor-size" title="Text size">
-              <option value="">Size</option>
-              <option value="13px">Small</option>
-              <option value="15px">Normal</option>
-              <option value="18px">Large</option>
-              <option value="22px">Heading</option>
-            </select>
-            <input class="ces-input" id="ces-editor-color" type="color" value="#111827" title="Text color">
-            <button type="button" class="ces-editor-btn" data-command="bold" title="Bold">B</button>
-            <button type="button" class="ces-editor-btn" data-command="italic" title="Italic"><em>I</em></button>
-            <button type="button" class="ces-editor-btn" data-command="underline" title="Underline"><u>U</u></button>
-            <button type="button" class="ces-editor-btn" data-command="insertUnorderedList" title="Bulleted list">&bull; List</button>
-            <button type="button" class="ces-editor-btn" data-block="heading" title="Insert heading">Heading</button>
-            <button type="button" class="ces-editor-btn" data-block="callout" title="Insert callout">Callout</button>
-            <button type="button" class="ces-editor-btn" data-block="divider" title="Insert line">Line</button>
-            <button type="button" class="ces-editor-btn" data-block="signature" title="Insert signature">Signature</button>
-            <select class="ces-select" id="ces-variable-insert" title="Insert Canvas variable">
-              <option value="">Insert Variable</option>
-              ${TEMPLATE_VARIABLES.map(([value, label]) => `<option value="${escapeAttr(value)}">${escapeHtml(label)}</option>`).join('')}
-            </select>
-          </div>
-          <div id="ces-tpl-body" class="ces-email-editor" contenteditable="true">${editorHtml}</div>
-        </div>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;">This is the message preview and editor. Saved formatting uses Canvas-safe email HTML.</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
         </div>
@@ -2927,44 +2954,50 @@ Thank you,
 
     container.innerHTML = `
       <div id="ces-settings-status"></div>
-      <div class="ces-card">
-        <h3 style="margin:0 0 12px;">Teacher Information</h3>
-        <label class="ces-label">Teacher Name</label>
-        <input type="text" class="ces-input" id="ces-set-teacher" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
-        <p style="font-size:12px;color:#6b7280;margin-top:4px;">Used in all message templates as {{teacherName}}.</p>
-      </div>
-      <div class="ces-card">
-        <h3 style="margin:0 0 12px;">Canvas API</h3>
-        <label class="ces-label">Canvas API Token</label>
-        <input type="password" class="ces-input" id="ces-set-api-token" value="${escapeAttr(apiToken)}" placeholder="Paste Canvas access token">
-        <p style="font-size:12px;color:#6b7280;margin-top:4px;">Optional. Used for Canvas course, student, message, and announcement requests.</p>
-        <div style="font-size:12px;color:#374151;line-height:1.55;margin-top:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;">
-          <strong>How to find it:</strong>
-          <ol style="margin:6px 0 0 18px;padding:0;">
-            <li>Open Canvas Account.</li>
-            <li>Go to Settings.</li>
-            <li>Find Approved Integrations.</li>
-            <li>Click New Access Token.</li>
-            <li>Copy the token and paste it here.</li>
-          </ol>
+      <div class="ces-settings-layout">
+        <div class="ces-settings-column">
+          <div class="ces-card">
+            <h3 style="margin:0 0 12px;">Teacher Information</h3>
+            <label class="ces-label">Teacher Name</label>
+            <input type="text" class="ces-input" id="ces-set-teacher" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
+            <p style="font-size:12px;color:#6b7280;margin-top:4px;">Used in all message templates as {{teacherName}}.</p>
+          </div>
+          <div class="ces-card">
+            <h3 style="margin:0 0 12px;">Canvas API</h3>
+            <label class="ces-label">Canvas API Token</label>
+            <input type="password" class="ces-input" id="ces-set-api-token" value="${escapeAttr(apiToken)}" placeholder="Paste Canvas access token">
+            <p style="font-size:12px;color:#6b7280;margin-top:4px;">Optional. Used for Canvas course, student, message, and announcement requests.</p>
+            <div style="font-size:12px;color:#374151;line-height:1.55;margin-top:10px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:10px 12px;">
+              <strong>How to find it:</strong>
+              <ol style="margin:6px 0 0 18px;padding:0;">
+                <li>Open Canvas Account.</li>
+                <li>Go to Settings.</li>
+                <li>Find Approved Integrations.</li>
+                <li>Click New Access Token.</li>
+                <li>Copy the token and paste it here.</li>
+              </ol>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="ces-card">
-        <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
-        <div class="ces-grid-2">
-          <div><label class="ces-label">Days Forward (Upcoming)</label><input type="number" class="ces-input" id="ces-set-forward" value="${daysForward}" min="1" max="90"></div>
-          <div><label class="ces-label">Days Back (Missing Work)</label><input type="number" class="ces-input" id="ces-set-back" value="${daysBack}" min="1" max="365"></div>
+        <div class="ces-settings-column">
+          <div class="ces-card">
+            <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
+            <div class="ces-grid-2">
+              <div><label class="ces-label">Days Forward (Upcoming)</label><input type="number" class="ces-input" id="ces-set-forward" value="${daysForward}" min="1" max="90"></div>
+              <div><label class="ces-label">Days Back (Missing Work)</label><input type="number" class="ces-input" id="ces-set-back" value="${daysBack}" min="1" max="365"></div>
+            </div>
+          </div>
+          <div class="ces-card" style="background:#f9fafb;">
+            <h3 style="margin:0 0 8px;">How It Works</h3>
+            <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
+              <li>Manual sends use your Canvas login, or the Canvas API token above when provided.</li>
+              <li>Background automations require the Canvas API token so checks can run when this panel is closed.</li>
+              <li>Messages sent through Canvas's built-in Inbox system.</li>
+              <li>Announcements posted directly to the selected course.</li>
+              <li>All templates and settings saved in browser storage.</li>
+            </ul>
+          </div>
         </div>
-      </div>
-      <div class="ces-card" style="background:#f9fafb;">
-        <h3 style="margin:0 0 8px;">How It Works</h3>
-        <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
-          <li>Manual sends use your Canvas login, or the Canvas API token above when provided.</li>
-          <li>Background automations require the Canvas API token so checks can run when this panel is closed.</li>
-          <li>Messages sent through Canvas's built-in Inbox system.</li>
-          <li>Announcements posted directly to the selected course.</li>
-          <li>All templates and settings saved in browser storage.</li>
-        </ul>
       </div>
       <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-settings">Save Settings</button></div>
     `;
