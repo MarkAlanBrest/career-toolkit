@@ -273,12 +273,32 @@
     const tokenIn   = input('ce-s-token',   'password', 'Paste your Canvas token', stored.ce_canvas_token || '');
     const licenseIn = input('ce-s-license', 'text',     'Enter your license key',  stored.ce_license_key  || '');
 
-    // Focus ring
+    // AI provider select
+    const providerSel = el('select', `
+      width:100%;box-sizing:border-box;
+      padding:8px 10px;
+      border:1px solid ${DS.border};border-radius:3px;
+      font-size:13px;font-family:${DS.font};color:${DS.text};
+      background:${DS.white};outline:none;cursor:pointer;
+    `);
+    providerSel.id = 'ce-s-provider';
+    for (const p of AI_PROVIDERS) {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.label;
+      if (p.id === (stored.ce_ai_provider || 'claude')) opt.selected = true;
+      providerSel.appendChild(opt);
+    }
+    providerSel.addEventListener('focus', () => providerSel.style.borderColor = DS.blue);
+    providerSel.addEventListener('blur',  () => providerSel.style.borderColor = DS.border);
+
+    // Focus ring on text inputs
     for (const inp of [nameIn, tokenIn, licenseIn]) {
       inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
 
+    stack.appendChild(row('AI Chat Window', providerSel, 'Used by Quick AI and AI Grader'));
     stack.appendChild(row('Teacher Name', nameIn));
     stack.appendChild(row('Canvas API Token', tokenIn, 'Canvas → Account → Settings → New Access Token'));
     stack.appendChild(row('License Key', licenseIn));
@@ -288,6 +308,7 @@
 
     saveBtn.addEventListener('click', () => {
       chrome.storage.local.set({
+        ce_ai_provider:   providerSel.value,
         ce_canvas_token:  tokenIn.value.trim(),
         ce_teacher_name:  nameIn.value.trim(),
         ce_license_key:   licenseIn.value.trim(),

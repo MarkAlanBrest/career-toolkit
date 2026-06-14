@@ -77,9 +77,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
-async function handleOpenClaudeSplit({ left, top, width, height }) {
+async function handleOpenClaudeSplit({ url, left, top, width, height }) {
   await chrome.windows.create({
-    url: 'https://claude.ai/new',
+    url: url || 'https://claude.ai/new',
     left, top, width, height,
     type: 'normal',
   });
