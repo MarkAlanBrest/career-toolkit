@@ -359,20 +359,37 @@
       cursor: pointer;
     }
     .ces-launcher-btn { gap: 7px; padding: 0 12px; }
-    .ces-launcher-btn.ces-launcher-action {
-      background:#059669; border-color:#047857; color:#fff;
-      box-shadow:0 1px 4px rgba(5,150,105,.28);
+    .ces-message-menu-wrap { position:relative; display:inline-flex; align-items:center; }
+    .ces-message-menu-wrap .ces-launcher-btn:first-child { border-radius:3px 0 0 3px; }
+    .ces-message-menu-toggle {
+      width:34px; padding:0; border-left:0; border-radius:0 3px 3px 0;
+      font-size:12px;
     }
-    .ces-launcher-btn.ces-launcher-action:hover { background:#047857; border-color:#065f46; color:#fff; }
-    .ces-launcher-btn.ces-launcher-action .ces-nav-icon { color:#fff; }
-    .ces-launcher-btn.ces-launcher-action.ces-launcher-done,
-    .ces-launcher-btn.ces-launcher-action.ces-launcher-done:hover,
-    .ces-launcher-btn.ces-launcher-action:disabled {
-      background:#e5e7eb; border-color:#c7cdd1; color:#6b7280;
-      box-shadow:none; cursor:not-allowed;
+    .ces-automation-menu {
+      position:absolute; top:calc(100% + 6px); right:0; z-index:100000;
+      width:min(360px, calc(100vw - 28px)); max-height:70vh; overflow:auto;
+      background:#fff; border:1px solid #c7cdd1; border-radius:6px;
+      box-shadow:0 8px 24px rgba(45,59,69,.22); padding:6px;
+      display:none;
     }
-    .ces-launcher-btn.ces-launcher-action.ces-launcher-done .ces-nav-icon,
-    .ces-launcher-btn.ces-launcher-action:disabled .ces-nav-icon { color:#6b7280; }
+    .ces-automation-menu.ces-open { display:block; }
+    .ces-automation-menu-head {
+      padding:8px 10px 9px; border-bottom:1px solid #e5e7eb;
+      color:#2d3b45; font-size:12px; font-weight:800;
+    }
+    .ces-automation-menu-item {
+      width:100%; display:block; text-align:left; border:0; border-radius:4px;
+      background:#fff; color:#111827; padding:9px 10px; cursor:pointer;
+      font:inherit; line-height:1.35;
+    }
+    .ces-automation-menu-item:hover { background:#eef7fc; }
+    .ces-automation-menu-item:disabled { color:#6b7280; cursor:not-allowed; background:#f9fafb; }
+    .ces-automation-menu-title { display:block; font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ces-automation-menu-sub { display:block; font-size:11px; color:#6b7280; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ces-automation-menu-status {
+      margin:6px 4px 4px; padding:8px 10px; border-radius:4px;
+      background:#f9fafb; color:#374151; font-size:12px; line-height:1.45;
+    }
     .ces-ai-select { width: 126px; padding: 0 26px 0 8px; justify-content: flex-start; appearance: auto; margin: 0; align-self: center; transform: none; }
     .ces-launcher-btn:hover, .ces-ai-select:hover { background: #f5f5f5; border-color:#8aa9bf; }
     .ces-launcher-btn .ces-nav-icon { font-size: 16px; line-height: 1; color:#0374b5; }
@@ -415,8 +432,6 @@
     LAST_COURSE:  'ces_last_course',
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
-    LAST_AUTO_CHECK: 'ces_last_auto_check',
-    LAST_AUTO_SUCCESS: 'ces_last_auto_success',
   };
 
   const CANVAS_STUDENT_IOS_URL = 'https://apps.apple.com/us/app/canvas-student/id480883488';
@@ -1097,20 +1112,7 @@ Best regards,
     return 'auto_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   }
 
-  function todayStamp() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  function weekStamp() {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), 0, 1);
-    const dayCount = Math.floor((now - first) / 86400000);
-    return `${now.getFullYear()}-W${Math.ceil((dayCount + first.getDay() + 1) / 7)}`;
-  }
-
-  function frequencyStamp(frequency) {
-    if (frequency === 'daily') return todayStamp();
-    if (frequency === 'weekly') return weekStamp();
+  function frequencyStamp(_frequency) {
     return 'once';
   }
 
@@ -1617,28 +1619,6 @@ Best regards,
     return { checked: automations.length, matched, sent, drafted, skipped, failed };
   }
 
-  async function previewAutomationQueue(onlyAutomationId) {
-    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '') || 'Teacher';
-    if (!cachedCourses) cachedCourses = await getCourses();
-    const automations = getAutomations().filter(a => a.active !== false && (!onlyAutomationId || a.id === onlyAutomationId));
-    const sentKeys = getAutomationLogs().filter(l => l.status === 'sent' || l.status === 'draft');
-    let matched = 0, queued = 0, skipped = 0, failed = 0;
-    for (const automation of automations) {
-      try {
-        const resolvedAutomation = automationWithTemplateRules(automation);
-        const messages = await buildAutomationMessages(resolvedAutomation, teacherName);
-        matched += messages.length;
-        for (const message of messages) {
-          if (alreadyLogged(sentKeys, resolvedAutomation.id, message.dedupeKey)) skipped++;
-          else queued++;
-        }
-      } catch (_err) {
-        failed++;
-      }
-    }
-    return { checked: automations.length, matched, queued, skipped, failed };
-  }
-
   /* =========================================================
      UTILITY
   ========================================================= */
@@ -1662,8 +1642,6 @@ Best regards,
   let currentCourseId = null;
   let _overlay = null;
   let automationCheckInFlight = false;
-  let automationQueuePreviewInFlight = false;
-  const AUTO_MENU_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
   function getCurrentCourseId() {
     return window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
@@ -2224,12 +2202,11 @@ Best regards,
       <div class="ces-card">
         <div class="ces-flex-between ces-mb">
           <div>
-            <h3 style="margin:0;">Create Automation</h3>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose classes, select the message template, then pick frequency and options.</div>
+            <h3 style="margin:0;">Create Automated Message</h3>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Choose classes and select the message template. Saved automated messages appear in the Messages toolbar dropdown.</div>
           </div>
-          <button class="ces-btn ces-btn-secondary" id="ces-run-all-autos">Test Check Now</button>
         </div>
-        <div class="ces-status ces-status-info">Automations run in the background about once per hour when a Canvas API token is saved in Settings. Duplicate protection prevents the same automation message from sending again for the same matching condition.</div>
+        <div class="ces-status ces-status-info">Automated messages run only when a teacher selects them from the Messages toolbar dropdown. Duplicate protection prevents the same message from sending again for the same matching condition.</div>
         ${!cachedCourses?.length ? '<div class="ces-status ces-status-error">No Canvas courses are loaded yet. Close and reopen Messages from a Canvas course, then try again.</div>' : ''}
 
         <label class="ces-label">Dashboard Classes</label>
@@ -2247,28 +2224,18 @@ Best regards,
             <div class="ces-course-list" id="ces-course-selected"></div>
           </div>
         </div>
-        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published courses visible on your Canvas Dashboard are shown, newest first. Click a class to move it between lists. Saving creates one automation tile per selected class.</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px;">Only published courses visible on your Canvas Dashboard are shown, newest first. Click a class to move it between lists. Saving creates one toolbar item per selected class.</div>
 
-        <div class="ces-grid-2">
-          <div>
-            <label class="ces-label">Message Template</label>
-            <select class="ces-select" id="ces-auto-template" title="Choose the saved message template. Its Message Rule controls when and to whom the automation sends.">${automationTemplateOptions('upcoming')}</select>
-            <div id="ces-auto-template-summary" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
-          </div>
-          <div>
-            <label class="ces-label">Frequency</label>
-            <select class="ces-select" id="ces-auto-frequency" title="Choose how often this automation may send when its message rule matches. Duplicate protection still prevents repeat sends for the same condition.">
-              <option value="daily">Daily while true</option>
-              <option value="weekly">Weekly while true</option>
-              <option value="once">Once per matching condition</option>
-            </select>
-          </div>
+        <div>
+          <label class="ces-label">Message Template</label>
+          <select class="ces-select" id="ces-auto-template" title="Choose the saved message template. Its Message Rule controls when and to whom the automated message sends.">${automationTemplateOptions('upcoming')}</select>
+          <div id="ces-auto-template-summary" style="font-size:12px;color:#6b7280;margin-top:4px;"></div>
         </div>
-        <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto" title="Save one automation for each selected class.">Save Automation</button></div>
+        <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-auto" title="Save one automated message for each selected class.">Save Automated Message</button></div>
         <input type="hidden" id="ces-auto-edit-id" value="">
       </div>
 
-      <h3 style="margin:18px 0 10px;">Saved Automations</h3>
+      <h3 style="margin:18px 0 10px;">Saved Automated Messages</h3>
       <div id="ces-auto-list"></div>
     `;
 
@@ -2292,19 +2259,6 @@ Best regards,
     container.querySelector('#ces-clear-courses').addEventListener('click', () => {
       renderAutomationCoursePicker(container, []);
     });
-    container.querySelector('#ces-run-all-autos').addEventListener('click', async () => {
-      const btn = container.querySelector('#ces-run-all-autos');
-      btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Checking...';
-      try {
-        const result = await runAutomations();
-        renderAutomationsTab(container);
-        setTimeout(() => showStatus(`Checked ${result.checked} automation(s). Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success'), 0);
-      } catch(err) {
-        showStatus(err.message, 'error');
-      }
-      btn.disabled = false; btn.textContent = 'Test Check Now';
-    });
-
     container.querySelector('#ces-save-auto').addEventListener('click', () => {
       const selectedCourses = getAutomationSelectedCourses(container);
       const selectedTemplateKey = container.querySelector('#ces-auto-template')?.value || automationTemplateDefault('upcoming');
@@ -2323,7 +2277,7 @@ Best regards,
         type,
         name: `${templateDisplayName(selectedTemplate, selectedTemplateKey)} - ${selectedCourse.name}`,
         templateKey: selectedTemplateKey || automationTemplateDefault(type),
-        frequency: container.querySelector('#ces-auto-frequency').value,
+        frequency: 'once',
         mode: 'auto',
         daysBack: rules.daysBack,
         daysForward: rules.daysForward,
@@ -2339,7 +2293,7 @@ Best regards,
       next.push(...selectedCourses.map(buildAutomation));
       saveAutomations(next);
       renderAutomationsTab(container);
-      setTimeout(() => showStatus(editId && selectedCourses.length === 1 ? 'Automation updated.' : `Saved ${selectedCourses.length} automation${selectedCourses.length === 1 ? '' : 's'}.`, 'success'), 0);
+      setTimeout(() => showStatus(editId && selectedCourses.length === 1 ? 'Automated message updated.' : `Saved ${selectedCourses.length} automated message${selectedCourses.length === 1 ? '' : 's'}.`, 'success'), 0);
     });
   }
 
@@ -2385,7 +2339,7 @@ Best regards,
 
   function renderAutomationTiles(container, automations) {
     if (!automations.length) {
-      container.innerHTML = '<div class="ces-status ces-status-info">No automations yet. Create one above.</div>';
+      container.innerHTML = '<div class="ces-status ces-status-info">No automated messages yet. Create one above.</div>';
       return;
     }
     container.innerHTML = automations.map(auto => `
@@ -2395,13 +2349,13 @@ Best regards,
             <strong>${escapeHtml(auto.name)}</strong>
             <div style="font-size:12px;color:#6b7280;margin-top:3px;">${escapeHtml(auto.courseName || auto.courseId)}</div>
             <div style="font-size:13px;color:#374151;margin-top:8px;">${escapeHtml(describeAutomation(auto))}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Paused' : 'Active'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Auto-send'} - ${escapeHtml(auto.frequency || 'once')} - ${escapeHtml(automationDelivery(auto) === 'both' ? 'Messages + announcement' : automationDelivery(auto) === 'students' ? 'Messages' : 'Announcement')}</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">${auto.active === false ? 'Hidden from toolbar menu' : 'Shown in toolbar menu'} - ${auto.mode === 'draft' ? 'Draft/log only' : 'Sends when clicked'} - ${escapeHtml(automationDelivery(auto) === 'both' ? 'Messages + announcement' : automationDelivery(auto) === 'students' ? 'Messages' : 'Announcement')}</div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}" title="Run this automation now using duplicate protection.">Run</button>
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-auto" data-id="${escapeAttr(auto.id)}" title="Load this automation into the form for editing.">Edit</button>
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-toggle-auto" data-id="${escapeAttr(auto.id)}" title="${auto.active === false ? 'Resume scheduled checks for this automation.' : 'Pause scheduled checks for this automation.'}">${auto.active === false ? 'Resume' : 'Pause'}</button>
-            <button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-auto" data-id="${escapeAttr(auto.id)}" title="Delete this saved automation.">Delete</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-run-auto" data-id="${escapeAttr(auto.id)}" title="Run this automated message now using duplicate protection.">Run</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-auto" data-id="${escapeAttr(auto.id)}" title="Load this automated message into the form for editing.">Edit</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-toggle-auto" data-id="${escapeAttr(auto.id)}" title="${auto.active === false ? 'Show this item in the toolbar dropdown.' : 'Hide this item from the toolbar dropdown.'}">${auto.active === false ? 'Show' : 'Hide'}</button>
+            <button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-auto" data-id="${escapeAttr(auto.id)}" title="Delete this saved automated message.">Delete</button>
           </div>
         </div>
       </div>
@@ -2411,7 +2365,7 @@ Best regards,
       try {
         const result = await runAutomations(btn.dataset.id);
         renderAutomationsTab(document.getElementById('ces-body'));
-        setTimeout(() => showStatus(`Checked 1 automation. Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success'), 0);
+        setTimeout(() => showStatus(`Checked 1 automated message. Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success'), 0);
       } catch(err) { showStatus(err.message, 'error'); }
     }));
     container.querySelectorAll('.ces-edit-auto').forEach(btn => btn.addEventListener('click', () => {
@@ -2419,11 +2373,10 @@ Best regards,
       if (!auto) return;
       const body = document.getElementById('ces-body');
       body.querySelector('#ces-auto-edit-id').value = auto.id;
-      body.querySelector('#ces-auto-frequency').value = auto.frequency || 'daily';
       renderAutomationCoursePicker(body, [String(auto.courseId)]);
       if (body.querySelector('#ces-auto-template')) body.querySelector('#ces-auto-template').value = auto.templateKey || automationTemplateDefault(auto.type);
       renderAutomationTemplateSummary(body);
-      body.querySelector('#ces-save-auto').textContent = 'Update Automation';
+      body.querySelector('#ces-save-auto').textContent = 'Update Automated Message';
       body.scrollTo({ top: 0, behavior: 'smooth' });
     }));
     container.querySelectorAll('.ces-toggle-auto').forEach(btn => btn.addEventListener('click', () => {
@@ -2431,7 +2384,7 @@ Best regards,
       renderAutomationsTab(document.getElementById('ces-body'));
     }));
     container.querySelectorAll('.ces-delete-auto').forEach(btn => btn.addEventListener('click', () => {
-      if (!confirm('Delete this automation?')) return;
+      if (!confirm('Delete this automated message?')) return;
       saveAutomations(getAutomations().filter(auto => auto.id !== btn.dataset.id));
       renderAutomationsTab(document.getElementById('ces-body'));
     }));
@@ -2501,10 +2454,10 @@ Best regards,
           <ol>
             <li>Select the classes on the left/right picker.</li>
             <li>Choose the saved message template.</li>
-            <li>Choose frequency.</li>
-            <li>Save the automation.</li>
+            <li>Save the automated message.</li>
+            <li>Use the Messages toolbar dropdown to run it when ready.</li>
           </ol>
-          <p>The automation uses the rule stored in the selected message template.</p>
+          <p>The automated message uses the rule stored in the selected message template.</p>
         </div>
         <div class="ces-help-card">
           <h3>Privacy</h3>
@@ -2513,8 +2466,8 @@ Best regards,
         </div>
         <div class="ces-help-card">
           <h3>Duplicate Protection</h3>
-          <p>Automations use a duplicate key for each matching condition. If the same message was already sent or drafted, it is skipped instead of sent again.</p>
-          <p>The green toolbar button shows queued messages when matches are available.</p>
+          <p>Automated messages use a duplicate key for each matching condition. If the same message was already sent or drafted, it is skipped instead of sent again.</p>
+          <p>The Messages toolbar dropdown runs one saved automated message at a time and skips exact duplicates.</p>
         </div>
         <div class="ces-help-card">
           <h3>Logs</h3>
@@ -2522,8 +2475,8 @@ Best regards,
           <p>Use the status filter to review sent, failed, or draft activity.</p>
         </div>
         <div class="ces-help-card">
-          <h3>Background Checks</h3>
-          <p>Background automations require a Canvas API token in Settings. Without a token, manual sends still work while you are in Canvas, but scheduled checks cannot run reliably while the panel is closed.</p>
+          <h3>Toolbar Dropdown</h3>
+          <p>The main Messages button opens the app. The small arrow beside it lists saved automated messages the teacher can run on demand.</p>
         </div>
         <div class="ces-help-card">
           <h3>Hover Help</h3>
@@ -2533,88 +2486,6 @@ Best regards,
     `;
   }
 
-  async function checkAutomationsOnOpen(options = {}) {
-    if (!getAutomations().some(auto => auto.active !== false)) {
-      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0 };
-    }
-    if (automationCheckInFlight) {
-      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0, busy: true };
-    }
-    const force = !!options.force;
-    const silent = !!options.silent;
-    const lastCheck = Number(GM_getValue(STORAGE_KEYS.LAST_AUTO_CHECK, 0) || 0);
-    if (!force && Date.now() - lastCheck < AUTO_MENU_CHECK_INTERVAL_MS) {
-      return { checked: 0, matched: 0, sent: 0, drafted: 0, skipped: 0, failed: 0, throttled: true };
-    }
-    automationCheckInFlight = true;
-    GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
-    try {
-      const result = await runAutomations();
-      GM_setValue(STORAGE_KEYS.LAST_AUTO_CHECK, String(Date.now()));
-      if (result.sent || result.drafted || result.skipped) {
-        GM_setValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, String(Date.now()));
-      }
-      if (!silent && (result.sent || result.drafted || result.failed)) {
-        showStatus(`Automations checked: sent ${result.sent}, drafted ${result.drafted}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success');
-      }
-      return result;
-    } catch(err) {
-      if (!silent) showStatus('Automation check skipped: ' + err.message, 'error');
-      throw err;
-    } finally {
-      automationCheckInFlight = false;
-    }
-  }
-
-  function isSameLocalDay(timestamp) {
-    const value = Number(timestamp || 0);
-    if (!value) return false;
-    return new Date(value).toDateString() === new Date().toDateString();
-  }
-
-  function setAutomationToolbarState(button) {
-    if (!button) return;
-    const lastSuccess = GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0);
-    if (isSameLocalDay(lastSuccess)) {
-      button.classList.add('ces-launcher-done');
-      button.disabled = true;
-      button.title = 'Automated messages have already been sent today';
-      button.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Messages Sent</span>';
-      return;
-    }
-    button.classList.remove('ces-launcher-done');
-    button.disabled = false;
-    button.title = 'Run automated message check now';
-    button.innerHTML = '<span class="ces-nav-icon">&#9658;</span><span>Send Messages</span>';
-  }
-
-  async function refreshAutomationToolbarQueue(button) {
-    if (!button || button.disabled || automationQueuePreviewInFlight || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) return;
-    if (!getAutomations().some(auto => auto.active !== false)) return;
-    automationQueuePreviewInFlight = true;
-    const original = button.innerHTML;
-    button.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking Queue...</span>';
-    try {
-      const preview = await previewAutomationQueue();
-      if (!button || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) return;
-      button.classList.remove('ces-launcher-done');
-      button.disabled = false;
-      if (preview.queued > 0) {
-        button.title = `${preview.queued} automated message${preview.queued === 1 ? '' : 's'} ready to send`;
-        button.innerHTML = `<span class="ces-nav-icon">&#9658;</span><span>${preview.queued} Messages Queued</span>`;
-      } else if (preview.checked) {
-        button.title = preview.skipped ? 'All matching automated messages were already sent' : 'No automated messages are currently due';
-        button.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Nothing Due</span>';
-      } else {
-        button.innerHTML = original;
-      }
-    } catch (_err) {
-      setAutomationToolbarState(button);
-    } finally {
-      automationQueuePreviewInFlight = false;
-    }
-  }
-
   /* =========================================================
      TAB: TEMPLATES
   ========================================================= */
@@ -2622,7 +2493,7 @@ Best regards,
     const templates = getTemplates();
 
     function renderList() {
-      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Saved messages can be used for one-time sends or selected when scheduling automated messages. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
+      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Saved messages can be used for one-time sends or selected for toolbar automated messages. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
       html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">+ New Custom Message</button></div>`;
       for (const [type, tpl] of Object.entries(templates)) {
         const canDelete = !DEFAULT_TEMPLATE_KEYS.has(type);
@@ -2991,7 +2862,7 @@ Thank you,
             <h3 style="margin:0 0 8px;">How It Works</h3>
             <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
               <li>Manual sends use your Canvas login, or the Canvas API token above when provided.</li>
-              <li>Background automations require the Canvas API token so checks can run when this panel is closed.</li>
+              <li>Toolbar automated messages use the Canvas API token when sending from the dropdown.</li>
               <li>Messages sent through Canvas's built-in Inbox system.</li>
               <li>Announcements posted directly to the selected course.</li>
               <li>All templates and settings saved in browser storage.</li>
@@ -3096,6 +2967,72 @@ Thank you,
     window.open(url, 'ces_ai_chat', `popup=yes,width=${width},height=${height},left=${left},top=${top},noopener,noreferrer`);
   }
 
+  function openAutomationsTab() {
+    openEmailSystem();
+    const overlay = document.getElementById('ces-overlay');
+    overlay?.querySelectorAll('.ces-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.tab === 'automations'));
+    showTab('automations');
+  }
+
+  function automationMenuItemText(auto) {
+    const template = getTemplates()[auto.templateKey || automationTemplateDefault(auto.type)];
+    const templateName = template ? templateDisplayName(template, auto.templateKey) : auto.name || 'Automated message';
+    return {
+      title: auto.name || templateName,
+      subtitle: `${auto.courseName || courseDisplayName(auto.courseId)} - ${describeAutomation(auto)}`,
+    };
+  }
+
+  function renderAutomationLauncherMenu(menu) {
+    const automations = getAutomations().filter(auto => auto.active !== false);
+    menu.innerHTML = `
+      <div class="ces-automation-menu-head">Run Automated Message</div>
+      ${automations.length ? automations.map(auto => {
+        const text = automationMenuItemText(auto);
+        return `
+          <button type="button" class="ces-automation-menu-item" data-auto-id="${escapeAttr(auto.id)}" title="${escapeAttr(text.subtitle)}">
+            <span class="ces-automation-menu-title">${escapeHtml(text.title)}</span>
+            <span class="ces-automation-menu-sub">${escapeHtml(text.subtitle)}</span>
+          </button>
+        `;
+      }).join('') : '<div class="ces-automation-menu-status">No saved automated messages yet.</div>'}
+      <button type="button" class="ces-automation-menu-item" data-action="manage">
+        <span class="ces-automation-menu-title">Manage Automated Messages</span>
+        <span class="ces-automation-menu-sub">Create, edit, hide, or delete saved toolbar actions.</span>
+      </button>
+      <div class="ces-automation-menu-status" id="ces-auto-menu-status">Automated messages only run when selected here.</div>
+    `;
+  }
+
+  async function runAutomationFromMenu(autoId, menu, item) {
+    if (automationCheckInFlight) return;
+    automationCheckInFlight = true;
+    GM_setValue(STORAGE_KEYS.CANVAS_BASE, CANVAS_BASE);
+    const status = menu.querySelector('#ces-auto-menu-status');
+    const originalHtml = item?.innerHTML || '';
+    if (item) {
+      item.disabled = true;
+      item.innerHTML = '<span class="ces-automation-menu-title">Running...</span><span class="ces-automation-menu-sub">Checking Canvas and sending matching messages.</span>';
+    }
+    if (status) status.textContent = 'Running selected automated message...';
+    try {
+      const result = await runAutomations(autoId);
+      if (status) {
+        status.textContent = `Checked ${result.checked}. Matched ${result.matched}, sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`;
+      }
+      if (_overlay?.classList.contains('ces-open')) showStatus(`Automated message complete: sent ${result.sent}, drafted ${result.drafted}, skipped ${result.skipped}${result.failed ? `, failed ${result.failed}` : ''}.`, result.failed ? 'error' : 'success');
+    } catch (err) {
+      if (status) status.textContent = 'Could not run automated message: ' + err.message;
+      if (_overlay?.classList.contains('ces-open')) showStatus(err.message, 'error');
+    } finally {
+      automationCheckInFlight = false;
+      if (item) {
+        item.disabled = false;
+        item.innerHTML = originalHtml;
+      }
+    }
+  }
+
   function addCanvasLauncher() {
     if (!findCanvasLauncherHost()) return;
     if (document.getElementById('ces-launcher-group')) {
@@ -3105,55 +3042,48 @@ Thank you,
     const group = document.createElement('div');
     group.id = 'ces-launcher-group';
 
+    const messageWrap = document.createElement('div');
+    messageWrap.className = 'ces-message-menu-wrap';
+
     const messageBtn = document.createElement('button');
     messageBtn.className = 'ces-launcher-btn';
     messageBtn.type = 'button';
     messageBtn.title = 'Canvas Message System';
     messageBtn.innerHTML = '<span class="ces-nav-icon">&#9993;</span><span>Messages</span>';
     messageBtn.addEventListener('click', openEmailSystem);
-    group.appendChild(messageBtn);
+    messageWrap.appendChild(messageBtn);
 
-    const checkBtn = document.createElement('button');
-    checkBtn.className = 'ces-launcher-btn ces-launcher-action';
-    checkBtn.type = 'button';
-    setAutomationToolbarState(checkBtn);
-    checkBtn.addEventListener('click', async e => {
+    const menuToggle = document.createElement('button');
+    menuToggle.className = 'ces-launcher-btn ces-message-menu-toggle';
+    menuToggle.type = 'button';
+    menuToggle.title = 'Run saved automated message';
+    menuToggle.innerHTML = '&#9662;';
+    messageWrap.appendChild(menuToggle);
+
+    const automationMenu = document.createElement('div');
+    automationMenu.className = 'ces-automation-menu';
+    messageWrap.appendChild(automationMenu);
+
+    menuToggle.addEventListener('click', e => {
       e.stopPropagation();
-      if (checkBtn.disabled || isSameLocalDay(GM_getValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, 0))) {
-        setAutomationToolbarState(checkBtn);
+      renderAutomationLauncherMenu(automationMenu);
+      automationMenu.classList.toggle('ces-open');
+    });
+    automationMenu.addEventListener('click', e => {
+      e.stopPropagation();
+      const item = e.target.closest('.ces-automation-menu-item');
+      if (!item) return;
+      if (item.dataset.action === 'manage') {
+        automationMenu.classList.remove('ces-open');
+        openAutomationsTab();
         return;
       }
-      checkBtn.disabled = true;
-      checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Checking...</span>';
-      try {
-        const result = await checkAutomationsOnOpen({ force: true, silent: true });
-        const completedMessages = result && (result.sent || result.drafted || result.skipped);
-        if (completedMessages) {
-          GM_setValue(STORAGE_KEYS.LAST_AUTO_SUCCESS, String(Date.now()));
-          setAutomationToolbarState(checkBtn);
-          return;
-        }
-        checkBtn.classList.remove('ces-launcher-done');
-        checkBtn.disabled = false;
-        if (result && result.busy) {
-          checkBtn.innerHTML = '<span class="ces-nav-icon">&#8635;</span><span>Already Running</span>';
-        } else if (result && !result.checked) {
-          checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>No Automations</span>';
-        } else if (result && result.failed) {
-          checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
-        } else {
-          checkBtn.innerHTML = '<span class="ces-nav-icon">&#10003;</span><span>Nothing Due</span>';
-        }
-        setTimeout(() => { setAutomationToolbarState(checkBtn); refreshAutomationToolbarQueue(checkBtn); }, 2200);
-      } catch (_err) {
-        checkBtn.classList.remove('ces-launcher-done');
-        checkBtn.disabled = false;
-        checkBtn.innerHTML = '<span class="ces-nav-icon">&#9888;</span><span>Check Failed</span>';
-        setTimeout(() => { setAutomationToolbarState(checkBtn); refreshAutomationToolbarQueue(checkBtn); }, 2200);
-      }
+      if (item.dataset.autoId) runAutomationFromMenu(item.dataset.autoId, automationMenu, item);
     });
-    group.appendChild(checkBtn);
-    refreshAutomationToolbarQueue(checkBtn);
+    document.addEventListener('click', e => {
+      if (!messageWrap.contains(e.target)) automationMenu.classList.remove('ces-open');
+    });
+    group.appendChild(messageWrap);
 
     const aiOptions = [
       ['ChatGPT', 'GPT', 'https://chatgpt.com/'],

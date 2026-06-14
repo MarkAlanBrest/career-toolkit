@@ -5,8 +5,7 @@
   "description": "Send personalized messages and announcements to Canvas LMS students — directly from Canvas.",
   "permissions": [
     "storage",
-    "activeTab",
-    "alarms"
+    "activeTab"
   ],
   "host_permissions": [
     "https://*.instructure.com/*",

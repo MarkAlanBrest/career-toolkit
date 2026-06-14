@@ -1,4 +1,4 @@
-// Canvas Message System - scheduled automation runner
+// Canvas Message System - background helpers
 
 const STORAGE_KEYS = {
   TEMPLATES: 'ces_templates',
@@ -8,9 +8,6 @@ const STORAGE_KEYS = {
   AUTOMATIONS: 'ces_automations',
   AUTO_LOGS: 'ces_automation_logs',
 };
-
-const ALARM_NAME = 'ces-automation-check';
-const CHECK_MINUTES = 60;
 
 const DEFAULT_TEMPLATES = {
   auto_late: {
@@ -44,20 +41,6 @@ const DEFAULT_TEMPLATES = {
     body: 'Hi {{studentName}},\n\nI am reaching out because your current performance in {{courseName}} has fallen below the alert threshold I set for the course.\n\n{{gradeAlertDetail}}\n\nThis message is meant to catch the issue early enough that you can respond. Please review your recent feedback in Canvas and reach out if you would like help making a recovery plan.\n\nBest regards,\n{{teacherName}}',
   },
 };
-
-chrome.runtime.onInstalled.addListener(ensureAutomationAlarm);
-chrome.runtime.onStartup.addListener(ensureAutomationAlarm);
-chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === ALARM_NAME) runAutomations().catch(error => {
-    addAutomationLog({ status: 'failed', note: `Background automation check failed: ${error.message}` });
-  });
-});
-
-ensureAutomationAlarm();
-
-function ensureAutomationAlarm() {
-  chrome.alarms.create(ALARM_NAME, { periodInMinutes: CHECK_MINUTES });
-}
 
 async function getStored(keys) {
   return chrome.storage.local.get(keys);
@@ -172,14 +155,7 @@ function getMissingAssignments(submissions, daysBack) {
   });
 }
 
-function frequencyStamp(frequency) {
-  if (frequency === 'daily') return new Date().toISOString().slice(0, 10);
-  if (frequency === 'weekly') {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), 0, 1);
-    const dayCount = Math.floor((now - first) / 86400000);
-    return `${now.getFullYear()}-W${Math.ceil((dayCount + first.getDay() + 1) / 7)}`;
-  }
+function frequencyStamp(_frequency) {
   return 'once';
 }
 
@@ -636,7 +612,7 @@ async function runAutomations() {
   const stored = await getStored([STORAGE_KEYS.API_TOKEN, STORAGE_KEYS.TEACHER_NAME, STORAGE_KEYS.CANVAS_BASE]);
   const token = String(stored[STORAGE_KEYS.API_TOKEN] || '').trim();
   if (!token) {
-    await addAutomationLog({ status: 'failed', note: 'Background automation requires a Canvas API token in Settings.' });
+    await addAutomationLog({ status: 'failed', note: 'Automated messages require a Canvas API token in Settings.' });
     return;
   }
   const teacherName = stored[STORAGE_KEYS.TEACHER_NAME] || 'Teacher';
