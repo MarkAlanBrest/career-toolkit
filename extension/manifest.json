@@ -5,7 +5,8 @@
   "description": "Add professionally styled components, AI-generated content, and quizzes to your Canvas LMS pages.",
   "permissions": [
     "storage",
-    "cookies"
+    "cookies",
+    "windows"
   ],
   "host_permissions": [
     "https://*.instructure.com/*",
@@ -13,7 +14,8 @@
     "https://*.canvaslms.com/*",
     "https://*.vercel.app/*",
     "https://canvasenhancer.com/*",
-    "http://localhost:3000/*"
+    "http://localhost:3000/*",
+    "https://claude.ai/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -27,6 +29,11 @@
       ],
       "js": ["content.js", "grader.js", "scheduler.js"],
       "css": ["toolbar.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["claude-bridge.js"],
       "run_at": "document_idle"
     }
   ],

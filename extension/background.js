@@ -71,7 +71,27 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     handleParseFile(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'OPEN_CLAUDE_SPLIT') {
+    handleOpenClaudeSplit(sender.tab.windowId, msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
 });
+
+async function handleOpenClaudeSplit(windowId, { screenWidth, screenHeight, screenTop, screenLeft }) {
+  const halfHeight = Math.floor(screenHeight / 2);
+  const top = screenTop || 0;
+  const left = screenLeft || 0;
+
+  await chrome.windows.update(windowId, {
+    left, top, width: screenWidth, height: halfHeight, state: 'normal',
+  });
+
+  await chrome.windows.create({
+    url: 'https://claude.ai/new',
+    left, top: top + halfHeight, width: screenWidth, height: halfHeight,
+    type: 'normal',
+  });
+}
 
 async function handleGenerate(payload) {
   const { messages, max_tokens, model } = payload;

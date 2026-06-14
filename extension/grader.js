@@ -69,9 +69,6 @@
       attachments: [],
       promptText: '',
       aiResponseText: '',
-      streamStatus: 'idle',  // idle | parsing | streaming | done | error
-      streamText: '',
-      streamError: '',
       // grading
       result:  null,  // { score, total, feedback }
     };
@@ -93,7 +90,7 @@
     async function fetchSubmission() {
       const { courseId, assignmentId, studentId } = getUrlParts();
       if (!studentId || !sg.token || !courseId || !assignmentId) return;
-      sg.studentId = studentId; sg.subText = ''; sg.subStatus = 'loading'; sg.result = null; sg.attachments = []; sg.promptText = ''; sg.aiResponseText = ''; sg.streamStatus = 'idle'; sg.streamText = ''; sg.streamError = '';
+      sg.studentId = studentId; sg.subText = ''; sg.subStatus = 'loading'; sg.result = null; sg.attachments = []; sg.promptText = ''; sg.aiResponseText = '';
       render();
       try {
         const nameEl = document.querySelector('#student_carousel_name, .student_selection option:checked, #students_selectmenu-button .ui-selectmenu-text');
@@ -125,9 +122,40 @@
         } else {
           sg.subStatus = 'error'; sg.subError = 'Submission type not supported — paste text below'; render();
         }
+        saveClaudeContext();
       } catch(e) {
         sg.subStatus = 'error'; sg.subError = e.message || 'Failed to load submission'; render();
       }
+    }
+
+    function saveClaudeContext() {
+      chrome.storage.local.set({
+        ce_claude_context: {
+          studentId:      sg.studentId,
+          studentName:    sg.studentName,
+          courseId:       sg.courseId,
+          assignmentId:   sg.assignmentId,
+          assignmentName: sg.assignmentName,
+          settings:       sg.settings,
+          attachments:    sg.attachments,
+          subText:        sg.subText,
+          token:          sg.token,
+          timestamp:      Date.now(),
+        },
+      });
+    }
+
+    function openInClaude() {
+      saveClaudeContext();
+      chrome.runtime.sendMessage({
+        type: 'OPEN_CLAUDE_SPLIT',
+        payload: {
+          screenWidth:  window.screen.width,
+          screenHeight: window.screen.availHeight,
+          screenTop:    window.screen.availTop  || 0,
+          screenLeft:   window.screen.availLeft || 0,
+        },
+      });
     }
 
     // External AI grading workflow
@@ -164,59 +192,6 @@
       return prompt;
     }
 
-    async function parseAttachmentsToText() {
-      const results = [];
-      for (const att of sg.attachments) {
-        const res = await new Promise(resolve =>
-          chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { fileUrl: att.url, token: sg.token, filename: att.filename, mimeType: att.mimeType } }, resolve)
-        );
-        if (res?.error) throw new Error(res.error);
-        results.push(`[${att.filename}]\n${res?.text || '(no text extracted)'}`);
-      }
-      return results.join('\n\n');
-    }
-
-    async function gradeWithClaude() {
-      if (sg.attachments.length && sg.subText.startsWith('[File upload')) {
-        sg.streamStatus = 'parsing'; sg.streamText = ''; render();
-        try {
-          const parsed = await parseAttachmentsToText();
-          if (parsed) sg.subText = parsed;
-        } catch(e) {
-          sg.streamStatus = 'error'; sg.streamError = 'Could not read file: ' + e.message; render(); return;
-        }
-      }
-      sg.promptText = buildExternalPrompt();
-      sg.streamStatus = 'streaming'; sg.streamText = ''; sg.result = null; render();
-
-      const port = chrome.runtime.connect({ name: 'ce-stream' });
-      port.postMessage({ type: 'STREAM_GENERATE', payload: {
-        messages: [{ role: 'user', content: sg.promptText }],
-        max_tokens: 1024,
-        model: 'claude-sonnet-4-6',
-      }});
-
-      port.onMessage.addListener(msg => {
-        if (msg.type === 'chunk') {
-          sg.streamText += msg.text;
-          render();
-        } else if (msg.type === 'done') {
-          sg.streamStatus = 'done';
-          parseExternalAiResponse(sg.streamText);
-          port.disconnect();
-        } else if (msg.type === 'error') {
-          sg.streamStatus = 'error'; sg.streamError = msg.error || 'Unknown error'; render();
-          port.disconnect();
-        }
-      });
-
-      port.onDisconnect.addListener(() => {
-        if (sg.streamStatus === 'streaming') {
-          sg.streamStatus = 'error'; sg.streamError = 'Connection lost'; render();
-        }
-      });
-    }
-
     async function downloadAttachment(att) {
       if (!att || !att.url) { showNotice('No file URL found'); return; }
       try {
@@ -249,10 +224,6 @@
       render();
     }
     // ── RENDER ─────────────────────────────────────────────────────────────────
-    const graderStyle = document.createElement('style');
-    graderStyle.textContent = '@keyframes ce-pulse{0%,100%{opacity:1}50%{opacity:.2}}';
-    document.head.appendChild(graderStyle);
-
     const container = document.createElement('div');
     container.id = 'ce-ai-grader';
     container.style.cssText = 'width:100%;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;overflow:hidden;';
@@ -486,64 +457,15 @@
         ta.oninput=()=>{ sg.subText=ta.value; }; w.appendChild(ta);
       }
 
-      if (sg.subText.trim() || sg.subStatus==='error') {
-        if (sg.streamStatus === 'idle') {
-          const gradeBtn = mkBtn('✦ Grade with Claude', 'background:#0770B8;color:#fff;margin-top:4px;font-size:14px;padding:10px;');
-          gradeBtn.onclick = () => gradeWithClaude();
-          w.appendChild(gradeBtn);
-        }
-
-        if (sg.streamStatus !== 'idle') {
-          const chatBox = document.createElement('div');
-          chatBox.style.cssText = 'margin-top:8px;border:1px solid #bfdbfe;border-radius:6px;overflow:hidden;background:#fff;';
-
-          const chatHdr = document.createElement('div');
-          chatHdr.style.cssText = 'background:#dbeafe;padding:6px 10px;font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center;justify-content:space-between;';
-          const hdrLeft = document.createElement('span'); hdrLeft.textContent = 'Claude';
-          chatHdr.appendChild(hdrLeft);
-          if (sg.streamStatus === 'streaming' || sg.streamStatus === 'parsing') {
-            const dot = document.createElement('span');
-            dot.style.cssText = 'width:8px;height:8px;background:#1d4ed8;border-radius:50%;display:inline-block;animation:ce-pulse .9s ease-in-out infinite;flex-shrink:0;';
-            chatHdr.appendChild(dot);
-          }
-          chatBox.appendChild(chatHdr);
-
-          const chatBody = document.createElement('div');
-          chatBody.style.cssText = 'padding:10px;font-size:12px;line-height:1.65;color:#374151;max-height:260px;overflow-y:auto;white-space:pre-wrap;font-family:inherit;';
-          chatBody.textContent = sg.streamStatus === 'parsing'
-            ? 'Reading submission file…'
-            : (sg.streamText || 'Thinking…');
-          chatBox.appendChild(chatBody);
-          w.appendChild(chatBox);
-          setTimeout(() => { chatBody.scrollTop = chatBody.scrollHeight; }, 0);
-
-          if (sg.streamStatus === 'error') {
-            const errDiv = document.createElement('div');
-            errDiv.style.cssText = 'font-size:12px;color:#c0392b;margin-top:6px;';
-            errDiv.textContent = sg.streamError || 'Something went wrong';
-            w.appendChild(errDiv);
-            const retryBtn = mkBtn('Retry', 'background:#f5f5f5;color:#2d3b45;border:1px solid #c7cdd1;margin-top:4px;');
-            retryBtn.onclick = () => { sg.streamStatus = 'idle'; render(); };
-            w.appendChild(retryBtn);
-          }
-        }
+      if (sg.subText.trim() || sg.subStatus === 'ready' || sg.subStatus === 'error') {
+        const openBtn = mkBtn('✦ Open in Claude', 'background:#0770B8;color:#fff;margin-top:4px;font-size:14px;padding:10px;');
+        openBtn.onclick = () => openInClaude();
+        w.appendChild(openBtn);
       }
       return w;
     }
     function renderResult(w) {
       const r = sg.result;
-
-      if (sg.streamText) {
-        const rawToggle = document.createElement('button'); rawToggle.type = 'button';
-        rawToggle.style.cssText = 'background:none;border:none;color:#6b7280;font-size:11px;cursor:pointer;padding:0 0 6px 0;text-decoration:underline;font-family:inherit;display:block;';
-        rawToggle.textContent = 'View full Claude response';
-        let rawVisible = false;
-        const rawDiv = document.createElement('div');
-        rawDiv.style.cssText = 'display:none;font-size:11px;color:#374151;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;padding:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;margin-bottom:8px;font-family:monospace;';
-        rawDiv.textContent = sg.streamText;
-        rawToggle.onclick = () => { rawVisible = !rawVisible; rawDiv.style.display = rawVisible ? 'block' : 'none'; rawToggle.textContent = rawVisible ? 'Hide Claude response' : 'View full Claude response'; };
-        w.appendChild(rawToggle); w.appendChild(rawDiv);
-      }
 
       const allLines = r.feedback.split('\n');
       const warnLines = allLines.filter(l => /^[-*]?\s*(TEACHER CHECK|WARN|WARNING|⚠)/i.test(l.trim()));
