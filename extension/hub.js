@@ -420,7 +420,7 @@
       if (streaming) return;
       streaming = true;
       setInputsDisabled(true);
-      let bubble   = addMessage('assistant', '');
+      let bubble   = addMessage('assistant', '…');
       let fullText = '';
       const port   = chrome.runtime.connect({ name: 'ce-stream' });
       activePort   = port;
@@ -567,7 +567,8 @@
       const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
       const grade         = scoreMatch ? scoreMatch[1] : null;
       const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n').filter(l => l.trim());
+      const feedbackBody  = feedbackMatch ? feedbackMatch[1] : '';
+      const lines         = feedbackBody.split('\n').filter(l => l.trim());
       const tcLine        = lines.find(l => /TEACHER CHECK/i.test(l)) || '';
       const comments      = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim());
 
@@ -579,16 +580,17 @@
         const scoreEl = el('div', `font-size:26px;font-weight:700;color:${DS.blue};margin-bottom:10px;`);
         scoreEl.textContent = `${grade} / ${tot}`;
         card.appendChild(scoreEl);
-      } else {
-        const ns = el('div', `font-size:13px;color:${DS.muted};margin-bottom:8px;font-style:italic;`);
-        ns.textContent = 'Grading complete — no score detected';
-        card.appendChild(ns);
       }
 
       if (comments.length) {
         const commEl = el('div', `font-size:13px;color:${DS.text};line-height:1.75;white-space:pre-wrap;`);
         commEl.textContent = comments.join('\n');
         card.appendChild(commEl);
+      } else {
+        // Fallback: show the raw Claude response so the teacher always sees something
+        const rawEl = el('div', `font-size:13px;color:${DS.text};line-height:1.7;white-space:pre-wrap;`);
+        rawEl.textContent = text;
+        card.appendChild(rawEl);
       }
 
       if (tcLine) {
@@ -790,6 +792,10 @@ INSTRUCTIONS:
     }
 
     function buildCriteriaBuilder() {
+      // Cancel any in-progress stream so the builder can always start
+      if (activePort) { try { activePort.disconnect(); } catch(_) {} activePort = null; }
+      streaming = false;
+
       let pendingCriteria = null;
 
       const hdrText = el('div', `font-size:12px;font-weight:600;color:${DS.text};flex-shrink:0;margin-bottom:2px;`);
