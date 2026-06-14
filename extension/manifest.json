@@ -15,7 +15,11 @@
     "https://*.vercel.app/*",
     "https://canvasenhancer.com/*",
     "http://localhost:3000/*",
-    "https://claude.ai/*"
+    "https://claude.ai/*",
+    "https://chatgpt.com/*",
+    "https://gemini.google.com/*",
+    "https://copilot.microsoft.com/*",
+    "https://www.perplexity.ai/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -32,7 +36,13 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://claude.ai/*"],
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://gemini.google.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.perplexity.ai/*"
+      ],
       "js": ["claude-bridge.js"],
       "run_at": "document_idle"
     }

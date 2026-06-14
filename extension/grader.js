@@ -45,6 +45,7 @@
     // ── CONTEXT ───────────────────────────────────────────────────────────────
     let ctx = {
       token,
+      canvasOrigin: location.origin,
       courseId: '', assignmentId: '', assignmentName: '',
       studentId: '', studentName: '',
       settings: {},
