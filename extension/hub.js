@@ -360,17 +360,13 @@
     let ctx         = stored.ce_claude_context || null;
     let allCriteria = stored.ce_criteria       || {};
     let activeTab   = 'grade';
-    let chatHistory  = [];
-    let streaming    = false;
-    let activePort   = null;
-    let fileReady    = false;
-    let lastResponse = null;
-    let onStreamDone = (text) => {
-      lastResponse = text;
-      const ib = document.getElementById('ce-insert-btn');
-      if (ib) ib.style.display = '';
-      if (activeTab === 'grade') showResult(text);
-    };
+    let chatHistory     = [];
+    let streaming       = false;
+    let activePort      = null;
+    let fileReady       = false;
+    let lastResponse    = null;
+    let criteriaEditing = false;
+    let onStreamDone    = () => {};   // overridden by criteria builder
 
     function criteriaKey()   { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
     function savedCriteria() { const k = criteriaKey(); return k ? (allCriteria[k] || '') : ''; }
@@ -518,12 +514,93 @@
     }
 
     async function gradeStudent() {
+      if (streaming) return;
       const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
       if (needsFile) await grabFile();
-      const prompt = buildGradePrompt();
-      chatHistory.push({ role: 'user', content: prompt });
-      addMessage('user', '✦ Grade this student\'s submission');
-      streamToClaudeAPI([...chatHistory]);
+      streamForGrading(buildGradePrompt());
+    }
+
+    // ── DEDICATED GRADE STREAM (no raw text, formats result card) ────────────
+    function streamForGrading(prompt) {
+      if (streaming) return;
+      streaming = true;
+      chatArea.innerHTML = '';
+
+      const gradeBtn  = document.getElementById('ce-grade-btn');
+      const insertBtn = document.getElementById('ce-insert-btn');
+      if (gradeBtn)  { gradeBtn.textContent = '⟳ Grading…'; gradeBtn.disabled = true; }
+      if (insertBtn) insertBtn.style.display = 'none';
+
+      let fullText = '';
+      const port   = chrome.runtime.connect({ name: 'ce-stream' });
+      activePort   = port;
+
+      port.onMessage.addListener(msg => {
+        if (msg.type === 'chunk') { fullText += msg.text; }
+        if (msg.type === 'done') {
+          streaming = false; activePort = null;
+          if (gradeBtn)  { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
+          lastResponse = fullText;
+          showResultCard(fullText);
+          if (insertBtn) insertBtn.style.display = '';
+        }
+        if (msg.type === 'error') {
+          streaming = false; activePort = null;
+          if (gradeBtn) { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
+          const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);
+          errEl.textContent = 'Error: ' + msg.error;
+          chatArea.appendChild(errEl);
+        }
+      });
+
+      port.postMessage({ type: 'STREAM_GENERATE', payload: {
+        messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: 'claude-haiku-4-5-20251001'
+      }});
+    }
+
+    // ── RESULT CARD (appended into chatArea) ──────────────────────────────────
+    function showResultCard(text) {
+      const criteria = savedCriteria();
+      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
+      const tot      = critTot ? parseInt(critTot, 10) : (ctx?.settings?.totalPoints || 100);
+
+      const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
+      const grade         = scoreMatch ? scoreMatch[1] : null;
+      const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
+      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n').filter(l => l.trim());
+      const tcLine        = lines.find(l => /TEACHER CHECK/i.test(l)) || '';
+      const comments      = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim());
+
+      const card = el('div', `
+        background:${DS.gray};border:2px solid ${DS.blue};border-radius:4px;padding:14px;
+      `);
+
+      if (grade) {
+        const scoreEl = el('div', `font-size:26px;font-weight:700;color:${DS.blue};margin-bottom:10px;`);
+        scoreEl.textContent = `${grade} / ${tot}`;
+        card.appendChild(scoreEl);
+      } else {
+        const ns = el('div', `font-size:13px;color:${DS.muted};margin-bottom:8px;font-style:italic;`);
+        ns.textContent = 'Grading complete — no score detected';
+        card.appendChild(ns);
+      }
+
+      if (comments.length) {
+        const commEl = el('div', `font-size:13px;color:${DS.text};line-height:1.75;white-space:pre-wrap;`);
+        commEl.textContent = comments.join('\n');
+        card.appendChild(commEl);
+      }
+
+      if (tcLine) {
+        const tcWrap = el('div', `margin-top:10px;padding:8px 10px;background:#FFF8E1;border-radius:3px;border:1px solid #FFE082;`);
+        const tcEl   = el('div', `font-size:11px;color:#7C5A00;line-height:1.6;`);
+        tcEl.textContent = tcLine;
+        tcWrap.appendChild(tcEl);
+        card.appendChild(tcWrap);
+      }
+
+      chatArea.appendChild(card);
+      chatArea.scrollTop = chatArea.scrollHeight;
     }
 
     // ── INSERT INTO SPEEDGRADER ───────────────────────────────────────────────
@@ -619,51 +696,6 @@
       streamToClaudeAPI([...chatHistory]);
     }
 
-    // ── RESULT CARD ───────────────────────────────────────────────────────────
-    function showResult(text) {
-      const resultArea = document.getElementById('ce-result-area');
-      if (!resultArea) return;
-      resultArea.innerHTML = '';
-
-      const criteria = savedCriteria();
-      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
-      const tot      = critTot ? parseInt(critTot, 10) : (ctx?.settings?.totalPoints || 100);
-
-      const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
-      const grade         = scoreMatch ? scoreMatch[1] : null;
-      const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n').filter(l => l.trim());
-      const tcLine        = lines.find(l => /TEACHER CHECK/i.test(l)) || '';
-      const comments      = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim());
-
-      const card = el('div', `
-        background:${DS.gray};border:1px solid ${DS.border};border-radius:4px;
-        padding:12px 14px;margin-top:6px;
-      `);
-
-      if (grade) {
-        const scoreEl = el('div', `font-size:22px;font-weight:700;color:${DS.blue};margin-bottom:8px;`);
-        scoreEl.textContent = `${grade} / ${tot}`;
-        card.appendChild(scoreEl);
-      }
-
-      if (comments.length) {
-        const commEl = el('div', `font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;`);
-        commEl.textContent = comments.join('\n');
-        card.appendChild(commEl);
-      }
-
-      if (tcLine) {
-        const tcWrap = el('div', `margin-top:8px;padding:6px 8px;background:#FFF8E1;border-radius:3px;border:1px solid #FFE082;`);
-        const tcEl   = el('div', `font-size:11px;color:#7C5A00;line-height:1.6;`);
-        tcEl.textContent = tcLine;
-        tcWrap.appendChild(tcEl);
-        card.appendChild(tcWrap);
-      }
-
-      resultArea.appendChild(card);
-    }
-
     // ── GRADE TAB ─────────────────────────────────────────────────────────────
     const content = el('div', `flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding-top:10px;overflow:hidden;`);
 
@@ -685,11 +717,6 @@
       }
 
       content.appendChild(chatArea);
-
-      const resultArea = el('div', 'flex-shrink:0;');
-      resultArea.id = 'ce-result-area';
-      content.appendChild(resultArea);
-
       content.appendChild(buildBottomBar());
     }
 
@@ -714,59 +741,98 @@ INSTRUCTIONS:
 
     function buildCriteriaTab() {
       content.innerHTML = '';
-      const saved  = savedCriteria();
-      const lab    = el('div', `font-size:12px;font-weight:600;color:${DS.text};flex-shrink:0;`);
-      lab.textContent = 'Saved Criteria';
-      const area   = el('textarea', `
-        width:100%;box-sizing:border-box;padding:8px 10px;height:90px;flex-shrink:0;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:11px;font-family:${DS.font};color:${DS.text};
-        resize:none;outline:none;background:${DS.gray};
+      const saved = savedCriteria();
+      if (saved && !criteriaEditing) {
+        buildCriteriaView(saved);
+      } else {
+        buildCriteriaBuilder();
+      }
+    }
+
+    function buildCriteriaView(saved) {
+      const hdr = el('div', `
+        display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:8px;
       `);
-      area.id = 'ce-criteria-area';
-      area.placeholder = 'No criteria saved — use the chat below to build one';
-      area.value = saved;
-      area.addEventListener('focus', () => area.style.borderColor = DS.blue);
-      area.addEventListener('blur',  () => area.style.borderColor = DS.border);
-
-      const cMsg   = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
-      const btnRow = el('div', `display:flex;gap:6px;flex-shrink:0;`);
-
-      const saveC  = btn('💾 Save', `background:${DS.green};color:#fff;flex:1;`);
-      saveC.addEventListener('click', () => {
-        const k = criteriaKey();
-        if (!k) { cMsg.style.color='#C0392B'; cMsg.textContent='Open SpeedGrader first'; return; }
-        const t = document.getElementById('ce-criteria-area')?.value.trim()||'';
-        allCriteria = { ...allCriteria, [k]: t };
-        chrome.storage.local.set({ ce_criteria: allCriteria });
-        cMsg.style.color=DS.green; cMsg.textContent='✓ Saved'; setTimeout(()=>{cMsg.textContent='';},2500);
+      const title = el('div', `font-size:12px;font-weight:600;color:${DS.text};`);
+      title.textContent = 'Grading Criteria';
+      const editBtn = el('button', `
+        padding:5px 12px;border:1px solid ${DS.border};border-radius:3px;
+        background:transparent;color:${DS.text};font-size:12px;font-weight:600;
+        cursor:pointer;font-family:${DS.font};
+      `, { type: 'button', textContent: '✏ Edit' });
+      editBtn.addEventListener('click', () => {
+        criteriaEditing = true; chatHistory = []; chatArea.innerHTML = '';
+        buildCriteriaTab();
       });
-      const delC   = btn('🗑 Delete', `background:${DS.gray};color:#C0392B;border:1px solid ${DS.border};flex:1;`);
-      delC.addEventListener('click', () => {
+      hdr.appendChild(title); hdr.appendChild(editBtn);
+
+      const area = el('div', `
+        flex:1;min-height:0;overflow-y:auto;padding:10px 12px;
+        background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;
+        font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;word-break:break-word;
+      `);
+      area.textContent = saved;
+
+      const delBtn = btn('Delete Criteria', `
+        background:transparent;color:#C0392B;border:1px solid #FECACA;font-size:12px;flex-shrink:0;margin-top:8px;
+      `);
+      delBtn.addEventListener('click', () => {
         const k = criteriaKey(); if (!k) return;
         const u = {...allCriteria}; delete u[k]; allCriteria = u;
         chrome.storage.local.set({ ce_criteria: u });
-        area.value=''; cMsg.style.color=DS.muted; cMsg.textContent='Deleted'; setTimeout(()=>{cMsg.textContent='';},2000);
+        criteriaEditing = true; chatHistory = []; chatArea.innerHTML = '';
+        buildCriteriaTab();
       });
-      btnRow.appendChild(saveC); btnRow.appendChild(delC);
 
-      content.appendChild(lab); content.appendChild(area); content.appendChild(btnRow); content.appendChild(cMsg);
-      content.appendChild(el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;flex-shrink:0;`));
+      content.appendChild(hdr);
+      content.appendChild(area);
+      content.appendChild(delBtn);
+    }
+
+    function buildCriteriaBuilder() {
+      let pendingCriteria = null;
+
+      const hdrText = el('div', `font-size:12px;font-weight:600;color:${DS.text};flex-shrink:0;margin-bottom:2px;`);
+      hdrText.textContent = criteriaEditing ? 'Update Grading Criteria' : 'Build Grading Criteria';
+      const subText = el('div', `font-size:11px;color:${DS.muted};flex-shrink:0;margin-bottom:4px;`);
+      subText.textContent = 'Answer each question to set grading rules for this assignment.';
+
+      const statusEl = el('div', `font-size:11px;min-height:16px;flex-shrink:0;`);
+
+      const saveBtn = btn('💾 Save Criteria', `background:${DS.green};color:#fff;flex-shrink:0;display:none;`);
+      saveBtn.addEventListener('click', () => {
+        if (!pendingCriteria) return;
+        const k = criteriaKey();
+        if (!k) { statusEl.style.color = '#C0392B'; statusEl.textContent = 'Open SpeedGrader first'; return; }
+        allCriteria = { ...allCriteria, [k]: pendingCriteria };
+        chrome.storage.local.set({ ce_criteria: allCriteria });
+        criteriaEditing = false; chatHistory = []; chatArea.innerHTML = '';
+        buildCriteriaTab();
+      });
+
+      // Criteria builder uses onStreamDone to detect finished criteria block
+      onStreamDone = (text) => {
+        const m = text.match(/---GRADING CRITERIA---[\s\S]+?---END CRITERIA---/i);
+        if (m) {
+          pendingCriteria = m[0];
+          statusEl.style.color = DS.green;
+          statusEl.textContent = '✓ Criteria ready — click Save to apply';
+          saveBtn.style.display = '';
+        }
+      };
+
+      content.appendChild(hdrText);
+      content.appendChild(subText);
       content.appendChild(chatArea);
+      content.appendChild(statusEl);
+      content.appendChild(saveBtn);
+      content.appendChild(buildChatInput('Your answer…'));
 
-      const startBtn = btn('▶ Start Criteria Builder', `background:${DS.blue};color:#fff;flex-shrink:0;`);
-      startBtn.addEventListener('click', () => {
-        startBtn.style.display = 'none';
-        chatHistory.push({ role:'user', content:'Help me build grading criteria' });
-        addMessage('user', 'Help me build grading criteria');
-        onStreamDone = (text) => {
-          const m = text.match(/---GRADING CRITERIA---([\s\S]+?)---END CRITERIA---/i);
-          if (m) { area.value = m[0]; cMsg.style.color=DS.blue; cMsg.textContent='↑ Criteria detected — Save when ready'; }
-        };
-        streamToClaudeAPI([{ role:'user', content: CRITERIA_START }]);
-      });
-      content.appendChild(startBtn);
-      content.appendChild(buildChatInput('Answer here…'));
+      // Auto-start: seed chatHistory with CRITERIA_START so ALL follow-ups include it
+      if (chatHistory.length === 0) {
+        chatHistory = [{ role: 'user', content: CRITERIA_START }];
+        streamToClaudeAPI([...chatHistory]);
+      }
     }
 
     // ── REBUILD ───────────────────────────────────────────────────────────────
