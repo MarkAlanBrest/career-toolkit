@@ -4,45 +4,45 @@
 
   const CONTEXT_KEY = 'ce_claude_context';
   let ctx = null;
-  let subReady = false;
   let bar = null;
+  let fileReady = false;
 
   // ── CONTEXT ───────────────────────────────────────────────────────────────
   async function loadContext() {
-    const stored = await new Promise(r => chrome.storage.local.get(CONTEXT_KEY, r));
-    ctx = stored[CONTEXT_KEY] || null;
+    const s = await new Promise(r => chrome.storage.local.get(CONTEXT_KEY, r));
+    ctx = s[CONTEXT_KEY] || null;
   }
 
   chrome.storage.onChanged.addListener((changes) => {
     if (changes[CONTEXT_KEY]) {
       ctx = changes[CONTEXT_KEY].newValue;
-      subReady = false;
+      fileReady = false;
       renderBar();
     }
   });
 
-  // ── TOOLBAR ───────────────────────────────────────────────────────────────
+  // ── BAR ───────────────────────────────────────────────────────────────────
   function injectBar() {
-    if (document.getElementById('ce-bar')) return;
+    if (document.getElementById('ce-bar') || !document.body) return;
     bar = document.createElement('div');
     bar.id = 'ce-bar';
     bar.style.cssText = [
       'position:fixed', 'bottom:0', 'left:0', 'right:0', 'z-index:2147483647',
-      'background:#2d3b45', 'color:#fff', 'padding:8px 16px',
+      'background:#fff', 'border-top:2px solid #0770B8',
+      'padding:10px 16px',
       'display:flex', 'align-items:center', 'gap:10px',
       'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      'font-size:13px', 'box-shadow:0 -2px 12px rgba(0,0,0,.35)',
+      'font-size:13px', 'color:#2d3b45',
+      'box-shadow:0 -2px 12px rgba(0,0,0,.08)',
     ].join(';');
     document.body.appendChild(bar);
     renderBar();
   }
 
-  function mkBtn(label, css, onClick) {
-    const b = document.createElement('button');
-    b.type = 'button'; b.textContent = label;
-    b.style.cssText = `padding:6px 14px;border-radius:4px;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;${css}`;
-    b.onclick = onClick;
-    return b;
+  function mkBtn(text, css, onClick) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = text;
+    b.style.cssText = `padding:7px 16px;border-radius:3px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;${css}`;
+    b.onclick = onClick; return b;
   }
 
   function renderBar() {
@@ -50,74 +50,73 @@
     bar.innerHTML = '';
 
     const logo = document.createElement('span');
-    logo.style.cssText = 'font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0;color:#e5e7eb;';
+    logo.style.cssText = 'font-weight:700;font-size:13px;color:#0770B8;white-space:nowrap;flex-shrink:0;margin-right:4px;';
     logo.textContent = '✦ Canvas Enhancer';
     bar.appendChild(logo);
 
     if (!ctx) {
-      const hint = document.createElement('span');
-      hint.style.cssText = 'font-size:12px;color:#9ca3af;';
-      hint.textContent = 'Open SpeedGrader to load a student';
-      bar.appendChild(hint);
+      const msg = document.createElement('span');
+      msg.style.cssText = 'font-size:12px;color:#9ca3af;';
+      msg.textContent = 'Open SpeedGrader to load a student';
+      bar.appendChild(msg);
       return;
     }
 
-    // Student info
+    if (ctx.mode === 'criteria') {
+      renderCriteriaBar();
+    } else {
+      renderGradeBar();
+    }
+  }
+
+  // ── GRADE BAR ─────────────────────────────────────────────────────────────
+  function renderGradeBar() {
     const info = document.createElement('div');
-    info.style.cssText = 'display:flex;flex-direction:column;gap:1px;min-width:0;';
-    const nameEl = document.createElement('span');
-    nameEl.style.cssText = 'font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    info.style.cssText = 'min-width:0;flex:1;';
+    const nameEl = document.createElement('div');
+    nameEl.style.cssText = 'font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#2d3b45;';
     nameEl.textContent = ctx.studentName || 'Student';
-    const metaEl = document.createElement('span');
-    metaEl.style.cssText = 'font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    metaEl.textContent = [
-      ctx.assignmentName,
-      ctx.settings?.totalPoints ? `${ctx.settings.totalPoints} pts` : null,
-      ctx.settings?.gradingIntensity,
-    ].filter(Boolean).join(' · ');
-    info.appendChild(nameEl);
-    info.appendChild(metaEl);
+    const metaEl = document.createElement('div');
+    metaEl.style.cssText = 'font-size:11px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    metaEl.textContent = [ctx.assignmentName, ctx.settings?.totalPoints ? `${ctx.settings.totalPoints} pts` : null, ctx.settings?.gradingIntensity].filter(Boolean).join(' · ');
+    info.appendChild(nameEl); info.appendChild(metaEl);
     bar.appendChild(info);
 
-    const spacer = document.createElement('div');
-    spacer.style.flex = '1';
-    bar.appendChild(spacer);
+    const hasFiles = ctx.attachments?.length > 0;
+    const hasText  = ctx.subText && !ctx.subText.startsWith('[File upload');
 
-    const hasAttachments = ctx.attachments?.length > 0;
-    const subIsText = ctx.subText && !ctx.subText.startsWith('[File upload');
-
-    // Grab Submission button
-    if (hasAttachments && !subReady && !subIsText) {
-      bar.appendChild(mkBtn('📎 Grab Submission', 'background:#374151;color:#fff;border:1px solid #6b7280;', grabSubmission));
-    } else if (subReady || subIsText) {
+    if (hasFiles && !fileReady && !hasText) {
+      bar.appendChild(mkBtn('📎 Grab File', 'background:#f5f5f5;color:#2d3b45;border:1px solid #c7cdd1;', grabFile));
+    } else if (fileReady || hasText) {
       const ok = document.createElement('span');
-      ok.style.cssText = 'font-size:12px;color:#4ade80;white-space:nowrap;flex-shrink:0;';
-      ok.textContent = '✓ Submission ready';
+      ok.style.cssText = 'font-size:12px;color:#127a1b;flex-shrink:0;white-space:nowrap;';
+      ok.textContent = '✓ Ready';
       bar.appendChild(ok);
     }
 
-    // Grade button
-    bar.appendChild(mkBtn('✦ Grade', 'background:#0770B8;color:#fff;', sendGradingPrompt));
-
-    // Copy Comment button
-    bar.appendChild(mkBtn('⎘ Copy Comment', 'background:#059669;color:#fff;', copyLastComment));
+    bar.appendChild(mkBtn('✦ Grade Submission', 'background:#0770B8;color:#fff;', sendGradePrompt));
+    bar.appendChild(mkBtn('⎘ Copy Comments', 'background:#059669;color:#fff;font-size:14px;padding:8px 22px;', copyComments));
   }
 
-  function setStatus(msg, isError) {
-    if (!bar) return;
-    let s = bar.querySelector('#ce-status');
-    if (!s) {
-      s = document.createElement('span');
-      s.id = 'ce-status';
-      s.style.cssText = 'font-size:12px;white-space:nowrap;flex-shrink:0;';
-      bar.appendChild(s);
-    }
-    s.style.color = isError ? '#f87171' : '#9ca3af';
-    s.textContent = msg;
+  // ── CRITERIA BAR ──────────────────────────────────────────────────────────
+  function renderCriteriaBar() {
+    const info = document.createElement('div');
+    info.style.cssText = 'min-width:0;flex:1;';
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-weight:600;font-size:13px;color:#2d3b45;';
+    titleEl.textContent = 'Criteria Builder';
+    const subEl = document.createElement('div');
+    subEl.style.cssText = 'font-size:11px;color:#6b7280;';
+    subEl.textContent = ctx.assignmentName ? `for ${ctx.assignmentName}` : 'Building grading criteria';
+    info.appendChild(titleEl); info.appendChild(subEl);
+    bar.appendChild(info);
+
+    bar.appendChild(mkBtn('▶ Start Builder', 'background:#0770B8;color:#fff;', sendCriteriaPrompt));
+    bar.appendChild(mkBtn('⎘ Copy Criteria', 'background:#059669;color:#fff;font-size:14px;padding:8px 22px;', copyCriteria));
   }
 
-  // ── GRAB SUBMISSION ───────────────────────────────────────────────────────
-  async function grabSubmission() {
+  // ── FILE FETCH ────────────────────────────────────────────────────────────
+  async function grabFile() {
     if (!ctx?.attachments?.length) return;
     setStatus('Fetching file…');
     try {
@@ -134,77 +133,110 @@
       }
       ctx.subText = parts.join('\n\n');
       chrome.storage.local.set({ [CONTEXT_KEY]: ctx });
-      subReady = true;
+      fileReady = true;
       renderBar();
-    } catch (e) {
+    } catch(e) {
       setStatus('Error: ' + e.message, true);
     }
   }
 
-  // ── BUILD PROMPT ──────────────────────────────────────────────────────────
-  function buildPrompt() {
+  function setStatus(msg, isErr) {
+    if (!bar) return;
+    let s = bar.querySelector('#ce-status');
+    if (!s) {
+      s = document.createElement('span'); s.id = 'ce-status';
+      s.style.cssText = 'font-size:12px;flex-shrink:0;'; bar.appendChild(s);
+    }
+    s.style.color = isErr ? '#c0392b' : '#6b7280';
+    s.textContent = msg;
+  }
+
+  // ── PROMPTS ───────────────────────────────────────────────────────────────
+  function buildGradePrompt() {
     if (!ctx) return '';
-    const st = ctx.settings || {};
-    const total = st.totalPoints || 100;
-    const firstName = ctx.studentName ? ctx.studentName.split(' ')[0] : 'the student';
-    const intensityMap = {
-      lenient:  'Be generous. Give benefit of the doubt. Focus on what the student did well.',
-      balanced: 'Grade fairly. Acknowledge strengths and note specific weaknesses.',
-      strict:   'Hold students to high standards. Be thorough in identifying errors.',
-    };
-    const toneMap = {
-      encouraging: 'Start with positives, then constructive feedback. Be warm and supportive.',
-      neutral:     'Be objective and professional.',
-      direct:      'Be concise and direct. Focus on what needs improvement.',
-    };
+    const st  = ctx.settings || {};
+    const tot = st.totalPoints || 100;
+    const fn  = ctx.studentName ? ctx.studentName.split(' ')[0] : 'the student';
+    const intensityMap = { lenient: 'Be generous. Give benefit of the doubt. Focus on what the student did well.', balanced: 'Grade fairly. Acknowledge strengths and note specific weaknesses.', strict: 'Hold to high standards. Be thorough identifying errors.' };
+    const toneMap = { encouraging: 'Start with positives, then constructive feedback. Be warm and supportive.', neutral: 'Be objective and professional.', direct: 'Be concise and direct. Focus on what needs improvement.' };
+
     let p = `You are an expert teacher grading a student assignment.\nStudent: ${ctx.studentName || 'Student'}\n`;
     if (ctx.assignmentName) p += `Assignment: ${ctx.assignmentName}\n`;
     p += `\nGRADING APPROACH: ${intensityMap[st.gradingIntensity] || intensityMap.balanced}\n`;
     p += `FEEDBACK TONE: ${toneMap[st.feedbackTone] || toneMap.encouraging}\n`;
     if (st.acceptIntent)  p += `ACCEPT INTENT: Give credit if the student conveys the correct meaning even if wording differs.\n`;
     if (st.partialCredit) p += `PARTIAL CREDIT: Award partial credit for partially correct answers.\n`;
-    p += `\nTOTAL POINTS: ${total}\n\n`;
+    p += `\nTOTAL POINTS: ${tot}\n\n`;
     if (st.rubricText)         p += `RUBRIC / GRADING CRITERIA:\n${st.rubricText}\n\n`;
     if (st.answerKey)          p += `ANSWER KEY:\n${st.answerKey}\n\n`;
     if (st.customInstructions) p += `ADDITIONAL INSTRUCTIONS:\n${st.customInstructions}\n\n`;
     p += `STUDENT SUBMISSION:\n${(ctx.subText || '').slice(0, 18000)}\n\n`;
     p += `Grade this submission. DO NOT penalize for things not in the rubric.\n\n`;
-    p += `Respond in EXACTLY this format:\nSCORE: [number]/${total}\nFEEDBACK:\n- TEACHER CHECK: [items teacher must manually verify, if any]\n- [Address ${firstName} by name, summarize overall performance]\n- [Specific finding on a rubric criterion]\n- [Another criterion or area for improvement]\n\nRules: first bullet MUST start with TEACHER CHECK:. Use 3-5 bullets total.`;
+    p += `Respond in EXACTLY this format:\nSCORE: [number]/${tot}\nFEEDBACK:\n- TEACHER CHECK: [items to manually verify, if any]\n- [Address ${fn} by name, overall performance]\n- [Specific criterion finding]\n- [Another finding or area for improvement]\n\nFirst bullet MUST start with TEACHER CHECK:. Use 3–5 bullets total.`;
     return p;
   }
 
-  // ── SEND PROMPT TO CLAUDE ─────────────────────────────────────────────────
-  async function sendGradingPrompt() {
+  const CRITERIA_PROMPT = `You are helping a teacher set up AI grading criteria for their class. Ask these questions ONE AT A TIME and wait for each answer before asking the next:
+
+1. What is the assignment name?
+2. What is the total point value?
+3. How strict should grading be?
+   - Lenient = benefit of the doubt, focus on what student did well
+   - Balanced = fair and consistent
+   - Strict = hold to high standards
+4. What feedback tone?
+   - Encouraging = warm, start with positives
+   - Neutral = objective and professional
+   - Direct = concise, focus on improvements
+5. Do you have a rubric or grading criteria? (Paste it in, or describe what you're looking for)
+6. Do you have an answer key? (Type "none" to skip)
+7. Any special grading instructions or things to watch for?
+
+Once you have all the answers, output EXACTLY this block (I will copy it into my grading tool):
+
+---GRADING CRITERIA---
+TOTAL POINTS: [number]
+GRADING STYLE: [lenient/balanced/strict]
+FEEDBACK TONE: [encouraging/neutral/direct]
+RUBRIC:
+[rubric content]
+ANSWER KEY:
+[answer key or none]
+INSTRUCTIONS:
+[additional instructions or none]
+---END CRITERIA---`;
+
+  async function sendGradePrompt() {
     if (!ctx) return;
+    const needsFile = ctx.attachments?.length && ctx.subText?.startsWith('[File upload');
+    if (needsFile) { await grabFile(); }
+    injectAndSend(buildGradePrompt());
+  }
 
-    const needsGrab = ctx.attachments?.length && ctx.subText?.startsWith('[File upload');
-    if (needsGrab) await grabSubmission();
+  function sendCriteriaPrompt() {
+    injectAndSend(CRITERIA_PROMPT);
+  }
 
-    const prompt = buildPrompt();
+  function injectAndSend(text) {
     const input = findInput();
-    if (!input) {
-      setStatus('Could not find chat input — try refreshing the page', true);
-      return;
-    }
-
+    if (!input) { setStatus('Could not find chat input — refresh the page', true); return; }
     input.focus();
     document.execCommand('selectAll', false, null);
     document.execCommand('delete', false, null);
-    document.execCommand('insertText', false, prompt);
-
+    document.execCommand('insertText', false, text);
     setTimeout(() => {
-      const sendBtn = findSendButton();
-      if (sendBtn) sendBtn.click();
-      else setStatus('Type is ready — press Enter to send', false);
+      const btn = findSendBtn();
+      if (btn) btn.click();
+      else setStatus('Prompt ready — press Enter to send');
     }, 150);
   }
 
   function findInput() {
     const selectors = [
-      'div[contenteditable="true"].ProseMirror',
+      'div.ProseMirror[contenteditable="true"]',
       'div[contenteditable="true"][data-testid]',
       'div[contenteditable="true"]',
-      'textarea[placeholder]',
+      'textarea',
     ];
     for (const sel of selectors) {
       const el = document.querySelector(sel);
@@ -213,13 +245,8 @@
     return null;
   }
 
-  function findSendButton() {
-    const selectors = [
-      'button[aria-label="Send message"]',
-      'button[aria-label="Send Message"]',
-      'button[data-testid="send-button"]',
-      'button[type="submit"]',
-    ];
+  function findSendBtn() {
+    const selectors = ['button[aria-label="Send message"]', 'button[aria-label="Send Message"]', 'button[data-testid="send-button"]', 'button[type="submit"]'];
     for (const sel of selectors) {
       const el = document.querySelector(sel);
       if (el && !el.disabled) return el;
@@ -227,61 +254,57 @@
     return null;
   }
 
-  // ── COPY COMMENT ──────────────────────────────────────────────────────────
-  function copyLastComment() {
-    const selectors = [
-      '[data-testid="claude-ai-turn"] .prose',
-      '[data-testid="claude-ai-turn"]',
-      '.font-claude-message',
-      '[data-is-streaming="false"]',
-      'div.prose',
-    ];
-    let lastMsg = null;
+  // ── COPY ──────────────────────────────────────────────────────────────────
+  function getLastClaudeMessage() {
+    const selectors = ['[data-testid="claude-ai-turn"] .prose', '[data-testid="claude-ai-turn"]', '.font-claude-message', 'div.prose'];
     for (const sel of selectors) {
       const els = document.querySelectorAll(sel);
-      if (els.length) { lastMsg = els[els.length - 1]; break; }
+      if (els.length) return els[els.length - 1];
     }
-    if (!lastMsg) {
-      setStatus('No response found yet — wait for Claude to finish', true);
-      return;
-    }
-    const raw = lastMsg.innerText || lastMsg.textContent || '';
-    const feedbackMatch = raw.match(/FEEDBACK:\s*([\s\S]+)/i);
-    const lines = (feedbackMatch ? feedbackMatch[1] : raw).split('\n');
-    const comment = lines
-      .filter(l => !/^[-*]?\s*(TEACHER CHECK|WARN|WARNING|⚠)/i.test(l.trim()) && l.trim())
-      .join('\n')
-      .trim();
-    navigator.clipboard.writeText(comment).then(() => {
-      const btn = bar?.querySelector('button:last-child');
-      if (btn) {
-        const orig = btn.textContent;
-        btn.textContent = '✓ Copied!';
-        btn.style.background = '#047857';
-        setTimeout(() => { btn.textContent = orig; btn.style.background = '#059669'; }, 2000);
+    return null;
+  }
+
+  function copyComments() {
+    const msg = getLastClaudeMessage();
+    if (!msg) { setStatus('Wait for Claude to finish responding', true); return; }
+    const raw = msg.innerText || '';
+    const match = raw.match(/FEEDBACK:\s*([\s\S]+)/i);
+    const lines = (match ? match[1] : raw).split('\n');
+    const comment = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|WARN|WARNING|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
+    navigator.clipboard.writeText(comment).then(() => flash('⎘ Copy Comments', '✓ Copied!'));
+  }
+
+  function copyCriteria() {
+    const msg = getLastClaudeMessage();
+    if (!msg) { setStatus('Wait for Claude to finish responding', true); return; }
+    const raw = msg.innerText || '';
+    const match = raw.match(/---GRADING CRITERIA---([\s\S]+?)---END CRITERIA---/i);
+    navigator.clipboard.writeText(match ? match[0] : raw).then(() => flash('⎘ Copy Criteria', '✓ Copied!'));
+  }
+
+  function flash(origText, newText) {
+    if (!bar) return;
+    for (const b of bar.querySelectorAll('button')) {
+      if (b.textContent === origText) {
+        const origBg = b.style.background;
+        b.textContent = newText; b.style.background = '#047857';
+        setTimeout(() => { b.textContent = origText; b.style.background = origBg; }, 2000);
+        break;
       }
-    });
+    }
   }
 
   // ── INIT ──────────────────────────────────────────────────────────────────
   async function init() {
     await loadContext();
 
-    const tryInject = () => {
-      if (document.body) injectBar();
-    };
+    if (document.body) injectBar();
+    else document.addEventListener('DOMContentLoaded', injectBar);
 
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', tryInject);
-    } else {
-      tryInject();
-    }
-
-    // Re-inject if claude.ai does a full SPA navigation
-    const obs = new MutationObserver(() => {
+    // Re-inject after SPA navigation
+    new MutationObserver(() => {
       if (!document.getElementById('ce-bar') && document.body) injectBar();
-    });
-    obs.observe(document.documentElement, { childList: true, subtree: false });
+    }).observe(document.documentElement, { childList: true });
   }
 
   init();
