@@ -131,12 +131,17 @@ async function handleGenerate(payload) {
   return { content: [{ type: 'text', text: fullText }] };
 }
 
-async function handleCanvasApi({ url, token }) {
+async function handleCanvasApi({ url, token, method, body }) {
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/json',
+  };
+  if (body) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json',
-    },
+    method:  method || 'GET',
+    headers,
+    body:    body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json();
   if (!res.ok) {
