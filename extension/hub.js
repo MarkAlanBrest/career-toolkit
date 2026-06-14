@@ -4,6 +4,14 @@
 
   // ── DESIGN TOKENS ──────────────────────────────────────────────────────────
   const DS = {
+    // Toolbar (mirrors Canvas global nav)
+    navBg:      '#394B58',
+    navHover:   '#4A6072',
+    navActive:  '#1B303D',
+    navBorder:  'rgba(255,255,255,.1)',
+    navText:    '#FFFFFF',
+
+    // Panel / content
     blue:   '#0770B8',
     blueBg: '#E8F1F8',
     text:   '#2D3B45',
@@ -41,8 +49,8 @@
   const toolbar = el('div', `
     position:fixed;top:0;right:0;bottom:0;width:${TOOLBAR_W}px;
     z-index:2147483640;
-    background:${DS.white};border-left:1px solid ${DS.border};
-    box-shadow:-2px 0 8px rgba(0,0,0,.08);
+    background:${DS.navBg};
+    box-shadow:-2px 0 10px rgba(0,0,0,.25);
     display:flex;flex-direction:column;align-items:center;
     font-family:${DS.font};
     transition:transform .2s ease;
@@ -53,10 +61,10 @@
   const brand = el('div', `
     width:100%;height:48px;flex-shrink:0;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    border-bottom:1px solid ${DS.border};gap:3px;
+    border-bottom:1px solid ${DS.navBorder};gap:3px;
   `);
-  const dot1 = el('div', `width:6px;height:6px;border-radius:50%;background:${DS.blue};`);
-  const dot2 = el('div', `width:3px;height:3px;border-radius:50%;background:${DS.blue};opacity:.5;`);
+  const dot1 = el('div', `width:7px;height:7px;border-radius:50%;background:${DS.navText};`);
+  const dot2 = el('div', `width:3px;height:3px;border-radius:50%;background:${DS.navText};opacity:.4;`);
   brand.appendChild(dot1);
   brand.appendChild(dot2);
   toolbar.appendChild(brand);
@@ -71,20 +79,25 @@
   const btnMap = {};
   for (const tool of TOOLS) {
     const btn = el('button', `
-      width:44px;height:48px;
+      width:100%;height:52px;
       border:none;border-left:3px solid transparent;
       background:transparent;cursor:pointer;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:2px;font-family:${DS.font};transition:background .12s;flex-shrink:0;
+      gap:3px;font-family:${DS.font};transition:background .12s;flex-shrink:0;
       box-sizing:border-box;
     `, { type: 'button', title: tool.label });
 
-    const icon = el('span', 'font-size:17px;line-height:1;pointer-events:none;');
+    const icon = el('span', 'font-size:18px;line-height:1;pointer-events:none;');
     icon.textContent = tool.icon;
+
+    const label = el('span', `font-size:9px;color:${DS.navText};opacity:.75;pointer-events:none;letter-spacing:.3px;text-transform:uppercase;`);
+    label.textContent = tool.label.split(' ')[0];
+
     btn.appendChild(icon);
+    btn.appendChild(label);
 
     btn.addEventListener('mouseenter', () => {
-      if (_active !== tool.id) btn.style.background = DS.gray;
+      if (_active !== tool.id) btn.style.background = DS.navHover;
     });
     btn.addEventListener('mouseleave', () => {
       if (_active !== tool.id) btn.style.background = 'transparent';
@@ -99,12 +112,15 @@
   // Collapse button
   const collapseBtn = el('button', `
     width:100%;height:40px;flex-shrink:0;
-    border:none;border-top:1px solid ${DS.border};
+    border:none;border-top:1px solid ${DS.navBorder};
     background:transparent;cursor:pointer;
-    font-size:12px;color:${DS.muted};
+    font-size:12px;color:${DS.navText};opacity:.6;
     font-family:${DS.font};
     display:flex;align-items:center;justify-content:center;
+    transition:opacity .12s;
   `, { type: 'button', title: 'Collapse toolbar', textContent: '◀' });
+  collapseBtn.addEventListener('mouseenter', () => collapseBtn.style.opacity = '1');
+  collapseBtn.addEventListener('mouseleave', () => collapseBtn.style.opacity = '.6');
   collapseBtn.addEventListener('click', toggleToolbar);
   toolbar.appendChild(collapseBtn);
 
@@ -113,13 +129,13 @@
     position:fixed;top:50%;right:0;transform:translateY(-50%);
     z-index:2147483641;
     width:18px;height:72px;
-    border:1px solid ${DS.border};border-right:none;
+    border:none;
     border-radius:4px 0 0 4px;
-    background:${DS.white};
-    box-shadow:-2px 0 8px rgba(0,0,0,.1);
+    background:${DS.navBg};
+    box-shadow:-2px 0 8px rgba(0,0,0,.3);
     cursor:pointer;display:none;
     align-items:center;justify-content:center;
-    font-size:10px;color:${DS.blue};
+    font-size:10px;color:${DS.navText};
     font-family:${DS.font};
   `, { type: 'button', title: 'Open Canvas Enhancer', textContent: '▶' });
   tab.addEventListener('click', toggleToolbar);
@@ -311,11 +327,15 @@
     if (_active && btnMap[_active]) {
       btnMap[_active].style.background = 'transparent';
       btnMap[_active].style.borderLeftColor = 'transparent';
+      const lbl = btnMap[_active].querySelector('span:last-child');
+      if (lbl) lbl.style.opacity = '.75';
     }
     _active = id;
     if (id && btnMap[id]) {
-      btnMap[id].style.background = DS.blueBg;
-      btnMap[id].style.borderLeftColor = DS.blue;
+      btnMap[id].style.background = DS.navActive;
+      btnMap[id].style.borderLeftColor = DS.navText;
+      const lbl = btnMap[id].querySelector('span:last-child');
+      if (lbl) lbl.style.opacity = '1';
     }
   }
 
