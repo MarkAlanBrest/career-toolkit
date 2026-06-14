@@ -723,24 +723,6 @@
     }
 
     // ── CRITERIA TAB ──────────────────────────────────────────────────────────
-    const CRITERIA_START = `You are helping a teacher build AI grading criteria. Ask ONE question at a time and wait for each answer. Start with: "What is the assignment name?"
-
-Cover in order: assignment name → total points → grading strictness (Lenient/Balanced/Strict, explain each) → feedback tone (Encouraging/Neutral/Direct, explain each) → rubric or criteria → answer key → special instructions.
-
-Once you have all answers, output ONLY this block:
-
----GRADING CRITERIA---
-TOTAL POINTS: [number]
-GRADING STYLE: [lenient/balanced/strict]
-FEEDBACK TONE: [encouraging/neutral/direct]
-RUBRIC:
-[rubric]
-ANSWER KEY:
-[answer key or none]
-INSTRUCTIONS:
-[instructions or none]
----END CRITERIA---`;
-
     function buildCriteriaTab() {
       content.innerHTML = '';
       const saved = savedCriteria();
@@ -752,9 +734,13 @@ INSTRUCTIONS:
     }
 
     function buildCriteriaView(saved) {
-      const hdr = el('div', `
-        display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:8px;
-      `);
+      const tot   = saved.match(/TOTAL POINTS:\s*(\d+)/i)?.[1]  || '?';
+      const style = saved.match(/GRADING STYLE:\s*(\w+)/i)?.[1] || '';
+      const tone  = saved.match(/FEEDBACK TONE:\s*(\w+)/i)?.[1] || '';
+      const rubric = saved.match(/RUBRIC:\n([\s\S]*?)(?=\nANSWER KEY:|\nINSTRUCTIONS:|---END)/i)?.[1]?.trim() || '';
+      const key    = saved.match(/ANSWER KEY:\n([\s\S]*?)(?=\nINSTRUCTIONS:|---END)/i)?.[1]?.trim() || '';
+
+      const hdr = el('div', `display:flex;align-items:center;justify-content:space-between;flex-shrink:0;`);
       const title = el('div', `font-size:12px;font-weight:600;color:${DS.text};`);
       title.textContent = 'Grading Criteria';
       const editBtn = el('button', `
@@ -762,83 +748,179 @@ INSTRUCTIONS:
         background:transparent;color:${DS.text};font-size:12px;font-weight:600;
         cursor:pointer;font-family:${DS.font};
       `, { type: 'button', textContent: '✏ Edit' });
-      editBtn.addEventListener('click', () => {
-        criteriaEditing = true; chatHistory = []; chatArea.innerHTML = '';
-        buildCriteriaTab();
-      });
+      editBtn.addEventListener('click', () => { criteriaEditing = true; buildCriteriaTab(); });
       hdr.appendChild(title); hdr.appendChild(editBtn);
 
-      const area = el('div', `
-        flex:1;min-height:0;overflow-y:auto;padding:10px 12px;
-        background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;
-        font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;word-break:break-word;
+      const meta = el('div', `
+        display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;flex-shrink:0;
       `);
-      area.textContent = saved;
+      function chip(text, color) {
+        const c = el('div', `
+          padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;
+          background:${color}20;color:${color};
+        `);
+        c.textContent = text;
+        return c;
+      }
+      meta.appendChild(chip(`${tot} pts`, DS.blue));
+      if (style) meta.appendChild(chip(style.charAt(0).toUpperCase()+style.slice(1), DS.muted));
+      if (tone)  meta.appendChild(chip(tone.charAt(0).toUpperCase()+tone.slice(1), DS.green));
+
+      const body = el('div', `flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;`);
+
+      function section(label, text) {
+        if (!text || /^none$/i.test(text)) return;
+        const wrap = el('div', '');
+        const lbl = el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;`);
+        lbl.textContent = label;
+        const val = el('div', `font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;word-break:break-word;
+          background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;padding:8px 10px;`);
+        val.textContent = text;
+        wrap.appendChild(lbl); wrap.appendChild(val);
+        body.appendChild(wrap);
+      }
+      section('Rubric', rubric);
+      section('Answer Key', key);
 
       const delBtn = btn('Delete Criteria', `
-        background:transparent;color:#C0392B;border:1px solid #FECACA;font-size:12px;flex-shrink:0;margin-top:8px;
+        background:transparent;color:#C0392B;border:1px solid #FECACA;font-size:12px;flex-shrink:0;
       `);
       delBtn.addEventListener('click', () => {
         const k = criteriaKey(); if (!k) return;
         const u = {...allCriteria}; delete u[k]; allCriteria = u;
         chrome.storage.local.set({ ce_criteria: u });
-        criteriaEditing = true; chatHistory = []; chatArea.innerHTML = '';
-        buildCriteriaTab();
+        criteriaEditing = true; buildCriteriaTab();
       });
 
       content.appendChild(hdr);
-      content.appendChild(area);
+      content.appendChild(meta);
+      content.appendChild(body);
       content.appendChild(delBtn);
     }
 
     function buildCriteriaBuilder() {
-      // Cancel any in-progress stream so the builder can always start
-      if (activePort) { try { activePort.disconnect(); } catch(_) {} activePort = null; }
-      streaming = false;
+      const existing = savedCriteria();
+      const exTot   = existing.match(/TOTAL POINTS:\s*(\d+)/i)?.[1]  || '100';
+      const exStyle = existing.match(/GRADING STYLE:\s*(\w+)/i)?.[1]?.toLowerCase() || 'balanced';
+      const exTone  = existing.match(/FEEDBACK TONE:\s*(\w+)/i)?.[1]?.toLowerCase() || 'encouraging';
+      const exRubric = existing.match(/RUBRIC:\n([\s\S]*?)(?=\nANSWER KEY:|\nINSTRUCTIONS:|---END)/i)?.[1]?.trim().replace(/^none$/i,'') || '';
+      const exKey    = existing.match(/ANSWER KEY:\n([\s\S]*?)(?=\nINSTRUCTIONS:|---END)/i)?.[1]?.trim().replace(/^none$/i,'') || '';
+      const exInstr  = existing.match(/INSTRUCTIONS:\n([\s\S]*?)(?=---END)/i)?.[1]?.trim().replace(/^none$/i,'') || '';
 
-      let pendingCriteria = null;
+      const hdrText = el('div', `font-size:12px;font-weight:600;color:${DS.text};flex-shrink:0;`);
+      hdrText.textContent = criteriaEditing ? 'Edit Grading Criteria' : 'Set Up Grading Criteria';
 
-      const hdrText = el('div', `font-size:12px;font-weight:600;color:${DS.text};flex-shrink:0;margin-bottom:2px;`);
-      hdrText.textContent = criteriaEditing ? 'Update Grading Criteria' : 'Build Grading Criteria';
-      const subText = el('div', `font-size:11px;color:${DS.muted};flex-shrink:0;margin-bottom:4px;`);
-      subText.textContent = 'Answer each question to set grading rules for this assignment.';
+      const form = el('div', `display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow-y:auto;padding:4px 2px;`);
 
-      const statusEl = el('div', `font-size:11px;min-height:16px;flex-shrink:0;`);
+      // Points
+      const pointsIn = input('ce-crit-points', 'number', '100', exTot);
+      pointsIn.min = '1'; pointsIn.max = '9999';
+      form.appendChild(row('Total Points', pointsIn));
 
-      const saveBtn = btn('💾 Save Criteria', `background:${DS.green};color:#fff;flex-shrink:0;display:none;`);
+      // Strictness
+      const strictSel = el('select', `
+        width:100%;box-sizing:border-box;padding:8px 10px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;
+      `);
+      for (const [v, l] of [
+        ['lenient',  'Lenient — be generous with partial credit'],
+        ['balanced', 'Balanced — grade fairly against the rubric'],
+        ['strict',   'Strict — hold students to high standards'],
+      ]) {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = l; if (v === exStyle) o.selected = true;
+        strictSel.appendChild(o);
+      }
+      form.appendChild(row('How Harsh to Grade', strictSel));
+
+      // Tone
+      const toneSel = el('select', `
+        width:100%;box-sizing:border-box;padding:8px 10px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;
+      `);
+      for (const [v, l] of [
+        ['encouraging', 'Encouraging — warm and supportive'],
+        ['neutral',     'Neutral — objective and professional'],
+        ['direct',      'Direct — concise, focus on improvements'],
+      ]) {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = l; if (v === exTone) o.selected = true;
+        toneSel.appendChild(o);
+      }
+      form.appendChild(row('Type of Comments', toneSel));
+
+      // Rubric
+      const rubricTa = el('textarea', `
+        width:100%;box-sizing:border-box;padding:8px 10px;height:80px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:12px;font-family:${DS.font};color:${DS.text};
+        resize:vertical;outline:none;background:${DS.white};
+      `);
+      rubricTa.placeholder = 'e.g. Thesis 20pts, Evidence 30pts, Writing 25pts, Analysis 25pts';
+      rubricTa.value = exRubric;
+      rubricTa.addEventListener('focus', () => rubricTa.style.borderColor = DS.blue);
+      rubricTa.addEventListener('blur',  () => rubricTa.style.borderColor = DS.border);
+      form.appendChild(row('Rubric', rubricTa, 'How will points be divided?'));
+
+      // Answer key
+      const keyTa = el('textarea', `
+        width:100%;box-sizing:border-box;padding:8px 10px;height:60px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:12px;font-family:${DS.font};color:${DS.text};
+        resize:vertical;outline:none;background:${DS.white};
+      `);
+      keyTa.placeholder = 'Optional — correct answers or model response';
+      keyTa.value = exKey;
+      keyTa.addEventListener('focus', () => keyTa.style.borderColor = DS.blue);
+      keyTa.addEventListener('blur',  () => keyTa.style.borderColor = DS.border);
+      form.appendChild(row('Answer Key', keyTa, 'Optional'));
+
+      // Special instructions
+      const instrTa = el('textarea', `
+        width:100%;box-sizing:border-box;padding:8px 10px;height:50px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:12px;font-family:${DS.font};color:${DS.text};
+        resize:vertical;outline:none;background:${DS.white};
+      `);
+      instrTa.placeholder = 'Optional — any special grading notes';
+      instrTa.value = exInstr;
+      instrTa.addEventListener('focus', () => instrTa.style.borderColor = DS.blue);
+      instrTa.addEventListener('blur',  () => instrTa.style.borderColor = DS.border);
+      form.appendChild(row('Special Instructions', instrTa, 'Optional'));
+
+      const statusEl = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
+
+      const saveBtn = btn('Save Criteria', `background:${DS.blue};color:#fff;flex-shrink:0;`);
       saveBtn.addEventListener('click', () => {
-        if (!pendingCriteria) return;
         const k = criteriaKey();
         if (!k) { statusEl.style.color = '#C0392B'; statusEl.textContent = 'Open SpeedGrader first'; return; }
-        allCriteria = { ...allCriteria, [k]: pendingCriteria };
+        const pts    = document.getElementById('ce-crit-points')?.value?.trim() || '100';
+        const rubric = rubricTa.value.trim() || 'none';
+        const key    = keyTa.value.trim()    || 'none';
+        const instr  = instrTa.value.trim()  || 'none';
+        const criteria = [
+          '---GRADING CRITERIA---',
+          `TOTAL POINTS: ${pts}`,
+          `GRADING STYLE: ${strictSel.value}`,
+          `FEEDBACK TONE: ${toneSel.value}`,
+          `RUBRIC:\n${rubric}`,
+          `ANSWER KEY:\n${key}`,
+          `INSTRUCTIONS:\n${instr}`,
+          '---END CRITERIA---',
+        ].join('\n');
+        allCriteria = { ...allCriteria, [k]: criteria };
         chrome.storage.local.set({ ce_criteria: allCriteria });
-        criteriaEditing = false; chatHistory = []; chatArea.innerHTML = '';
-        buildCriteriaTab();
+        statusEl.style.color = DS.green; statusEl.textContent = '✓ Saved';
+        criteriaEditing = false;
+        setTimeout(() => buildCriteriaTab(), 600);
       });
 
-      // Criteria builder uses onStreamDone to detect finished criteria block
-      onStreamDone = (text) => {
-        const m = text.match(/---GRADING CRITERIA---[\s\S]+?---END CRITERIA---/i);
-        if (m) {
-          pendingCriteria = m[0];
-          statusEl.style.color = DS.green;
-          statusEl.textContent = '✓ Criteria ready — click Save to apply';
-          saveBtn.style.display = '';
-        }
-      };
-
       content.appendChild(hdrText);
-      content.appendChild(subText);
-      content.appendChild(chatArea);
+      content.appendChild(form);
       content.appendChild(statusEl);
       content.appendChild(saveBtn);
-      content.appendChild(buildChatInput('Your answer…'));
-
-      // Auto-start: seed chatHistory with CRITERIA_START so ALL follow-ups include it
-      if (chatHistory.length === 0) {
-        chatHistory = [{ role: 'user', content: CRITERIA_START }];
-        streamToClaudeAPI([...chatHistory]);
-      }
     }
 
     // ── REBUILD ───────────────────────────────────────────────────────────────
