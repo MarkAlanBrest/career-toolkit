@@ -81,9 +81,9 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
   const sl = screenLeft || 0;
   const st = screenTop  || 0;
 
-  // Canvas gets the left 62%, AI chat gets the right 38%
-  const canvasW = Math.round(screenWidth * 0.62);
-  const aiW     = screenWidth - canvasW;
+  // AI chat gets a fixed 420px, Canvas gets everything else
+  const aiW     = 420;
+  const canvasW = screenWidth - aiW;
 
   // Resize the Canvas window to the left side
   const canvasWindowId = sender?.tab?.windowId;
