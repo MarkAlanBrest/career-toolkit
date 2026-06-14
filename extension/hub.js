@@ -25,6 +25,14 @@
 
   const TOOLBAR_W = 52;
 
+  const AI_PROVIDERS = [
+    { id: 'claude',      label: 'Claude (claude.ai)',     url: 'https://claude.ai/new' },
+    { id: 'chatgpt',     label: 'ChatGPT (chatgpt.com)',  url: 'https://chatgpt.com/' },
+    { id: 'gemini',      label: 'Gemini (Google)',        url: 'https://gemini.google.com/app' },
+    { id: 'copilot',     label: 'Microsoft Copilot',      url: 'https://copilot.microsoft.com/' },
+    { id: 'perplexity',  label: 'Perplexity',             url: 'https://www.perplexity.ai/' },
+  ];
+
   const TOOLS = [
     { id: 'quick-ai',  icon: '⚡', label: 'Quick AI',         noPanel: true },
     { id: 'ai-grader', icon: '🎓', label: 'AI Grader' },
@@ -154,24 +162,25 @@
   panel.id = 'ce-hub-panel';
 
   const panelHeader = el('div', `
-    height:48px;flex-shrink:0;
-    background:${DS.blue};
+    height:44px;flex-shrink:0;
+    background:${DS.white};
+    border-bottom:1px solid ${DS.border};
     display:flex;align-items:center;padding:0 16px;gap:8px;
   `);
 
   const panelTitle = el('span', `
-    flex:1;color:${DS.white};font-size:14px;font-weight:700;
+    flex:1;color:${DS.text};font-size:14px;font-weight:700;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   `);
 
   const panelClose = el('button', `
-    background:none;border:none;color:${DS.white};
-    font-size:22px;cursor:pointer;line-height:1;
+    background:none;border:none;color:${DS.muted};
+    font-size:20px;cursor:pointer;line-height:1;
     padding:0 2px;font-family:${DS.font};flex-shrink:0;
-    opacity:.85;transition:opacity .12s;
+    transition:color .12s;
   `, { type: 'button', textContent: '×', title: 'Close' });
-  panelClose.addEventListener('mouseenter', () => panelClose.style.opacity = '1');
-  panelClose.addEventListener('mouseleave', () => panelClose.style.opacity = '.85');
+  panelClose.addEventListener('mouseenter', () => panelClose.style.color = DS.text);
+  panelClose.addEventListener('mouseleave', () => panelClose.style.color = DS.muted);
   panelClose.addEventListener('click', closePanel);
 
   panelHeader.appendChild(panelTitle);
@@ -245,7 +254,7 @@
 
   async function renderSettings() {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ce_license_key'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ce_license_key','ce_ai_provider'], r)
     );
     panelBody.innerHTML = '';
 
@@ -312,14 +321,17 @@
   }
 
   function openQuickAI() {
-    chrome.runtime.sendMessage({
-      type: 'OPEN_CLAUDE_SPLIT',
-      payload: {
-        screenWidth:  window.screen.width,
-        screenHeight: window.screen.availHeight,
-        screenTop:    window.screen.availTop  || 0,
-        screenLeft:   window.screen.availLeft || 0,
-      },
+    const sw = window.screen.width;
+    const sh = window.screen.availHeight;
+    const st = window.screen.availTop  || 0;
+    const sl = window.screen.availLeft || 0;
+    const w  = Math.min(480, Math.max(320, Math.round(sw * 0.25)));
+    chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
+      const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
+      chrome.runtime.sendMessage({
+        type: 'OPEN_CLAUDE_SPLIT',
+        payload: { url: provider.url, left: sl + sw - w - TOOLBAR_W, top: st, width: w, height: sh },
+      });
     });
   }
 

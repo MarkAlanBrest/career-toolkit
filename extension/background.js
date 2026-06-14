@@ -77,15 +77,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
-async function handleOpenClaudeSplit({ screenWidth, screenHeight, screenTop, screenLeft }) {
-  const w    = Math.round(Math.min(960, screenWidth  * 0.58));
-  const h    = Math.round(Math.min(800, screenHeight * 0.85));
-  const left = (screenLeft || 0) + Math.round((screenWidth  - w) / 2);
-  const top  = (screenTop  || 0) + Math.round((screenHeight - h) / 2);
-
+async function handleOpenClaudeSplit({ left, top, width, height }) {
   await chrome.windows.create({
     url: 'https://claude.ai/new',
-    left, top, width: w, height: h,
+    left, top, width, height,
     type: 'normal',
   });
 }
