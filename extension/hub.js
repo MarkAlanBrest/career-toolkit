@@ -42,8 +42,9 @@
     { id: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
-  let _active   = null;  // tool id with open panel
-  let _expanded = true;  // toolbar visible
+  let _active      = null;   // tool id with open panel
+  let _expanded    = true;   // toolbar visible
+  let _panelCleanup = null;  // storage listener teardown for active panel
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -334,6 +335,303 @@
     panelBody.appendChild(stack);
   }
 
+  // ── AI GRADER ──────────────────────────────────────────────────────────────
+  async function renderAIGrader() {
+    const stored = await new Promise(r =>
+      chrome.storage.local.get(['ce_claude_context', 'ce_criteria'], r)
+    );
+    let ctx        = stored.ce_claude_context || null;
+    let allCriteria = stored.ce_criteria      || {};
+
+    let activeTab = 'grade';
+
+    // ── helpers ──
+    function criteriaKey() { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
+    function savedCriteria() { const k = criteriaKey(); return k ? (allCriteria[k] || '') : ''; }
+
+    function openAIWindow(mode) {
+      if (ctx) {
+        const criteria = savedCriteria();
+        chrome.storage.local.set({
+          ce_claude_context: {
+            ...ctx,
+            mode,
+            settings: { ...(ctx.settings || {}), rubricText: criteria },
+          },
+        });
+      }
+      const sw = window.screen.width;
+      const sh = window.screen.availHeight;
+      const w  = Math.min(580, Math.max(460, Math.round(sw * 0.30)));
+      chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
+        const p = AI_PROVIDERS.find(x => x.id === ce_ai_provider) || AI_PROVIDERS[0];
+        chrome.runtime.sendMessage({
+          type: 'OPEN_CLAUDE_SPLIT',
+          payload: {
+            url: p.url,
+            left: (window.screen.availLeft || 0) + sw - w - TOOLBAR_W,
+            top:  window.screen.availTop || 0,
+            width: w, height: sh,
+          },
+        });
+      });
+    }
+
+    // ── tab bar ──
+    const tabBar = el('div', `
+      display:flex;margin:-20px -16px 16px;
+      border-bottom:1px solid ${DS.border};
+    `);
+
+    function mkTab(id, label) {
+      const t = el('button', `
+        flex:1;padding:11px 8px;border:none;background:transparent;
+        font-size:12px;font-weight:600;cursor:pointer;font-family:${DS.font};
+        border-bottom:2px solid ${activeTab === id ? DS.blue : 'transparent'};
+        color:${activeTab === id ? DS.blue : DS.muted};
+        transition:all .12s;
+      `, { type: 'button', textContent: label });
+      t.addEventListener('click', () => { activeTab = id; rebuild(); });
+      return t;
+    }
+
+    // ── content area ──
+    const content = el('div', 'display:flex;flex-direction:column;gap:14px;');
+
+    function rebuild() {
+      tabBar.innerHTML = '';
+      tabBar.appendChild(mkTab('grade',    '🎓  Grade'));
+      tabBar.appendChild(mkTab('criteria', '📋  Criteria'));
+      content.innerHTML = '';
+      activeTab === 'grade' ? buildGradeTab() : buildCriteriaTab();
+    }
+
+    // ── GRADE TAB ──────────────────────────────────────────────────────────
+    function buildGradeTab() {
+      // Student card
+      const card = el('div', `
+        background:${DS.gray};border-radius:3px;padding:12px 14px;
+        display:flex;flex-direction:column;gap:4px;
+      `);
+      if (ctx?.studentName) {
+        const nameEl = el('div', `font-size:15px;font-weight:700;color:${DS.text};`);
+        nameEl.textContent = ctx.studentName;
+        card.appendChild(nameEl);
+        if (ctx.assignmentName) {
+          const aEl = el('div', `font-size:12px;color:${DS.muted};`);
+          aEl.textContent = ctx.assignmentName;
+          card.appendChild(aEl);
+        }
+        if (ctx.attachments?.length) {
+          const fEl = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;`);
+          fEl.textContent = '📎 ' + ctx.attachments.map(a => a.filename).join(', ');
+          card.appendChild(fEl);
+        }
+      } else {
+        const empty = el('div', `font-size:12px;color:${DS.muted};text-align:center;padding:6px 0;`);
+        empty.textContent = 'Open SpeedGrader to load a student';
+        card.appendChild(empty);
+      }
+      content.appendChild(card);
+
+      // Open AI window
+      const openBtn = btn('✦  Open AI Grader Window', `background:${DS.blue};color:#fff;`);
+      openBtn.addEventListener('click', () => openAIWindow('grade'));
+      content.appendChild(openBtn);
+
+      // Divider
+      const sep = el('div', `display:flex;align-items:center;gap:8px;color:${DS.muted};font-size:11px;`);
+      sep.appendChild(el('div', `flex:1;height:1px;background:${DS.border};`));
+      const st = el('span', ''); st.textContent = 'paste AI response below';
+      sep.appendChild(st);
+      sep.appendChild(el('div', `flex:1;height:1px;background:${DS.border};`));
+      content.appendChild(sep);
+
+      // Grade input
+      const gradeIn = el('input', `
+        width:100%;box-sizing:border-box;padding:8px 10px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:13px;font-family:${DS.font};color:${DS.text};
+        background:${DS.white};outline:none;transition:border-color .15s;
+      `, { id: 'ce-g-grade', type: 'text', placeholder: 'e.g. 92 or A-' });
+      gradeIn.addEventListener('focus', () => gradeIn.style.borderColor = DS.blue);
+      gradeIn.addEventListener('blur',  () => gradeIn.style.borderColor = DS.border);
+      content.appendChild(row('Grade', gradeIn));
+
+      // Comments textarea
+      const commentsWrap = el('div', 'display:flex;flex-direction:column;gap:5px;');
+      const commentsLab  = el('label', `font-size:12px;font-weight:600;color:${DS.text};`);
+      commentsLab.textContent = 'Comments';
+      const commentsArea = el('textarea', `
+        width:100%;box-sizing:border-box;padding:8px 10px;height:160px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:13px;font-family:${DS.font};color:${DS.text};
+        resize:vertical;outline:none;line-height:1.5;
+        transition:border-color .15s;
+      `);
+      commentsArea.id = 'ce-g-comments';
+      commentsArea.placeholder = 'Paste AI comments here…';
+      commentsArea.addEventListener('focus', () => commentsArea.style.borderColor = DS.blue);
+      commentsArea.addEventListener('blur',  () => commentsArea.style.borderColor = DS.border);
+      commentsWrap.appendChild(commentsLab);
+      commentsWrap.appendChild(commentsArea);
+      content.appendChild(commentsWrap);
+
+      // Save to Canvas
+      const saveBtn = btn('💾  Save to Canvas', `background:${DS.green};color:#fff;`);
+      const saveMsg = el('div', `font-size:12px;text-align:center;min-height:16px;`);
+
+      saveBtn.addEventListener('click', async () => {
+        if (!ctx?.courseId) {
+          saveMsg.style.color = '#C0392B';
+          saveMsg.textContent = 'No student loaded — open SpeedGrader first';
+          return;
+        }
+        const grade   = document.getElementById('ce-g-grade')?.value.trim()    || '';
+        const comment = document.getElementById('ce-g-comments')?.value.trim() || '';
+        if (!grade && !comment) {
+          saveMsg.style.color = '#C0392B';
+          saveMsg.textContent = 'Enter a grade or comments first';
+          return;
+        }
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        const body = {};
+        if (grade)   body.submission = { posted_grade: grade };
+        if (comment) body.comment    = { text_comment: comment };
+
+        const res = await new Promise(resolve => chrome.runtime.sendMessage({
+          type: 'CANVAS_API',
+          payload: {
+            url:    `${location.origin}/api/v1/courses/${ctx.courseId}/assignments/${ctx.assignmentId}/submissions/${ctx.studentId}`,
+            token:  ctx.token,
+            method: 'PUT',
+            body,
+          },
+        }, resolve));
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾  Save to Canvas';
+
+        if (res?.error) {
+          saveMsg.style.color = '#C0392B';
+          saveMsg.textContent = 'Error: ' + res.error;
+        } else {
+          saveMsg.style.color = DS.green;
+          saveMsg.textContent = '✓ Saved to Canvas';
+          setTimeout(() => { saveMsg.textContent = ''; }, 3000);
+        }
+      });
+
+      content.appendChild(saveBtn);
+      content.appendChild(saveMsg);
+    }
+
+    // ── CRITERIA TAB ───────────────────────────────────────────────────────
+    function buildCriteriaTab() {
+      const saved = savedCriteria();
+
+      // Criteria prompt textarea
+      const promptWrap = el('div', 'display:flex;flex-direction:column;gap:5px;');
+      const promptLab  = el('label', `font-size:12px;font-weight:600;color:${DS.text};`);
+      promptLab.textContent = 'Grading Criteria Prompt';
+      const promptArea = el('textarea', `
+        width:100%;box-sizing:border-box;padding:8px 10px;height:200px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:12px;font-family:${DS.font};color:${DS.text};
+        resize:vertical;outline:none;line-height:1.5;
+        transition:border-color .15s;
+      `);
+      promptArea.id = 'ce-c-prompt';
+      promptArea.placeholder = 'No criteria saved yet.\nClick "Build with AI" — it will ask you questions and build a professional grading prompt.\nCopy and paste the result back here to save.';
+      promptArea.value = saved;
+      promptArea.addEventListener('focus', () => promptArea.style.borderColor = DS.blue);
+      promptArea.addEventListener('blur',  () => promptArea.style.borderColor = DS.border);
+      promptWrap.appendChild(promptLab);
+      promptWrap.appendChild(promptArea);
+      content.appendChild(promptWrap);
+
+      // Build + Delete row
+      const btnRow = el('div', 'display:flex;gap:8px;');
+      const buildBtn = el('button', `
+        flex:1;padding:9px 16px;border:none;border-radius:3px;
+        font-size:13px;font-weight:600;cursor:pointer;font-family:${DS.font};
+        background:${DS.blue};color:#fff;transition:opacity .15s;
+      `, { type: 'button', textContent: '✦  Build with AI' });
+      buildBtn.addEventListener('click', () => openAIWindow('criteria'));
+
+      const criteriaMsg = el('div', `font-size:12px;text-align:center;min-height:16px;`);
+
+      const deleteBtn = el('button', `
+        flex:0 0 auto;width:40px;padding:9px;
+        border:1px solid ${DS.border};border-radius:3px;
+        font-size:14px;cursor:pointer;font-family:${DS.font};
+        background:${DS.gray};color:#C0392B;transition:opacity .15s;
+      `, { type: 'button', textContent: '🗑', title: 'Delete criteria' });
+      deleteBtn.addEventListener('click', () => {
+        const k = criteriaKey();
+        if (!k) return;
+        const updated = { ...allCriteria };
+        delete updated[k];
+        allCriteria = updated;
+        chrome.storage.local.set({ ce_criteria: updated });
+        promptArea.value = '';
+        criteriaMsg.style.color = DS.muted;
+        criteriaMsg.textContent = 'Criteria deleted';
+        setTimeout(() => { criteriaMsg.textContent = ''; }, 2000);
+      });
+
+      btnRow.appendChild(buildBtn);
+      btnRow.appendChild(deleteBtn);
+      content.appendChild(btnRow);
+
+      // Save
+      const saveBtn = btn('💾  Save Criteria', `background:${DS.green};color:#fff;`);
+      saveBtn.addEventListener('click', () => {
+        const k    = criteriaKey();
+        const text = document.getElementById('ce-c-prompt')?.value.trim() || '';
+        if (!k) {
+          criteriaMsg.style.color = '#C0392B';
+          criteriaMsg.textContent = 'Open SpeedGrader to select an assignment first';
+          return;
+        }
+        const updated = { ...allCriteria, [k]: text };
+        allCriteria = updated;
+        chrome.storage.local.set({ ce_criteria: updated });
+        criteriaMsg.style.color = DS.green;
+        criteriaMsg.textContent = '✓ Criteria saved';
+        setTimeout(() => { criteriaMsg.textContent = ''; }, 2500);
+      });
+
+      content.appendChild(saveBtn);
+      content.appendChild(criteriaMsg);
+
+      if (!saved) {
+        const hint = el('div', `
+          font-size:11px;color:${DS.muted};line-height:1.6;
+          background:${DS.gray};border-radius:3px;padding:10px 12px;
+        `);
+        hint.textContent = 'Tip: The AI will walk you through everything — point value, grading style, rubric, answer key, and tone. Once it builds the prompt, copy and paste it above, then Save.';
+        content.appendChild(hint);
+      }
+    }
+
+    // ── storage listener — update student card on navigation ──
+    const listener = changes => {
+      if (!changes.ce_claude_context) return;
+      ctx = changes.ce_claude_context.newValue;
+      if (activeTab === 'grade') { content.innerHTML = ''; buildGradeTab(); }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    _panelCleanup = () => chrome.storage.onChanged.removeListener(listener);
+
+    // ── mount ──
+    panelBody.appendChild(tabBar);
+    panelBody.appendChild(content);
+    rebuild();
+  }
+
   // ── TOOL CLICK ─────────────────────────────────────────────────────────────
   function onToolClick(tool) {
     if (tool.noPanel) { openQuickAI(); return; }
@@ -378,7 +676,7 @@
     panelBody.innerHTML = '';
 
     switch (tool.id) {
-      case 'ai-grader':  placeholder('🎓', 'AI Grader',         'Open SpeedGrader to activate.');  break;
+      case 'ai-grader':  await renderAIGrader();                                                     break;
       case 'cheater':    placeholder('🔍', 'Cheater Detector',  'Coming soon.');                    break;
       case 'reports':    placeholder('📊', 'Reports',           'Coming soon.');                    break;
       case 'scheduler':  placeholder('📅', 'Scheduler',         'Coming soon.');                    break;
@@ -389,6 +687,7 @@
   }
 
   function closePanel() {
+    if (_panelCleanup) { _panelCleanup(); _panelCleanup = null; }
     panel.style.display = 'none';
     setActive(null);
   }
