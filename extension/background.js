@@ -35,11 +35,15 @@ async function handleStreamPort(port) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let rawBody = '';
+      let gotChunks = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        const decoded = decoder.decode(value, { stream: true });
+        rawBody += decoded;
+        buffer += decoded;
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
         for (const line of lines) {
@@ -50,10 +54,24 @@ async function handleStreamPort(port) {
             const evt = JSON.parse(raw);
             if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
               port.postMessage({ type: 'chunk', text: evt.delta.text });
+              gotChunks = true;
             }
           } catch { }
         }
       }
+
+      // Fallback: if no SSE chunks arrived the endpoint returned plain JSON
+      if (!gotChunks) {
+        try {
+          const data = JSON.parse(rawBody.trim());
+          const text = data?.content?.[0]?.text || '';
+          console.log('[CE-BG] JSON fallback, text length:', text.length);
+          if (text) port.postMessage({ type: 'chunk', text });
+        } catch(e) {
+          console.warn('[CE-BG] JSON fallback parse failed:', e.message, 'rawBody[:200]:', rawBody.slice(0,200));
+        }
+      }
+
       port.postMessage({ type: 'done' });
     } catch(e) {
       try { port.postMessage({ type: 'error', error: e.message }); } catch { }

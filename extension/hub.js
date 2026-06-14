@@ -342,7 +342,6 @@
   async function renderAIGrader() {
     panelBody.innerHTML = '';
 
-    // Disabled outside SpeedGrader
     if (!/speed_grader/.test(window.location.href)) {
       const wrap = el('div', `text-align:center;padding:52px 16px;`);
       const icon = el('div', `font-size:36px;margin-bottom:14px;opacity:.3;`);
@@ -359,137 +358,42 @@
     );
     let ctx         = stored.ce_claude_context || null;
     let allCriteria = stored.ce_criteria       || {};
-    let activeTab   = 'grade';
-    let chatHistory     = [];
     let streaming       = false;
     let activePort      = null;
     let fileReady       = false;
-    let lastResponse    = null;
     let criteriaEditing = false;
-    let onStreamDone    = () => {};   // overridden by criteria builder
 
     function criteriaKey()   { return ctx ? `${ctx.courseId}_${ctx.assignmentId}` : null; }
     function savedCriteria() { const k = criteriaKey(); return k ? (allCriteria[k] || '') : ''; }
 
-    // ── TAB BAR ──────────────────────────────────────────────────────────────
-    const tabBar = el('div', `
-      display:flex;margin:-20px -16px 0;flex-shrink:0;
-      border-bottom:1px solid ${DS.border};
+    // ── STUDENT NAME BAR ──────────────────────────────────────────────────────
+    const nameBar = el('div', `
+      display:flex;align-items:center;gap:8px;padding:6px 10px;
+      background:${DS.blueBg};border:1px solid #B8D4EA;border-radius:3px;flex-shrink:0;
     `);
+    const nameLabel = el('span', `font-size:11px;font-weight:600;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
+    nameLabel.textContent = 'Grading:';
+    const nameVal = el('span', `font-size:13px;font-weight:700;color:${DS.blue};`);
+    nameVal.textContent = ctx?.studentName || '—';
+    nameBar.appendChild(nameLabel);
+    nameBar.appendChild(nameVal);
 
-    function mkTab(id, label) {
-      const t = el('button', `
-        flex:1;padding:10px 8px;border:none;background:transparent;
-        font-size:12px;font-weight:600;cursor:pointer;font-family:${DS.font};
-        border-bottom:2px solid ${activeTab === id ? DS.blue : 'transparent'};
-        color:${activeTab === id ? DS.blue : DS.muted};transition:all .12s;
-      `, { type: 'button', textContent: label });
-      t.addEventListener('click', () => {
-        activeTab = id; chatHistory = []; chatArea.innerHTML = ''; rebuild();
-      });
-      return t;
+    // ── GRADE BUTTON ──────────────────────────────────────────────────────────
+    const gradeBtn = btn('✦ Grade & Fill In', `background:${DS.blue};color:#fff;`);
+    gradeBtn.id = 'ce-grade-btn';
+    gradeBtn.addEventListener('click', gradeStudent);
+
+    // ── STATUS ────────────────────────────────────────────────────────────────
+    const statusEl = el('div', `font-size:12px;min-height:18px;text-align:center;`);
+
+    function showStatus(msg, type) {
+      statusEl.textContent = msg;
+      const colors = { muted: DS.muted, blue: DS.blue, green: DS.green, error: '#C0392B' };
+      statusEl.style.color = colors[type] || DS.muted;
     }
 
-    // student card removed — name already visible in SpeedGrader
-
-    // ── CHAT AREA ─────────────────────────────────────────────────────────────
-    const chatArea = el('div', `
-      flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px 0;
-    `);
-
-    function addMessage(role, content) {
-      const isUser = role === 'user';
-      const wrap   = el('div', 'display:flex;flex-direction:column;gap:2px;');
-      const lbl    = el('div', `font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:${DS.muted};padding:0 2px;text-align:${isUser?'right':'left'};`);
-      lbl.textContent = isUser ? 'You' : 'Claude';
-      const bubble = el('div', `
-        padding:9px 11px;border-radius:3px;font-size:13px;line-height:1.55;
-        background:${isUser ? DS.blueBg : DS.gray};color:${DS.text};
-        border:1px solid ${isUser ? '#B8D4EA' : DS.border};
-        white-space:pre-wrap;word-break:break-word;
-      `);
-      bubble.textContent = content;
-      wrap.appendChild(lbl); wrap.appendChild(bubble);
-      chatArea.appendChild(wrap);
-      chatArea.scrollTop = chatArea.scrollHeight;
-      return bubble;
-    }
-
-    // ── STREAMING ─────────────────────────────────────────────────────────────
-    function streamToClaudeAPI(messages) {
-      if (streaming) return;
-      streaming = true;
-      setInputsDisabled(true);
-      let bubble   = addMessage('assistant', '…');
-      let fullText = '';
-      const port   = chrome.runtime.connect({ name: 'ce-stream' });
-      activePort   = port;
-      port.onDisconnect.addListener(() => {
-        if (!streaming) return;
-        streaming = false; activePort = null;
-        setInputsDisabled(false);
-        if (!fullText) { bubble.textContent = 'Connection lost — please try again.'; bubble.style.color = '#C0392B'; }
-      });
-      port.onMessage.addListener(msg => {
-        if (msg.type === 'chunk') {
-          fullText += msg.text;
-          bubble.textContent = fullText;
-          chatArea.scrollTop = chatArea.scrollHeight;
-        }
-        if (msg.type === 'done') {
-          chatHistory.push({ role: 'assistant', content: fullText });
-          streaming = false; activePort = null;
-          setInputsDisabled(false);
-          onStreamDone(fullText);
-        }
-        if (msg.type === 'error') {
-          bubble.textContent = 'Error: ' + msg.error;
-          bubble.style.color = '#C0392B';
-          streaming = false; activePort = null;
-          setInputsDisabled(false);
-        }
-      });
-      port.postMessage({ type: 'STREAM_GENERATE', payload: { messages, max_tokens: 1500, model: 'claude-haiku-4-5-20251001' } });
-    }
-
-    function setInputsDisabled(d) {
-      const i = document.getElementById('ce-chat-input');
-      const s = document.getElementById('ce-send-btn');
-      if (i) i.disabled = d;
-      if (s) s.disabled = d;
-    }
-
-    // ── FILE GRAB ─────────────────────────────────────────────────────────────
-    async function grabFile() {
-      if (!ctx?.attachments?.length) return;
-      const status = addMessage('assistant', 'Fetching file…');
-      try {
-        const parts = [];
-        for (const att of ctx.attachments) {
-          status.textContent = `Reading ${att.filename}…`;
-          let url = att.url;
-          if (att.id && ctx.token) {
-            try {
-              const info = await new Promise(r => chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url: `${ctx.canvasOrigin}/api/v1/files/${att.id}`, token: ctx.token } }, r));
-              if (info?.url) url = info.url;
-            } catch(_) {}
-          }
-          const res = await new Promise(r => chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { fileUrl: url, token: ctx.token, filename: att.filename, mimeType: att.mimeType } }, r));
-          if (res?.error) throw new Error(res.error);
-          const text = res?.text?.trim();
-          if (!text) throw new Error(`Could not extract text from ${att.filename}`);
-          parts.push(`[${att.filename}]\n${text}`);
-        }
-        ctx.subText = parts.join('\n\n');
-        chrome.storage.local.set({ ce_claude_context: ctx });
-        fileReady = true;
-        status.textContent = '✓ File ready';
-        status.style.color = DS.green;
-      } catch(e) {
-        status.textContent = 'File error: ' + e.message;
-        status.style.color = '#C0392B';
-      }
-    }
+    // ── CRITERIA CONTENT ──────────────────────────────────────────────────────
+    const content = el('div', `flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden;`);
 
     // ── GRADE PROMPT ──────────────────────────────────────────────────────────
     function buildGradePrompt() {
@@ -519,167 +423,47 @@
       return p;
     }
 
-    async function gradeStudent() {
-      // Auto-clear stuck state: streaming=true but no live port means a prior stream crashed
-      if (streaming && !activePort) { streaming = false; }
-      if (streaming) { console.log('[CE] gradeStudent: already streaming, skipping'); return; }
-      console.log('[CE] gradeStudent start — ctx:', JSON.stringify({ student: ctx?.studentName, sub: ctx?.subText?.slice(0,80), atts: ctx?.attachments?.length }));
-      const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
-      if (needsFile) await grabFile();
-      const prompt = buildGradePrompt();
-      console.log('[CE] prompt built, length:', prompt.length, '— first 200:', prompt.slice(0,200));
-      streamForGrading(prompt);
+    // ── SKIP CHECK ────────────────────────────────────────────────────────────
+    function isAlreadyGraded() {
+      const gradeEl   = document.querySelector('input.grading_value, input[data-testid="grading-box-extended-grade-input"], #grade_container input, input.grade');
+      const commentEl = document.querySelector('#speed_grader_comment_textarea');
+      return (gradeEl?.value?.trim()) || (commentEl?.value?.trim());
     }
 
-    // ── DEDICATED GRADE STREAM (no raw text, formats result card) ────────────
-    function streamForGrading(prompt) {
-      if (streaming) return;
-      streaming = true;
-      chatArea.innerHTML = '';
-
-      const gradeBtn  = document.getElementById('ce-grade-btn');
-      const insertBtn = document.getElementById('ce-insert-btn');
-      if (gradeBtn)  { gradeBtn.textContent = '⟳ Grading…'; gradeBtn.disabled = true; }
-      if (insertBtn) insertBtn.style.display = 'none';
-
-      // Progress indicator
-      const progressEl = el('div', `
-        padding:14px 10px;font-size:12px;color:${DS.muted};text-align:center;
-        display:flex;flex-direction:column;align-items:center;gap:8px;
-      `);
-      const dotsEl = el('div', `font-size:20px;letter-spacing:4px;`);
-      dotsEl.textContent = '···';
-      const progText = el('div', '');
-      progText.textContent = 'Grading submission…';
-      progressEl.appendChild(dotsEl);
-      progressEl.appendChild(progText);
-      chatArea.appendChild(progressEl);
-
-      let dotFrame = 0;
-      const dotAnim = setInterval(() => {
-        const frames = ['·  ','·· ','···','  ·',' ··'];
-        dotsEl.textContent = frames[dotFrame % frames.length];
-        dotFrame++;
-      }, 350);
-
-      function stopProgress() {
-        clearInterval(dotAnim);
-        if (progressEl.parentNode) progressEl.parentNode.removeChild(progressEl);
-      }
-
-      function resetBtn() {
-        if (gradeBtn) { gradeBtn.textContent = '✦ Grade Student'; gradeBtn.disabled = false; }
-      }
-
-      let fullText = '';
-      const port   = chrome.runtime.connect({ name: 'ce-stream' });
-      activePort   = port;
-
-      port.onDisconnect.addListener(() => {
-        console.log('[CE] port disconnected. streaming:', streaming, 'fullText len:', fullText.length, 'lastError:', chrome.runtime.lastError?.message);
-        if (!streaming) return;
-        streaming = false; activePort = null;
-        stopProgress(); resetBtn();
-        const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);
-        errEl.textContent = fullText
-          ? 'Connection dropped — partial response below.'
-          : 'Connection lost. Try reloading the extension.';
-        chatArea.appendChild(errEl);
-        if (fullText) showResultCard(fullText);
-      });
-
-      port.onMessage.addListener(msg => {
-        console.log('[CE] port msg:', msg.type, msg.type === 'chunk' ? `+${msg.text?.length}chars` : msg.error || '');
-        if (msg.type === 'chunk') { fullText += msg.text; }
-        if (msg.type === 'done') {
-          console.log('[CE] grading done. fullText length:', fullText.length, '— preview:', fullText.slice(0,100));
-          streaming = false; activePort = null;
-          stopProgress(); resetBtn();
-          lastResponse = fullText;
-          showResultCard(fullText);
-          if (insertBtn) insertBtn.style.display = '';
+    // ── FILE GRAB ─────────────────────────────────────────────────────────────
+    async function grabFile() {
+      if (!ctx?.attachments?.length) return;
+      const parts = [];
+      for (const att of ctx.attachments) {
+        showStatus(`Reading ${att.filename}…`, 'blue');
+        let url = att.url;
+        if (att.id && ctx.token) {
+          try {
+            const info = await new Promise(r => chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url: `${ctx.canvasOrigin}/api/v1/files/${att.id}`, token: ctx.token } }, r));
+            if (info?.url) url = info.url;
+          } catch(_) {}
         }
-        if (msg.type === 'error') {
-          console.error('[CE] grading error:', msg.error);
-          streaming = false; activePort = null;
-          stopProgress(); resetBtn();
-          const errEl = el('div', `padding:10px;font-size:12px;color:#C0392B;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;`);
-          errEl.textContent = 'Error: ' + msg.error;
-          chatArea.appendChild(errEl);
-        }
-      });
-
-      port.postMessage({ type: 'STREAM_GENERATE', payload: {
-        messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: 'claude-haiku-4-5-20251001'
-      }});
+        const res = await new Promise(r => chrome.runtime.sendMessage({ type: 'PARSE_FILE', payload: { fileUrl: url, token: ctx.token, filename: att.filename, mimeType: att.mimeType } }, r));
+        if (res?.error) throw new Error(res.error);
+        const text = res?.text?.trim();
+        if (!text) throw new Error(`Could not extract text from ${att.filename}`);
+        parts.push(`[${att.filename}]\n${text}`);
+      }
+      ctx.subText = parts.join('\n\n');
+      chrome.storage.local.set({ ce_claude_context: ctx });
+      fileReady = true;
     }
 
-    // ── RESULT CARD (appended into chatArea) ──────────────────────────────────
-    function showResultCard(text) {
-      const criteria = savedCriteria();
-      const critTot  = criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1];
-      const tot      = critTot ? parseInt(critTot, 10) : (ctx?.settings?.totalPoints || 100);
-
+    // ── INSERT INTO CANVAS ────────────────────────────────────────────────────
+    function insertIntoCanvas(text) {
       const scoreMatch    = text.match(/SCORE:\s*(\d+)/i);
-      const grade         = scoreMatch ? scoreMatch[1] : null;
+      const grade         = scoreMatch ? scoreMatch[1] : '';
       const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const feedbackBody  = feedbackMatch ? feedbackMatch[1] : '';
-      const lines         = feedbackBody.split('\n').filter(l => l.trim());
-      const tcLine        = lines.find(l => /TEACHER CHECK/i.test(l)) || '';
-      const comments      = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim());
-
-      const card = el('div', `
-        background:${DS.gray};border:2px solid ${DS.blue};border-radius:4px;padding:14px;
-      `);
+      const lines         = (feedbackMatch ? feedbackMatch[1] : text).split('\n');
+      const comment       = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
 
       if (grade) {
-        const scoreEl = el('div', `font-size:26px;font-weight:700;color:${DS.blue};margin-bottom:10px;`);
-        scoreEl.textContent = `${grade} / ${tot}`;
-        card.appendChild(scoreEl);
-      }
-
-      if (comments.length) {
-        const commEl = el('div', `font-size:13px;color:${DS.text};line-height:1.75;white-space:pre-wrap;`);
-        commEl.textContent = comments.join('\n');
-        card.appendChild(commEl);
-      } else {
-        // Fallback: show the raw Claude response so the teacher always sees something
-        const rawEl = el('div', `font-size:13px;color:${DS.text};line-height:1.7;white-space:pre-wrap;`);
-        rawEl.textContent = text;
-        card.appendChild(rawEl);
-      }
-
-      if (tcLine) {
-        const tcWrap = el('div', `margin-top:10px;padding:8px 10px;background:#FFF8E1;border-radius:3px;border:1px solid #FFE082;`);
-        const tcEl   = el('div', `font-size:11px;color:#7C5A00;line-height:1.6;`);
-        tcEl.textContent = tcLine;
-        tcWrap.appendChild(tcEl);
-        card.appendChild(tcWrap);
-      }
-
-      chatArea.appendChild(card);
-      chatArea.scrollTop = chatArea.scrollHeight;
-    }
-
-    // ── INSERT INTO SPEEDGRADER ───────────────────────────────────────────────
-    function insertIntoSpeedGrader() {
-      if (!lastResponse) return;
-
-      // Extract score
-      const scoreMatch = lastResponse.match(/SCORE:\s*(\d+)/i);
-      const grade = scoreMatch ? scoreMatch[1] : '';
-
-      // Extract comments, strip TEACHER CHECK line
-      const feedbackMatch = lastResponse.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const lines   = (feedbackMatch ? feedbackMatch[1] : lastResponse).split('\n');
-      const comment = lines.filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim()).join('\n').trim();
-
-      // Insert grade into SpeedGrader grade field
-      if (grade) {
-        const gradeEl = document.querySelector(
-          'input.grading_value, input[data-testid="grading-box-extended-grade-input"], ' +
-          '#grade_container input, input.grade'
-        );
+        const gradeEl = document.querySelector('input.grading_value, input[data-testid="grading-box-extended-grade-input"], #grade_container input, input.grade');
         if (gradeEl) {
           const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
           if (setter) setter.call(gradeEl, grade);
@@ -687,8 +471,6 @@
           gradeEl.dispatchEvent(new Event('change', { bubbles: true }));
         }
       }
-
-      // Insert comment into SpeedGrader comment box
       if (comment) {
         const commentEl = document.querySelector('#speed_grader_comment_textarea');
         if (commentEl) {
@@ -700,86 +482,72 @@
         }
       }
 
-      // Flash insert button
-      const ib = document.getElementById('ce-insert-btn');
-      if (ib) { ib.textContent = '✓ Inserted'; setTimeout(() => { ib.textContent = '↓ Insert Grade & Comments'; }, 2500); }
+      const gradeLabel = grade ? `Score: ${grade} — ` : '';
+      showStatus(`✓ ${gradeLabel}review and save in Canvas`, 'green');
     }
 
-    // ── BOTTOM BUTTONS ────────────────────────────────────────────────────────
-    function buildBottomBar() {
-      const bar = el('div', `display:flex;flex-direction:column;gap:6px;flex-shrink:0;`);
+    // ── STREAM ────────────────────────────────────────────────────────────────
+    function streamForGrading(prompt) {
+      if (streaming) return;
+      streaming = true;
+      let fullText = '';
+      const port = chrome.runtime.connect({ name: 'ce-stream' });
+      activePort = port;
 
-      const gradeBtn = btn('✦ Grade Student', `background:${DS.blue};color:#fff;`);
-      gradeBtn.id = 'ce-grade-btn';
-      gradeBtn.addEventListener('click', gradeStudent);
-      bar.appendChild(gradeBtn);
+      port.onDisconnect.addListener(() => {
+        if (!streaming) return;
+        streaming = false; activePort = null;
+        gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
+        if (fullText) insertIntoCanvas(fullText);
+        else showStatus('Connection lost — try again', 'error');
+      });
 
-      const insertBtn = btn('↓ Insert Grade & Comments', `background:${DS.green};color:#fff;display:none;`);
-      insertBtn.id = 'ce-insert-btn';
-      insertBtn.addEventListener('click', insertIntoSpeedGrader);
-      bar.appendChild(insertBtn);
+      port.onMessage.addListener(msg => {
+        if (msg.type === 'chunk') fullText += msg.text;
+        if (msg.type === 'done') {
+          streaming = false; activePort = null;
+          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
+          insertIntoCanvas(fullText);
+        }
+        if (msg.type === 'error') {
+          streaming = false; activePort = null;
+          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
+          showStatus('Error: ' + msg.error, 'error');
+        }
+      });
 
-      return bar;
+      port.postMessage({ type: 'STREAM_GENERATE', payload: {
+        messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: 'claude-haiku-4-5-20251001'
+      }});
     }
 
-    // ── CHAT INPUT ────────────────────────────────────────────────────────────
-    function buildChatInput(placeholder) {
-      const wrap = el('div', `display:flex;gap:6px;flex-shrink:0;padding-top:6px;border-top:1px solid ${DS.border};`);
-      const inp  = el('textarea', `
-        flex:1;padding:7px 10px;border:1px solid ${DS.border};border-radius:3px;
-        font-size:13px;font-family:${DS.font};color:${DS.text};
-        resize:none;outline:none;height:36px;line-height:1.4;overflow:hidden;
-      `);
-      inp.id = 'ce-chat-input';
-      inp.placeholder = placeholder || 'Ask a follow-up…';
-      inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
-      inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
-      inp.addEventListener('input', () => { inp.style.height='36px'; inp.style.height=Math.min(inp.scrollHeight,80)+'px'; });
-      inp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
-      const sendBtn = btn('Send', `background:${DS.blue};color:#fff;padding:7px 14px;width:auto;`);
-      sendBtn.id = 'ce-send-btn';
-      sendBtn.addEventListener('click', sendChat);
-      wrap.appendChild(inp); wrap.appendChild(sendBtn);
-      return wrap;
-    }
+    // ── GRADE STUDENT ─────────────────────────────────────────────────────────
+    async function gradeStudent() {
+      if (streaming && !activePort) streaming = false;
+      if (streaming) return;
 
-    function sendChat() {
-      const inp = document.getElementById('ce-chat-input');
-      if (!inp || streaming) return;
-      const text = inp.value.trim();
-      if (!text) return;
-      inp.value = ''; inp.style.height = '36px';
-      chatHistory.push({ role:'user', content:text });
-      addMessage('user', text);
-      streamToClaudeAPI([...chatHistory]);
-    }
-
-    // ── GRADE TAB ─────────────────────────────────────────────────────────────
-    const content = el('div', `flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding-top:10px;overflow:hidden;`);
-
-    function buildGradeTab() {
-      content.innerHTML = '';
-
-      if (ctx?.studentName) {
-        const nameBar = el('div', `
-          display:flex;align-items:center;gap:8px;padding:6px 10px;
-          background:${DS.blueBg};border:1px solid #B8D4EA;border-radius:3px;flex-shrink:0;
-        `);
-        const nameLabel = el('span', `font-size:11px;font-weight:600;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
-        nameLabel.textContent = 'Grading:';
-        const nameVal = el('span', `font-size:13px;font-weight:700;color:${DS.blue};`);
-        nameVal.textContent = ctx.studentName;
-        nameBar.appendChild(nameLabel);
-        nameBar.appendChild(nameVal);
-        content.appendChild(nameBar);
+      if (isAlreadyGraded()) {
+        showStatus('Already graded — skipped', 'muted');
+        return;
       }
 
-      content.appendChild(chatArea);
-      content.appendChild(buildBottomBar());
+      gradeBtn.textContent = '⟳ Grading…'; gradeBtn.disabled = true;
+
+      const needsFile = ctx?.attachments?.length && (!ctx.subText || ctx.subText.startsWith('[File upload'));
+      if (needsFile) {
+        try { await grabFile(); } catch(e) {
+          gradeBtn.textContent = '✦ Grade & Fill In'; gradeBtn.disabled = false;
+          showStatus('File error: ' + e.message, 'error');
+          return;
+        }
+      }
+
+      showStatus('Grading…', 'blue');
+      streamForGrading(buildGradePrompt());
     }
 
-    // ── CRITERIA TAB ──────────────────────────────────────────────────────────
-    function buildCriteriaTab() {
+    // ── CRITERIA SECTION ──────────────────────────────────────────────────────
+    function buildCriteriaSection() {
       content.innerHTML = '';
       const saved = savedCriteria();
       if (saved && !criteriaEditing) {
@@ -790,9 +558,9 @@
     }
 
     function buildCriteriaView(saved) {
-      const tot   = saved.match(/TOTAL POINTS:\s*(\d+)/i)?.[1]  || '?';
-      const style = saved.match(/GRADING STYLE:\s*(\w+)/i)?.[1] || '';
-      const tone  = saved.match(/FEEDBACK TONE:\s*(\w+)/i)?.[1] || '';
+      const tot    = saved.match(/TOTAL POINTS:\s*(\d+)/i)?.[1]  || '?';
+      const style  = saved.match(/GRADING STYLE:\s*(\w+)/i)?.[1] || '';
+      const tone   = saved.match(/FEEDBACK TONE:\s*(\w+)/i)?.[1] || '';
       const rubric = saved.match(/RUBRIC:\n([\s\S]*?)(?=\nANSWER KEY:|\nINSTRUCTIONS:|---END)/i)?.[1]?.trim() || '';
       const key    = saved.match(/ANSWER KEY:\n([\s\S]*?)(?=\nINSTRUCTIONS:|---END)/i)?.[1]?.trim() || '';
 
@@ -804,48 +572,37 @@
         background:transparent;color:${DS.text};font-size:12px;font-weight:600;
         cursor:pointer;font-family:${DS.font};
       `, { type: 'button', textContent: '✏ Edit' });
-      editBtn.addEventListener('click', () => { criteriaEditing = true; buildCriteriaTab(); });
+      editBtn.addEventListener('click', () => { criteriaEditing = true; buildCriteriaSection(); });
       hdr.appendChild(title); hdr.appendChild(editBtn);
 
-      const meta = el('div', `
-        display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;flex-shrink:0;
-      `);
+      const meta = el('div', `display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;flex-shrink:0;`);
       function chip(text, color) {
-        const c = el('div', `
-          padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;
-          background:${color}20;color:${color};
-        `);
-        c.textContent = text;
-        return c;
+        const c = el('div', `padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}20;color:${color};`);
+        c.textContent = text; return c;
       }
       meta.appendChild(chip(`${tot} pts`, DS.blue));
       if (style) meta.appendChild(chip(style.charAt(0).toUpperCase()+style.slice(1), DS.muted));
       if (tone)  meta.appendChild(chip(tone.charAt(0).toUpperCase()+tone.slice(1), DS.green));
 
       const body = el('div', `flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;`);
-
       function section(label, text) {
         if (!text || /^none$/i.test(text)) return;
         const wrap = el('div', '');
         const lbl = el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;`);
         lbl.textContent = label;
-        const val = el('div', `font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;word-break:break-word;
-          background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;padding:8px 10px;`);
+        const val = el('div', `font-size:12px;color:${DS.text};line-height:1.7;white-space:pre-wrap;word-break:break-word;background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;padding:8px 10px;`);
         val.textContent = text;
-        wrap.appendChild(lbl); wrap.appendChild(val);
-        body.appendChild(wrap);
+        wrap.appendChild(lbl); wrap.appendChild(val); body.appendChild(wrap);
       }
       section('Rubric', rubric);
       section('Answer Key', key);
 
-      const delBtn = btn('Delete Criteria', `
-        background:transparent;color:#C0392B;border:1px solid #FECACA;font-size:12px;flex-shrink:0;
-      `);
+      const delBtn = btn('Delete Criteria', `background:transparent;color:#C0392B;border:1px solid #FECACA;font-size:12px;flex-shrink:0;`);
       delBtn.addEventListener('click', () => {
         const k = criteriaKey(); if (!k) return;
         const u = {...allCriteria}; delete u[k]; allCriteria = u;
         chrome.storage.local.set({ ce_criteria: u });
-        criteriaEditing = true; buildCriteriaTab();
+        criteriaEditing = true; buildCriteriaSection();
       });
 
       content.appendChild(hdr);
@@ -868,135 +625,75 @@
 
       const form = el('div', `display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow-y:auto;padding:4px 2px;`);
 
-      // Points
       const pointsIn = input('ce-crit-points', 'number', '100', exTot);
       pointsIn.min = '1'; pointsIn.max = '9999';
       form.appendChild(row('Total Points', pointsIn));
 
-      // Strictness
-      const strictSel = el('select', `
-        width:100%;box-sizing:border-box;padding:8px 10px;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;
-      `);
-      for (const [v, l] of [
-        ['lenient',  'Lenient — be generous with partial credit'],
-        ['balanced', 'Balanced — grade fairly against the rubric'],
-        ['strict',   'Strict — hold students to high standards'],
-      ]) {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = l; if (v === exStyle) o.selected = true;
-        strictSel.appendChild(o);
+      const strictSel = el('select', `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${DS.border};border-radius:3px;font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+      for (const [v, l] of [['lenient','Lenient — be generous with partial credit'],['balanced','Balanced — grade fairly against the rubric'],['strict','Strict — hold students to high standards']]) {
+        const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === exStyle) o.selected = true; strictSel.appendChild(o);
       }
       form.appendChild(row('How Harsh to Grade', strictSel));
 
-      // Tone
-      const toneSel = el('select', `
-        width:100%;box-sizing:border-box;padding:8px 10px;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;
-      `);
-      for (const [v, l] of [
-        ['encouraging', 'Encouraging — warm and supportive'],
-        ['neutral',     'Neutral — objective and professional'],
-        ['direct',      'Direct — concise, focus on improvements'],
-      ]) {
-        const o = document.createElement('option');
-        o.value = v; o.textContent = l; if (v === exTone) o.selected = true;
-        toneSel.appendChild(o);
+      const toneSel = el('select', `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${DS.border};border-radius:3px;font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+      for (const [v, l] of [['encouraging','Encouraging — warm and supportive'],['neutral','Neutral — objective and professional'],['direct','Direct — concise, focus on improvements']]) {
+        const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === exTone) o.selected = true; toneSel.appendChild(o);
       }
       form.appendChild(row('Type of Comments', toneSel));
 
-      // Rubric
-      const rubricTa = el('textarea', `
-        width:100%;box-sizing:border-box;padding:8px 10px;height:80px;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:12px;font-family:${DS.font};color:${DS.text};
-        resize:vertical;outline:none;background:${DS.white};
-      `);
+      const rubricTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:80px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       rubricTa.placeholder = 'e.g. Thesis 20pts, Evidence 30pts, Writing 25pts, Analysis 25pts';
       rubricTa.value = exRubric;
       rubricTa.addEventListener('focus', () => rubricTa.style.borderColor = DS.blue);
       rubricTa.addEventListener('blur',  () => rubricTa.style.borderColor = DS.border);
       form.appendChild(row('Rubric', rubricTa, 'How will points be divided?'));
 
-      // Answer key
-      const keyTa = el('textarea', `
-        width:100%;box-sizing:border-box;padding:8px 10px;height:60px;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:12px;font-family:${DS.font};color:${DS.text};
-        resize:vertical;outline:none;background:${DS.white};
-      `);
+      const keyTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:60px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       keyTa.placeholder = 'Optional — correct answers or model response';
       keyTa.value = exKey;
       keyTa.addEventListener('focus', () => keyTa.style.borderColor = DS.blue);
       keyTa.addEventListener('blur',  () => keyTa.style.borderColor = DS.border);
       form.appendChild(row('Answer Key', keyTa, 'Optional'));
 
-      // Special instructions
-      const instrTa = el('textarea', `
-        width:100%;box-sizing:border-box;padding:8px 10px;height:50px;
-        border:1px solid ${DS.border};border-radius:3px;
-        font-size:12px;font-family:${DS.font};color:${DS.text};
-        resize:vertical;outline:none;background:${DS.white};
-      `);
+      const instrTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:50px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       instrTa.placeholder = 'Optional — any special grading notes';
       instrTa.value = exInstr;
       instrTa.addEventListener('focus', () => instrTa.style.borderColor = DS.blue);
       instrTa.addEventListener('blur',  () => instrTa.style.borderColor = DS.border);
       form.appendChild(row('Special Instructions', instrTa, 'Optional'));
 
-      const statusEl = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
+      const saveMsgEl = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
 
       const saveBtn = btn('Save Criteria', `background:${DS.blue};color:#fff;flex-shrink:0;`);
       saveBtn.addEventListener('click', () => {
         const k = criteriaKey();
-        if (!k) { statusEl.style.color = '#C0392B'; statusEl.textContent = 'Open SpeedGrader first'; return; }
+        if (!k) { saveMsgEl.style.color = '#C0392B'; saveMsgEl.textContent = 'Open SpeedGrader first'; return; }
         const pts    = document.getElementById('ce-crit-points')?.value?.trim() || '100';
         const rubric = rubricTa.value.trim() || 'none';
         const key    = keyTa.value.trim()    || 'none';
         const instr  = instrTa.value.trim()  || 'none';
-        const criteria = [
-          '---GRADING CRITERIA---',
-          `TOTAL POINTS: ${pts}`,
-          `GRADING STYLE: ${strictSel.value}`,
-          `FEEDBACK TONE: ${toneSel.value}`,
-          `RUBRIC:\n${rubric}`,
-          `ANSWER KEY:\n${key}`,
-          `INSTRUCTIONS:\n${instr}`,
-          '---END CRITERIA---',
-        ].join('\n');
+        const criteria = ['---GRADING CRITERIA---',`TOTAL POINTS: ${pts}`,`GRADING STYLE: ${strictSel.value}`,`FEEDBACK TONE: ${toneSel.value}`,`RUBRIC:\n${rubric}`,`ANSWER KEY:\n${key}`,`INSTRUCTIONS:\n${instr}`,'---END CRITERIA---'].join('\n');
         allCriteria = { ...allCriteria, [k]: criteria };
         chrome.storage.local.set({ ce_criteria: allCriteria });
-        statusEl.style.color = DS.green; statusEl.textContent = '✓ Saved';
+        saveMsgEl.style.color = DS.green; saveMsgEl.textContent = '✓ Saved';
         criteriaEditing = false;
-        setTimeout(() => buildCriteriaTab(), 600);
+        setTimeout(() => buildCriteriaSection(), 600);
       });
 
       content.appendChild(hdrText);
       content.appendChild(form);
-      content.appendChild(statusEl);
+      content.appendChild(saveMsgEl);
       content.appendChild(saveBtn);
-    }
-
-    // ── REBUILD ───────────────────────────────────────────────────────────────
-    function rebuild() {
-      tabBar.innerHTML = '';
-      tabBar.appendChild(mkTab('grade',    '🎓  Grade'));
-      tabBar.appendChild(mkTab('criteria', '📋  Criteria'));
-      activeTab === 'grade' ? buildGradeTab() : buildCriteriaTab();
     }
 
     // ── STORAGE LISTENER ──────────────────────────────────────────────────────
     const listener = changes => {
       if (!changes.ce_claude_context) return;
-      // Cancel any in-progress stream for the previous student
       if (activePort) { try { activePort.disconnect(); } catch(_) {} activePort = null; }
-      streaming = false;
+      streaming = false; fileReady = false;
       ctx = changes.ce_claude_context.newValue;
-      fileReady = false; chatHistory = []; chatArea.innerHTML = '';
-      lastResponse = null;
-      if (activeTab === 'grade') buildGradeTab();
+      nameVal.textContent = ctx?.studentName || '—';
+      showStatus('', 'muted');
     };
     chrome.storage.onChanged.addListener(listener);
     _panelCleanup = () => {
@@ -1004,9 +701,13 @@
       if (activePort) try { activePort.disconnect(); } catch(_) {}
     };
 
-    panelBody.appendChild(tabBar);
+    // ── LAYOUT ────────────────────────────────────────────────────────────────
+    panelBody.appendChild(nameBar);
+    panelBody.appendChild(gradeBtn);
+    panelBody.appendChild(statusEl);
+    panelBody.appendChild(divider());
     panelBody.appendChild(content);
-    rebuild();
+    buildCriteriaSection();
   }
 
   // ── TOOL CLICK ─────────────────────────────────────────────────────────────

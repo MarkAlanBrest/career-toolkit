@@ -30,17 +30,23 @@ export async function POST(req: NextRequest) {
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({ model, max_tokens, messages }),
+    body: JSON.stringify({ model, max_tokens, messages, stream: true }),
   });
 
-  const data = await anthropicRes.json();
-
   if (!anthropicRes.ok) {
+    const errData = await anthropicRes.json().catch(() => ({}));
     return NextResponse.json(
-      { error: data?.error?.message || `Anthropic error ${anthropicRes.status}` },
+      { error: (errData as any)?.error?.message || `Anthropic error ${anthropicRes.status}` },
       { status: anthropicRes.status, headers: CORS }
     );
   }
 
-  return NextResponse.json(data, { status: 200, headers: CORS });
+  return new NextResponse(anthropicRes.body, {
+    status: 200,
+    headers: {
+      ...CORS,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+  });
 }
