@@ -151,7 +151,7 @@
   // ── PANEL ──────────────────────────────────────────────────────────────────
   const panel = el('div', `
     position:fixed;top:0;bottom:0;right:${TOOLBAR_W}px;
-    width:25vw;min-width:320px;max-width:480px;
+    width:30vw;min-width:460px;max-width:580px;
     z-index:2147483639;
     background:${DS.white};
     border-left:1px solid ${DS.border};
@@ -346,7 +346,7 @@
     const sh = window.screen.availHeight;
     const st = window.screen.availTop  || 0;
     const sl = window.screen.availLeft || 0;
-    const w  = Math.min(480, Math.max(320, Math.round(sw * 0.25)));
+    const w  = Math.min(580, Math.max(460, Math.round(sw * 0.30)));
     chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
       const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
       chrome.runtime.sendMessage({
