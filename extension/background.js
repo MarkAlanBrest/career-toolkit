@@ -207,35 +207,54 @@ async function handleCanvasApi({ url, token, method, body }) {
 }
 
 async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
-  let base64 = b64;
+  // Prefer passing a direct URL to Vercel so it fetches the file server-side.
+  // This avoids encoding large files as base64 and hitting Vercel's 4.5 MB body limit.
+  let directUrl = null;
 
-  // If given a Canvas file URL + token, fetch the file here (token stays in browser)
-  if (!base64 && fileUrl && token) {
-    // First request: authenticated, manual redirect (Canvas often redirects to S3)
-    let fileRes = await fetch(fileUrl, {
-      headers: { 'Authorization': `Bearer ${token}` },
-      redirect: 'manual',
-    });
-    // If redirected (Canvas → S3), follow without auth header so S3 doesn't reject it
-    if (fileRes.status >= 300 && fileRes.status < 400) {
-      const loc = fileRes.headers.get('location');
-      if (loc) fileRes = await fetch(loc);
-    } else if (fileRes.type === 'opaqueredirect') {
-      // Fallback: retry without manual redirect
-      fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+  if (!b64 && fileUrl) {
+    if (fileUrl.includes('amazonaws.com') || fileUrl.includes('instructure-uploads')) {
+      // Already an S3 signed URL — no auth needed, pass straight through
+      directUrl = fileUrl;
+    } else if (token) {
+      // Canvas URL — follow the redirect to get the S3 signed URL
+      try {
+        const probeRes = await fetch(fileUrl, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          redirect: 'manual',
+        });
+        if (probeRes.status >= 300 && probeRes.status < 400) {
+          const loc = probeRes.headers.get('location');
+          if (loc) directUrl = loc;
+        }
+      } catch (_) { /* fall through to base64 path */ }
+
+      // If we couldn't resolve a redirect, fetch + encode (small files only)
+      if (!directUrl) {
+        let fileRes = await fetch(fileUrl, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          redirect: 'manual',
+        });
+        if (fileRes.type === 'opaqueredirect') {
+          fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+        }
+        if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
+        const buffer = await fileRes.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        b64 = btoa(bin);
+      }
     }
-    if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
-    const buffer = await fileRes.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let bin = '';
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    base64 = btoa(bin);
   }
+
+  const body = directUrl
+    ? JSON.stringify({ fileUrl: directUrl, filename, mimeType })
+    : JSON.stringify({ b64, filename, mimeType });
 
   const res = await fetch(`${API_BASE}/api/parse-file`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ b64: base64, filename, mimeType }),
+    body,
   });
   const text = await res.text();
   let data;
