@@ -453,14 +453,14 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
         aiBtn.style.background = '#27AE60';
         aiBtn.style.color = '#fff';
         aiBtn.style.border = '1px solid #27AE60';
-        setTimeout(() => resetBtn(), 4000);
+        setTimeout(() => resetBtn(), 12000);
       } catch(e) {
         aiBtn.textContent = '⚠ ' + e.message.slice(0, 30);
         aiBtn._baseBg = '#C0392B';
         aiBtn.style.background = '#C0392B';
         aiBtn.style.color = '#fff';
         aiBtn.style.border = '1px solid #C0392B';
-        setTimeout(() => resetBtn(), 4000);
+        setTimeout(() => resetBtn(), 10000);
       }
     });
 
