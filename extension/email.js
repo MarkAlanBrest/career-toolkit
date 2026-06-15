@@ -141,6 +141,12 @@
     }
 
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ces-template-list { display: flex; flex-direction: column; gap: 8px; }
+    .ces-template-card {
+      min-height: 64px; padding: 14px 16px;
+      display: flex; flex-direction: column; justify-content: center;
+      cursor: pointer;
+    }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
     .ces-mt { margin-top: 14px; }
     .ces-mb { margin-bottom: 14px; }
@@ -336,6 +342,18 @@
   }
   async function getEnrollments(courseId) {
     return canvasGet(`/courses/${courseId}/enrollments?type[]=StudentEnrollment&state[]=active&include[]=grades`);
+  }
+  async function getCurrentTeacherName() {
+    const stored = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+    if (stored) return stored;
+    try {
+      const profile = await canvasGet('/users/self/profile');
+      const name = profile?.short_name || profile?.name || profile?.sortable_name || '';
+      if (name) GM_setValue(STORAGE_KEYS.TEACHER_NAME, name);
+      return name;
+    } catch(e) {
+      return '';
+    }
   }
 
   function getUpcomingAssignments(assignments, daysForward) {
@@ -559,6 +577,24 @@
     return 'No extra send condition';
   }
 
+  function describeNoMatchReason(template) {
+    const condition = normalizeTemplateCondition(template);
+    if (condition.type === 'missing_past_days') {
+      return `No students matched this request. No students were found with missing work in the past ${condition.daysBack} days.`;
+    }
+    if (condition.type === 'upcoming_next_days') {
+      return `No students matched this request. No course work was found due in the next ${condition.daysForward} days.`;
+    }
+    if (condition.type === 'grade_below') {
+      return `No students matched this request. No students were found below ${condition.threshold}%.`;
+    }
+    const timing = normalizeTemplateTiming(template);
+    if ((template?.body || '').includes('{{missingAssignmentList}}')) {
+      return `No students matched this request. No students were found with missing work in the past ${timing.daysBack} days.`;
+    }
+    return 'No students matched this request.';
+  }
+
   async function getConditionVars(courseId, student, condition, timing, context) {
     if (condition.type === 'upcoming_next_days') {
       const upcoming = context?.conditionUpcoming || [];
@@ -603,7 +639,7 @@
     daysBack = Number(template.daysBack) || Number(daysBack) || timing.daysBack;
 
     const students = await getStudents(courseId);
-    if (!students.length) throw new Error('No students found in this course.');
+    if (!students.length) return [];
 
     const context = {};
     if (templateCondition.type === 'grade_below') {
@@ -966,13 +1002,12 @@
   }
 
   async function renderSendTab(container) {
-    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
     const lastCourses = String(GM_getValue(STORAGE_KEYS.LAST_COURSE, '') || '').split(',').filter(Boolean);
     const templates = getTemplates();
     const visibleTemplates = getVisibleTemplateEntries(templates);
     const firstTemplateType = visibleTemplates[0]?.[0] || 'upcoming';
     const templateCards = visibleTemplates.map(([type, tpl], index) => `
-        <div class="ces-card ${index === 0 ? 'selected' : ''}" data-type="${escapeAttr(type)}">
+        <div class="ces-card ces-template-card ${index === 0 ? 'selected' : ''}" data-type="${escapeAttr(type)}">
           <strong>${escapeHtml(tpl.name || 'Untitled Template')}</strong>
           <div style="font-size:12px;color:#6b7280;margin-top:4px;">${escapeHtml(describeTemplateCondition(tpl))}</div>
         </div>
@@ -980,8 +1015,7 @@
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
-      <label class="ces-label">Teacher Name</label>
-      <input type="text" class="ces-input" id="ces-teacher-name" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
+      <div class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
       <label class="ces-label">Classes</label>
       <div class="ces-grid-2">
         <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-published" checked> Published only</label>
@@ -993,12 +1027,10 @@
       </div>
       <div id="ces-course-list" class="ces-course-list ces-mt"><div class="ces-status ces-status-info" style="margin:8px;">Loading classes...</div></div>
       <label class="ces-label">Email Type</label>
-      <div class="ces-grid-2" id="ces-type-cards">
+      <div class="ces-template-list" id="ces-type-cards">
         ${templateCards}
       </div>
       <div id="ces-template-rule" class="ces-status ces-status-info ces-mt"></div>
-      <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
-      <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Build Selected Template</button></div>
       <div id="ces-progress-area" style="display:none;" class="ces-mt">
         <div class="ces-status ces-status-info" id="ces-progress-text">Fetching data...</div>
         <div class="ces-progress"><div class="ces-progress-bar" id="ces-progress-bar" style="width:0%"></div></div>
@@ -1025,19 +1057,13 @@
     const buildMessagesForSelection = async () => {
       const visibleCourses = await getVisibleCoursesForSend();
       const selectedCourses = visibleCourses.filter(course => selectedCourseIds.has(String(course.id)));
-      const currentTeacherName = container.querySelector('#ces-teacher-name').value.trim();
+      const currentTeacherName = await getCurrentTeacherName();
       if (!selectedCourses.length) { showStatus('Please select at least one class.', 'error'); return; }
-      if (!currentTeacherName) { showStatus('Please enter your teacher name.', 'error'); return; }
-      GM_setValue(STORAGE_KEYS.TEACHER_NAME, currentTeacherName);
 
       currentCourseId = selectedCourses[0].id;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, selectedCourses.map(course => course.id).join(','));
       const selectedTemplate = getTemplates()[selectedType];
       const timing = normalizeTemplateTiming(selectedTemplate);
-
-      const btn = container.querySelector('#ces-generate-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="ces-spinner"></span> Building...';
 
       const progressArea = container.querySelector('#ces-progress-area');
       progressArea.style.display = 'block';
@@ -1045,28 +1071,30 @@
 
       try {
         generatedMessages = [];
+        let failedCourses = 0;
         for (let i = 0; i < selectedCourses.length; i++) {
           const course = selectedCourses[i];
           const courseName = course.name + (course.term ? ` (${course.term.name})` : '');
           setProgress(`Building messages for ${course.name}...`, Math.round(((i + 0.25) / selectedCourses.length) * 100));
-          const courseMessages = await generateMessages(course.id, courseName, selectedType, timing.daysForward, timing.daysBack, currentTeacherName);
-          generatedMessages.push(...courseMessages.map(message => ({ ...message, courseId: course.id, courseName })));
+          try {
+            const courseMessages = await generateMessages(course.id, courseName, selectedType, timing.daysForward, timing.daysBack, currentTeacherName);
+            generatedMessages.push(...courseMessages.map(message => ({ ...message, courseId: course.id, courseName })));
+          } catch(courseErr) {
+            failedCourses++;
+          }
         }
         setProgress('Done!', 100);
         if (generatedMessages.length === 0) {
-          showStatus('No messages to send. No students matched the criteria for ' + selectedType + '.', 'info');
+          const noMatch = describeNoMatchReason(selectedTemplate);
+          showStatus(failedCourses ? `${noMatch} ${failedCourses} class(es) could not be checked.` : noMatch, failedCourses ? 'error' : 'info');
           container.querySelector('#ces-messages-area').innerHTML = '';
         } else {
-          showStatus(`Generated ${generatedMessages.length} message(s). Review below and send.`, 'success');
-          renderMessagesList(container.querySelector('#ces-messages-area'), selectedCourses, selectedType);
+          renderMessagesList(container, selectedCourses, selectedType, failedCourses);
         }
       } catch(err) {
         showStatus('Error: ' + err.message, 'error');
         setProgress('Error occurred.', 0);
       }
-
-      btn.disabled = false;
-      btn.innerHTML = '&#128269; Build Selected Template';
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     };
 
@@ -1079,8 +1107,6 @@
         buildMessagesForSelection();
       });
     });
-
-    container.querySelector('#ces-generate-btn').addEventListener('click', buildMessagesForSelection);
 
     updateAnnouncementAvailability(firstTemplateType);
   }
@@ -1178,7 +1204,7 @@
     if (barEl)  barEl.style.width = pct + '%';
   }
 
-  function renderMessagesList(container, selectedCourses, emailType) {
+  function renderMessagesList(container, selectedCourses, emailType, failedCourses) {
     const announceCheck = document.getElementById('ces-announce-check');
     const templates = getTemplates();
     const tpl = templates[emailType];
@@ -1187,9 +1213,16 @@
     const preview = generatedMessages[0];
 
     let html = `
+      <div id="ces-status-area"></div>
       <div class="ces-flex-between ces-mb">
-        <strong>${generatedMessages.length} recipient(s) ready</strong>
-        <div style="display:flex;gap:8px;"><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div>
+        <div>
+          <strong>${generatedMessages.length} recipient(s) ready</strong>
+          ${failedCourses ? `<div style="font-size:12px;color:#BC1212;margin-top:3px;">${failedCourses} class(es) could not be checked.</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="ces-btn ces-btn-secondary" id="ces-review-cancel">Cancel</button>
+          <button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All</button>
+        </div>
       </div>
       <div class="ces-msg-row">
         <div class="ces-msg-header"><span class="ces-msg-name">Email Preview</span></div>
@@ -1215,6 +1248,11 @@
     });
     html += '</div>';
     container.innerHTML = html;
+
+    container.querySelector('#ces-review-cancel').addEventListener('click', () => {
+      generatedMessages = [];
+      renderSendTab(container);
+    });
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
       if (!confirm(`Send ${generatedMessages.length} message(s) via Canvas to all listed students?`)) return;
