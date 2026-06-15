@@ -2,7 +2,7 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_days_forward', 'ces_days_back', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -156,6 +156,20 @@
       border: 2px solid currentColor; border-top-color: transparent;
       border-radius: 50%; animation: ces-spin .6s linear infinite;
     }
+    .ces-editor-toolbar {
+      display: flex; flex-wrap: wrap; gap: 5px;
+      padding: 7px; border: 1px solid #C7CDD1; border-bottom: none;
+      border-radius: 3px 3px 0 0; background: #F5F5F5;
+      margin-top: 4px;
+    }
+    .ces-editor {
+      min-height: 210px; max-height: 360px; overflow-y: auto;
+      border: 1px solid #C7CDD1; border-radius: 0 0 3px 3px;
+      padding: 10px; background: #fff; font-size: 13px; line-height: 1.5;
+      outline: none;
+    }
+    .ces-editor:focus { border-color: #0770B8; box-shadow: 0 0 0 2px rgba(7,112,184,.12); }
+    .ces-variable-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
   `;
   document.head.appendChild(_style);
@@ -169,8 +183,6 @@
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
     TEACHER_NAME: 'ces_teacher_name',
-    DAYS_FORWARD: 'ces_days_forward',
-    DAYS_BACK:    'ces_days_back',
     LAST_COURSE:  'ces_last_course',
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
@@ -181,11 +193,13 @@
       name: 'Upcoming Assignments',
       subject: 'Upcoming Work for {{courseName}}',
       body: `Hi {{studentName}},\n\nHere is what is coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nThis is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.\n\nPlease review the instructions in Canvas and plan enough time to complete each item before the deadline. If anything is unclear, reach out before the due date so there is time to help.\n\nBest,\n{{teacherName}}`,
+      daysForward: 7,
     },
     missing: {
       name: 'Missing Work Reminder',
       subject: 'Missing Work in {{courseName}}',
       body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nMissing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.\n\nIf something is preventing you from completing the work, reply to this message so we can talk about a realistic plan. You do not need to wait until everything is perfect to get started.\n\nBest,\n{{teacherName}}`,
+      daysBack: 7,
       condition: { type: 'missing_past_days', daysBack: 7 },
     },
     welcome: {
@@ -197,6 +211,8 @@
       name: 'Student Evaluation',
       subject: 'Progress Update for {{courseName}}',
       body: `Hi {{studentName}},\n\nI am sending a brief progress update for {{courseName}} so you have a clear picture of where things stand.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nIf your current standing is not where you want it to be, this is a good time to make a plan. Please review the items above and reach out if you would like to discuss next steps.\n\nBest regards,\n{{teacherName}}`,
+      daysForward: 7,
+      daysBack: 14,
     },
     auto_late: {
       name: 'Automation: Late Work',
@@ -345,10 +361,58 @@
 
   function renderTemplate(template, vars) {
     let text = template;
+    const htmlMode = /<\/?[a-z][\s\S]*>/i.test(text);
     for (const [key, val] of Object.entries(vars)) {
-      text = text.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val || '');
+      let value = val || '';
+      if (htmlMode) value = escapeHtml(String(value)).replace(/\n/g, '<br>');
+      text = text.replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), value);
     }
     return text;
+  }
+
+  const TEMPLATE_VARIABLES = [
+    { key: 'studentName', label: 'Student Name' },
+    { key: 'teacherName', label: 'Teacher Name' },
+    { key: 'courseName', label: 'Course Name' },
+    { key: 'assignmentList', label: 'Upcoming List' },
+    { key: 'missingAssignmentList', label: 'Missing List' },
+    { key: 'currentGrade', label: 'Current Grade' },
+    { key: 'currentScore', label: 'Current Score' },
+    { key: 'daysForward', label: 'Days Forward' },
+    { key: 'daysBack', label: 'Days Back' },
+    { key: 'missingSection', label: 'Missing Section' },
+    { key: 'upcomingSection', label: 'Upcoming Section' },
+    { key: 'gradeAlertDetail', label: 'Grade Alert' },
+  ];
+
+  function makeTemplateId() {
+    return 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function bodyToEditorHtml(body) {
+    const text = String(body || '');
+    if (/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+    return escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
+  function renderBodyForPreview(body) {
+    const text = String(body || '');
+    if (/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+    return escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
+  function bodyForCanvasHtml(body) {
+    const text = String(body || '');
+    if (/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+    return '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
+  }
+
+  function isDefaultTemplate(type) {
+    return Object.prototype.hasOwnProperty.call(DEFAULT_TEMPLATES, type);
+  }
+
+  function getVisibleTemplateEntries(templates) {
+    return Object.entries(templates).filter(([type]) => !type.startsWith('auto_'));
   }
 
   function getAutomations() {
@@ -439,6 +503,15 @@
     return {
       type: condition.type || 'none',
       daysBack: Number(condition.daysBack) || 7,
+      daysForward: Number(condition.daysForward) || 7,
+      threshold: Number(condition.threshold) || 70,
+    };
+  }
+
+  function normalizeTemplateTiming(template) {
+    return {
+      daysForward: Number(template?.daysForward) || 7,
+      daysBack: Number(template?.daysBack) || 14,
     };
   }
 
@@ -453,12 +526,37 @@
     if (condition.type === 'missing_past_days') {
       return `Only students with missing work in the past ${condition.daysBack} days`;
     }
+    if (condition.type === 'upcoming_next_days') {
+      return `Only send if the course has work due in the next ${condition.daysForward} days`;
+    }
+    if (condition.type === 'grade_below') {
+      return `Only students with a current grade below ${condition.threshold}%`;
+    }
     return 'No extra send condition';
   }
 
-  async function getConditionVars(courseId, student, condition, fallbackDaysBack) {
+  async function getConditionVars(courseId, student, condition, timing, context) {
+    if (condition.type === 'upcoming_next_days') {
+      const upcoming = context?.conditionUpcoming || [];
+      if (!upcoming.length) return false;
+      return {
+        daysForward: String(condition.daysForward),
+        assignmentList: formatAssignmentList(upcoming),
+      };
+    }
+    if (condition.type === 'grade_below') {
+      const enrollment = context?.enrollments?.find(e => e.user_id === student.id && e.grades);
+      const score = Number(enrollment?.grades?.current_score);
+      if (!Number.isFinite(score) || score >= condition.threshold) return false;
+      const grade = enrollment?.grades?.current_grade || 'N/A';
+      return {
+        currentGrade: grade,
+        currentScore: String(score),
+        gradeAlertDetail: `Current course score: ${score}%\nAlert threshold: ${condition.threshold}%`,
+      };
+    }
     if (condition.type !== 'missing_past_days') return null;
-    const daysBack = Number(condition.daysBack) || Number(fallbackDaysBack) || 7;
+    const daysBack = Number(condition.daysBack) || Number(timing?.daysBack) || 7;
     const subs = await getSubmissions(courseId, student.id);
     const missing = getMissingAssignments(subs, daysBack);
     if (!missing.length) return false;
@@ -476,9 +574,21 @@
     const template = templates[emailType];
     if (!template) throw new Error('Unknown email type: ' + emailType);
     const templateCondition = normalizeTemplateCondition(template);
+    const timing = normalizeTemplateTiming(template);
+    daysForward = Number(template.daysForward) || Number(daysForward) || timing.daysForward;
+    daysBack = Number(template.daysBack) || Number(daysBack) || timing.daysBack;
 
     const students = await getStudents(courseId);
     if (!students.length) throw new Error('No students found in this course.');
+
+    const context = {};
+    if (templateCondition.type === 'grade_below') {
+      context.enrollments = await getEnrollments(courseId);
+    }
+    if (templateCondition.type === 'upcoming_next_days') {
+      const assignments = await getAssignments(courseId);
+      context.conditionUpcoming = getUpcomingAssignments(assignments, templateCondition.daysForward);
+    }
 
     const messages = [];
 
@@ -487,25 +597,29 @@
       const upcoming = getUpcomingAssignments(allAssignments, daysForward);
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
-        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, timing, context);
         if (conditionVars === false) continue;
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), daysBack: String(daysBack), assignmentList, ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     } else if (emailType === 'missing') {
-      const allAssignments = await getAssignments(courseId);
       for (const student of students) {
         const subs = await getSubmissions(courseId, student.id);
         const effectiveDaysBack = templateCondition.type === 'missing_past_days' ? templateCondition.daysBack : daysBack;
         const missing = getMissingAssignments(subs, effectiveDaysBack);
         if (missing.length === 0) continue;
+        let conditionVars = null;
+        if (templateCondition.type !== 'missing_past_days') {
+          conditionVars = await getConditionVars(courseId, student, templateCondition, timing, context);
+          if (conditionVars === false) continue;
+        }
         const missingList = formatAssignmentList(missing.map(s => s.assignment || s));
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(effectiveDaysBack), missingAssignmentList: missingList };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(effectiveDaysBack), missingAssignmentList: missingList, ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     } else if (emailType === 'welcome') {
       for (const student of students) {
-        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, timing, context);
         if (conditionVars === false) continue;
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
@@ -515,7 +629,7 @@
       const allAssignments = await getAssignments(courseId);
       const upcoming = getUpcomingAssignments(allAssignments, daysForward);
       for (const student of students) {
-        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, timing, context);
         if (conditionVars === false) continue;
         const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
         const grade = enrollment?.grades?.current_grade || 'N/A';
@@ -529,6 +643,57 @@
           ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}`
           : 'No upcoming assignments in the next ' + daysForward + ' days.';
         const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection, ...(conditionVars || {}) };
+        messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
+      }
+    } else {
+      const bodyText = `${template.subject || ''}\n${template.body || ''}`;
+      const needsAssignments = bodyText.includes('{{assignmentList}}') || bodyText.includes('{{upcomingSection}}') || templateCondition.type === 'upcoming_next_days';
+      const needsMissing = bodyText.includes('{{missingAssignmentList}}') || bodyText.includes('{{missingSection}}') || templateCondition.type === 'missing_past_days';
+      const needsGrades = bodyText.includes('{{currentGrade}}') || bodyText.includes('{{currentScore}}') || bodyText.includes('{{gradeAlertDetail}}') || templateCondition.type === 'grade_below';
+      const allAssignments = needsAssignments ? await getAssignments(courseId) : [];
+      const upcoming = needsAssignments ? getUpcomingAssignments(allAssignments, daysForward) : [];
+      const enrollments = needsGrades ? await getEnrollments(courseId) : [];
+      const upcomingSection = upcoming.length > 0
+        ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}`
+        : 'No upcoming assignments in the next ' + daysForward + ' days.';
+
+      for (const student of students) {
+        const conditionContext = { ...context, enrollments };
+        if (templateCondition.type === 'upcoming_next_days' && !conditionContext.conditionUpcoming) {
+          conditionContext.conditionUpcoming = getUpcomingAssignments(allAssignments, templateCondition.daysForward);
+        }
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, timing, conditionContext);
+        if (conditionVars === false) continue;
+
+        let missingAssignmentList = '';
+        let missingSection = '';
+        if (needsMissing) {
+          const subs = await getSubmissions(courseId, student.id);
+          const missing = getMissingAssignments(subs, daysBack);
+          missingAssignmentList = formatAssignmentList(missing.map(s => s.assignment || s));
+          missingSection = missing.length > 0
+            ? `Missing Assignments (past ${daysBack} days):\n${missingAssignmentList}`
+            : 'You have no missing assignments. Great work!';
+        }
+
+        const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
+        const grade = enrollment?.grades?.current_grade || 'N/A';
+        const score = enrollment?.grades?.current_score || 'N/A';
+        const vars = {
+          studentName: student.name || student.sortable_name || 'Student',
+          teacherName,
+          courseName,
+          daysForward: String(daysForward),
+          daysBack: String(daysBack),
+          assignmentList: formatAssignmentList(upcoming),
+          missingAssignmentList,
+          currentGrade: grade,
+          currentScore: String(score),
+          missingSection,
+          upcomingSection,
+          gradeAlertDetail: `Current course score: ${score}%`,
+          ...(conditionVars || {}),
+        };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     }
@@ -553,7 +718,7 @@
   async function postAnnouncement(courseId, title, message) {
     return canvasPost(`/courses/${courseId}/discussion_topics`, {
       title,
-      message: '<p>' + message.replace(/\n/g, '<br>') + '</p>',
+      message: bodyForCanvasHtml(message),
       is_announcement: true,
       published: true,
     });
@@ -749,7 +914,6 @@
       <div id="ces-tabs">
         <button class="ces-tab active" data-tab="send">Send</button>
         <button class="ces-tab" data-tab="templates">Templates</button>
-        <button class="ces-tab" data-tab="settings">Settings</button>
       </div>
       <div id="ces-body"></div>
     `;
@@ -774,32 +938,30 @@
     const body = document.getElementById('ces-body');
     if (tabName === 'send') renderSendTab(body);
     else if (tabName === 'templates') renderTemplatesTab(body);
-    else if (tabName === 'settings') renderSettingsTab(body);
   }
 
   async function renderSendTab(container) {
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
-    const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
-    const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
     const lastCourse  = GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+    const templates = getTemplates();
+    const visibleTemplates = getVisibleTemplateEntries(templates);
+    const firstTemplateType = visibleTemplates[0]?.[0] || 'upcoming';
+    const templateCards = visibleTemplates.map(([type, tpl], index) => `
+        <div class="ces-card ${index === 0 ? 'selected' : ''}" data-type="${escapeAttr(type)}">
+          <strong>${escapeHtml(tpl.name || 'Untitled Template')}</strong>
+          <div style="font-size:12px;color:#6b7280;margin-top:4px;">${escapeHtml(describeTemplateCondition(tpl))}</div>
+        </div>
+      `).join('');
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
-      ${!teacherName ? '<div class="ces-status ces-status-error">Please set your Teacher Name in the Settings tab first.</div>' : ''}
+      <label class="ces-label">Teacher Name</label>
+      <input type="text" class="ces-input" id="ces-teacher-name" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
       <label class="ces-label">Select Course</label>
       <select class="ces-select" id="ces-course-select"><option value="">Loading courses...</option></select>
       <label class="ces-label">Email Type</label>
       <div class="ces-grid-2" id="ces-type-cards">
-        <div class="ces-card selected" data-type="upcoming"><strong>&#128197; Upcoming Assignments</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Remind students of upcoming due dates</div></div>
-        <div class="ces-card" data-type="missing"><strong>&#9888; Missing Work Reminder</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Alert students about unsubmitted work</div></div>
-        <div class="ces-card" data-type="welcome"><strong>&#128075; Welcome to Class</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Send a warm welcome message</div></div>
-        <div class="ces-card" data-type="evaluation"><strong>&#128202; Student Evaluation</strong><div style="font-size:12px;color:#6b7280;margin-top:4px;">Share grade status and progress</div></div>
-      </div>
-      <div id="ces-options-area">
-        <div class="ces-grid-2">
-          <div id="ces-days-forward-wrap"><label class="ces-label">Days Forward</label><input type="number" class="ces-input" id="ces-days-forward" value="${daysForward}" min="1" max="90"></div>
-          <div id="ces-days-back-wrap" style="display:none;"><label class="ces-label">Days Back</label><input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365"></div>
-        </div>
+        ${templateCards}
       </div>
       <div id="ces-template-rule" class="ces-status ces-status-info ces-mt"></div>
       <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
@@ -813,14 +975,13 @@
 
     loadCourses(lastCourse);
 
-    let selectedType = 'upcoming';
+    let selectedType = firstTemplateType;
     const typeCards = container.querySelectorAll('#ces-type-cards .ces-card');
     typeCards.forEach(card => {
       card.addEventListener('click', () => {
         typeCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         selectedType = card.dataset.type;
-        updateOptionsVisibility(selectedType);
         updateAnnouncementAvailability(selectedType);
       });
     });
@@ -829,14 +990,15 @@
       const courseSelect = container.querySelector('#ces-course-select');
       const courseId = courseSelect.value;
       const courseName = courseSelect.options[courseSelect.selectedIndex]?.text || '';
+      const currentTeacherName = container.querySelector('#ces-teacher-name').value.trim();
       if (!courseId) { showStatus('Please select a course.', 'error'); return; }
-      if (!teacherName) { showStatus('Please set your Teacher Name in Settings first.', 'error'); return; }
+      if (!currentTeacherName) { showStatus('Please enter your teacher name.', 'error'); return; }
+      GM_setValue(STORAGE_KEYS.TEACHER_NAME, currentTeacherName);
 
       currentCourseId = courseId;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);
-
-      const df = parseInt(container.querySelector('#ces-days-forward').value) || 7;
-      const db = parseInt(container.querySelector('#ces-days-back').value) || 14;
+      const selectedTemplate = getTemplates()[selectedType];
+      const timing = normalizeTemplateTiming(selectedTemplate);
 
       const btn = container.querySelector('#ces-generate-btn');
       btn.disabled = true;
@@ -847,7 +1009,7 @@
       setProgress('Fetching student data from Canvas...', 10);
 
       try {
-        generatedMessages = await generateMessages(courseId, courseName, selectedType, df, db, teacherName);
+        generatedMessages = await generateMessages(courseId, courseName, selectedType, timing.daysForward, timing.daysBack, currentTeacherName);
         setProgress('Done!', 100);
         if (generatedMessages.length === 0) {
           showStatus('No messages to send. No students matched the criteria for ' + selectedType + '.', 'info');
@@ -866,8 +1028,7 @@
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     });
 
-    updateOptionsVisibility('upcoming');
-    updateAnnouncementAvailability('upcoming');
+    updateAnnouncementAvailability(firstTemplateType);
   }
 
   function updateAnnouncementAvailability(type) {
@@ -881,7 +1042,8 @@
       const privacy = hasPersonalData
         ? 'Announcements disabled because this template contains personal student data.'
         : 'Announcements are available for this template.';
-      rule.innerHTML = `${escapeHtml(describeTemplateCondition(template))}<br>${escapeHtml(privacy)}`;
+      const timing = normalizeTemplateTiming(template);
+      rule.innerHTML = `Template timing: ${timing.daysForward} days forward, ${timing.daysBack} days back.<br>${escapeHtml(describeTemplateCondition(template))}<br>${escapeHtml(privacy)}`;
     }
     if (checkbox) {
       checkbox.disabled = hasPersonalData;
@@ -893,14 +1055,6 @@
         ? 'Canvas Announcement unavailable for personal templates'
         : 'Also post as Canvas Announcement';
     }
-  }
-
-  function updateOptionsVisibility(type) {
-    const fwWrap = document.getElementById('ces-days-forward-wrap');
-    const bkWrap = document.getElementById('ces-days-back-wrap');
-    if (!fwWrap || !bkWrap) return;
-    fwWrap.style.display = (type === 'upcoming' || type === 'evaluation') ? 'block' : 'none';
-    bkWrap.style.display = (type === 'missing'  || type === 'evaluation') ? 'block' : 'none';
   }
 
   async function loadCourses(lastCourse) {
@@ -939,6 +1093,7 @@
     const announceCheck = document.getElementById('ces-announce-check');
     const templates = getTemplates();
     const tpl = templates[emailType];
+    const timing = normalizeTemplateTiming(tpl);
     const includeAnnouncement = announceCheck && announceCheck.checked && !templateHasPersonalData(tpl);
 
     let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><div style="display:flex;gap:8px;"><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div></div>`;
@@ -953,7 +1108,7 @@
             </div>
           </div>
           <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(msg.subject)}</div>
-          <div class="ces-msg-body">${escapeHtml(msg.body)}</div>
+          <div class="ces-msg-body">${renderBodyForPreview(msg.body)}</div>
         </div>
       `;
     });
@@ -987,8 +1142,8 @@
                     .replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
                     .replace(/\{\{currentGrade\}\}/g, '(see your individual message)')
                     .replace(/\{\{currentScore\}\}/g, '(see your individual message)')
-                    .replace(/\{\{daysForward\}\}/g, String(document.getElementById('ces-days-forward')?.value || 7))
-                    .replace(/\{\{daysBack\}\}/g, String(document.getElementById('ces-days-back')?.value || 14))
+                    .replace(/\{\{daysForward\}\}/g, String(timing.daysForward))
+                    .replace(/\{\{daysBack\}\}/g, String(timing.daysBack))
                     .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
           );
           showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Announcement posted!`, 'success');
@@ -1294,13 +1449,36 @@
 
     function renderList() {
       let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize email templates and choose when each one is eligible to send. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
-      for (const [type, tpl] of Object.entries(templates)) {
+      html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">Add Email Template</button></div>`;
+      for (const [type, tpl] of getVisibleTemplateEntries(templates)) {
         const personal = templateHasPersonalData(tpl);
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:6px;">${escapeHtml(describeTemplateCondition(tpl))} - ${personal ? 'Personal data; announcements disabled' : 'Announcements allowed'}</div></div><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button></div></div>`;
+        const timing = normalizeTemplateTiming(tpl);
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:6px;">${timing.daysForward} days forward, ${timing.daysBack} days back - ${escapeHtml(describeTemplateCondition(tpl))} - ${personal ? 'Personal data; announcements disabled' : 'Announcements allowed'}</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;"><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button>${isDefaultTemplate(type) ? '' : `<button class="ces-btn ces-btn-danger ces-btn-sm ces-delete-tpl" data-type="${type}">Delete</button>`}</div></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
+      container.querySelector('#ces-add-tpl').addEventListener('click', () => {
+        const id = makeTemplateId();
+        templates[id] = {
+          name: 'New Email Template',
+          subject: '{{courseName}} Update',
+          body: '<p>Hi {{studentName}},</p><p></p><p>Best,<br>{{teacherName}}</p>',
+          daysForward: 7,
+          daysBack: 14,
+          condition: { type: 'none', daysBack: 7, daysForward: 7, threshold: 70 },
+          containsPersonalData: true,
+        };
+        saveTemplates(templates);
+        renderEditor(id);
+      });
       container.querySelectorAll('.ces-edit-tpl').forEach(btn => btn.addEventListener('click', () => renderEditor(btn.dataset.type)));
+      container.querySelectorAll('.ces-delete-tpl').forEach(btn => btn.addEventListener('click', () => {
+        if (!confirm('Delete this template?')) return;
+        delete templates[btn.dataset.type];
+        saveTemplates(templates);
+        renderList();
+        showStatus('Template deleted.', 'success');
+      }));
       container.querySelector('#ces-reset-tpl').addEventListener('click', () => {
         if (confirm('Reset all templates to defaults? Your custom templates will be lost.')) {
           const defaults = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
@@ -1313,23 +1491,45 @@
     function renderEditor(type) {
       const tpl = templates[type];
       const condition = normalizeTemplateCondition(tpl);
+      const timing = normalizeTemplateTiming(tpl);
       const personalChecked = templateHasPersonalData(tpl);
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
+        <label class="ces-label">Template Name</label>
+        <input type="text" class="ces-input" id="ces-tpl-name" value="${escapeAttr(tpl.name || '')}">
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <label class="ces-label">Email Body</label>
-        <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:200px;">${escapeHtml(tpl.body)}</textarea>
+        <div class="ces-editor-toolbar" id="ces-editor-toolbar">
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="bold"><strong>B</strong></button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="italic"><em>I</em></button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="insertUnorderedList">List</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="formatBlock" data-value="h3">Heading</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="formatBlock" data-value="p">Text</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-link">Link</button>
+        </div>
+        <div class="ces-editor" id="ces-tpl-body" contenteditable="true">${bodyToEditorHtml(tpl.body)}</div>
+        <label class="ces-label">Canvas Variables</label>
+        <div class="ces-variable-row">
+          ${TEMPLATE_VARIABLES.map(variable => `<button class="ces-btn ces-btn-secondary ces-btn-sm ces-var-btn" type="button" data-var="${variable.key}">${escapeHtml(variable.label)}</button>`).join('')}
+        </div>
         <div class="ces-card ces-mt" style="background:#f9fafb;">
           <h3 style="margin:0 0 10px;">Send Rules</h3>
+          <div class="ces-grid-2">
+            <div><label class="ces-label">Days Forward</label><input type="number" class="ces-input" id="ces-tpl-days-forward" value="${timing.daysForward}" min="1" max="90"></div>
+            <div><label class="ces-label">Days Back</label><input type="number" class="ces-input" id="ces-tpl-days-back" value="${timing.daysBack}" min="1" max="365"></div>
+          </div>
           <label class="ces-label">Condition</label>
           <select class="ces-select" id="ces-tpl-condition">
             <option value="none"${condition.type === 'none' ? ' selected' : ''}>No extra condition</option>
             <option value="missing_past_days"${condition.type === 'missing_past_days' ? ' selected' : ''}>Only students with missing work in the past N days</option>
+            <option value="upcoming_next_days"${condition.type === 'upcoming_next_days' ? ' selected' : ''}>Only send if the course has work due in the next N days</option>
+            <option value="grade_below"${condition.type === 'grade_below' ? ' selected' : ''}>Only students with current grade below N%</option>
           </select>
-          <div id="ces-tpl-condition-days-wrap">
-            <label class="ces-label">Missing Work Days Back</label>
-            <input type="number" class="ces-input" id="ces-tpl-condition-days" value="${condition.daysBack}" min="1" max="365">
+          <div class="ces-grid-2" id="ces-tpl-condition-values">
+            <div id="ces-tpl-condition-days-back-wrap"><label class="ces-label">Missing Work Days Back</label><input type="number" class="ces-input" id="ces-tpl-condition-days-back" value="${condition.daysBack}" min="1" max="365"></div>
+            <div id="ces-tpl-condition-days-forward-wrap"><label class="ces-label">Upcoming Days Forward</label><input type="number" class="ces-input" id="ces-tpl-condition-days-forward" value="${condition.daysForward}" min="1" max="90"></div>
+            <div id="ces-tpl-condition-threshold-wrap"><label class="ces-label">Grade Threshold</label><input type="number" class="ces-input" id="ces-tpl-condition-threshold" value="${condition.threshold}" min="1" max="100"></div>
           </div>
           <div class="ces-checkbox-row">
             <input type="checkbox" id="ces-tpl-personal" ${personalChecked ? 'checked' : ''}>
@@ -1345,17 +1545,52 @@
         <div id="ces-tpl-preview-area" class="ces-mt"></div>
       `;
       const conditionSelect = container.querySelector('#ces-tpl-condition');
-      const daysWrap = container.querySelector('#ces-tpl-condition-days-wrap');
-      const updateConditionDays = () => {
-        daysWrap.style.display = conditionSelect.value === 'missing_past_days' ? 'block' : 'none';
+      const subjectInput = container.querySelector('#ces-tpl-subject');
+      const bodyEditor = container.querySelector('#ces-tpl-body');
+      let lastTarget = bodyEditor;
+      subjectInput.addEventListener('focus', () => { lastTarget = subjectInput; });
+      bodyEditor.addEventListener('focus', () => { lastTarget = bodyEditor; });
+      container.querySelectorAll('#ces-editor-toolbar [data-cmd]').forEach(btn => btn.addEventListener('click', () => {
+        bodyEditor.focus();
+        document.execCommand(btn.dataset.cmd, false, btn.dataset.value || null);
+      }));
+      container.querySelector('#ces-editor-link').addEventListener('click', () => {
+        const url = prompt('Paste the link URL');
+        if (!url) return;
+        bodyEditor.focus();
+        document.execCommand('createLink', false, url);
+      });
+      function insertAtSubject(text) {
+        const start = subjectInput.selectionStart || 0;
+        const end = subjectInput.selectionEnd || 0;
+        subjectInput.value = subjectInput.value.slice(0, start) + text + subjectInput.value.slice(end);
+        subjectInput.focus();
+        subjectInput.setSelectionRange(start + text.length, start + text.length);
+      }
+      container.querySelectorAll('.ces-var-btn').forEach(btn => btn.addEventListener('click', () => {
+        const token = `{{${btn.dataset.var}}}`;
+        if (lastTarget === subjectInput) {
+          insertAtSubject(token);
+        } else {
+          bodyEditor.focus();
+          document.execCommand('insertText', false, token);
+          lastTarget = bodyEditor;
+        }
+        updatePersonalFlagFromText();
+      }));
+      const updateConditionFields = () => {
+        const selectedCondition = conditionSelect.value;
+        container.querySelector('#ces-tpl-condition-days-back-wrap').style.display = selectedCondition === 'missing_past_days' ? 'block' : 'none';
+        container.querySelector('#ces-tpl-condition-days-forward-wrap').style.display = selectedCondition === 'upcoming_next_days' ? 'block' : 'none';
+        container.querySelector('#ces-tpl-condition-threshold-wrap').style.display = selectedCondition === 'grade_below' ? 'block' : 'none';
       };
-      conditionSelect.addEventListener('change', updateConditionDays);
-      updateConditionDays();
+      conditionSelect.addEventListener('change', updateConditionFields);
+      updateConditionFields();
 
       const updatePersonalFlagFromText = () => {
         const textTemplate = {
           subject: container.querySelector('#ces-tpl-subject').value,
-          body: container.querySelector('#ces-tpl-body').value,
+          body: container.querySelector('#ces-tpl-body').innerHTML,
         };
         if (templateHasPersonalData(textTemplate)) {
           container.querySelector('#ces-tpl-personal').checked = true;
@@ -1366,21 +1601,28 @@
 
       container.querySelector('#ces-tpl-cancel').addEventListener('click', renderList);
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
+        templates[type].name = container.querySelector('#ces-tpl-name').value.trim() || 'Untitled Template';
         templates[type].subject = container.querySelector('#ces-tpl-subject').value;
-        templates[type].body    = container.querySelector('#ces-tpl-body').value;
+        templates[type].body    = container.querySelector('#ces-tpl-body').innerHTML;
+        templates[type].daysForward = parseInt(container.querySelector('#ces-tpl-days-forward').value, 10) || 7;
+        templates[type].daysBack = parseInt(container.querySelector('#ces-tpl-days-back').value, 10) || 14;
         templates[type].condition = {
           type: container.querySelector('#ces-tpl-condition').value,
-          daysBack: parseInt(container.querySelector('#ces-tpl-condition-days').value, 10) || 7,
+          daysBack: parseInt(container.querySelector('#ces-tpl-condition-days-back').value, 10) || 7,
+          daysForward: parseInt(container.querySelector('#ces-tpl-condition-days-forward').value, 10) || 7,
+          threshold: parseInt(container.querySelector('#ces-tpl-condition-threshold').value, 10) || 70,
         };
         templates[type].containsPersonalData = container.querySelector('#ces-tpl-personal').checked;
         saveTemplates(templates); showStatus('Template saved!', 'success'); renderList();
       });
       container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
         const subject = container.querySelector('#ces-tpl-subject').value;
-        const body    = container.querySelector('#ces-tpl-body').value;
+        const body    = container.querySelector('#ces-tpl-body').innerHTML;
         const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, 'Professor Smith');
-        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: '7', daysBack: '14', missingSection: 'Missing Assignments (past 14 days):\n  - Homework 5', upcomingSection: 'Upcoming Assignments (next 7 days):\n  - Essay 1', gradeAlertDetail: 'Current course score: 68%\nAlert threshold: 70%' };
-        container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="white-space:pre-wrap;font-size:13px;">${escapeHtml(renderTemplate(body, sampleVars))}</div></div>`;
+        const sampleDaysForward = container.querySelector('#ces-tpl-days-forward').value || '7';
+        const sampleDaysBack = container.querySelector('#ces-tpl-days-back').value || '14';
+        const sampleVars = { studentName: 'Alex', teacherName, courseName: 'Sample Course', assignmentList: '  - Essay 1 (Due: 4/15/2026)\n  - Quiz 3 (Due: 4/18/2026)', missingAssignmentList: '  - Homework 5 (Due: 4/1/2026)', currentGrade: 'B+', currentScore: '87.5', daysForward: sampleDaysForward, daysBack: sampleDaysBack, missingSection: `Missing Assignments (past ${sampleDaysBack} days):\n  - Homework 5`, upcomingSection: `Upcoming Assignments (next ${sampleDaysForward} days):\n  - Essay 1`, gradeAlertDetail: 'Current course score: 68%\nAlert threshold: 70%' };
+        container.querySelector('#ces-tpl-preview-area').innerHTML = `<div class="ces-card" style="background:#f9fafb;"><strong>Subject:</strong> ${escapeHtml(renderTemplate(subject, sampleVars))}<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;"><div style="font-size:13px;">${renderTemplate(body, sampleVars)}</div></div>`;
       });
     }
 
@@ -1390,7 +1632,7 @@
   /* =========================================================
      TAB: SETTINGS
   ========================================================= */
-  function renderSettingsTab(container) {
+  function legacyRenderSettingsTab(container) {
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
     const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
     const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
