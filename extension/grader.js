@@ -176,34 +176,53 @@
       return p;
     }
 
-    function fillFields(text, criteria) {
-      const tot        = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
-      const grade      = text.match(/SCORE:\s*(\d+)/i)?.[1] || null;
-      const fbMatch    = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const bullets    = (fbMatch ? fbMatch[1] : text)
-        .split('\n')
-        .filter(l => !/^[-*]?\s*(TEACHER CHECK|⚠)/i.test(l.trim()) && l.trim())
-        .join('\n').trim();
-      const commentTxt = [grade ? `Score: ${grade} / ${tot}` : '', bullets].filter(Boolean).join('\n\n');
+    function setReactValue(el, value) {
+      const tag = el.tagName.toLowerCase();
+      const proto = tag === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      if (setter) setter.call(el, value);
+      el.dispatchEvent(new Event('input',  { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
 
+    function fillFields(text, criteria) {
+      const tot      = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
+      const grade    = text.match(/SCORE:\s*(\d+)/i)?.[1] || null;
+      const fbMatch  = text.match(/FEEDBACK:\s*([\s\S]+)/i);
+      const feedback = (fbMatch ? fbMatch[1] : text).trim();
+      const commentTxt = [grade ? `Score: ${grade} / ${tot}` : '', feedback].filter(Boolean).join('\n\n');
+
+      // ── Grade field ──────────────────────────────────────────────────────────
       if (grade) {
-        const gEl = document.querySelector('input.grading_value, input[data-testid="grading-box-extended-grade-input"], #grade_container input, input.grade');
-        if (gEl) {
-          const s = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-          if (s) s.call(gEl, grade);
-          gEl.dispatchEvent(new Event('input',  { bubbles: true }));
-          gEl.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        const gEl = document.querySelector([
+          'input.grading_value',
+          'input[data-testid="grading-box-extended-grade-input"]',
+          '#grade_container input',
+          'input.grade',
+          '#grading-box-extended input[type="text"]',
+          'input[aria-label*="Grade" i][type="text"]',
+        ].join(', '));
+        if (gEl) setReactValue(gEl, grade);
       }
-      if (commentTxt) {
-        const cEl = document.querySelector('#speed_grader_comment_textarea');
-        if (cEl) {
-          const s = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-          if (s) s.call(cEl, commentTxt);
-          cEl.dispatchEvent(new Event('input',  { bubbles: true }));
-          cEl.dispatchEvent(new Event('change', { bubbles: true }));
-          cEl.focus();
-        }
+
+      // ── Comment textarea ─────────────────────────────────────────────────────
+      // Try every known Canvas SpeedGrader comment selector (old and new UI).
+      const cEl = document.querySelector([
+        '#speed_grader_comment_textarea',
+        'textarea[data-testid*="comment"]',
+        'textarea[aria-label*="comment" i]',
+        'textarea[placeholder*="comment" i]',
+        '#comments_container textarea',
+        '#submission_comment_form textarea',
+        '.ic-RichContentEditor textarea',
+        '.comment-input textarea',
+        '#right_side textarea',
+        '#right_side_inner textarea',
+      ].join(', '));
+
+      if (cEl) {
+        setReactValue(cEl, commentTxt);
+        cEl.focus();
       }
     }
 
