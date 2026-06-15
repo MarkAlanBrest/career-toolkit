@@ -207,75 +207,29 @@ async function handleCanvasApi({ url, token, method, body }) {
 }
 
 async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
-  let directUrl = null;
-
   if (!b64 && fileUrl) {
-    if (/amazonaws\.com|instructure-uploads|storage\.googleapis\.com/.test(fileUrl)) {
-      // Already a CDN signed URL — pass directly to Vercel
-      directUrl = fileUrl;
-    } else if (token) {
-      // Canvas download URL → follow redirect to get S3 pre-signed URL.
-      // redirect: 'manual' returns opaqueredirect (no Location header) for cross-origin
-      // redirects in extension service workers, so we use redirect: 'follow' and read
-      // response.url (the final URL after all hops, always accessible).
+    // Send the URL to Vercel and let it fetch the file server-side.
+    // Canvas download URLs include a verifier token so Vercel can fetch without auth.
+    // This avoids sending a large base64 body from the extension → no 413.
+    let res = await fetch(`${API_BASE}/api/parse-file`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileUrl, filename, mimeType }),
+    });
+
+    // Vercel returned 400 = old deployment that doesn't support fileUrl yet.
+    // Fall back: fetch the file here in the extension and send as base64.
+    // Canvas URLs with verifier tokens can be fetched without auth; if Canvas
+    // redirects to S3 we need https://*.amazonaws.com/* in host_permissions
+    // (added to manifest.json — reload the extension if you haven't already).
+    if (res.status === 400) {
       try {
-        const followed = await fetch(fileUrl, {
-          headers: { 'Authorization': `Bearer ${token}` },
-          redirect: 'follow',
-        });
-        if (followed.ok && followed.url && followed.url !== fileUrl) {
-          directUrl = followed.url; // S3 signed URL — Vercel can fetch without auth
-          followed.body?.cancel();  // discard body, we only needed the URL
-        } else if (followed.ok) {
-          // No redirect — Canvas served the file directly, encode it (with size guard)
-          const buf = await followed.arrayBuffer();
-          if (buf.byteLength > 3.5 * 1024 * 1024) {
-            throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update to grade large files`);
-          }
-          const bytes = new Uint8Array(buf);
-          let bin = '';
-          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-          b64 = btoa(bin);
-        } else {
-          throw new Error(`Could not fetch file: HTTP ${followed.status}`);
-        }
-      } catch (e) {
-        if (/too large|Could not fetch/.test(e.message)) throw e;
-        // Permission error following to S3 — try a plain fetch (small files only)
-        const fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const fileRes = await fetch(fileUrl, { headers, redirect: 'follow' });
         if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
         const buf = await fileRes.arrayBuffer();
         if (buf.byteLength > 3.5 * 1024 * 1024) {
-          throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update to grade large files`);
-        }
-        const bytes = new Uint8Array(buf);
-        let bin = '';
-        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        b64 = btoa(bin);
-      }
-    }
-  }
-
-  let body = directUrl
-    ? JSON.stringify({ fileUrl: directUrl, filename, mimeType })
-    : JSON.stringify({ b64, filename, mimeType });
-
-  let res = await fetch(`${API_BASE}/api/parse-file`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  });
-
-  // If Vercel returned 400 because it doesn't yet support fileUrl (needs deploy),
-  // fall back: fetch the S3 URL directly (we now have amazonaws.com permission)
-  // and retry as base64.
-  if (res.status === 400 && directUrl) {
-    try {
-      const fallbackRes = await fetch(directUrl);
-      if (fallbackRes.ok) {
-        const buf = await fallbackRes.arrayBuffer();
-        if (buf.byteLength > 3.5 * 1024 * 1024) {
-          throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update`);
+          throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)} MB) — deploy the latest Vercel update to grade files this size`);
         }
         const bytes = new Uint8Array(buf);
         let bin = '';
@@ -286,13 +240,25 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ b64: fallbackB64, filename, mimeType }),
         });
+      } catch (e) {
+        if (e.message.includes('too large') || e.message.includes('Could not fetch')) throw e;
+        // fetch itself threw (e.g. permission denied) — surface original 400
       }
-    } catch (e) {
-      if (e.message.includes('too large')) throw e;
-      // fallback failed — fall through to original response
     }
+
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
+    if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
+    return data;
   }
 
+  // b64 provided directly
+  const res = await fetch(`${API_BASE}/api/parse-file`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ b64, filename, mimeType }),
+  });
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
