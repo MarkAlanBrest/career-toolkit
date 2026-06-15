@@ -176,23 +176,29 @@
     }
     .ces-editor:focus { border-color: #0770B8; box-shadow: 0 0 0 2px rgba(7,112,184,.12); }
     .ces-variable-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .ces-course-toolbar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-top: 12px; margin-bottom: 6px;
+    }
+    .ces-course-toolbar .ces-label { margin: 0; }
+    .ces-course-toolbar .ces-checkbox-row { margin: 0; }
+    .ces-course-toolbar-actions { margin-left: auto; display: flex; gap: 6px; }
     .ces-course-list {
       border: 1px solid #C7CDD1; border-radius: 3px;
       max-height: 210px; overflow-y: auto; background: #fff;
     }
     .ces-course-option {
-      display: flex; gap: 8px; align-items: flex-start;
-      padding: 8px 10px; border-bottom: 1px solid #eef1f3;
+      display: flex; gap: 8px; align-items: center;
+      padding: 5px 10px; border-bottom: 1px solid #eef1f3;
       font-size: 13px;
     }
     .ces-course-option:last-child { border-bottom: none; }
     .ces-recipient-list {
-      border: 1px solid #C7CDD1; border-radius: 3px;
-      max-height: 240px; overflow-y: auto; background: #fff;
+      max-height: 240px; overflow-y: auto;
     }
     .ces-recipient-row {
       display: flex; align-items: center; justify-content: space-between; gap: 8px;
-      padding: 8px 10px; border-bottom: 1px solid #eef1f3;
+      padding: 5px 0; border-bottom: 1px solid #eef1f3;
       font-size: 13px;
     }
     .ces-recipient-row:last-child { border-bottom: none; }
@@ -1016,16 +1022,16 @@
     container.innerHTML = `
       <div id="ces-status-area"></div>
       <div class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
-      <label class="ces-label">Classes</label>
-      <div class="ces-grid-2">
+      <div class="ces-course-toolbar">
+        <label class="ces-label">Classes</label>
         <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-published" checked> Published only</label>
         <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-dashboard"> Dashboard only</label>
+        <div class="ces-course-toolbar-actions">
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-select-all-courses">Select All</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-courses">Clear</button>
+        </div>
       </div>
-      <div class="ces-flex-between ces-mt" style="gap:8px;">
-        <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-select-all-courses">Select All</button>
-        <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-courses">Clear</button>
-      </div>
-      <div id="ces-course-list" class="ces-course-list ces-mt"><div class="ces-status ces-status-info" style="margin:8px;">Loading classes...</div></div>
+      <div id="ces-course-list" class="ces-course-list"><div class="ces-status ces-status-info" style="margin:8px;">Loading classes...</div></div>
       <label class="ces-label">Email Type</label>
       <div class="ces-template-list" id="ces-type-cards">
         ${templateCards}
@@ -1167,15 +1173,10 @@
       }
       list.innerHTML = courses.map(course => {
         const id = String(course.id);
-        const term = course.term ? ` (${course.term.name})` : '';
-        const state = isPublishedCourse(course) ? 'Published' : 'Unpublished';
         return `
           <label class="ces-course-option">
             <input type="checkbox" class="ces-course-check" value="${escapeAttr(id)}" ${selectedCourseIds.has(id) ? 'checked' : ''}>
-            <span>
-              <strong>${escapeHtml(course.name || 'Untitled Class')}</strong>${escapeHtml(term)}
-              <div style="font-size:12px;color:#6b7280;margin-top:2px;">${state}</div>
-            </span>
+            <span>${escapeHtml(course.name || 'Untitled Class')}</span>
           </label>
         `;
       }).join('');
@@ -1241,7 +1242,6 @@
           </div>
           <div class="ces-msg-actions">
             <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
-            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Open in Compose</button>
           </div>
         </div>
       `;
@@ -1318,16 +1318,6 @@
       });
     });
 
-    container.querySelectorAll('.ces-compose-one').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.idx);
-        const msg = generatedMessages[idx];
-        const composeUrl = `${CANVAS_BASE}/conversations#filter=type=inbox&user_name=${encodeURIComponent(msg.studentName)}&user_id=${msg.studentId}`;
-        window.open(composeUrl, '_blank');
-        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.body, courseId: msg.courseId }));
-        showStatus(`Compose window opened for ${msg.studentName}. Click "Insert Message" on the compose page.`, 'info');
-      });
-    });
   }
 
   /* =========================================================
