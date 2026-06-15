@@ -181,8 +181,122 @@
       const proto = tag === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
       if (setter) setter.call(el, value);
+      else el.value = value;
       el.dispatchEvent(new Event('input',  { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function escapeHtml(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function valueToHtml(value) {
+      return String(value || '')
+        .split(/\n{2,}/)
+        .map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+
+    function setEditableValue(el, value) {
+      if (!el) return false;
+      const tag = el.tagName?.toLowerCase();
+      const style = el.ownerDocument?.defaultView?.getComputedStyle?.(el);
+      if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
+      if (tag === 'textarea' || tag === 'input') {
+        setReactValue(el, value);
+        el.focus();
+        return true;
+      }
+      if (el.isContentEditable || el.getAttribute?.('contenteditable') === 'true') {
+        el.focus();
+        el.innerHTML = valueToHtml(value);
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      }
+      return false;
+    }
+
+    function openCommentEditorIfCollapsed() {
+      const opener = document.querySelector([
+        'button[data-testid*="add-comment" i]',
+        'button[aria-label*="add comment" i]',
+        'button[title*="add comment" i]',
+        'a[aria-label*="add comment" i]',
+        'a[title*="add comment" i]',
+        '.add_comment_link',
+        '#add_a_comment',
+      ].join(', '));
+      if (opener) {
+        try { opener.click(); } catch (_) {}
+      }
+    }
+
+    function fillTinyMceComment(value) {
+      const tiny = window.tinymce || window.tinyMCE;
+      if (!tiny?.get) return false;
+      for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
+        const editor = tiny.get(id);
+        if (!editor) continue;
+        editor.setContent(valueToHtml(value));
+        editor.fire?.('input');
+        editor.fire?.('change');
+        editor.save?.();
+        return true;
+      }
+      return false;
+    }
+
+    function findAndFillComment(value) {
+      if (fillTinyMceComment(value)) return true;
+      openCommentEditorIfCollapsed();
+      const selectors = [
+        '#speed_grader_comment_textarea',
+        '#speedgrader_textarea',
+        'textarea[name="comment[text_comment]"]',
+        '#grading_comment',
+        '#comment_textarea',
+        '.submission-comment-form textarea',
+        '.grading_comment textarea',
+        'textarea[data-testid*="comment" i]',
+        'textarea[aria-label*="comment" i]',
+        'textarea[placeholder*="comment" i]',
+        '#comments_container textarea',
+        '#submission_comment_form textarea',
+        '.ic-RichContentEditor textarea',
+        '.comment-input textarea',
+        '#right_side textarea',
+        '#right_side_inner textarea',
+        '[contenteditable="true"][aria-label*="comment" i]',
+        '[contenteditable="true"][data-testid*="comment" i]',
+        '.tox-edit-area [contenteditable="true"]',
+        '.ic-RichContentEditor [contenteditable="true"]',
+      ];
+      for (const selector of selectors) {
+        if (setEditableValue(document.querySelector(selector), value)) return true;
+      }
+      const iframeSelectors = [
+        'iframe#speed_grader_comment_textarea_ifr',
+        'iframe[id*="speed_grader_comment" i]',
+        'iframe[id*="comment" i]',
+        'iframe[title*="comment" i]',
+        'iframe[title*="Rich Text" i]',
+        'iframe.tox-edit-area__iframe',
+      ];
+      const iframes = [...new Set([
+        ...iframeSelectors.flatMap(selector => [...document.querySelectorAll(selector)]),
+        ...document.querySelectorAll('#right_side iframe, #right_side_inner iframe, .submission-comment-form iframe'),
+      ])];
+      for (const iframe of iframes) {
+        try {
+          if (setEditableValue(iframe?.contentDocument?.body || iframe?.contentWindow?.document?.body, value)) return true;
+        } catch (_) {}
+      }
+      return false;
     }
 
     function fillFields(text, criteria) {
@@ -190,7 +304,8 @@
       const grade    = text.match(/SCORE:\s*(\d+)/i)?.[1] || null;
       const fbMatch  = text.match(/FEEDBACK:\s*([\s\S]+)/i);
       const feedback = (fbMatch ? fbMatch[1] : text).trim();
-      const commentTxt = [grade ? `Score: ${grade} / ${tot}` : '', feedback].filter(Boolean).join('\n\n');
+      const commentTxt = feedback;
+      let gradeInserted = false;
 
       // ── Grade field ──────────────────────────────────────────────────────────
       if (grade) {
@@ -202,28 +317,15 @@
           '#grading-box-extended input[type="text"]',
           'input[aria-label*="Grade" i][type="text"]',
         ].join(', '));
-        if (gEl) setReactValue(gEl, grade);
+        if (gEl) {
+          setReactValue(gEl, grade);
+          gradeInserted = true;
+        }
       }
 
-      // ── Comment textarea ─────────────────────────────────────────────────────
-      // Try every known Canvas SpeedGrader comment selector (old and new UI).
-      const cEl = document.querySelector([
-        '#speed_grader_comment_textarea',
-        'textarea[data-testid*="comment"]',
-        'textarea[aria-label*="comment" i]',
-        'textarea[placeholder*="comment" i]',
-        '#comments_container textarea',
-        '#submission_comment_form textarea',
-        '.ic-RichContentEditor textarea',
-        '.comment-input textarea',
-        '#right_side textarea',
-        '#right_side_inner textarea',
-      ].join(', '));
-
-      if (cEl) {
-        setReactValue(cEl, commentTxt);
-        cEl.focus();
-      }
+      const commentInserted = findAndFillComment(commentTxt);
+      if (!commentInserted) navigator.clipboard?.writeText(commentTxt).catch(() => {});
+      return { gradeInserted, commentInserted };
     }
 
     const aiBtn = document.createElement('button');
@@ -303,8 +405,12 @@
         const text = response?.content?.[0]?.text || '';
         if (!text) throw new Error('Empty response — check your API key in settings');
 
-        fillFields(text, criteria);
-        aiBtn.textContent = '✓ Review & Submit';
+        const inserted = fillFields(text, criteria);
+        aiBtn.textContent = inserted.commentInserted && inserted.gradeInserted
+          ? 'Grade & Comment Inserted'
+          : inserted.commentInserted
+            ? 'Comment Inserted'
+            : 'Comment copied';
         aiBtn._baseBg = '#27AE60';
         aiBtn.style.background = '#27AE60';
         aiBtn.style.color = '#fff';
