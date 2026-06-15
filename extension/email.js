@@ -186,6 +186,7 @@
       name: 'Missing Work Reminder',
       subject: 'Missing Work in {{courseName}}',
       body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nMissing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.\n\nIf something is preventing you from completing the work, reply to this message so we can talk about a realistic plan. You do not need to wait until everything is perfect to get started.\n\nBest,\n{{teacherName}}`,
+      condition: { type: 'missing_past_days', daysBack: 7 },
     },
     welcome: {
       name: 'Welcome to Class',
@@ -423,6 +424,50 @@
     };
   }
 
+  const PERSONAL_PLACEHOLDERS = [
+    'studentName',
+    'missingAssignmentList',
+    'currentGrade',
+    'currentScore',
+    'missingSection',
+    'upcomingSection',
+    'gradeAlertDetail',
+  ];
+
+  function normalizeTemplateCondition(template) {
+    const condition = template?.condition || {};
+    return {
+      type: condition.type || 'none',
+      daysBack: Number(condition.daysBack) || 7,
+    };
+  }
+
+  function templateHasPersonalData(template) {
+    if (template?.containsPersonalData === true) return true;
+    const text = `${template?.subject || ''}\n${template?.body || ''}`;
+    return PERSONAL_PLACEHOLDERS.some(name => text.includes(`{{${name}}}`));
+  }
+
+  function describeTemplateCondition(template) {
+    const condition = normalizeTemplateCondition(template);
+    if (condition.type === 'missing_past_days') {
+      return `Only students with missing work in the past ${condition.daysBack} days`;
+    }
+    return 'No extra send condition';
+  }
+
+  async function getConditionVars(courseId, student, condition, fallbackDaysBack) {
+    if (condition.type !== 'missing_past_days') return null;
+    const daysBack = Number(condition.daysBack) || Number(fallbackDaysBack) || 7;
+    const subs = await getSubmissions(courseId, student.id);
+    const missing = getMissingAssignments(subs, daysBack);
+    if (!missing.length) return false;
+    return {
+      daysBack: String(daysBack),
+      missingAssignmentList: formatAssignmentList(missing.map(s => s.assignment || s)),
+    };
+  }
+
   /* =========================================================
      MESSAGE GENERATION
   ========================================================= */
@@ -430,6 +475,7 @@
     const templates = getTemplates();
     const template = templates[emailType];
     if (!template) throw new Error('Unknown email type: ' + emailType);
+    const templateCondition = normalizeTemplateCondition(template);
 
     const students = await getStudents(courseId);
     if (!students.length) throw new Error('No students found in this course.');
@@ -441,22 +487,27 @@
       const upcoming = getUpcomingAssignments(allAssignments, daysForward);
       const assignmentList = formatAssignmentList(upcoming);
       for (const student of students) {
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), assignmentList };
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        if (conditionVars === false) continue;
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysForward: String(daysForward), daysBack: String(daysBack), assignmentList, ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     } else if (emailType === 'missing') {
       const allAssignments = await getAssignments(courseId);
       for (const student of students) {
         const subs = await getSubmissions(courseId, student.id);
-        const missing = getMissingAssignments(subs, daysBack);
+        const effectiveDaysBack = templateCondition.type === 'missing_past_days' ? templateCondition.daysBack : daysBack;
+        const missing = getMissingAssignments(subs, effectiveDaysBack);
         if (missing.length === 0) continue;
         const missingList = formatAssignmentList(missing.map(s => s.assignment || s));
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), missingAssignmentList: missingList };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(effectiveDaysBack), missingAssignmentList: missingList };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     } else if (emailType === 'welcome') {
       for (const student of students) {
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName };
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        if (conditionVars === false) continue;
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, daysBack: String(daysBack), ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     } else if (emailType === 'evaluation') {
@@ -464,6 +515,8 @@
       const allAssignments = await getAssignments(courseId);
       const upcoming = getUpcomingAssignments(allAssignments, daysForward);
       for (const student of students) {
+        const conditionVars = await getConditionVars(courseId, student, templateCondition, daysBack);
+        if (conditionVars === false) continue;
         const enrollment = enrollments.find(e => e.user_id === student.id && e.grades);
         const grade = enrollment?.grades?.current_grade || 'N/A';
         const score = enrollment?.grades?.current_score || 'N/A';
@@ -475,7 +528,7 @@
         const upcomingSection = upcoming.length > 0
           ? `Upcoming Assignments (next ${daysForward} days):\n${formatAssignmentList(upcoming)}`
           : 'No upcoming assignments in the next ' + daysForward + ' days.';
-        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection };
+        const vars = { studentName: student.name || student.sortable_name || 'Student', teacherName, courseName, currentGrade: grade, currentScore: String(score), daysForward: String(daysForward), daysBack: String(daysBack), missingSection, upcomingSection, ...(conditionVars || {}) };
         messages.push({ studentId: student.id, studentName: vars.studentName, email: student.email || '', subject: renderTemplate(template.subject, vars), body: renderTemplate(template.body, vars) });
       }
     }
@@ -695,7 +748,6 @@
       </div>
       <div id="ces-tabs">
         <button class="ces-tab active" data-tab="send">Send</button>
-        <button class="ces-tab" data-tab="automations">Automations</button>
         <button class="ces-tab" data-tab="templates">Templates</button>
         <button class="ces-tab" data-tab="settings">Settings</button>
       </div>
@@ -721,7 +773,6 @@
   async function showTab(tabName) {
     const body = document.getElementById('ces-body');
     if (tabName === 'send') renderSendTab(body);
-    else if (tabName === 'automations') renderAutomationsTab(body);
     else if (tabName === 'templates') renderTemplatesTab(body);
     else if (tabName === 'settings') renderSettingsTab(body);
   }
@@ -750,7 +801,8 @@
           <div id="ces-days-back-wrap" style="display:none;"><label class="ces-label">Days Back</label><input type="number" class="ces-input" id="ces-days-back" value="${daysBack}" min="1" max="365"></div>
         </div>
       </div>
-      <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check">Also post as Canvas Announcement</label></div>
+      <div id="ces-template-rule" class="ces-status ces-status-info ces-mt"></div>
+      <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
       <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button></div>
       <div id="ces-progress-area" style="display:none;" class="ces-mt">
         <div class="ces-status ces-status-info" id="ces-progress-text">Fetching data...</div>
@@ -769,6 +821,7 @@
         card.classList.add('selected');
         selectedType = card.dataset.type;
         updateOptionsVisibility(selectedType);
+        updateAnnouncementAvailability(selectedType);
       });
     });
 
@@ -814,6 +867,32 @@
     });
 
     updateOptionsVisibility('upcoming');
+    updateAnnouncementAvailability('upcoming');
+  }
+
+  function updateAnnouncementAvailability(type) {
+    const templates = getTemplates();
+    const template = templates[type];
+    const rule = document.getElementById('ces-template-rule');
+    const checkbox = document.getElementById('ces-announce-check');
+    const label = document.getElementById('ces-announce-label');
+    const hasPersonalData = templateHasPersonalData(template);
+    if (rule) {
+      const privacy = hasPersonalData
+        ? 'Announcements disabled because this template contains personal student data.'
+        : 'Announcements are available for this template.';
+      rule.innerHTML = `${escapeHtml(describeTemplateCondition(template))}<br>${escapeHtml(privacy)}`;
+    }
+    if (checkbox) {
+      checkbox.disabled = hasPersonalData;
+      if (hasPersonalData) checkbox.checked = false;
+    }
+    if (label) {
+      label.style.color = hasPersonalData ? '#6B7280' : '#2D3B45';
+      label.textContent = hasPersonalData
+        ? 'Canvas Announcement unavailable for personal templates'
+        : 'Also post as Canvas Announcement';
+    }
   }
 
   function updateOptionsVisibility(type) {
@@ -858,7 +937,9 @@
 
   function renderMessagesList(container, courseId, courseName, emailType) {
     const announceCheck = document.getElementById('ces-announce-check');
-    const includeAnnouncement = announceCheck && announceCheck.checked;
+    const templates = getTemplates();
+    const tpl = templates[emailType];
+    const includeAnnouncement = announceCheck && announceCheck.checked && !templateHasPersonalData(tpl);
 
     let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><div style="display:flex;gap:8px;"><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div></div>`;
     generatedMessages.forEach((msg, i) => {
@@ -897,8 +978,6 @@
       }
       if (includeAnnouncement) {
         try {
-          const templates = getTemplates();
-          const tpl = templates[emailType];
           await postAnnouncement(courseId,
             tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
             tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
@@ -1214,9 +1293,10 @@
     const templates = getTemplates();
 
     function renderList() {
-      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize the email templates. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
+      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize email templates and choose when each one is eligible to send. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
       for (const [type, tpl] of Object.entries(templates)) {
-        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div></div><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button></div></div>`;
+        const personal = templateHasPersonalData(tpl);
+        html += `<div class="ces-card"><div class="ces-flex-between"><div><strong>${escapeHtml(tpl.name)}</strong><div style="font-size:12px;color:#6b7280;margin-top:2px;">Subject: ${escapeHtml(tpl.subject)}</div><div style="font-size:12px;color:#6b7280;margin-top:6px;">${escapeHtml(describeTemplateCondition(tpl))} - ${personal ? 'Personal data; announcements disabled' : 'Announcements allowed'}</div></div><button class="ces-btn ces-btn-secondary ces-btn-sm ces-edit-tpl" data-type="${type}">Edit</button></div></div>`;
       }
       html += `<div class="ces-mt"><button class="ces-btn ces-btn-secondary" id="ces-reset-tpl">Reset All to Defaults</button></div>`;
       container.innerHTML = html;
@@ -1232,12 +1312,31 @@
 
     function renderEditor(type) {
       const tpl = templates[type];
+      const condition = normalizeTemplateCondition(tpl);
+      const personalChecked = templateHasPersonalData(tpl);
       container.innerHTML = `
         <div class="ces-flex-between ces-mb"><h3 style="margin:0;">Editing: ${escapeHtml(tpl.name)}</h3><button class="ces-btn ces-btn-secondary" id="ces-tpl-cancel">Cancel</button></div>
         <label class="ces-label">Subject Line</label>
         <input type="text" class="ces-input" id="ces-tpl-subject" value="${escapeAttr(tpl.subject)}">
         <label class="ces-label">Email Body</label>
         <textarea class="ces-textarea" id="ces-tpl-body" style="min-height:200px;">${escapeHtml(tpl.body)}</textarea>
+        <div class="ces-card ces-mt" style="background:#f9fafb;">
+          <h3 style="margin:0 0 10px;">Send Rules</h3>
+          <label class="ces-label">Condition</label>
+          <select class="ces-select" id="ces-tpl-condition">
+            <option value="none"${condition.type === 'none' ? ' selected' : ''}>No extra condition</option>
+            <option value="missing_past_days"${condition.type === 'missing_past_days' ? ' selected' : ''}>Only students with missing work in the past N days</option>
+          </select>
+          <div id="ces-tpl-condition-days-wrap">
+            <label class="ces-label">Missing Work Days Back</label>
+            <input type="number" class="ces-input" id="ces-tpl-condition-days" value="${condition.daysBack}" min="1" max="365">
+          </div>
+          <div class="ces-checkbox-row">
+            <input type="checkbox" id="ces-tpl-personal" ${personalChecked ? 'checked' : ''}>
+            <label for="ces-tpl-personal">This template contains personal student data</label>
+          </div>
+          <div style="font-size:12px;color:#6b7280;margin-top:6px;">When this is checked, Canvas Announcement is disabled for the template.</div>
+        </div>
         <div style="font-size:12px;color:#6b7280;margin-top:8px;"><strong>Available placeholders:</strong> {{studentName}} {{teacherName}} {{courseName}} {{assignmentList}} {{missingAssignmentList}} {{currentGrade}} {{currentScore}} {{daysForward}} {{daysBack}} {{missingSection}} {{upcomingSection}} {{gradeAlertDetail}}</div>
         <div class="ces-mt" style="display:flex;gap:8px;">
           <button class="ces-btn ces-btn-primary" id="ces-tpl-save">Save Template</button>
@@ -1245,10 +1344,35 @@
         </div>
         <div id="ces-tpl-preview-area" class="ces-mt"></div>
       `;
+      const conditionSelect = container.querySelector('#ces-tpl-condition');
+      const daysWrap = container.querySelector('#ces-tpl-condition-days-wrap');
+      const updateConditionDays = () => {
+        daysWrap.style.display = conditionSelect.value === 'missing_past_days' ? 'block' : 'none';
+      };
+      conditionSelect.addEventListener('change', updateConditionDays);
+      updateConditionDays();
+
+      const updatePersonalFlagFromText = () => {
+        const textTemplate = {
+          subject: container.querySelector('#ces-tpl-subject').value,
+          body: container.querySelector('#ces-tpl-body').value,
+        };
+        if (templateHasPersonalData(textTemplate)) {
+          container.querySelector('#ces-tpl-personal').checked = true;
+        }
+      };
+      container.querySelector('#ces-tpl-subject').addEventListener('input', updatePersonalFlagFromText);
+      container.querySelector('#ces-tpl-body').addEventListener('input', updatePersonalFlagFromText);
+
       container.querySelector('#ces-tpl-cancel').addEventListener('click', renderList);
       container.querySelector('#ces-tpl-save').addEventListener('click', () => {
         templates[type].subject = container.querySelector('#ces-tpl-subject').value;
         templates[type].body    = container.querySelector('#ces-tpl-body').value;
+        templates[type].condition = {
+          type: container.querySelector('#ces-tpl-condition').value,
+          daysBack: parseInt(container.querySelector('#ces-tpl-condition-days').value, 10) || 7,
+        };
+        templates[type].containsPersonalData = container.querySelector('#ces-tpl-personal').checked;
         saveTemplates(templates); showStatus('Template saved!', 'success'); renderList();
       });
       container.querySelector('#ces-tpl-preview').addEventListener('click', () => {
@@ -1361,7 +1485,6 @@
     } else {
       _overlay.classList.add('ces-open');
       showTab('send');
-      setTimeout(checkAutomationsOnOpen, 500);
     }
   });
 
