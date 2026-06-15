@@ -596,9 +596,11 @@
   // ── COLLAPSE / EXPAND ──────────────────────────────────────────────────────
   function setBodyPadding(active) {
     const s = document.getElementById('ce-body-space');
-    if (s) s.textContent = active
-      ? `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`
-      : `body { padding-right: 0 !important; }`;
+    if (!s) return;
+    if (!active) { s.textContent = ''; return; }
+    s.textContent = SPEEDGRADER
+      ? `#main { right: ${TOOLBAR_W}px !important; }`
+      : `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`;
   }
 
   function toggleToolbar() {
@@ -617,10 +619,14 @@
 
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
-    // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar
+    // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar.
+    // SpeedGrader uses position:absolute #main — shrink its right edge directly.
+    // Other Canvas pages are normal flow — body padding-right works.
     const ceStyle = document.createElement('style');
     ceStyle.id = 'ce-body-space';
-    ceStyle.textContent = `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`;
+    ceStyle.textContent = SPEEDGRADER
+      ? `#main { right: ${TOOLBAR_W}px !important; }`
+      : `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`;
     (document.head || document.documentElement).appendChild(ceStyle);
 
     document.body.appendChild(toolbar);

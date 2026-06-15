@@ -207,39 +207,48 @@ async function handleCanvasApi({ url, token, method, body }) {
 }
 
 async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
-  // Prefer passing a direct URL to Vercel so it fetches the file server-side.
-  // This avoids encoding large files as base64 and hitting Vercel's 4.5 MB body limit.
   let directUrl = null;
 
   if (!b64 && fileUrl) {
-    if (fileUrl.includes('amazonaws.com') || fileUrl.includes('instructure-uploads')) {
-      // Already an S3 signed URL — no auth needed, pass straight through
+    if (/amazonaws\.com|instructure-uploads|storage\.googleapis\.com/.test(fileUrl)) {
+      // Already a CDN signed URL — pass directly to Vercel
       directUrl = fileUrl;
     } else if (token) {
-      // Canvas URL — follow the redirect to get the S3 signed URL
+      // Canvas download URL → follow redirect to get S3 pre-signed URL.
+      // redirect: 'manual' returns opaqueredirect (no Location header) for cross-origin
+      // redirects in extension service workers, so we use redirect: 'follow' and read
+      // response.url (the final URL after all hops, always accessible).
       try {
-        const probeRes = await fetch(fileUrl, {
+        const followed = await fetch(fileUrl, {
           headers: { 'Authorization': `Bearer ${token}` },
-          redirect: 'manual',
+          redirect: 'follow',
         });
-        if (probeRes.status >= 300 && probeRes.status < 400) {
-          const loc = probeRes.headers.get('location');
-          if (loc) directUrl = loc;
+        if (followed.ok && followed.url && followed.url !== fileUrl) {
+          directUrl = followed.url; // S3 signed URL — Vercel can fetch without auth
+          followed.body?.cancel();  // discard body, we only needed the URL
+        } else if (followed.ok) {
+          // No redirect — Canvas served the file directly, encode it (with size guard)
+          const buf = await followed.arrayBuffer();
+          if (buf.byteLength > 3.5 * 1024 * 1024) {
+            throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update to grade large files`);
+          }
+          const bytes = new Uint8Array(buf);
+          let bin = '';
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          b64 = btoa(bin);
+        } else {
+          throw new Error(`Could not fetch file: HTTP ${followed.status}`);
         }
-      } catch (_) { /* fall through to base64 path */ }
-
-      // If we couldn't resolve a redirect, fetch + encode (small files only)
-      if (!directUrl) {
-        let fileRes = await fetch(fileUrl, {
-          headers: { 'Authorization': `Bearer ${token}` },
-          redirect: 'manual',
-        });
-        if (fileRes.type === 'opaqueredirect') {
-          fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-        }
+      } catch (e) {
+        if (/too large|Could not fetch/.test(e.message)) throw e;
+        // Permission error following to S3 — try a plain fetch (small files only)
+        const fileRes = await fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
-        const buffer = await fileRes.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
+        const buf = await fileRes.arrayBuffer();
+        if (buf.byteLength > 3.5 * 1024 * 1024) {
+          throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update to grade large files`);
+        }
+        const bytes = new Uint8Array(buf);
         let bin = '';
         for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
         b64 = btoa(bin);
