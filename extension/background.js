@@ -214,7 +214,7 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
     let res = await fetch(`${API_BASE}/api/parse-file`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileUrl, filename, mimeType }),
+      body: JSON.stringify({ fileUrl, token, filename, mimeType }),
     });
 
     // Vercel returned 400 = old deployment that doesn't support fileUrl yet.
