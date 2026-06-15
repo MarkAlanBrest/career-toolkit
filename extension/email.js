@@ -471,31 +471,74 @@
     GM_setValue(STORAGE_KEYS.SEND_SETTINGS, JSON.stringify(next));
   }
 
+  const DEFAULT_QUICK_MESSAGES = [
+    {
+      id: 'quick_thanks',
+      name: 'Thank You',
+      subject: 'Thank you for the update',
+      body: 'Hi,\n\nThank you for reaching out and keeping me updated. I appreciate you taking the time to communicate.\n\nI will review this and follow up if I need anything else.\n\nBest,',
+    },
+    {
+      id: 'quick_received',
+      name: 'Received',
+      subject: 'Message received',
+      body: 'Hi,\n\nI received your message. I will take a closer look and get back to you as soon as I can.\n\nBest,',
+    },
+    {
+      id: 'quick_meet',
+      name: 'Schedule a Time',
+      subject: 'Let us schedule a time to talk',
+      body: 'Hi,\n\nThanks for your message. This would be easier to discuss together.\n\nPlease send me a few times that work for you, or stop by office hours so we can make a plan.\n\nBest,',
+    },
+    {
+      id: 'quick_missing_context',
+      name: 'Need More Information',
+      subject: 'A little more information needed',
+      body: 'Hi,\n\nThanks for reaching out. Could you send me a little more information so I can help?\n\nPlease include the course, assignment name, and what you have already tried or where you are getting stuck.\n\nBest,',
+    },
+    {
+      id: 'quick_late_policy',
+      name: 'Late Work Policy',
+      subject: 'Late work question',
+      body: 'Hi,\n\nThanks for asking about this. Please review the late work policy posted in Canvas, then let me know if you still have questions about how it applies to your situation.\n\nIf there is a specific issue preventing you from completing the work, please explain that in your reply.\n\nBest,',
+    },
+    {
+      id: 'quick_resubmit',
+      name: 'Resubmission',
+      subject: 'Resubmission information',
+      body: 'Hi,\n\nYou may submit an updated version if Canvas is still accepting submissions for the assignment.\n\nAfter you resubmit, please reply to this message so I know to check the newer version.\n\nBest,',
+    },
+    {
+      id: 'quick_tech_canvas',
+      name: 'Canvas/Tech Issue',
+      subject: 'Canvas or technology issue',
+      body: 'Hi,\n\nI am sorry you are running into a technical issue. Please try the following:\n\n- Refresh Canvas and try again.\n- Use a different browser if possible.\n- Take a screenshot of the error or problem.\n- Contact Canvas support if the issue continues.\n\nSend me the screenshot and a short description of what happened so I can better understand the problem.\n\nBest,',
+    },
+    {
+      id: 'quick_encouragement',
+      name: 'Encouragement',
+      subject: 'Keep going',
+      body: 'Hi,\n\nI know this part of the course can feel challenging, but you are not stuck forever. The best next step is to choose one specific task and make progress on that first.\n\nIf you are unsure where to start, reply with what feels most confusing and we can narrow it down together.\n\nBest,',
+    },
+  ];
+
   function getQuickMessages() {
     const stored = GM_getValue(STORAGE_KEYS.QUICK_MESSAGES, null);
     if (stored) {
-      try { return JSON.parse(stored) || []; } catch(e) {}
+      try {
+        const parsed = JSON.parse(stored) || [];
+        if (GM_getValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '') !== '2') {
+          const custom = parsed.filter(msg => !DEFAULT_QUICK_MESSAGES.some(defaultMsg => defaultMsg.id === msg.id));
+          const migrated = [...DEFAULT_QUICK_MESSAGES.map(msg => ({ ...msg })), ...custom];
+          saveQuickMessages(migrated);
+          GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '2');
+          return migrated;
+        }
+        return parsed;
+      } catch(e) {}
     }
-    return [
-      {
-        id: 'quick_thanks',
-        name: 'Thank You',
-        subject: 'Thank you',
-        body: 'Hi,\n\nThank you for reaching out. I appreciate the update and will follow up if I need anything else.\n\nBest,',
-      },
-      {
-        id: 'quick_received',
-        name: 'Received',
-        subject: 'Message received',
-        body: 'Hi,\n\nI received your message. I will review it and get back to you as soon as I can.\n\nBest,',
-      },
-      {
-        id: 'quick_meet',
-        name: 'Schedule a Time',
-        subject: 'Let us schedule a time',
-        body: 'Hi,\n\nThanks for your message. This would be easier to discuss together. Please send me a few times that work for you, or stop by office hours.\n\nBest,',
-      },
-    ];
+    GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '2');
+    return DEFAULT_QUICK_MESSAGES.map(msg => ({ ...msg }));
   }
 
   function saveQuickMessages(messages) {
