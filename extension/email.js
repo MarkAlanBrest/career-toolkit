@@ -2116,23 +2116,39 @@
 
     function injectQuickButton() {
       const anchor = findComposeAnchor();
-      if (!anchor || anchor.querySelector('#ces-quick-message-btn')) return;
+      if (!anchor || anchor.querySelector('#ces-quick-message-btn')) return true;
       const button = document.createElement('button');
       button.id = 'ces-quick-message-btn';
       button.type = 'button';
       button.className = 'Button Button--secondary';
-      button.textContent = 'Insert Email Message';
-      button.style.cssText = 'margin:6px 0;padding:6px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#F5F5F5;color:#2D3B45;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;';
+      button.textContent = 'Insert Message';
+      button.style.cssText = 'display:inline-flex;align-items:center;margin:0 0 6px 0;padding:4px 8px;border:1px solid #C7CDD1;border-radius:3px;background:#F5F5F5;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;';
       const subjectInput = getComposeSubjectInput();
-      const insertAfter = subjectInput?.closest('div') || anchor.firstChild;
-      if (insertAfter?.parentElement) insertAfter.parentElement.insertBefore(button, insertAfter.nextSibling);
+      const insertBefore = subjectInput?.closest('div') || anchor.firstChild;
+      if (insertBefore?.parentElement) insertBefore.parentElement.insertBefore(button, insertBefore);
       else anchor.insertBefore(button, anchor.firstChild);
       button.addEventListener('click', () => toggleQuickPanel(button));
+      return true;
     }
 
     injectQuickButton();
-    const observer = new MutationObserver(injectQuickButton);
-    observer.observe(document.body, { childList: true, subtree: true });
+    let scheduled = false;
+    let tries = 0;
+    const scheduleInject = () => {
+      if (scheduled) return;
+      scheduled = true;
+      window.setTimeout(() => {
+        scheduled = false;
+        tries++;
+        injectQuickButton();
+      }, 600);
+    };
+    const observer = new MutationObserver(scheduleInject);
+    observer.observe(document.body, { childList: true });
+    const interval = window.setInterval(() => {
+      if (injectQuickButton() || tries > 40) window.clearInterval(interval);
+      tries++;
+    }, 1200);
   }
 
   /* =========================================================
