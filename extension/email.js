@@ -517,6 +517,22 @@
     return '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
   }
 
+  function bodyForCanvasMessage(body) {
+    const text = String(body || '');
+    if (!/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = text
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h1|h2|h3|h4|blockquote)>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '\n- ')
+      .replace(/<\/li>/gi, '');
+    return (wrap.textContent || '')
+      .replace(/\u00a0/g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   function isDefaultTemplate(type) {
     return Object.prototype.hasOwnProperty.call(DEFAULT_TEMPLATES, type);
   }
@@ -835,7 +851,8 @@
   async function sendCanvasMessage(courseId, recipientId, subject, body) {
     return canvasPost('/conversations', {
       recipients: [String(recipientId)],
-      subject, body,
+      subject,
+      body: bodyForCanvasMessage(body),
       force_new: true,
       group_conversation: false,
       context_code: 'course_' + courseId,
@@ -1306,7 +1323,7 @@
         </div>
       </div>
       <div class="ces-msg-row">
-        <div class="ces-msg-header"><span class="ces-msg-name">Email Preview</span></div>
+        <div class="ces-msg-header"><span class="ces-msg-name">Email Preview</span><span style="font-size:12px;color:#6b7280;">Canvas Inbox sends a clean text version</span></div>
         <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(preview.subject)}</div>
         <div class="ces-msg-body">${renderBodyForPreview(preview.body)}</div>
       </div>
