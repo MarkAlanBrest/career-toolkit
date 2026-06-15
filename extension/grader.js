@@ -211,7 +211,7 @@
     aiBtn.id = 'ce-ai-grade-btn';
     aiBtn.textContent = '✦ AI Grade';
     aiBtn.style.cssText = `
-      position:fixed;top:${TOP_OFF + 8}px;right:${TOOLBAR_W + 8}px;
+      position:fixed;top:${TOP_OFF + 62}px;right:${TOOLBAR_W + 8}px;
       z-index:2147483640;
       background:#0770B8;color:#fff;border:none;border-radius:4px;
       padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;

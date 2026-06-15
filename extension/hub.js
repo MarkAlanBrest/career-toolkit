@@ -594,6 +594,13 @@
   }
 
   // ── COLLAPSE / EXPAND ──────────────────────────────────────────────────────
+  function setBodyPadding(active) {
+    const s = document.getElementById('ce-body-space');
+    if (s) s.textContent = active
+      ? `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`
+      : `body { padding-right: 0 !important; }`;
+  }
+
   function toggleToolbar() {
     _expanded = !_expanded;
     toolbar.style.transform = _expanded ? 'none' : `translateX(${TOOLBAR_W}px)`;
@@ -605,10 +612,17 @@
       panel.style.right = `${TOOLBAR_W}px`;
     }
     collapseBtn.textContent = _expanded ? '◀' : '▶';
+    setBodyPadding(_expanded);
   }
 
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
+    // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar
+    const ceStyle = document.createElement('style');
+    ceStyle.id = 'ce-body-space';
+    ceStyle.textContent = `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`;
+    (document.head || document.documentElement).appendChild(ceStyle);
+
     document.body.appendChild(toolbar);
     document.body.appendChild(panel);
     document.body.appendChild(tab);

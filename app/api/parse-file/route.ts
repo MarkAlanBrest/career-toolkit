@@ -58,15 +58,22 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid request' }, { status: 400, headers: CORS });
 
-  const { b64, filename = '', mimeType = '' } = body;
+  const { b64, fileUrl: incomingFileUrl, filename = '', mimeType = '' } = body;
 
-  if (!b64) return NextResponse.json({ error: 'No file data provided' }, { status: 400, headers: CORS });
+  if (!b64 && !incomingFileUrl) return NextResponse.json({ error: 'No file data provided' }, { status: 400, headers: CORS });
 
   let buffer: Buffer;
   try {
-    buffer = Buffer.from(b64, 'base64');
-  } catch {
-    return NextResponse.json({ error: 'Invalid file data' }, { status: 400, headers: CORS });
+    if (incomingFileUrl) {
+      // Vercel fetches file directly (e.g. S3 signed URL) — avoids large base64 body → 413
+      const fileRes = await fetch(incomingFileUrl);
+      if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
+      buffer = Buffer.from(await fileRes.arrayBuffer());
+    } else {
+      buffer = Buffer.from(b64, 'base64');
+    }
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || 'Invalid file data' }, { status: 400, headers: CORS });
   }
 
   const fname = filename.toLowerCase();
