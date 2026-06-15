@@ -476,49 +476,121 @@
       id: 'quick_thanks',
       name: 'Thank You',
       subject: 'Thank you for the update',
-      body: 'Hi,\n\nThank you for reaching out and keeping me updated. I appreciate you taking the time to communicate.\n\nI will review this and follow up if I need anything else.\n\nBest,',
+      body: 'Hi,\n\nThank you for reaching out and keeping me updated. I appreciate you taking the time to communicate instead of letting the question sit unanswered.\n\nI will review what you sent and follow up if I need anything else. If there is a deadline connected to this, please make sure you are also checking the assignment directions and any Canvas announcements so you have the most current information.\n\nBest,',
     },
     {
       id: 'quick_received',
       name: 'Received',
       subject: 'Message received',
-      body: 'Hi,\n\nI received your message. I will take a closer look and get back to you as soon as I can.\n\nBest,',
+      body: 'Hi,\n\nI received your message. I wanted to let you know it came through, and I will take a closer look as soon as I can.\n\nIf your question is about an assignment, please keep working on any parts you can complete while you wait for my response. If you find the answer in Canvas before I reply, you are welcome to send a quick follow-up letting me know.\n\nBest,',
     },
     {
       id: 'quick_meet',
       name: 'Schedule a Time',
       subject: 'Let us schedule a time to talk',
-      body: 'Hi,\n\nThanks for your message. This would be easier to discuss together.\n\nPlease send me a few times that work for you, or stop by office hours so we can make a plan.\n\nBest,',
+      body: 'Hi,\n\nThanks for your message. This would be easier to discuss together than to solve back and forth over email.\n\nPlease send me two or three times that work for you, or stop by office hours if that is easier. When we meet, bring the assignment, notes, or Canvas page you are looking at so we can get specific and make a clear plan.\n\nBest,',
     },
     {
       id: 'quick_missing_context',
       name: 'Need More Information',
       subject: 'A little more information needed',
-      body: 'Hi,\n\nThanks for reaching out. Could you send me a little more information so I can help?\n\nPlease include the course, assignment name, and what you have already tried or where you are getting stuck.\n\nBest,',
+      body: 'Hi,\n\nThanks for reaching out. I want to help, but I need a little more information first.\n\nPlease reply with:\n- The course name\n- The assignment or quiz name\n- What part is confusing or not working\n- What you have already tried\n- A screenshot if Canvas is showing an error\n\nOnce I have those details, I can give you a much more useful answer.\n\nBest,',
     },
     {
       id: 'quick_late_policy',
       name: 'Late Work Policy',
       subject: 'Late work question',
-      body: 'Hi,\n\nThanks for asking about this. Please review the late work policy posted in Canvas, then let me know if you still have questions about how it applies to your situation.\n\nIf there is a specific issue preventing you from completing the work, please explain that in your reply.\n\nBest,',
+      body: 'Hi,\n\nThanks for asking about this. Please review the late work policy posted in Canvas first, because that is the policy I will use when I grade or respond to the request.\n\nIf you still have a question after reviewing it, reply and explain:\n- Which assignment you are asking about\n- When it was due\n- Whether you have already submitted it\n- What specific issue prevented you from completing it on time\n\nThat information will help me respond fairly and clearly.\n\nBest,',
     },
     {
       id: 'quick_resubmit',
       name: 'Resubmission',
       subject: 'Resubmission information',
-      body: 'Hi,\n\nYou may submit an updated version if Canvas is still accepting submissions for the assignment.\n\nAfter you resubmit, please reply to this message so I know to check the newer version.\n\nBest,',
+      body: 'Hi,\n\nYou may submit an updated version if Canvas is still accepting submissions for the assignment and the assignment settings allow another submission.\n\nBefore you resubmit, please review the feedback carefully and make sure the new version addresses the main issue. After you resubmit, reply to this message so I know there is a newer version to check.\n\nBest,',
     },
     {
       id: 'quick_tech_canvas',
       name: 'Canvas/Tech Issue',
       subject: 'Canvas or technology issue',
-      body: 'Hi,\n\nI am sorry you are running into a technical issue. Please try the following:\n\n- Refresh Canvas and try again.\n- Use a different browser if possible.\n- Take a screenshot of the error or problem.\n- Contact Canvas support if the issue continues.\n\nSend me the screenshot and a short description of what happened so I can better understand the problem.\n\nBest,',
+      body: 'Hi,\n\nI am sorry you are running into a technical issue. Please try these steps:\n\n- Refresh Canvas and try again.\n- Try a different browser if possible.\n- Clear the page and open Canvas again from a new tab.\n- Take a screenshot of the error or problem.\n- Contact Canvas support if the issue continues.\n\nPlease send me the screenshot, the assignment or page name, and a short description of what happened. That will help me tell whether this is a Canvas issue, a submission issue, or something I can fix from my side.\n\nBest,',
     },
     {
       id: 'quick_encouragement',
       name: 'Encouragement',
       subject: 'Keep going',
-      body: 'Hi,\n\nI know this part of the course can feel challenging, but you are not stuck forever. The best next step is to choose one specific task and make progress on that first.\n\nIf you are unsure where to start, reply with what feels most confusing and we can narrow it down together.\n\nBest,',
+      body: 'Hi,\n\nI know this part of the course can feel challenging, but you are not stuck forever. The best next step is to choose one specific task and make progress on that first.\n\nStart with the smallest useful step: open the assignment, read the directions again, and identify the first thing you can do. If you are unsure where to start, reply with what feels most confusing and we can narrow it down together.\n\nBest,',
+    },
+    {
+      id: 'quick_missing_work_plan',
+      name: 'Missing Work Plan',
+      subject: 'Plan for missing work',
+      body: 'Hi,\n\nI noticed there may be missing work that needs your attention. The best approach is to make a short, realistic plan instead of trying to solve everything at once.\n\nPlease reply with:\n- Which assignment you will complete first\n- When you plan to submit it\n- What help, if any, you need from me\n\nOnce you take the first step, it becomes much easier to keep going.\n\nBest,',
+    },
+    {
+      id: 'quick_parent_guardian_followup',
+      name: 'Family Follow-Up',
+      subject: 'Follow-up about student progress',
+      body: 'Hello,\n\nThank you for reaching out. I appreciate the chance to work together in support of the student.\n\nAt this point, the most helpful next step is to review Canvas together, including current grades, missing work, due dates, and teacher feedback. If there are specific assignments or concerns you would like me to address, please send those details and I will respond as clearly as I can.\n\nBest,',
+    },
+    {
+      id: 'comment_strong_work',
+      name: 'Strong Work',
+      subject: '',
+      body: 'Strong work on this assignment. You demonstrated a clear understanding of the key concepts, communicated your ideas effectively, and followed through on the requirements. This is the kind of effort that moves things forward.',
+    },
+    {
+      id: 'comment_good_effort',
+      name: 'Good Effort',
+      subject: '',
+      body: 'Good effort here. You addressed the main requirements and showed solid understanding of the core ideas. Continue building on this — the habits you are developing now will carry through the rest of the course.',
+    },
+    {
+      id: 'comment_needs_revision',
+      name: 'Needs Revision',
+      subject: '',
+      body: 'Please review the feedback on this assignment carefully and resubmit. Focus on addressing the specific areas noted. If you are unsure what is expected, re-read the assignment directions or reach out before the deadline.',
+    },
+    {
+      id: 'comment_missing_requirements',
+      name: 'Missing Requirements',
+      subject: '',
+      body: 'This submission is missing one or more required elements. Please review the assignment directions and make sure every part is addressed before resubmitting. Incomplete submissions will be scored based on what was received.',
+    },
+    {
+      id: 'comment_incomplete',
+      name: 'Incomplete Submission',
+      subject: '',
+      body: 'This submission appears incomplete. Please finish all required parts and resubmit as soon as possible. If something prevented you from completing it, reach out so we can work out a plan before it affects your grade further.',
+    },
+    {
+      id: 'comment_late_submission',
+      name: 'Late Submission',
+      subject: '',
+      body: 'This assignment was submitted after the due date. Please review the course late work policy — points have been adjusted accordingly. If there were extenuating circumstances, reach out directly.',
+    },
+    {
+      id: 'comment_see_rubric',
+      name: 'Review the Rubric',
+      subject: '',
+      body: 'Please review the rubric and your feedback carefully. The rubric outlines exactly what was expected for each section and explains how points were assigned. Use it to guide any revisions before resubmitting.',
+    },
+    {
+      id: 'comment_citation_formatting',
+      name: 'Citations / Formatting',
+      subject: '',
+      body: 'Please review your citations and formatting. Make sure sources are credited correctly and consistently using the required citation style. Formatting issues can affect your score on future assignments, so it is worth getting this right now.',
+    },
+    {
+      id: 'comment_stronger_evidence',
+      name: 'Needs More Evidence',
+      subject: '',
+      body: 'Your main idea is on the right track, but your argument needs stronger evidence and support. Go back to your sources, find specific examples or data that back up your claim, and explain the connection clearly. Assertions without support do not hold up on their own.',
+    },
+    {
+      id: 'comment_see_me',
+      name: 'Please See Me',
+      subject: '',
+      body: 'Please come see me during office hours or reply to this feedback so we can talk through this assignment. I want to make sure you understand where things stand and what the next step looks like.',
     },
   ];
 
@@ -527,17 +599,17 @@
     if (stored) {
       try {
         const parsed = JSON.parse(stored) || [];
-        if (GM_getValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '') !== '2') {
+        if (GM_getValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '') !== '4') {
           const custom = parsed.filter(msg => !DEFAULT_QUICK_MESSAGES.some(defaultMsg => defaultMsg.id === msg.id));
           const migrated = [...DEFAULT_QUICK_MESSAGES.map(msg => ({ ...msg })), ...custom];
           saveQuickMessages(migrated);
-          GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '2');
+          GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '4');
           return migrated;
         }
         return parsed;
       } catch(e) {}
     }
-    GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '2');
+    GM_setValue(STORAGE_KEYS.QUICK_MESSAGES_VERSION, '4');
     return DEFAULT_QUICK_MESSAGES.map(msg => ({ ...msg }));
   }
 
@@ -2008,7 +2080,6 @@
   ========================================================= */
   function checkComposePageHelper() {
     if (!window.location.pathname.includes('/conversations')) return;
-    installQuickMessageInserter();
     const pending = GM_getValue('ces_compose_pending', null);
     if (!pending) return;
     let data;
@@ -2030,20 +2101,53 @@
       const composeBtn = document.querySelector('[data-testid="compose"], .ic-Layout-contentMain button[aria-label="Compose"], #compose-btn, a[href="#compose"]');
       if (composeBtn) composeBtn.click();
       setTimeout(() => {
-        insertIntoCompose(data.subject, data.body);
+        const inserted = insertIntoCompose(data.subject, data.body);
         GM_setValue('ces_compose_pending', '');
-        bar.innerHTML = `<span>&#10003; Message inserted! Review and click Send when ready.</span><button id="ces-dismiss2" style="padding:6px 14px;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Dismiss</button>`;
+        bar.innerHTML = `<span>&#10003; Message inserted${inserted.subjectInserted ? '' : ' (subject field not found)'}. Review and click Send when ready.</span><button id="ces-dismiss2" style="padding:6px 14px;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Dismiss</button>`;
         bar.querySelector('#ces-dismiss2').addEventListener('click', () => bar.remove());
       }, 1500);
     });
   }
 
-  function getComposeSubjectInput() {
-    return document.querySelector('input[name="subject"], input[placeholder*="Subject"], input[aria-label*="Subject"], #compose-message-subject');
+  function findSubjectByLabel(root) {
+    const labels = Array.from(root.querySelectorAll('label, span, div'));
+    const label = labels.find(el => /^subject:?$/i.test((el.textContent || '').trim()));
+    if (!label) return null;
+    const forId = label.getAttribute('for');
+    if (forId) {
+      const byFor = window.CSS?.escape
+        ? root.querySelector(`#${CSS.escape(forId)}`)
+        : root.querySelector(`[id="${forId.replace(/"/g, '\\"')}"]`);
+      if (byFor) return byFor;
+    }
+    const wrapper = label.closest('div, label, fieldset') || label.parentElement;
+    return wrapper?.querySelector('input, textarea, [contenteditable="true"]') || null;
   }
 
-  function getComposeBodyInput() {
-    return document.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [contenteditable="true"][role="textbox"], [contenteditable="true"], [role="textbox"]');
+  function getComposeSubjectInput(root) {
+    const scope = root || document;
+    const direct = scope.querySelector([
+      'input[name="subject"]',
+      'input[name*="subject" i]',
+      'input[id*="subject" i]',
+      'input[placeholder*="Subject" i]',
+      'input[aria-label*="Subject" i]',
+      '#compose-message-subject'
+    ].join(', '));
+    if (direct) return direct;
+    const byLabel = findSubjectByLabel(scope);
+    if (byLabel) return byLabel;
+    const candidates = Array.from(scope.querySelectorAll('input[type="text"], input:not([type]), textarea, [contenteditable="true"]'));
+    return candidates.find(input => {
+      const text = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.getAttribute('aria-label') || ''}`.toLowerCase();
+      if (/(to|recipient|search|filter|course|user|body|message)/.test(text)) return false;
+      return /subject|topic/.test(text);
+    }) || null;
+  }
+
+  function getComposeBodyInput(root) {
+    const scope = root || document;
+    return scope.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [contenteditable="true"][role="textbox"], [contenteditable="true"], [role="textbox"]');
   }
 
   function setNativeValue(el, value) {
@@ -2055,12 +2159,33 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
+  function getActiveComposeRoot() {
+    const button = document.getElementById('ces-quick-message-btn');
+    const buttonRoot = button?.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form');
+    if (buttonRoot) return buttonRoot;
+    const subjectInput = getComposeSubjectInput(document);
+    const bodyInput = getComposeBodyInput(document);
+    const field = subjectInput || bodyInput;
+    return field?.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form') || document;
+  }
+
   function insertIntoCompose(subject, body) {
-    const subjectInput = getComposeSubjectInput();
+    const root = getActiveComposeRoot();
+    const subjectInput = getComposeSubjectInput(root) || getComposeSubjectInput(document);
+    let subjectInserted = false;
     if (subjectInput && subject) {
-      setNativeValue(subjectInput, subject);
+      subjectInput.focus();
+      if (subjectInput.tagName === 'INPUT' || subjectInput.tagName === 'TEXTAREA') {
+        setNativeValue(subjectInput, subject);
+      } else {
+        subjectInput.textContent = subject;
+        subjectInput.dispatchEvent(new Event('input', { bubbles: true }));
+        subjectInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      subjectInserted = true;
     }
-    const bodyInput = getComposeBodyInput();
+    const bodyInput = getComposeBodyInput(root) || getComposeBodyInput(document);
+    let bodyInserted = false;
     if (bodyInput) {
       if (bodyInput.tagName === 'TEXTAREA') {
         setNativeValue(bodyInput, body || '');
@@ -2070,8 +2195,9 @@
         bodyInput.dispatchEvent(new Event('change', { bubbles: true }));
       }
       bodyInput.focus();
+      bodyInserted = true;
     }
-    return Boolean(subjectInput || bodyInput);
+    return { subjectInserted, bodyInserted };
   }
 
   function installQuickMessageInserter() {
@@ -2120,8 +2246,10 @@
       panel.querySelectorAll('.ces-quick-insert').forEach(btn => btn.addEventListener('click', () => {
         const msg = getQuickMessages().find(item => item.id === btn.dataset.id);
         if (!msg) return;
-        if (!insertIntoCompose(msg.subject, msg.body)) alert('Open a Canvas compose message first, then insert the stored message.');
-        else panel.style.display = 'none';
+        const inserted = insertIntoCompose(msg.subject, msg.body);
+        if (!inserted.subjectInserted && !inserted.bodyInserted) alert('Open a Canvas compose message first, then insert the stored message.');
+        else if (!inserted.subjectInserted) alert('Message inserted, but I could not find the Canvas subject field.');
+        if (inserted.subjectInserted || inserted.bodyInserted) panel.style.display = 'none';
       }));
       panel.querySelectorAll('.ces-quick-edit').forEach(btn => btn.addEventListener('click', () => renderQuickPanel(btn.dataset.id)));
       panel.querySelectorAll('.ces-quick-delete').forEach(btn => btn.addEventListener('click', () => {
@@ -2145,7 +2273,8 @@
     function toggleQuickPanel(anchor) {
       renderQuickPanel();
       const rect = anchor.getBoundingClientRect();
-      panel.style.top = Math.min(rect.bottom + 6, window.innerHeight - 420) + 'px';
+      const panelH = panel.offsetHeight || 420;
+      panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
       panel.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 380)) + 'px';
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     }
@@ -2159,40 +2288,191 @@
     }
 
     function injectQuickButton() {
-      const anchor = findComposeAnchor();
-      if (!anchor || anchor.querySelector('#ces-quick-message-btn')) return true;
+      const existing = document.getElementById('ces-quick-message-btn');
+
+      if (!window.location.pathname.includes('/conversations')) {
+        if (existing) existing.remove();
+        document.getElementById('ces-insert-btn-wrap')?.remove();
+        return false;
+      }
+
+      const bodyInput = getComposeBodyInput(document);
+      const subjectInput = getComposeSubjectInput(document);
+
+      if (!bodyInput && !subjectInput) {
+        if (existing) existing.remove();
+        document.getElementById('ces-insert-btn-wrap')?.remove();
+        return false;
+      }
+
+      const composeRoot = findComposeAnchor();
+      if (existing && composeRoot && composeRoot !== document && composeRoot.contains(existing)) return true;
+      if (existing) existing.remove();
+      document.getElementById('ces-insert-btn-wrap')?.remove();
+
       const button = document.createElement('button');
       button.id = 'ces-quick-message-btn';
       button.type = 'button';
-      button.className = 'Button Button--secondary';
-      button.textContent = 'Insert Message';
-      button.style.cssText = 'display:inline-flex;align-items:center;margin:0 0 6px 0;padding:4px 8px;border:1px solid #C7CDD1;border-radius:3px;background:#F5F5F5;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;';
-      const subjectInput = getComposeSubjectInput();
-      const insertBefore = subjectInput?.closest('div') || anchor.firstChild;
-      if (insertBefore?.parentElement) insertBefore.parentElement.insertBefore(button, insertBefore);
-      else anchor.insertBefore(button, anchor.firstChild);
+      button.textContent = '✉ Insert Message';
+      button.title = 'Insert a stored message';
+      button.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#fff;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;line-height:1.2;cursor:pointer;white-space:nowrap;';
+      button.addEventListener('mouseenter', () => { button.style.background = '#F5F5F5'; button.style.borderColor = '#8B969E'; });
+      button.addEventListener('mouseleave', () => { button.style.background = '#fff'; button.style.borderColor = '#C7CDD1'; });
       button.addEventListener('click', () => toggleQuickPanel(button));
+
+      const wrap = document.createElement('div');
+      wrap.id = 'ces-insert-btn-wrap';
+      wrap.style.cssText = 'display:flex;align-items:center;padding:4px 0 2px;';
+      wrap.appendChild(button);
+
+      if (bodyInput) {
+        bodyInput.parentElement.insertBefore(wrap, bodyInput);
+      } else {
+        subjectInput.parentElement.insertAdjacentElement('afterend', wrap);
+      }
+
       return true;
     }
 
     injectQuickButton();
     let scheduled = false;
-    let tries = 0;
     const scheduleInject = () => {
       if (scheduled) return;
       scheduled = true;
       window.setTimeout(() => {
         scheduled = false;
-        tries++;
         injectQuickButton();
       }, 600);
     };
     const observer = new MutationObserver(scheduleInject);
     observer.observe(document.body, { childList: true });
     const interval = window.setInterval(() => {
-      if (injectQuickButton() || tries > 40) window.clearInterval(interval);
-      tries++;
-    }, 1200);
+      if (!window.location.pathname.includes('/conversations')) return;
+      injectQuickButton();
+    }, 2000);
+  }
+
+  /* =========================================================
+     SPEEDGRADER COMMENT INSERTER
+  ========================================================= */
+  function installSpeedGraderInserter() {
+    if (!/speed_grader/.test(window.location.href)) return;
+
+    const sgPanel = document.createElement('div');
+    sgPanel.id = 'ces-sg-message-panel';
+    sgPanel.style.cssText = 'position:fixed;width:360px;max-height:70vh;overflow:auto;z-index:2147483642;display:none;background:#fff;border:1px solid #C7CDD1;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;color:#2D3B45;';
+    document.body.appendChild(sgPanel);
+
+    const sgBtn = document.createElement('button');
+    sgBtn.id = 'ces-sg-message-btn';
+    sgBtn.type = 'button';
+    sgBtn.textContent = 'Insert Comment';
+    sgBtn.title = 'Insert a stored comment into the comment box';
+    sgBtn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#fff;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;line-height:1.2;cursor:pointer;white-space:nowrap;';
+    sgBtn.addEventListener('mouseenter', () => { sgBtn.style.background = '#F5F5F5'; sgBtn.style.borderColor = '#8B969E'; });
+    sgBtn.addEventListener('mouseleave', () => { sgBtn.style.background = '#fff'; sgBtn.style.borderColor = '#C7CDD1'; });
+
+
+    function insertIntoComment(text) {
+      document.dispatchEvent(new CustomEvent('ce-sg-insert-comment', { detail: { text } }));
+      return true;
+    }
+
+    function renderSgPanel(editId) {
+      const messages = getQuickMessages();
+      const editing = editId ? messages.find(m => m.id === editId) : null;
+      sgPanel.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #C7CDD1;flex-shrink:0;">
+          <strong style="font-size:13px;">Stored Messages</strong>
+          <button id="ces-sg-close" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6B7280;">&times;</button>
+        </div>
+        <div style="padding:10px 12px;overflow-y:auto;">
+          ${messages.map(msg => `
+            <div style="border-bottom:1px solid #eef1f3;padding:8px 0;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                <strong style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(msg.name)}</strong>
+                <div style="display:flex;gap:4px;flex-shrink:0;">
+                  <button class="ces-sg-insert ces-btn ces-btn-primary ces-btn-sm" data-id="${escapeAttr(msg.id)}">Insert</button>
+                  <button class="ces-sg-edit ces-btn ces-btn-secondary ces-btn-sm" data-id="${escapeAttr(msg.id)}">Edit</button>
+                  <button class="ces-sg-delete ces-btn ces-btn-danger ces-btn-sm" data-id="${escapeAttr(msg.id)}">Delete</button>
+                </div>
+              </div>
+              <div style="font-size:12px;color:#6b7280;margin-top:3px;">${escapeHtml(msg.subject || '(no subject)')}</div>
+            </div>
+          `).join('')}
+          <div style="margin-top:12px;border-top:1px solid #C7CDD1;padding-top:12px;">
+            <div style="font-size:12px;font-weight:600;color:#2D3B45;margin-bottom:6px;">${editing ? 'Edit Message' : 'Add Message'}</div>
+            <input id="ces-sg-name" class="ces-input" placeholder="Name" value="${escapeAttr(editing?.name || '')}" style="margin-bottom:6px;">
+            <textarea id="ces-sg-body" class="ces-textarea" placeholder="Message body" style="min-height:80px;margin-bottom:6px;">${escapeHtml(editing?.body || '')}</textarea>
+            <div style="display:flex;gap:6px;">
+              <button id="ces-sg-save" class="ces-btn ces-btn-primary ces-btn-sm">${editing ? 'Update' : 'Save'}</button>
+              ${editing ? '<button id="ces-sg-cancel" class="ces-btn ces-btn-secondary ces-btn-sm">Cancel</button>' : ''}
+            </div>
+          </div>
+        </div>
+      `;
+      sgPanel.querySelector('#ces-sg-close').addEventListener('click', () => { sgPanel.style.display = 'none'; });
+      sgPanel.querySelectorAll('.ces-sg-insert').forEach(btn => btn.addEventListener('click', () => {
+        const msg = getQuickMessages().find(item => item.id === btn.dataset.id);
+        if (!msg) return;
+        insertIntoComment(msg.body);
+        sgPanel.style.display = 'none';
+      }));
+      sgPanel.querySelectorAll('.ces-sg-edit').forEach(btn => btn.addEventListener('click', () => renderSgPanel(btn.dataset.id)));
+      sgPanel.querySelectorAll('.ces-sg-delete').forEach(btn => btn.addEventListener('click', () => {
+        saveQuickMessages(getQuickMessages().filter(m => m.id !== btn.dataset.id));
+        renderSgPanel();
+      }));
+      sgPanel.querySelector('#ces-sg-save').addEventListener('click', () => {
+        const name = sgPanel.querySelector('#ces-sg-name').value.trim();
+        const body = sgPanel.querySelector('#ces-sg-body').value;
+        if (!name || !body.trim()) return;
+        const next = getQuickMessages().filter(m => m.id !== editId);
+        next.push({ id: editId || makeQuickMessageId(), name, body });
+        saveQuickMessages(next);
+        renderSgPanel();
+      });
+      sgPanel.querySelector('#ces-sg-cancel')?.addEventListener('click', () => renderSgPanel());
+    }
+
+    sgBtn.addEventListener('click', () => {
+      renderSgPanel();
+      const rect = sgBtn.getBoundingClientRect();
+      const panelH = sgPanel.offsetHeight || 420;
+      sgPanel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+      sgPanel.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 380)) + 'px';
+      sgPanel.style.display = sgPanel.style.display === 'none' ? 'flex' : 'none';
+      if (sgPanel.style.display === 'flex') sgPanel.style.flexDirection = 'column';
+    });
+
+    function injectSgBtn() {
+      if (document.getElementById('ces-sg-message-btn')?.isConnected) return;
+      const target = document.querySelector('#right_side_inner, #right_side');
+      if (!target) return;
+      let topBar = document.getElementById('ce-sg-top-bar');
+      if (!topBar) {
+        topBar = document.createElement('div');
+        topBar.id = 'ce-sg-top-bar';
+        topBar.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #c7cdd1;';
+        target.insertBefore(topBar, target.firstChild);
+      }
+      topBar.appendChild(sgBtn);
+    }
+
+    injectSgBtn();
+    let sgScheduled = false;
+    const sgObserver = new MutationObserver(() => {
+      if (sgScheduled) return;
+      sgScheduled = true;
+      window.setTimeout(() => { sgScheduled = false; injectSgBtn(); }, 300);
+    });
+    const sgTarget = document.getElementById('right_side') || document.body;
+    sgObserver.observe(sgTarget, { childList: true, subtree: true });
+    let _sgPoll = 0;
+    const _sgTimer = window.setInterval(() => {
+      injectSgBtn();
+      if (++_sgPoll >= 10 || document.getElementById('ces-sg-message-btn')?.isConnected) clearInterval(_sgTimer);
+    }, 1000);
   }
 
   /* =========================================================
@@ -2213,4 +2493,6 @@
   ========================================================= */
   buildUI();
   checkComposePageHelper();
+  installQuickMessageInserter();
+  installSpeedGraderInserter();
 })();

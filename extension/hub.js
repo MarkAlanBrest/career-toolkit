@@ -2245,6 +2245,308 @@
     renderList();
   }
 
+  async function renderSnippets() {
+    panelBody.innerHTML = '';
+    const stored = await new Promise(r => chrome.storage.local.get(['ces_quick_messages'], r));
+    let snippets = parseStoredSnippets(stored.ces_quick_messages);
+    let editingId = null;
+    let lastCanvasTextTarget = null;
+
+    const wrap = el('div', 'display:flex;flex-direction:column;gap:8px;min-height:100%;');
+    const intro = el('div', `font-size:12px;color:${DS.muted};line-height:1.45;`);
+    intro.textContent = 'Save reusable text for Canvas messages, comments, and common replies. Message snippets can insert both the subject and body.';
+
+    const titleIn = input('ce-snippet-title', 'text', 'Snippet name', '');
+    const typeIn = el('select', `
+      width:100%;box-sizing:border-box;padding:8px 10px;
+      border:1px solid ${DS.border};border-radius:3px;
+      font-size:13px;font-family:${DS.font};color:${DS.text};
+      background:${DS.white};outline:none;
+    `, { id: 'ce-snippet-type' });
+    [
+      ['message', 'Message'],
+      ['comment', 'Comment'],
+      ['other', 'Other'],
+    ].forEach(([value, label]) => typeIn.appendChild(el('option', '', { value, textContent: label })));
+    const subjectIn = input('ce-snippet-subject', 'text', 'Subject line', '');
+    const bodyIn = el('textarea', `
+      width:100%;box-sizing:border-box;min-height:120px;padding:8px 10px;
+      border:1px solid ${DS.border};border-radius:3px;
+      font-size:13px;font-family:${DS.font};color:${DS.text};
+      background:${DS.white};outline:none;resize:vertical;
+    `, { id: 'ce-snippet-body', placeholder: 'Write the message or comment text...' });
+
+    [titleIn, typeIn, subjectIn, bodyIn].forEach(field => {
+      field.addEventListener('focus', () => field.style.borderColor = DS.blue);
+      field.addEventListener('blur',  () => field.style.borderColor = DS.border);
+    });
+
+    const formActions = el('div', 'display:flex;gap:8px;');
+    const saveBtn = btn('Save Text', `background:${DS.blue};color:#fff;`);
+    const cancelBtn = btn('Cancel Edit', `background:transparent;color:${DS.muted};border:1px solid ${DS.border};display:none;`);
+    formActions.appendChild(saveBtn);
+    formActions.appendChild(cancelBtn);
+    const msg = el('div', `font-size:12px;color:${DS.green};min-height:16px;text-align:center;`);
+    const list = el('div', `display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;flex:1;`);
+
+    function defaultSnippets() {
+      const now = Date.now();
+      return [
+        {
+          id: 'quick_missing_work_plan',
+          title: 'Missing Work Check-In',
+          category: 'message',
+          subject: 'Missing work check-in',
+          body: 'Hi {{studentName}},\n\nI noticed you have missing work in {{courseName}}. Please review Canvas and submit anything you can this week.\n\nIf something is getting in the way, reply here and let me know what is going on. We can make a plan.',
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'quick_resubmit',
+          title: 'Please Resubmit',
+          category: 'message',
+          subject: 'Please resubmit your assignment',
+          body: 'Hi {{studentName}},\n\nThanks for turning in your work. I need you to resubmit this assignment because the file, link, or response was not complete.\n\nPlease open the assignment in Canvas, make the update, and submit it again.',
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'quick_meet',
+          title: 'Set Up a Quick Meeting',
+          category: 'message',
+          subject: 'Quick check-in',
+          body: 'Hi {{studentName}},\n\nI would like to check in with you about your progress in {{courseName}}. Please reply with a time that works for you, or stop by during office hours.',
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'comment_strong_start',
+          title: 'Strong Start',
+          category: 'comment',
+          subject: '',
+          body: 'Strong start here. Your main idea is clear, and your next step is to add more specific evidence from the assignment directions.',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ];
+    }
+
+    function parseStoredSnippets(value) {
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
+      }
+      return defaultSnippets();
+    }
+
+    function persist() {
+      chrome.storage.local.set({
+        ces_quick_messages: JSON.stringify(snippets),
+        ces_quick_messages_version: '3',
+      });
+    }
+
+    function resetForm() {
+      editingId = null;
+      titleIn.value = '';
+      typeIn.value = 'message';
+      subjectIn.value = '';
+      bodyIn.value = '';
+      saveBtn.textContent = 'Save Text';
+      cancelBtn.style.display = 'none';
+    }
+
+    function setNativeValue(target, value) {
+      const proto = target.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+      if (setter) setter.call(target, value);
+      else target.value = value;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function composeSubjectInput() {
+      return document.querySelector('input[name="subject"], input[aria-label*="Subject" i], input[placeholder*="Subject" i], .compose-message input[type="text"]');
+    }
+
+    function composeBodyInput() {
+      return document.querySelector('textarea[name="body"], textarea[aria-label*="Message" i], textarea[placeholder*="Message" i], [contenteditable="true"][role="textbox"], [contenteditable="true"]');
+    }
+
+    function insertText(target, text) {
+      if (!target || !text) return false;
+      target.focus();
+      if (target.isContentEditable) {
+        const existing = target.innerText.trim();
+        target.innerText = existing ? `${existing}\n\n${text}` : text;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+      } else {
+        const existing = target.value.trim();
+        setNativeValue(target, existing ? `${existing}\n\n${text}` : text);
+      }
+      return true;
+    }
+
+    function isReusableTextTarget(target) {
+      return Boolean(
+        target
+        && !target.closest?.('#ce-hub, #ce-hub-panel')
+        && target.matches?.('textarea, input[type="text"], input:not([type]), [contenteditable="true"], [role="textbox"]')
+      );
+    }
+
+    function activeTextTarget() {
+      const active = document.activeElement;
+      if (isReusableTextTarget(active)) return active;
+      if (isReusableTextTarget(lastCanvasTextTarget)) return lastCanvasTextTarget;
+      const candidates = Array.from(document.querySelectorAll('textarea[placeholder*="comment" i], textarea[aria-label*="comment" i], [contenteditable="true"][role="textbox"], textarea, [contenteditable="true"]'));
+      return candidates.find(isReusableTextTarget) || null;
+    }
+
+    function insertSnippet(snippet) {
+      const category = snippet.category || snippet.type || 'message';
+      let inserted = false;
+      if (category === 'message') {
+        const subject = composeSubjectInput();
+        const body = composeBodyInput();
+        if (subject && snippet.subject) {
+          setNativeValue(subject, snippet.subject);
+          inserted = true;
+        }
+        inserted = insertText(body, snippet.body || '') || inserted;
+      } else {
+        inserted = insertText(activeTextTarget(), snippet.body || '');
+      }
+      msg.style.color = inserted ? DS.green : '#C0392B';
+      msg.textContent = inserted
+        ? 'Inserted into Canvas.'
+        : 'Click inside a Canvas compose box or comment box first.';
+      setTimeout(() => { msg.textContent = ''; }, 2400);
+    }
+
+    function renderList() {
+      list.innerHTML = '';
+      if (!snippets.length) {
+        const empty = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;background:${DS.gray};border:1px solid ${DS.border};border-radius:4px;padding:10px;`);
+        empty.textContent = 'No saved text yet.';
+        list.appendChild(empty);
+        return;
+      }
+      const sorted = [...snippets].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      for (const snippet of sorted) {
+        const card = el('div', `border:1px solid ${DS.border};border-radius:4px;background:${DS.white};padding:8px;display:flex;flex-direction:column;gap:6px;`);
+        const top = el('div', 'display:flex;align-items:flex-start;gap:8px;');
+        const text = el('div', 'flex:1;min-width:0;');
+        const title = el('div', `font-size:13px;font-weight:700;color:${DS.text};word-break:break-word;`);
+        title.textContent = snippet.title || snippet.name || 'Untitled text';
+        const meta = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;text-transform:uppercase;letter-spacing:.02em;`);
+        meta.textContent = snippet.category || snippet.type || 'message';
+        const preview = el('div', `font-size:12px;color:${DS.text};line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:92px;overflow:auto;background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;padding:7px;`);
+        preview.textContent = snippet.body || '';
+        const actions = el('div', 'display:flex;gap:6px;flex-shrink:0;');
+        const insertBtn = el('button', `border:1px solid ${DS.blue};background:${DS.blue};color:#fff;border-radius:3px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:${DS.font};`, { type: 'button', textContent: 'Insert' });
+        const editBtn = el('button', `border:1px solid ${DS.blue};background:transparent;color:${DS.blue};border-radius:3px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:${DS.font};`, { type: 'button', textContent: 'Edit' });
+        const delBtn = el('button', `border:1px solid #FCA5A5;background:#FEF2F2;color:#991B1B;border-radius:3px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:${DS.font};`, { type: 'button', textContent: 'Delete' });
+        insertBtn.addEventListener('click', () => insertSnippet(snippet));
+        editBtn.addEventListener('click', () => {
+          editingId = snippet.id;
+          titleIn.value = snippet.title || snippet.name || '';
+          typeIn.value = snippet.category || snippet.type || 'message';
+          subjectIn.value = snippet.subject || '';
+          bodyIn.value = snippet.body || '';
+          saveBtn.textContent = 'Update Text';
+          cancelBtn.style.display = 'block';
+          msg.textContent = '';
+          titleIn.focus();
+        });
+        delBtn.addEventListener('click', () => {
+          if (!confirm('Delete this saved text?')) return;
+          snippets = snippets.filter(s => s.id !== snippet.id);
+          persist();
+          if (editingId === snippet.id) resetForm();
+          renderList();
+        });
+        text.appendChild(title);
+        text.appendChild(meta);
+        actions.appendChild(insertBtn);
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        top.appendChild(text);
+        top.appendChild(actions);
+        card.appendChild(top);
+        if (snippet.subject) {
+          const subject = el('div', `font-size:11px;color:${DS.muted};`);
+          subject.textContent = `Subject: ${snippet.subject}`;
+          card.appendChild(subject);
+        }
+        if (snippet.body) card.appendChild(preview);
+        list.appendChild(card);
+      }
+    }
+
+    saveBtn.addEventListener('click', () => {
+      const titleVal = titleIn.value.trim();
+      const categoryVal = typeIn.value || 'message';
+      const subjectVal = subjectIn.value.trim();
+      const bodyVal = bodyIn.value.trim();
+      if (!titleVal && !bodyVal) {
+        msg.style.color = '#C0392B';
+        msg.textContent = 'Write a name or message first.';
+        return;
+      }
+      const now = Date.now();
+      const next = {
+        id: editingId || `snippet_${now}_${Math.random().toString(16).slice(2)}`,
+        title: titleVal || 'Untitled text',
+        name: titleVal || 'Untitled text',
+        category: categoryVal,
+        subject: subjectVal,
+        body: bodyVal,
+        updatedAt: now,
+      };
+      if (editingId) {
+        snippets = snippets.map(s => s.id === editingId ? { ...s, ...next } : s);
+        msg.textContent = 'Text updated.';
+      } else {
+        snippets = [{ ...next, createdAt: now }, ...snippets];
+        msg.textContent = 'Text saved.';
+      }
+      msg.style.color = DS.green;
+      persist();
+      resetForm();
+      renderList();
+      setTimeout(() => { msg.textContent = ''; }, 2200);
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      resetForm();
+      msg.textContent = '';
+    });
+
+    const rememberTarget = event => {
+      if (isReusableTextTarget(event.target)) lastCanvasTextTarget = event.target;
+    };
+    document.addEventListener('focusin', rememberTarget, true);
+    _panelCleanup = () => document.removeEventListener('focusin', rememberTarget, true);
+
+    wrap.appendChild(intro);
+    wrap.appendChild(row('Name', titleIn));
+    wrap.appendChild(row('Type', typeIn));
+    wrap.appendChild(row('Subject', subjectIn, 'Used when inserting into a Canvas message compose window.'));
+    wrap.appendChild(row('Body', bodyIn));
+    wrap.appendChild(formActions);
+    wrap.appendChild(msg);
+    wrap.appendChild(divider());
+    wrap.appendChild(list);
+    panelBody.appendChild(wrap);
+    resetForm();
+    persist();
+    renderList();
+  }
+
   function onToolClick(tool) {
     if (tool.id === 'message') {
       document.dispatchEvent(new CustomEvent('ce-toggle-messages'));
@@ -2296,6 +2598,7 @@
   }
 
   async function openPanel(tool) {
+    if (_panelCleanup) { _panelCleanup(); _panelCleanup = null; }
     setActive(tool.id);
     panelTitle.textContent = tool.label;
     panelBody.innerHTML = '';
@@ -2304,6 +2607,7 @@
       case 'ai-grader':  await renderAIGrader();                                                     break;
       case 'cheater':    await renderAudit();                                                         break;
       case 'reports':    await renderReports();                                                    break;
+      case 'snippets':   await renderSnippets();                                                     break;
       case 'notes':      await renderNotes();                                                         break;
       case 'settings':   await renderSettings();                                                     break;
     }

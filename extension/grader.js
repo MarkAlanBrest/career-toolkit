@@ -478,13 +478,11 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
     aiBtn.id = 'ce-ai-grade-btn';
     aiBtn.textContent = '✦ AI Grade';
     aiBtn.style.cssText = `
-      position:fixed;top:${TOP_OFF + 62}px;right:${TOOLBAR_W + 8}px;
-      z-index:2147483640;
-      background:#fff;color:#2d3b45;border:1px solid #000;border-radius:4px;
-      padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
+      display:inline-flex;align-items:center;
+      background:#fff;color:#2d3b45;border:1px solid #c7cdd1;border-radius:4px;
+      padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:nowrap;
-      transition:background .15s,color .15s;
+      white-space:nowrap;transition:background .15s,color .15s;
     `;
     aiBtn._baseBg = '#fff';
     aiBtn.addEventListener('mouseenter', () => { if (!aiBtn.disabled) aiBtn.style.background = '#f5f5f5'; });
@@ -493,11 +491,9 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
     const teacherCheckLabel = document.createElement('div');
     teacherCheckLabel.id = 'ce-ai-teacher-check';
     teacherCheckLabel.style.cssText = `
-      display:none;position:fixed;top:${TOP_OFF + 104}px;right:${TOOLBAR_W + 8}px;
-      z-index:2147483640;max-width:320px;background:#fff8e1;color:#5f4200;
+      display:none;margin-top:6px;background:#fff8e1;color:#5f4200;
       border:1px solid #f3d27a;border-radius:4px;padding:8px 10px;
       font:12px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      box-shadow:0 2px 8px rgba(0,0,0,.16);
     `;
 
     function showTeacherCheckLabel(text) {
@@ -646,8 +642,74 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       }
     });
 
-    document.body.appendChild(aiBtn);
-    document.body.appendChild(teacherCheckLabel);
+    const teacherCheckWrap = document.createElement('div');
+    teacherCheckWrap.id = 'ce-ai-grade-wrap';
+    teacherCheckWrap.style.cssText = 'padding:4px 10px 2px;';
+    teacherCheckWrap.appendChild(teacherCheckLabel);
+
+    function injectAiBtn() {
+      if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
+      const target = document.querySelector('#right_side_inner, #right_side');
+      if (!target) return;
+      let topBar = document.getElementById('ce-sg-top-bar');
+      if (!topBar) {
+        topBar = document.createElement('div');
+        topBar.id = 'ce-sg-top-bar';
+        topBar.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #c7cdd1;';
+        target.insertBefore(topBar, target.firstChild);
+      }
+      topBar.appendChild(aiBtn);
+      if (!document.getElementById('ce-ai-grade-wrap')?.isConnected) {
+        topBar.insertAdjacentElement('afterend', teacherCheckWrap);
+      }
+    }
+
+    injectAiBtn();
+    let _aiScheduled = false;
+    const _aiObserver = new MutationObserver(() => {
+      if (_aiScheduled) return;
+      _aiScheduled = true;
+      setTimeout(() => { _aiScheduled = false; injectAiBtn(); }, 300);
+    });
+    const _aiTarget = document.querySelector('#right_side_inner, #right_side') || document.body;
+    _aiObserver.observe(_aiTarget, { childList: true, subtree: true });
+    let _aiPoll = 0;
+    const _aiTimer = setInterval(() => {
+      injectAiBtn();
+      if (++_aiPoll >= 10 || document.getElementById('ce-ai-grade-btn')?.isConnected) clearInterval(_aiTimer);
+    }, 1000);
+
+    function getCurrentCommentText() {
+      const tiny = window.tinymce || window.tinyMCE;
+      if (tiny?.get) {
+        for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
+          const editor = tiny.get(id);
+          if (editor) return editor.getContent({ format: 'text' }) || '';
+        }
+      }
+      const textarea = document.querySelector([
+        '#speed_grader_comment_textarea', '#speedgrader_textarea',
+        'textarea[name="comment[text_comment]"]', '#grading_comment',
+        '#submission_comment_form textarea', '#right_side_inner textarea',
+      ].join(','));
+      if (textarea) return textarea.value || '';
+      const editable = document.querySelector('.tox-edit-area [contenteditable="true"], [contenteditable="true"][aria-label*="comment" i]');
+      if (editable) return editable.innerText || '';
+      for (const iframe of document.querySelectorAll('iframe#speed_grader_comment_textarea_ifr, iframe[id*="speed_grader_comment" i]')) {
+        try {
+          const body = iframe.contentDocument?.body || iframe.contentWindow?.document?.body;
+          if (body) return body.innerText || '';
+        } catch(_) {}
+      }
+      return '';
+    }
+
+    document.addEventListener('ce-sg-insert-comment', (e) => {
+      const text = e.detail?.text;
+      if (!text) return;
+      const existing = getCurrentCommentText().trim();
+      findAndFillComment(existing ? existing + '\n\n' + text : text);
+    });
 
   } catch(e) { /* don't crash SpeedGrader */ }
 })();
