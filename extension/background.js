@@ -92,6 +92,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleParseFile(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'WEB_SEARCH') {
+    handleWebSearch(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
   if (msg.type === 'OPEN_CLAUDE_SPLIT') {
     handleOpenClaudeSplit(msg.payload, sender).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
@@ -99,29 +103,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {
-  const sl = screenLeft || 0;
-  const st = screenTop  || 0;
+  const sl  = screenLeft || 0;
+  const st  = screenTop  || 0;
+  const aiW = 460;
 
-  // AI chat gets a fixed 420px, Canvas gets everything else
-  const aiW     = 420;
-  const canvasW = screenWidth - aiW;
-
-  // Resize the Canvas window to the left side
-  const canvasWindowId = sender?.tab?.windowId;
-  if (canvasWindowId) {
-    await chrome.windows.update(canvasWindowId, {
-      state:  'normal',
-      left:   sl,
-      top:    st,
-      width:  canvasW,
-      height: screenHeight,
-    });
-  }
-
-  // Open AI chat on the right side
+  // Open AI chat floating on the right, leaving the 52px CE hub toolbar visible
   await chrome.windows.create({
     url:    url || 'https://claude.ai/new',
-    left:   sl + canvasW,
+    left:   sl + screenWidth - aiW - 52,
     top:    st,
     width:  aiW,
     height: screenHeight,
@@ -263,5 +252,21 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
   let data;
   try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
   if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
+  return data;
+}
+
+async function handleWebSearch({ queries }) {
+  const res = await fetch(`${API_BASE}/api/web-search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ queries }),
+  });
+  if (res.status === 404) {
+    throw new Error('Web search is not deployed yet. Deploy the latest Vercel site, then add a search API key.');
+  }
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { throw new Error(`Search server error ${res.status}`); }
+  if (!res.ok) throw new Error(data?.error || `Search error ${res.status}`);
   return data;
 }

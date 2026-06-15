@@ -32,19 +32,8 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["hub.js", "content.js", "grader.js", "scheduler.js"],
+      "js": ["hub.js", "content.js", "grader.js", "scheduler.js", "date-autofill.js", "email.js"],
       "css": ["toolbar.css"],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://claude.ai/*",
-        "https://chatgpt.com/*",
-        "https://gemini.google.com/*",
-        "https://copilot.microsoft.com/*",
-        "https://www.perplexity.ai/*"
-      ],
-      "js": ["claude-bridge.js"],
       "run_at": "document_idle"
     }
   ],

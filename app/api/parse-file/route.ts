@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 60;
+
+const MAX_PARSED_CHARS = 70000;
+const LARGE_FILE_HEAD_CHARS = 48000;
+const LARGE_FILE_TAIL_CHARS = 18000;
+
 function htmlToStructuredText(html: string): string {
   // Process ordered lists first — give each <li> inside <ol> a number
   let result = html.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_match, inner) => {
@@ -50,6 +56,34 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+function limitParsedText(text: string, filename: string): { text: string; originalChars: number; truncated: boolean } {
+  const clean = text.trim();
+  if (clean.length <= MAX_PARSED_CHARS) {
+    return { text: clean, originalChars: clean.length, truncated: false };
+  }
+
+  const head = clean.slice(0, LARGE_FILE_HEAD_CHARS).trimEnd();
+  const tail = clean.slice(-LARGE_FILE_TAIL_CHARS).trimStart();
+  const omitted = clean.length - head.length - tail.length;
+  const label = filename || 'submitted file';
+  return {
+    originalChars: clean.length,
+    truncated: true,
+    text: [
+      `[Large file excerpt for ${label}]`,
+      `The original parsed text was ${clean.length.toLocaleString()} characters. The middle ${Math.max(0, omitted).toLocaleString()} characters were omitted so the grader can process the submission reliably.`,
+      '',
+      '[Beginning of submission]',
+      head,
+      '',
+      '[Middle omitted]',
+      '',
+      '[End of submission]',
+      tail,
+    ].join('\n'),
+  };
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
@@ -69,7 +103,7 @@ export async function POST(req: NextRequest) {
       const fileUrl = new URL(incomingFileUrl);
       const isCanvasHost = /(?:^|\.)(instructure|canvas|canvaslms)\.com$/i.test(fileUrl.hostname);
       const headers = token && isCanvasHost ? { Authorization: `Bearer ${token}` } : undefined;
-      const fileRes = await fetch(incomingFileUrl, { headers });
+      const fileRes = await fetch(incomingFileUrl, { headers, signal: AbortSignal.timeout(45000) });
       if (!fileRes.ok) throw new Error(`Could not fetch file: HTTP ${fileRes.status}`);
       buffer = Buffer.from(await fileRes.arrayBuffer());
     } else {
@@ -139,5 +173,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ text: text.trim() }, { headers: CORS });
+  const limited = limitParsedText(text, filename);
+  return NextResponse.json(limited, { headers: CORS });
 }

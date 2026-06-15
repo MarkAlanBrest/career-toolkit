@@ -838,7 +838,7 @@
   }
 
   const CB_THEMES = {
-    pastel: { name:'🌸 Pastel',  primary:'#7c3aed', secondary:'#a78bfa', bg:'#faf5ff', headerBg:'#ede9fe', accent:'#8b5cf6', text:'#1e1b4b', cardBg:'#f5f3ff', border:'#c4b5fd' },
+    pastel: { name:'🌸 Pastel',  primary:'#0770B8', secondary:'#a78bfa', bg:'#faf5ff', headerBg:'#ede9fe', accent:'#8b5cf6', text:'#1e1b4b', cardBg:'#E8F1F8', border:'#c4b5fd' },
     bold:   { name:'⚡ Bold',    primary:'#dc2626', secondary:'#f97316', bg:'#fff7ed', headerBg:'#fee2e2', accent:'#ea580c', text:'#1c1917', cardBg:'#fff1f2', border:'#fca5a5' },
     ocean:  { name:'🔵 Ocean',   primary:'#0770B8', secondary:'#38bdf8', bg:'#f0f7ff', headerBg:'#dbeafe', accent:'#3b82f6', text:'#111827', cardBg:'#eff6ff', border:'#bfdbfe' },
     earth:  { name:'🌿 Earth',   primary:'#854d0e', secondary:'#a16207', bg:'#fefce8', headerBg:'#fef9c3', accent:'#ca8a04', text:'#1c1917', cardBg:'#fffbeb', border:'#fde68a' },
@@ -933,7 +933,7 @@
         document.head.appendChild(s);
       }
       const spinner=document.createElement('div');
-      spinner.style.cssText='width:56px;height:56px;border:5px solid #e5e7eb;border-top-color:#7c3aed;border-radius:50%;animation:ce-spin .8s linear infinite;flex-shrink:0;';
+      spinner.style.cssText='width:56px;height:56px;border:5px solid #e5e7eb;border-top-color:#0770B8;border-radius:50%;animation:ce-spin .8s linear infinite;flex-shrink:0;';
       const msg=document.createElement('div');
       msg.style.cssText='font-size:16px;font-weight:700;color:#374151;text-align:center;';
       msg.textContent='Claude is building your content…';
@@ -950,7 +950,7 @@
       h.style.cssText = 'background:#2d1b69;color:#fff;height:52px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-radius:12px 12px 0 0;';
       const left = document.createElement('div');
       left.style.cssText = 'display:flex;align-items:center;gap:10px;';
-      left.innerHTML = '<div style="width:28px;height:28px;border-radius:7px;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</div>';
+      left.innerHTML = '<div style="width:28px;height:28px;border-radius:7px;background:#0770B8;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</div>';
       const t = document.createElement('strong');
       t.style.fontSize = '15px';
       t.textContent = st.view==='setup' ? 'API Setup' : st.view==='result' ? 'Generated Content' : 'AI Content Builder';
@@ -969,7 +969,7 @@
     }
     function cbHdrBtn(label, active) {
       const b = document.createElement('button'); b.textContent=label;
-      b.style.cssText=`padding:5px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${active?'#7c3aed':'rgba(255,255,255,.12)'};color:${active?'#fff':'#cbd5e1'};`;
+      b.style.cssText=`padding:5px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${active?'#0770B8':'rgba(255,255,255,.12)'};color:${active?'#fff':'#cbd5e1'};`;
       return b;
     }
 
@@ -1032,7 +1032,7 @@
       inp.style.cssText='padding:10px 12px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;width:100%;box-sizing:border-box;font-family:monospace;background:#fff;';
       w.appendChild(inp);
       const saveBtn=document.createElement('button'); saveBtn.textContent='Save & Start Building';
-      saveBtn.style.cssText='width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
+      saveBtn.style.cssText='width:100%;padding:12px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
       saveBtn.onclick=()=>{ const k=inp.value.trim().toUpperCase(); if(!k){showNotice('Enter your license key');return;} GM_setValue('ce_license_key',k); st.apiKey=k; st.view='build'; render(); };
       w.appendChild(saveBtn); return w;
     }
@@ -1046,7 +1046,7 @@
       Object.entries(CB_THEMES).forEach(([key,theme])=>{
         const act=st.pageStyle===key;
         const tb=document.createElement('button'); tb.textContent=theme.name;
-        tb.style.cssText=`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#7c3aed':'#374151'};font-family:inherit;`;
+        tb.style.cssText=`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#0770B8':'#e5e7eb'};background:${act?'#E8F1F8':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#0770B8':'#374151'};font-family:inherit;`;
         tb.onclick=()=>{ st.pageStyle=key; render(); }; themeGrid.appendChild(tb);
       });
       themeCard.appendChild(themeGrid);
@@ -1233,7 +1233,7 @@
       [['concise','Concise','Short and focused'],['standard','Standard','Balanced detail'],['detailed','Detailed','Comprehensive coverage']].forEach(([val,label,desc])=>{
         const act=st.contentLength===val;
         const lb=document.createElement('button'); lb.type='button';
-        lb.style.cssText=`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#7c3aed':'#e5e7eb'};background:${act?'#f5f3ff':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#7c3aed':'#6b7280'};`;
+        lb.style.cssText=`flex:1;padding:10px 8px;border-radius:10px;border:2px solid ${act?'#0770B8':'#e5e7eb'};background:${act?'#E8F1F8':'#f9fafb'};cursor:pointer;font-size:12px;font-family:inherit;color:${act?'#0770B8':'#6b7280'};`;
         lb.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">${label}</div><div style="font-size:11px;opacity:.75;">${desc}</div>`;
         lb.onclick=()=>{st.contentLength=val;render();}; lenRow.appendChild(lb);
       });
@@ -1242,7 +1242,7 @@
       // Generate button
       const genBtn=document.createElement('button');
       genBtn.textContent=`✦ Generate ${PAGE_TYPES.find(t=>t.value===st.contentType)?.label||'Content'}`;
-      genBtn.style.cssText='width:100%;padding:14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,.35);margin-bottom:6px;font-family:inherit;';
+      genBtn.style.cssText='width:100%;padding:14px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,.35);margin-bottom:6px;font-family:inherit;';
       genBtn.onclick=()=>cbGenerate(st,genBtn,render);
       w.appendChild(genBtn);
 
@@ -1259,15 +1259,15 @@
       const w=document.createElement('div'); w.style.cssText='display:flex;flex-direction:column;height:100%;';
       const tabRow=document.createElement('div'); tabRow.style.cssText='display:flex;border-bottom:1px solid #e5e7eb;background:#fff;flex-shrink:0;';
       const pTab=document.createElement('button'); pTab.textContent='👁 Preview';
-      pTab.style.cssText='flex:1;padding:10px;border:none;border-bottom:2px solid #7c3aed;background:#fff;cursor:pointer;font-size:13px;font-weight:700;color:#7c3aed;font-family:inherit;';
+      pTab.style.cssText='flex:1;padding:10px;border:none;border-bottom:2px solid #0770B8;background:#fff;cursor:pointer;font-size:13px;font-weight:700;color:#0770B8;font-family:inherit;';
       const cTab=document.createElement('button'); cTab.textContent='</> HTML';
       cTab.style.cssText='flex:1;padding:10px;border:none;border-bottom:2px solid transparent;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;font-family:inherit;';
       const iframe=document.createElement('iframe'); iframe.style.cssText='flex:1;border:none;background:#fff;width:100%;';
       iframe.srcdoc=st.generatedHTML||'<p>No content generated.</p>';
       const codeBox=document.createElement('textarea'); codeBox.value=st.generatedHTML; codeBox.readOnly=true;
       codeBox.style.cssText='flex:1;padding:12px;font-family:Consolas,monospace;font-size:11px;border:none;resize:none;background:#1e293b;color:#e2e8f0;line-height:1.6;display:none;width:100%;box-sizing:border-box;';
-      pTab.onclick=()=>{ iframe.style.display='block'; codeBox.style.display='none'; pTab.style.borderBottomColor='#7c3aed'; pTab.style.color='#7c3aed'; pTab.style.background='#fff'; pTab.style.fontWeight='700'; cTab.style.borderBottomColor='transparent'; cTab.style.background='#f9fafb'; cTab.style.color='#6b7280'; cTab.style.fontWeight='500'; };
-      cTab.onclick=()=>{ iframe.style.display='none'; codeBox.style.display='block'; cTab.style.borderBottomColor='#7c3aed'; cTab.style.color='#7c3aed'; cTab.style.background='#fff'; cTab.style.fontWeight='700'; pTab.style.borderBottomColor='transparent'; pTab.style.background='#f9fafb'; pTab.style.color='#6b7280'; pTab.style.fontWeight='500'; };
+      pTab.onclick=()=>{ iframe.style.display='block'; codeBox.style.display='none'; pTab.style.borderBottomColor='#0770B8'; pTab.style.color='#0770B8'; pTab.style.background='#fff'; pTab.style.fontWeight='700'; cTab.style.borderBottomColor='transparent'; cTab.style.background='#f9fafb'; cTab.style.color='#6b7280'; cTab.style.fontWeight='500'; };
+      cTab.onclick=()=>{ iframe.style.display='none'; codeBox.style.display='block'; cTab.style.borderBottomColor='#0770B8'; cTab.style.color='#0770B8'; cTab.style.background='#fff'; cTab.style.fontWeight='700'; pTab.style.borderBottomColor='transparent'; pTab.style.background='#f9fafb'; pTab.style.color='#6b7280'; pTab.style.fontWeight='500'; };
       tabRow.appendChild(pTab); tabRow.appendChild(cTab);
       const ca=document.createElement('div'); ca.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;'; ca.appendChild(iframe); ca.appendChild(codeBox);
       const actions=document.createElement('div'); actions.style.cssText='padding:12px 14px;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
@@ -1434,20 +1434,17 @@
 
     const overlay = document.createElement('div');
     overlay.id='ce-qm-overlay';
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
-    overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
+    overlay.style.cssText='position:fixed;inset:0;background:transparent;z-index:999999;pointer-events:none;';
 
-    const pw=Math.min(1100,window.innerWidth-40);
-    const ph=Math.min(880,window.innerHeight-40);
     const panel=document.createElement('div');
-    panel.style.cssText=`width:${pw}px;height:${ph}px;background:#f1f5f9;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;color:#1a1a1a;`;
+    panel.style.cssText='position:absolute;top:8px;bottom:8px;left:74px;right:60px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
 
     // Top bar
     const topBar=document.createElement('div');
-    topBar.style.cssText='height:52px;background:#0C447C;color:#fff;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
+    topBar.style.cssText='height:52px;background:#394B58;color:#fff;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
     const topTitle=document.createElement('span'); topTitle.style.cssText='font-size:15px;font-weight:700;flex:1;'; topTitle.textContent='✦ Quiz Maker';
     const closeBtn=document.createElement('button');
-    closeBtn.style.cssText='background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;';
+    closeBtn.style.cssText='background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:3px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;';
     closeBtn.textContent='✕ Close'; closeBtn.onclick=()=>overlay.remove();
     topBar.appendChild(topTitle); topBar.appendChild(closeBtn); panel.appendChild(topBar);
 
@@ -1457,26 +1454,26 @@
 
     // ── LEFT COLUMN ────────────────────────────────────────────────────────
     const left=document.createElement('div');
-    left.style.cssText='overflow-y:auto;background:#fff;border-right:1px solid #e2e4e7;display:flex;flex-direction:column;';
+    left.style.cssText='overflow-y:auto;background:#fff;border-right:1px solid #C7CDD1;display:flex;flex-direction:column;';
     const leftHdr=document.createElement('div');
-    leftHdr.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;background:#fff;position:sticky;top:0;z-index:2;';
+    leftHdr.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #C7CDD1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B7280;background:#fff;position:sticky;top:0;z-index:2;';
     leftHdr.textContent='Builder'; left.appendChild(leftHdr);
     const leftBody=document.createElement('div'); leftBody.style.cssText='padding:14px 16px;';
 
-    function qCard(){const d=document.createElement('div');d.style.cssText='background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px;';return d;}
-    function qSectionLbl(txt){const d=document.createElement('div');d.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;margin-bottom:8px;';d.textContent=txt;return d;}
+    function qCard(){const d=document.createElement('div');d.style.cssText='background:#fff;border:1px solid #C7CDD1;border-radius:3px;padding:12px;margin-bottom:12px;';return d;}
+    function qSectionLbl(txt){const d=document.createElement('div');d.style.cssText='font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;margin-bottom:8px;';d.textContent=txt;return d;}
     function qField(lbl,ph,val,cb,type='text'){
       const w=document.createElement('div');w.style.marginBottom='8px';
       if(lbl){const l=document.createElement('div');l.textContent=lbl;l.style.cssText='font-size:12px;color:#6b7280;margin-bottom:4px;';w.appendChild(l);}
       const inp=document.createElement('input');inp.type=type;inp.placeholder=ph;inp.value=val||'';
-      inp.style.cssText='width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;box-sizing:border-box;';
+      inp.style.cssText='width:100%;padding:8px 10px;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;font-family:inherit;background:#fff;box-sizing:border-box;';
       inp.oninput=()=>cb(inp.value);w.appendChild(inp);return w;
     }
     function qSelField(lbl,opts,val,cb){
       const w=document.createElement('div');w.style.marginBottom='8px';
       if(lbl){const l=document.createElement('div');l.textContent=lbl;l.style.cssText='font-size:12px;color:#6b7280;margin-bottom:4px;';w.appendChild(l);}
       const sel=document.createElement('select');
-      sel.style.cssText='width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;box-sizing:border-box;';
+      sel.style.cssText='width:100%;padding:8px 10px;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;box-sizing:border-box;';
       opts.forEach(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;if(v===val)o.selected=true;sel.appendChild(o);});
       sel.onchange=()=>cb(sel.value);w.appendChild(sel);return w;
     }
@@ -1488,11 +1485,11 @@
       if(desc){const d=document.createElement('div');d.textContent=desc;d.style.cssText='font-size:11px;color:#9ca3af;';info.appendChild(d);}
       let cur=checked;
       const sw=document.createElement('div');
-      sw.style.cssText=`width:36px;height:20px;border-radius:10px;background:${cur?'#7c3aed':'#d1d5db'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;`;
+      sw.style.cssText=`width:36px;height:20px;border-radius:10px;background:${cur?'#0770B8':'#d1d5db'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;`;
       const knob=document.createElement('div');
       knob.style.cssText=`position:absolute;top:2px;left:${cur?'18px':'2px'};width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);`;
       sw.appendChild(knob);
-      sw.onclick=()=>{cur=!cur;sw.style.background=cur?'#7c3aed':'#d1d5db';knob.style.left=cur?'18px':'2px';cb(cur);};
+      sw.onclick=()=>{cur=!cur;sw.style.background=cur?'#0770B8':'#d1d5db';knob.style.left=cur?'18px':'2px';cb(cur);};
       row.appendChild(info);row.appendChild(sw);return row;
     }
 
@@ -1559,31 +1556,31 @@
 
     const statusEl=document.createElement('div');statusEl.style.display='none';leftBody.appendChild(statusEl);
     function showQStatus(msg,type){
-      const c={err:'background:#fef2f2;color:#991b1b;border:1px solid #fca5a5',ok:'background:#f0fdf4;color:#166534;border:1px solid #86efac',info:'background:#eff6ff;color:#1e40af;border:1px solid #93c5fd'};
-      statusEl.style.cssText=`display:block;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;line-height:1.5;${c[type]||c.info}`;
+      const c={err:'background:#fef2f2;color:#991b1b;border:1px solid #fca5a5',ok:'background:#f0fdf4;color:#127A1B;border:1px solid #86efac',info:'background:#E8F1F8;color:#0770B8;border:1px solid #C7CDD1'};
+      statusEl.style.cssText=`display:block;padding:10px 12px;border-radius:3px;font-size:12px;margin-bottom:10px;line-height:1.5;${c[type]||c.info}`;
       statusEl.textContent=msg;
       if(type!=='info')setTimeout(()=>statusEl.style.display='none',5000);
     }
 
     const genBtn=document.createElement('button');
     genBtn.textContent='✦ Generate Questions';
-    genBtn.style.cssText='width:100%;padding:12px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;box-shadow:0 4px 12px rgba(124,58,237,.3);';
+    genBtn.style.cssText='width:100%;padding:12px;background:#0770B8;color:#fff;border:none;border-radius:3px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;';
     leftBody.appendChild(genBtn);
 
     const loadEl=document.createElement('div');
     loadEl.style.cssText='display:none;text-align:center;padding:12px;color:#6b7280;font-size:13px;';
-    loadEl.innerHTML='<div style="display:inline-block;width:16px;height:16px;border:2px solid #e2e8f0;border-top-color:#7c3aed;border-radius:50%;animation:ce-spin .7s linear infinite;vertical-align:middle;margin-right:8px;"></div>Claude is writing your questions…';
+    loadEl.innerHTML='<div style="display:inline-block;width:16px;height:16px;border:2px solid #C7CDD1;border-top-color:#0770B8;border-radius:50%;animation:ce-spin .7s linear infinite;vertical-align:middle;margin-right:8px;"></div>Generating your questions…';
     leftBody.appendChild(loadEl);
     left.appendChild(leftBody);
 
     // ── CENTER COLUMN ──────────────────────────────────────────────────────
     const mid=document.createElement('div');
-    mid.style.cssText='overflow-y:auto;background:#f8f9fa;border-right:1px solid #e2e4e7;display:flex;flex-direction:column;';
+    mid.style.cssText='overflow-y:auto;background:#F5F5F5;border-right:1px solid #C7CDD1;display:flex;flex-direction:column;';
     const midHdrRow=document.createElement('div');
-    midHdrRow.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;background:#f8f9fa;position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;';
+    midHdrRow.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #C7CDD1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B7280;background:#F5F5F5;position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;';
     midHdrRow.textContent='Questions';
     const selAllBtn=document.createElement('button');
-    selAllBtn.style.cssText='display:none;font-size:11px;background:none;border:none;color:#7c3aed;cursor:pointer;font-family:inherit;font-weight:700;';
+    selAllBtn.style.cssText='display:none;font-size:11px;background:none;border:none;color:#0770B8;cursor:pointer;font-family:inherit;font-weight:600;';
     selAllBtn.textContent='Select all';
     midHdrRow.appendChild(selAllBtn); mid.appendChild(midHdrRow);
     const midBody=document.createElement('div'); midBody.style.cssText='padding:14px 16px;';
@@ -1596,9 +1593,9 @@
     const right=document.createElement('div');
     right.style.cssText='overflow-y:auto;background:#fff;display:flex;flex-direction:column;';
     const qCountBadge=document.createElement('span');
-    qCountBadge.style.cssText='background:#e5e7eb;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:6px;';qCountBadge.textContent='0';
+    qCountBadge.style.cssText='background:#C7CDD1;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:6px;color:#2D3B45;';qCountBadge.textContent='0';
     const rightHdrRow=document.createElement('div');
-    rightHdrRow.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;background:#fff;position:sticky;top:0;z-index:2;display:flex;align-items:center;';
+    rightHdrRow.style.cssText='padding:12px 16px 10px;border-bottom:1px solid #C7CDD1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B7280;background:#fff;position:sticky;top:0;z-index:2;display:flex;align-items:center;';
     rightHdrRow.textContent='Quiz '; rightHdrRow.appendChild(qCountBadge); right.appendChild(rightHdrRow);
     const rightBody=document.createElement('div'); rightBody.style.cssText='padding:14px 16px;';
 
@@ -1608,7 +1605,7 @@
     const addSelBtn=document.createElement('button');
     addSelBtn.textContent='+ Add Selected to Quiz';
     addSelBtn.disabled=true;
-    addSelBtn.style.cssText='width:100%;padding:10px;background:#9ca3af;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:4px;margin-bottom:8px;';
+    addSelBtn.style.cssText='width:100%;padding:10px;background:#9ca3af;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:4px;margin-bottom:8px;';
     rightBody.appendChild(addSelBtn);
 
     const div1=document.createElement('div');div1.style.cssText='height:1px;background:#e5e7eb;margin:4px 0 12px;';rightBody.appendChild(div1);
@@ -1624,7 +1621,7 @@
     const div2=document.createElement('div');div2.style.cssText='height:1px;background:#e5e7eb;margin:12px 0;';exportArea.appendChild(div2);
     const createBtn=document.createElement('button');
     createBtn.textContent='✓ Create Quiz in Canvas';
-    createBtn.style.cssText='width:100%;padding:12px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
+    createBtn.style.cssText='width:100%;padding:12px;background:#0770B8;color:#fff;border:none;border-radius:3px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;';
     exportArea.appendChild(createBtn);
     const exportStatus=document.createElement('div');exportArea.appendChild(exportStatus);
     const clearBtn=document.createElement('button');
@@ -1640,14 +1637,14 @@
 
     // ── RENDER QUESTIONS ───────────────────────────────────────────────────
     const TYPE_LABELS={mc:'Multiple Choice',tf:'True / False',short:'Short Answer',essay:'Essay'};
-    const TYPE_BADGE={mc:'background:#dbeafe;color:#1e40af',tf:'background:#dcfce7;color:#166534',short:'background:#fef3c7;color:#92400e',essay:'background:#f3e8ff;color:#6b21a8'};
+    const TYPE_BADGE={mc:'background:#E8F1F8;color:#0770B8',tf:'background:#f0fdf4;color:#127A1B',short:'background:#fef3c7;color:#92400e',essay:'background:#F2F4F5;color:#2D3B45'};
 
     function updateAddBtn(){
       const n=qst.checked.filter(Boolean).length;
       addSelBtn.disabled=n===0;
       const vTotal=qst.groups.filter((_,i)=>qst.checked[i]).reduce((s,g)=>s+g.variants.length,0);
       addSelBtn.textContent=n>0?`+ Add ${n} Group${n!==1?'s':''} (${vTotal} q) to Quiz`:'+ Add Selected to Quiz';
-      addSelBtn.style.background=n>0?'#7c3aed':'#9ca3af';
+      addSelBtn.style.background=n>0?'#0770B8':'#9ca3af';
       addSelBtn.style.cursor=n>0?'pointer':'default';
     }
 
@@ -1668,7 +1665,7 @@
       } else if(q.type==='short'){
         ans.innerHTML=`<span style="font-size:12px;padding:3px 10px;border-radius:6px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:inline-block;">Answer: ${q.answer||''}</span>`;
       } else {
-        ans.innerHTML=`<span style="font-size:11px;padding:3px 10px;border-radius:6px;background:#f3e8ff;border:1px solid #d8b4fe;color:#6b21a8;display:inline-block;">Manually graded</span>`;
+        ans.innerHTML=`<span style="font-size:11px;padding:3px 10px;border-radius:6px;background:#E8F1F8;border:1px solid #C7CDD1;color:#0770B8;display:inline-block;">Manually graded</span>`;
       }
       wrap.appendChild(ans);
       if(qst.includeExplanations&&q.explanation){
@@ -1690,12 +1687,12 @@
         if(activeVariant[gi]===undefined)activeVariant[gi]=0;
         const sel=qst.checked[gi];
         const card=document.createElement('div');
-        card.style.cssText=`background:#fff;border:2px solid ${sel?'#7c3aed':'#e5e7eb'};border-radius:10px;padding:12px 14px;margin-bottom:10px;transition:border-color .15s;`;
+        card.style.cssText=`background:#fff;border:2px solid ${sel?'#0770B8':'#C7CDD1'};border-radius:3px;padding:12px 14px;margin-bottom:10px;transition:border-color .15s;`;
 
         // Header row
         const hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;cursor:pointer;';
         const cbBox=document.createElement('div');
-        cbBox.style.cssText=`width:18px;height:18px;border-radius:4px;border:2px solid ${sel?'#7c3aed':'#d1d5db'};background:${sel?'#7c3aed':'#fff'};flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;`;
+        cbBox.style.cssText=`width:18px;height:18px;border-radius:4px;border:2px solid ${sel?'#0770B8':'#d1d5db'};background:${sel?'#0770B8':'#fff'};flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;`;
         if(sel)cbBox.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
         const qNum=document.createElement('div');qNum.style.cssText='font-weight:700;font-size:13px;color:#111;flex:1;';
         qNum.textContent=`Group ${gi+1}${g.concept?' — '+g.concept:''}`;
@@ -1714,7 +1711,7 @@
           g.variants.forEach((v,vi)=>{
             const tab=document.createElement('button');tab.type='button';
             const isActive=activeVariant[gi]===vi;
-            tab.style.cssText=`padding:3px 10px;border-radius:20px;border:1px solid ${isActive?'#7c3aed':'#d1d5db'};background:${isActive?'#f5f3ff':'#f9fafb'};color:${isActive?'#7c3aed':'#6b7280'};font-size:11px;font-weight:${isActive?'700':'400'};cursor:pointer;font-family:inherit;`;
+            tab.style.cssText=`padding:3px 10px;border-radius:20px;border:1px solid ${isActive?'#0770B8':'#d1d5db'};background:${isActive?'#E8F1F8':'#f9fafb'};color:${isActive?'#0770B8':'#6b7280'};font-size:11px;font-weight:${isActive?'700':'400'};cursor:pointer;font-family:inherit;`;
             tab.textContent='Version '+String.fromCharCode(65+vi);
             tab.onclick=e=>{e.stopPropagation();activeVariant[gi]=vi;renderQuestions();};
             tabRow.appendChild(tab);
@@ -1758,7 +1755,7 @@
         label.textContent=(g.concept||firstQ.text||'').slice(0,55)+(( g.concept||firstQ.text||'').length>55?'…':'');
         txt.appendChild(label);
         if(g.variants.length>1){
-          const vtag=document.createElement('div');vtag.style.cssText='font-size:10px;color:#7c3aed;margin-top:2px;';
+          const vtag=document.createElement('div');vtag.style.cssText='font-size:10px;color:#0770B8;margin-top:2px;';
           vtag.textContent=`${g.variants.length} variants`+(qst.randomizeGroups?' · randomized':'');
           txt.appendChild(vtag);
         }
@@ -1991,7 +1988,7 @@ Critical rules:
 
     // Header
     const hdr = document.createElement('div');
-    hdr.style.cssText = 'background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:24px 28px 20px;color:#fff;position:relative;';
+    hdr.style.cssText = 'background:linear-gradient(135deg,#0770B8,#4f46e5);padding:24px 28px 20px;color:#fff;position:relative;';
     hdr.innerHTML = `
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;opacity:.8;margin-bottom:6px;">Canvas Enhancer Pro</div>
       <div style="font-size:22px;font-weight:700;margin-bottom:4px;">Unlock ${feature}</div>
@@ -2024,14 +2021,14 @@ Critical rules:
     features.forEach(f => {
       const li = document.createElement('li');
       li.style.cssText = 'display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#374151;';
-      li.innerHTML = `<span style="color:#7c3aed;font-size:16px;line-height:1.2;flex-shrink:0;">✓</span><span>${f}</span>`;
+      li.innerHTML = `<span style="color:#0770B8;font-size:16px;line-height:1.2;flex-shrink:0;">✓</span><span>${f}</span>`;
       featureList.appendChild(li);
     });
     body.appendChild(featureList);
 
     // Pricing
     const price = document.createElement('div');
-    price.style.cssText = 'background:#f5f3ff;border:1px solid #ede9fe;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;';
+    price.style.cssText = 'background:#E8F1F8;border:1px solid #ede9fe;border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;';
     price.innerHTML = `
       <div>
         <div style="font-size:15px;font-weight:700;color:#111827;">Base Plan</div>
@@ -2039,20 +2036,20 @@ Critical rules:
         <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Pro: 150 gen/mo — $20/mo or $200/yr</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:22px;font-weight:800;color:#7c3aed;">$6.58<span style="font-size:13px;font-weight:400;color:#6b7280;">/mo</span></div>
+        <div style="font-size:22px;font-weight:800;color:#0770B8;">$6.58<span style="font-size:13px;font-weight:400;color:#6b7280;">/mo</span></div>
         <div style="font-size:11px;color:#6b7280;">when billed annually ($79/yr)</div>
       </div>`;
     body.appendChild(price);
 
     const upgradeBtn = document.createElement('button');
     upgradeBtn.textContent = 'Upgrade to Pro →';
-    upgradeBtn.style.cssText = 'width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;box-shadow:0 4px 14px rgba(124,58,237,.35);';
+    upgradeBtn.style.cssText = 'width:100%;padding:13px;background:linear-gradient(135deg,#0770B8,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:10px;box-shadow:0 4px 14px rgba(124,58,237,.35);';
     upgradeBtn.onclick = () => window.open('https://canvasenhancer.com/upgrade', '_blank');
     body.appendChild(upgradeBtn);
 
     const keyLink = document.createElement('div');
     keyLink.style.cssText = 'text-align:center;font-size:12px;color:#6b7280;';
-    keyLink.innerHTML = 'Already have a license key? <a href="#" style="color:#7c3aed;font-weight:600;">Enter it here →</a>';
+    keyLink.innerHTML = 'Already have a license key? <a href="#" style="color:#0770B8;font-weight:600;">Enter it here →</a>';
     keyLink.querySelector('a').onclick = e => { e.preventDefault(); overlay.remove(); showSettings(); };
     body.appendChild(keyLink);
 
@@ -2137,10 +2134,6 @@ Critical rules:
     aiBtn.textContent='AI Builder';
     aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
     rowBottom.appendChild(aiBtn);
-    const qmBtn=document.createElement('button'); qmBtn.className='ce-btn'; qmBtn.type='button';
-    qmBtn.textContent='Quiz Maker';
-    qmBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showQuizMaker();};
-    rowBottom.appendChild(qmBtn);
 
     Object.entries(COMPONENTS).forEach(([,cat]) => {
       const group=document.createElement('div'); group.className='ce-group';
@@ -2186,6 +2179,12 @@ Critical rules:
     if (rce) rce.parentNode.insertBefore(toolbar, rce);
     else document.body.appendChild(toolbar);
   }
+
+  // ── HUB INTEGRATION ──────────────────────────────────────────────────────────
+  document.addEventListener('ce-toggle-quiz', () => {
+    const existing = document.getElementById('ce-qm-overlay');
+    if (existing) existing.remove(); else showQuizMaker();
+  });
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();

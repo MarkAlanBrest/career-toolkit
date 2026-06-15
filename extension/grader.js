@@ -5,12 +5,13 @@
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
     const _store = await new Promise(resolve =>
-      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings'], resolve)
+      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model'], resolve)
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
 
-    const token = GM_getValue('ce_canvas_token', '');
+    const token        = GM_getValue('ce_canvas_token', '');
+    const gradingModel = GM_getValue('ce_grading_model', 'claude-haiku-4-5-20251001');
     if (!token) return; // nothing we can do without a token
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -40,6 +41,58 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data?.errors?.[0]?.message || `Canvas API ${res.status}`);
       return data;
+    }
+
+    function isVisible(el) {
+      if (!el) return false;
+      const style = el.ownerDocument?.defaultView?.getComputedStyle?.(el);
+      if (style && (style.display === 'none' || style.visibility === 'hidden')) return false;
+      const rect = el.getBoundingClientRect?.();
+      return !rect || (rect.width > 0 && rect.height > 0);
+    }
+
+    function cleanSubmissionText(text) {
+      return String(text || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    function getVisibleSubmissionText() {
+      const selectors = [
+        '#iframe_holder iframe',
+        '#submission_preview iframe',
+        '#speedgrader_iframe',
+        'iframe[src*="/submissions/"]',
+        'iframe[title*="submission" i]',
+        '#iframe_holder',
+        '#submission_preview',
+        '#document_preview',
+        '#preview_frame',
+        '.submission_preview',
+        '.submission-details',
+        '.submission_body',
+        '[data-testid*="submission" i]',
+      ];
+
+      for (const selector of selectors) {
+        for (const el of document.querySelectorAll(selector)) {
+          if (!isVisible(el)) continue;
+          try {
+            if (el.tagName?.toLowerCase() === 'iframe') {
+              const doc = el.contentDocument || el.contentWindow?.document;
+              const text = cleanSubmissionText(doc?.body?.innerText || doc?.body?.textContent || '');
+              if (text.length > 20) return text;
+            } else {
+              const text = cleanSubmissionText(el.innerText || el.textContent || '');
+              if (text.length > 20) return text;
+            }
+          } catch (_) {}
+        }
+      }
+
+      return '';
     }
 
     // ── CONTEXT ───────────────────────────────────────────────────────────────
@@ -116,6 +169,11 @@
         }
       } catch(_) {}
 
+      if (!nextCtx.subText && !nextCtx.attachments.length) {
+        const visibleText = getVisibleSubmissionText();
+        if (visibleText) nextCtx.subText = visibleText;
+      }
+
       const current = getUrlParts();
       const stillCurrent = current.courseId === courseId && current.assignmentId === assignmentId && current.studentId === studentId;
       if (seq !== fetchSeq || !stillCurrent) return null;
@@ -124,6 +182,7 @@
       saveContext();
       return ctx;
     }
+
     // ── NAVIGATION TRACKING ───────────────────────────────────────────────────
     let lastStudentId    = getUrlParts().studentId;
     let lastAssignmentId = getUrlParts().assignmentId;
@@ -166,6 +225,26 @@
     // Appended to document.body so it never touches Canvas's React tree
     const TOOLBAR_W = 52;
     const TOP_OFF   = 60;
+    const PROMPT_SUBMISSION_CHARS = 55000;
+    const PROMPT_HEAD_CHARS = 38000;
+    const PROMPT_TAIL_CHARS = 14000;
+
+    function submissionForPrompt(text) {
+      const value = String(text || '(no submission)');
+      if (value.length <= PROMPT_SUBMISSION_CHARS) return value;
+      const head = value.slice(0, PROMPT_HEAD_CHARS).trimEnd();
+      const tail = value.slice(-PROMPT_TAIL_CHARS).trimStart();
+      const omitted = value.length - head.length - tail.length;
+      return [
+        `[Long submission excerpt: ${omitted.toLocaleString()} characters omitted from the middle]`,
+        '',
+        '[Beginning]',
+        head,
+        '',
+        '[End]',
+        tail,
+      ].join('\n');
+    }
 
     function buildPrompt(c, criteria) {
       const tot = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
@@ -178,7 +257,7 @@
       } else {
         p += `Grade fairly. Total points: ${tot}\n\n`;
       }
-      p += `SUBMISSION:\n${(c?.subText || '(no submission)').slice(0, 18000)}\n\n`;
+      p += `SUBMISSION:\n${submissionForPrompt(c?.subText)}\n\n`;
       p += `Respond in EXACTLY this format:
 SCORE: [number]/${tot}
 FEEDBACK:
@@ -199,6 +278,62 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       else el.value = value;
       el.dispatchEvent(new Event('input',  { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Enter' }));
+      el.blur?.();
+    }
+
+    function findGradeInput() {
+      const selectors = [
+        'input.grading_value',
+        '#grading-box-extended input',
+        'input[data-testid="grading-box-extended-grade-input"]',
+        'input[data-testid*="grade" i]',
+        '#grade_container input',
+        '#grading_box input',
+        '#student_and_assignment_grade input',
+        '.grading-box input',
+        '.grading_value input',
+        'input.grade',
+        'input[name*="grade" i]',
+        'input[id*="grade" i]',
+        'input[aria-label*="grade" i]',
+        'input[placeholder*="grade" i]',
+      ];
+
+      for (const selector of selectors) {
+        const found = [...document.querySelectorAll(selector)].find(el =>
+          isVisible(el) && !el.disabled && !el.readOnly
+        );
+        if (found) return found;
+      }
+
+      const candidates = [...document.querySelectorAll('input[type="text"], input:not([type]), [contenteditable="true"]')]
+        .filter(el => isVisible(el) && !el.disabled && !el.readOnly);
+      return candidates.find(el => {
+        const labelText = [
+          el.getAttribute('aria-label'),
+          el.getAttribute('placeholder'),
+          el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.textContent,
+          el.closest('label')?.textContent,
+          el.closest('[data-testid], .grading-box, #grading_box, #grade_container')?.textContent,
+        ].filter(Boolean).join(' ');
+        return /grade|score|points/i.test(labelText);
+      }) || null;
+    }
+
+    function setGradeValue(value) {
+      const gEl = findGradeInput();
+      if (!gEl) return false;
+      if (gEl.isContentEditable || gEl.getAttribute?.('contenteditable') === 'true') {
+        gEl.focus();
+        gEl.textContent = value;
+        gEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+        gEl.dispatchEvent(new Event('change', { bubbles: true }));
+        gEl.blur?.();
+        return true;
+      }
+      setReactValue(gEl, value);
+      return true;
     }
 
     function escapeHtml(value) {
@@ -316,7 +451,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     function fillFields(text, criteria) {
       const tot      = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
-      const grade    = text.match(/SCORE:\s*(\d+)/i)?.[1] || null;
+      const grade    = text.match(/SCORE:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || null;
       const fbMatch  = text.match(/FEEDBACK:\s*([\s\S]+)/i);
       const feedback = (fbMatch ? fbMatch[1] : text).trim();
       const feedbackLines = feedback.split('\n');
@@ -331,18 +466,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
       // ── Grade field ──────────────────────────────────────────────────────────
       if (grade) {
-        const gEl = document.querySelector([
-          'input.grading_value',
-          'input[data-testid="grading-box-extended-grade-input"]',
-          '#grade_container input',
-          'input.grade',
-          '#grading-box-extended input[type="text"]',
-          'input[aria-label*="Grade" i][type="text"]',
-        ].join(', '));
-        if (gEl) {
-          setReactValue(gEl, grade);
-          gradeInserted = true;
-        }
+        gradeInserted = setGradeValue(grade);
       }
 
       const commentInserted = findAndFillComment(commentTxt);
@@ -428,6 +552,10 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
         // Fetch file content if not yet parsed
         if (c.attachments?.length && (!c.subText || c.subText.startsWith('[File upload'))) {
+          const visiblePreview = getVisibleSubmissionText();
+          if (visiblePreview.length > 200) {
+            c.subText = `[Visible SpeedGrader preview]\n${visiblePreview}`;
+          } else {
           const parts = [];
           for (const att of c.attachments) {
             aiBtn.textContent = '⟳ Reading file…';
@@ -443,12 +571,30 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
             const res = await new Promise(r => chrome.runtime.sendMessage(
               { type: 'PARSE_FILE', payload: { fileUrl: url, token: c.token, filename: att.filename, mimeType: att.mimeType } }, r
             ));
-            if (res?.error) throw new Error(res.error);
+            if (res?.error) {
+              const fallbackPreview = getVisibleSubmissionText();
+              if (fallbackPreview.length > 200) {
+                parts.push(`[${att.filename} - visible SpeedGrader preview]\n${fallbackPreview}`);
+                continue;
+              }
+              throw new Error(res.error);
+            }
             const parsed = res?.text?.trim();
-            if (!parsed) throw new Error(`Could not read ${att.filename}`);
-            parts.push(`[${att.filename}]\n${parsed}`);
+            if (!parsed) {
+              const fallbackPreview = getVisibleSubmissionText();
+              if (fallbackPreview.length > 200) {
+                parts.push(`[${att.filename} - visible SpeedGrader preview]\n${fallbackPreview}`);
+                continue;
+              }
+              throw new Error(`Could not read ${att.filename}`);
+            }
+            const note = res.truncated
+              ? `[Large file note: parsed ${Number(res.originalChars || parsed.length).toLocaleString()} characters and used an excerpt for reliable grading]\n`
+              : '';
+            parts.push(`[${att.filename}]\n${note}${parsed}`);
           }
           c.subText = parts.join('\n\n');
+          }
           chrome.storage.local.set({ ce_claude_context: c });
           aiBtn.textContent = '⟳ Grading…';
         }
@@ -463,7 +609,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
         }
 
         const response = await new Promise(r => chrome.runtime.sendMessage(
-          { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteria) }], max_tokens: 1500 } }, r
+          { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteria) }], max_tokens: 1500, model: gradingModel } }, r
         ));
         if (response?.error) throw new Error(response.error);
         const text = response?.content?.[0]?.text || '';

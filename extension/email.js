@@ -10,125 +10,150 @@
     chrome.storage.local.set({ [key]: val });
   }
 
-  // Inject styles
+  // Inject styles — matches the Canvas Enhancer hub panel design system
   const _style = document.createElement('style');
   _style.textContent = `
     #ces-overlay {
-      position: fixed; inset: 0; z-index: 100000;
-      background: rgba(0,0,0,.45);
-      display: none; align-items: center; justify-content: center;
+      position: fixed;
+      top: 0; bottom: 0;
+      right: 52px;
+      width: 30vw; min-width: 460px; max-width: 580px;
+      z-index: 2147483638;
+      background: #fff;
+      border-left: 1px solid #C7CDD1;
+      box-shadow: -4px 0 16px rgba(0,0,0,.1);
+      display: none; flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", sans-serif;
+      color: #2D3B45;
     }
     #ces-overlay.ces-open { display: flex; }
-    #ces-panel {
-      width: 96vw; max-width: 900px;
-      height: 92vh; max-height: 800px;
-      background: #fff; border-radius: 12px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.3);
-      display: flex; flex-direction: column;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: #111827; overflow: hidden;
-    }
+
     #ces-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 20px; background: #059669; color: #fff; flex-shrink: 0;
+      height: 44px; flex-shrink: 0;
+      background: #fff;
+      border-bottom: 1px solid #C7CDD1;
+      display: flex; align-items: center; padding: 0 16px; gap: 8px;
     }
-    #ces-header h2 { margin: 0; font-size: 18px; font-weight: 700; }
+    #ces-header h2 {
+      flex: 1; margin: 0;
+      font-size: 14px; font-weight: 700; color: #2D3B45;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .ces-close-btn {
-      background: rgba(255,255,255,.2); border: none; color: #fff;
-      width: 32px; height: 32px; border-radius: 50%;
-      font-size: 18px; cursor: pointer; display: flex;
-      align-items: center; justify-content: center;
+      background: none; border: none; color: #6B7280;
+      font-size: 20px; cursor: pointer; line-height: 1;
+      padding: 0 2px; flex-shrink: 0;
+      transition: color .12s;
     }
-    .ces-close-btn:hover { background: rgba(255,255,255,.35); }
+    .ces-close-btn:hover { color: #2D3B45; }
+
     #ces-tabs {
-      display: flex; border-bottom: 2px solid #e5e7eb;
-      flex-shrink: 0; background: #f9fafb;
+      display: flex;
+      border-bottom: 1px solid #C7CDD1;
+      flex-shrink: 0;
+      background: #F5F5F5;
     }
     .ces-tab {
-      padding: 10px 20px; cursor: pointer; border: none;
-      background: none; font-size: 14px; font-weight: 500;
-      color: #6b7280; border-bottom: 2px solid transparent;
-      margin-bottom: -2px; transition: all .15s;
+      padding: 8px 14px; cursor: pointer; border: none;
+      background: none; font-size: 12px; font-weight: 600;
+      color: #6B7280;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .12s, border-color .12s;
+      font-family: inherit;
     }
-    .ces-tab:hover { color: #059669; }
-    .ces-tab.active { color: #059669; border-bottom-color: #059669; font-weight: 600; }
-    #ces-body { flex: 1; overflow-y: auto; padding: 20px; }
+    .ces-tab:hover { color: #0770B8; }
+    .ces-tab.active { color: #0770B8; border-bottom-color: #0770B8; }
+
+    #ces-body { flex: 1; overflow-y: auto; padding: 16px; }
+
     .ces-label {
-      display: block; font-size: 13px; font-weight: 600;
-      color: #374151; margin-bottom: 4px; margin-top: 12px;
+      display: block; font-size: 12px; font-weight: 600;
+      color: #2D3B45; margin-bottom: 4px; margin-top: 12px;
     }
     .ces-select, .ces-input, .ces-textarea {
-      width: 100%; padding: 8px 12px; border: 1px solid #d1d5db;
-      border-radius: 6px; font-size: 14px; color: #111827;
+      width: 100%; padding: 7px 10px;
+      border: 1px solid #C7CDD1; border-radius: 3px;
+      font-size: 13px; color: #2D3B45;
       background: #fff; box-sizing: border-box;
+      font-family: inherit;
     }
     .ces-select:focus, .ces-input:focus, .ces-textarea:focus {
-      outline: none; border-color: #059669;
-      box-shadow: 0 0 0 2px rgba(5,150,105,.15);
+      outline: none; border-color: #0770B8;
+      box-shadow: 0 0 0 2px rgba(7,112,184,.12);
     }
-    .ces-textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+    .ces-textarea { min-height: 110px; resize: vertical; font-family: inherit; }
+
     .ces-btn {
-      padding: 8px 16px; border: none; border-radius: 6px;
-      font-size: 14px; font-weight: 600; cursor: pointer;
-      transition: background .15s, transform .1s;
-      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border: 1px solid #C7CDD1; border-radius: 3px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      font-family: inherit;
+      display: inline-flex; align-items: center; gap: 5px;
+      transition: background .12s;
     }
-    .ces-btn:active { transform: scale(.97); }
-    .ces-btn-primary { background: #059669; color: #fff; }
-    .ces-btn-primary:hover { background: #047857; }
-    .ces-btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
-    .ces-btn-secondary { background: #e5e7eb; color: #374151; }
-    .ces-btn-secondary:hover { background: #d1d5db; }
-    .ces-btn-danger { background: #ef4444; color: #fff; }
-    .ces-btn-danger:hover { background: #dc2626; }
-    .ces-btn-sm { padding: 5px 10px; font-size: 12px; }
+    .ces-btn-primary { background: #0770B8; border-color: #0770B8; color: #fff; }
+    .ces-btn-primary:hover { background: #0860A8; }
+    .ces-btn-primary:disabled { background: #C7CDD1; border-color: #C7CDD1; cursor: not-allowed; }
+    .ces-btn-secondary { background: #F5F5F5; color: #2D3B45; }
+    .ces-btn-secondary:hover { background: #E8F1F8; border-color: #0770B8; color: #0770B8; }
+    .ces-btn-danger { background: #fff; border-color: #C7CDD1; color: #BC1212; }
+    .ces-btn-danger:hover { background: #fef2f2; border-color: #BC1212; }
+    .ces-btn-sm { padding: 4px 9px; font-size: 11px; }
+
     .ces-card {
-      border: 1px solid #e5e7eb; border-radius: 8px;
-      padding: 14px; margin-bottom: 10px; background: #fff;
-      transition: border-color .15s;
-    }
-    .ces-card:hover { border-color: #059669; }
-    .ces-card.selected { border-color: #059669; background: #ecfdf5; }
-    .ces-msg-row {
-      border: 1px solid #e5e7eb; border-radius: 8px;
+      border: 1px solid #C7CDD1; border-radius: 3px;
       padding: 12px; margin-bottom: 8px; background: #fff;
+      transition: border-color .12s;
+    }
+    .ces-card:hover { border-color: #0770B8; }
+    .ces-card.selected { border-color: #0770B8; background: #E8F1F8; }
+
+    .ces-msg-row {
+      border: 1px solid #C7CDD1; border-radius: 3px;
+      padding: 10px; margin-bottom: 6px; background: #fff;
     }
     .ces-msg-row .ces-msg-header {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
     }
-    .ces-msg-row .ces-msg-name { font-weight: 600; font-size: 14px; }
-    .ces-msg-row .ces-msg-subject { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+    .ces-msg-row .ces-msg-name { font-weight: 700; font-size: 13px; color: #2D3B45; }
+    .ces-msg-row .ces-msg-subject { font-size: 12px; color: #6B7280; margin-bottom: 5px; }
     .ces-msg-row .ces-msg-body {
-      font-size: 13px; color: #374151; white-space: pre-wrap;
-      max-height: 100px; overflow-y: auto; background: #f9fafb;
-      padding: 8px; border-radius: 4px;
+      font-size: 12px; color: #2D3B45; white-space: pre-wrap;
+      max-height: 80px; overflow-y: auto; background: #F5F5F5;
+      padding: 6px 8px; border-radius: 3px;
     }
-    .ces-msg-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ces-msg-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
     .ces-status {
-      padding: 8px 12px; border-radius: 6px; margin-bottom: 12px;
-      font-size: 13px; font-weight: 500;
+      padding: 7px 10px; border-radius: 3px; margin-bottom: 10px;
+      font-size: 12px; font-weight: 600;
     }
-    .ces-status-success { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-    .ces-status-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .ces-status-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .ces-status-success { background: #ecfdf5; color: #127A1B; border: 1px solid #a7f3d0; }
+    .ces-status-error   { background: #fef2f2; color: #BC1212; border: 1px solid #fecaca; }
+    .ces-status-info    { background: #E8F1F8; color: #0770B8; border: 1px solid #b8d4f0; }
+
     .ces-progress {
-      width: 100%; height: 6px; background: #e5e7eb;
-      border-radius: 3px; overflow: hidden; margin: 8px 0;
+      width: 100%; height: 4px; background: #C7CDD1;
+      border-radius: 2px; overflow: hidden; margin: 6px 0;
     }
     .ces-progress-bar {
-      height: 100%; background: #059669; transition: width .3s; border-radius: 3px;
+      height: 100%; background: #0770B8; transition: width .3s; border-radius: 2px;
     }
-    .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
-    .ces-mt { margin-top: 16px; }
-    .ces-mb { margin-bottom: 16px; }
+    .ces-mt { margin-top: 14px; }
+    .ces-mb { margin-bottom: 14px; }
+
     .ces-checkbox-row {
-      display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 14px; color: #374151;
+      display: flex; align-items: center; gap: 7px; margin-top: 8px;
+      font-size: 13px; color: #2D3B45;
     }
-    .ces-checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #059669; }
+    .ces-checkbox-row input[type="checkbox"] { width: 14px; height: 14px; accent-color: #0770B8; }
+
     .ces-spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid #fff; border-top-color: transparent;
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid currentColor; border-top-color: transparent;
       border-radius: 50%; animation: ces-spin .6s linear infinite;
     }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
@@ -664,25 +689,22 @@
     const overlay = document.createElement('div');
     overlay.id = 'ces-overlay';
     overlay.innerHTML = `
-      <div id="ces-panel">
-        <div id="ces-header">
-          <h2>&#9993; Canvas Message System</h2>
-          <button class="ces-close-btn" id="ces-close">&times;</button>
-        </div>
-        <div id="ces-tabs">
-          <button class="ces-tab active" data-tab="send">Send Messages</button>
-          <button class="ces-tab" data-tab="automations">Automated Messages</button>
-          <button class="ces-tab" data-tab="templates">Email Templates</button>
-          <button class="ces-tab" data-tab="settings">Settings</button>
-        </div>
-        <div id="ces-body"></div>
+      <div id="ces-header">
+        <h2>&#9993; Messages</h2>
+        <button class="ces-close-btn" id="ces-close">&times;</button>
       </div>
+      <div id="ces-tabs">
+        <button class="ces-tab active" data-tab="send">Send</button>
+        <button class="ces-tab" data-tab="automations">Automations</button>
+        <button class="ces-tab" data-tab="templates">Templates</button>
+        <button class="ces-tab" data-tab="settings">Settings</button>
+      </div>
+      <div id="ces-body"></div>
     `;
     document.body.appendChild(overlay);
     _overlay = overlay;
 
     overlay.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('ces-open'); });
 
     overlay.querySelectorAll('.ces-tab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -1330,43 +1352,18 @@
   }
 
   /* =========================================================
-     FLOATING BUTTON
+     HUB INTEGRATION
   ========================================================= */
-  function addFloatingEmailBtn() {
-    if (document.getElementById('ce-email-btn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'ce-email-btn';
-    btn.type = 'button';
-    btn.innerHTML = '<span style="font-size:16px;line-height:1;">✉</span><span>Messages</span>';
-    btn.title = 'Canvas Message System';
-    btn.style.cssText = [
-      'position:fixed',
-      'top:72px',
-      'right:18px',
-      'z-index:99998',
-      'display:flex',
-      'align-items:center',
-      'gap:7px',
-      'padding:9px 13px',
-      'border:none',
-      'border-radius:8px',
-      'background:#059669',
-      'color:#fff',
-      'font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-      'box-shadow:0 4px 16px rgba(0,0,0,.22)',
-      'cursor:pointer'
-    ].join(';');
-    btn.onclick = e => {
-      e.stopPropagation();
-      if (_overlay) {
-        _overlay.classList.add('ces-open');
-        showTab('send');
-        setTimeout(checkAutomationsOnOpen, 500);
-      }
-    };
-    document.body.appendChild(btn);
-  }
-  addFloatingEmailBtn();
+  document.addEventListener('ce-toggle-messages', () => {
+    if (!_overlay) return;
+    if (_overlay.classList.contains('ces-open')) {
+      _overlay.classList.remove('ces-open');
+    } else {
+      _overlay.classList.add('ces-open');
+      showTab('send');
+      setTimeout(checkAutomationsOnOpen, 500);
+    }
+  });
 
   /* =========================================================
      INIT

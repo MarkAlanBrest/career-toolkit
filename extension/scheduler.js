@@ -611,98 +611,6 @@
     state.open = false;
   }
 
-  function isBlockedCanvasToolbarPage() {
-    return /^\/(?:accounts|admin|profile|users|login|logout)\b/.test(window.location.pathname) ||
-      /speed_grader/.test(window.location.href);
-  }
-
-  function findCanvasToolbarHost() {
-    const reportsButton = document.getElementById('crp-launcher');
-    const existingMessageButton = document.getElementById('ces-launcher-group');
-    return reportsButton?.parentElement ||
-      existingMessageButton?.parentElement ||
-      document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
-      document.querySelector('#breadcrumbs')?.parentElement ||
-      document.querySelector('[data-testid="breadcrumbs"]')?.parentElement ||
-      null;
-  }
-
-  function isCanvasCourseToolbarPage() {
-    if (!getCourseId() || isBlockedCanvasToolbarPage()) return false;
-    const hasCanvasShell = /(instructure|canvas|canvaslms)\.com$/i.test(window.location.hostname) || !!(
-      document.querySelector('meta[name="csrf-token"]') &&
-      (document.querySelector('#breadcrumbs') ||
-        document.querySelector('.ic-app-nav-toggle-and-crumbs') ||
-        document.querySelector('[data-testid="breadcrumbs"]'))
-    );
-    return hasCanvasShell && !!findCanvasToolbarHost();
-  }
-
-  function placeToolbarLauncher(button) {
-    const reportsButton = document.getElementById('crp-launcher');
-    const messageButton = document.getElementById('ces-launcher-group');
-    const canvasHeader = findCanvasToolbarHost();
-
-    if (reportsButton) {
-      if (reportsButton.nextElementSibling !== button) {
-        reportsButton.insertAdjacentElement('afterend', button);
-      }
-      return true;
-    }
-
-    if (messageButton) {
-      if (messageButton.nextElementSibling !== button) {
-        messageButton.insertAdjacentElement('afterend', button);
-      }
-      return true;
-    }
-
-    if (!canvasHeader) return false;
-    if (button.parentElement !== canvasHeader) {
-      canvasHeader.appendChild(button);
-    }
-    if (getComputedStyle(canvasHeader).display === 'block') {
-      canvasHeader.style.display = 'flex';
-      canvasHeader.style.alignItems = 'center';
-    }
-    return true;
-  }
-
-  function injectToolbarLauncher() {
-    const existing = document.getElementById('csch-launcher');
-    if (!isCanvasCourseToolbarPage()) {
-      existing?.remove();
-      return;
-    }
-
-    const button = existing || document.createElement('button');
-    if (!existing) {
-      button.id = 'csch-launcher';
-      button.type = 'button';
-      button.title = 'Canvas Scheduler';
-      button.textContent = 'Scheduler';
-      button.style.cssText = [
-        'display:inline-flex',
-        'align-items:center',
-        'justify-content:center',
-        'height:36px',
-        'border:1px solid #c7cdd1',
-        'border-radius:3px',
-        'background:#fff',
-        'color:#2d3b45',
-        'font:700 13px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif',
-        'line-height:34px',
-        'padding:0 12px',
-        'cursor:pointer',
-        'margin-left:6px',
-        'white-space:nowrap'
-      ].join(';');
-      button.addEventListener('click', openApp);
-    }
-
-    placeToolbarLauncher(button);
-  }
-
   /* ── DOM ─────────────────────────────────────────────────────────────── */
 
   const app = document.createElement('div');
@@ -710,58 +618,50 @@
   app.innerHTML = `
     <div id="csch-shell">
       <div id="csch-topbar">
-        <div class="csch-toolbar-inline">
+        <div id="csch-tb-controls">
           <span id="csch-toolbar-status" class="csch-toolbar-status csch-toolbar-status-info">Open a course to load items</span>
-          <details class="csch-settings-menu">
-            <summary class="csch-btn">Controls</summary>
-            <div class="csch-settings-popover">
-              <div class="csch-settings-section">
-                <div class="csch-settings-title">Scheduling</div>
-                <div class="csch-toolbar-block csch-toolbar-block-date">
-                  <label for="csch-start-date">Start date</label>
-                  <input id="csch-start-date" type="date">
-                </div>
-                <div class="csch-toolbar-block csch-toolbar-block-days">
-                  <span>Due days</span>
-                  <div class="csch-weekdays">
-                    ${DAY_NAMES.map((day, index) => `<button type="button" class="csch-day-btn" data-weekday="${index}">${day}</button>`).join('')}
-                  </div>
-                </div>
-                <div class="csch-toolbar-block csch-toolbar-block-time">
-                  <label for="csch-due-time">Due time</label>
-                  <input id="csch-due-time" type="time">
-                </div>
-              </div>
-              <div class="csch-settings-section">
-                <div class="csch-settings-title">Availability</div>
-                <div class="csch-toolbar-block">
-                  <label for="csch-open-offset">Open days before</label>
-                  <input id="csch-open-offset" type="number" min="0" step="1">
-                </div>
-                <div class="csch-toolbar-block">
-                  <label for="csch-close-offset">Close days after</label>
-                  <input id="csch-close-offset" type="number" min="0" step="1">
-                </div>
-                <div class="csch-toolbar-block">
-                  <label for="csch-answer-offset">Show answers days after</label>
-                  <input id="csch-answer-offset" type="number" min="0" step="1">
-                </div>
-              </div>
-              <div class="csch-settings-section">
-                <div class="csch-settings-title">Actions</div>
-                <div class="csch-settings-actions">
-                  <button type="button" class="csch-btn" id="csch-more-dates-btn">More Dates</button>
-                  <button type="button" class="csch-btn" id="csch-load-btn">Reload</button>
-                  <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
-                </div>
-              </div>
+
+          <div class="csch-tb-divider"></div>
+
+          <div class="csch-tb-group">
+            <div class="csch-tb-label">Start date</div>
+            <input id="csch-start-date" type="date">
+          </div>
+
+          <div class="csch-tb-group">
+            <div class="csch-tb-label">Due days</div>
+            <div class="csch-weekdays">
+              ${DAY_NAMES.map((day, index) => `<button type="button" class="csch-day-btn" data-weekday="${index}">${day}</button>`).join('')}
             </div>
-          </details>
+          </div>
+
+          <div class="csch-tb-group">
+            <div class="csch-tb-label">Due time</div>
+            <input id="csch-due-time" type="time">
+          </div>
+
+          <div class="csch-tb-divider"></div>
+
+          <div class="csch-tb-group">
+            <div class="csch-tb-label">Availability window</div>
+            <div class="csch-tb-window">
+              Opens <input id="csch-open-offset" type="number" min="0" step="1" class="csch-num-input"> days before
+              <span class="csch-tb-dot">·</span>
+              Locks <input id="csch-close-offset" type="number" min="0" step="1" class="csch-num-input"> days after
+              <span class="csch-tb-dot">·</span>
+              Answers <input id="csch-answer-offset" type="number" min="0" step="1" class="csch-num-input"> days after
+            </div>
+          </div>
         </div>
-        <div class="csch-top-actions">
-          <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">Close</button>
+
+        <div id="csch-tb-actions">
+          <button type="button" class="csch-btn" id="csch-more-dates-btn">+ Dates</button>
+          <button type="button" class="csch-btn" id="csch-load-btn">Reload</button>
+          <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
+          <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
         </div>
       </div>
+
       <div id="csch-layout">
         <aside id="csch-left">
           <div class="csch-pane-head">
@@ -781,10 +681,11 @@
   `;
   document.body.appendChild(app);
 
-  /* ── Canvas toolbar launcher button ──────────────────────────────────── */
+  /* ── Canvas Enhancer hub integration ────────────────────────────────── */
 
-  injectToolbarLauncher();
-  new MutationObserver(injectToolbarLauncher).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener('ce-toggle-scheduler', () => {
+    if (app.classList.contains('open')) closeApp(); else openApp();
+  });
 
   /* ── Event listeners ─────────────────────────────────────────────────── */
 
@@ -825,9 +726,10 @@
       position: fixed;
       inset: 0;
       z-index: 2147483640;
-      background: rgba(15, 23, 42, 0.42);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      color: #172554;
+      background: transparent;
+      pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", Arial, sans-serif;
+      color: #2D3B45;
     }
 
     #csch-app.open { display: block; }
@@ -836,164 +738,185 @@
 
     #csch-shell {
       position: absolute;
-      inset: 8px;
-      border-radius: 16px;
+      top: 8px;
+      bottom: 8px;
+      left: 74px;   /* 66px Canvas global nav + 8px gap */
+      right: 60px;  /* 52px CE hub toolbar + 8px gap */
+      border-radius: 6px;
       overflow: hidden;
       display: grid;
       grid-template-rows: auto 1fr;
-      background:
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 26%),
-        linear-gradient(180deg, #f8fbff, #eef5ff 48%, #f9fcff 100%);
-      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.3);
+      background: #F2F4F5;
+      box-shadow: 0 8px 32px rgba(45, 59, 69, 0.28);
+      pointer-events: auto;
     }
 
     #csch-topbar {
       padding: 8px 12px;
       display: flex;
       justify-content: space-between;
-      gap: 10px;
       align-items: center;
+      gap: 8px;
       flex-wrap: wrap;
-      background: linear-gradient(135deg, #0f766e, #1d4ed8 72%);
+      background: #394B58;
       color: #fff;
+      border-bottom: 1px solid #2D3B45;
     }
 
     .csch-pane-head h2, .csch-pane-head p { margin: 0; }
 
-    .csch-top-actions {
+    #csch-tb-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 0;
+    }
+
+    #csch-tb-actions {
       display: flex;
       align-items: center;
       gap: 6px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      margin-left: auto;
+      flex-shrink: 0;
     }
 
-    .csch-toolbar-inline {
+    .csch-tb-divider {
+      width: 1px;
+      height: 28px;
+      background: rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
+    .csch-tb-group {
       display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      max-width: 100%;
-      position: relative;
+      flex-direction: column;
+      gap: 3px;
     }
 
-    .csch-toolbar-block { min-width: 0; display: grid; gap: 3px; }
-    .csch-toolbar-block-date { width: 120px; }
-    .csch-toolbar-block-time { width: 88px; }
-    .csch-toolbar-block-days { min-width: 170px; }
-
-    .csch-toolbar-block label, .csch-toolbar-block span {
+    .csch-tb-label {
       font-size: 10px;
-      font-weight: 600;
-      color: #334155;
-      line-height: 1.1;
+      font-weight: 700;
+      color: rgba(255,255,255,0.65);
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .csch-tb-window {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #fff;
+      font-weight: 500;
+      flex-wrap: wrap;
+    }
+
+    .csch-tb-dot {
+      color: rgba(255,255,255,0.35);
+      font-weight: 400;
+    }
+
+    .csch-num-input {
+      width: 42px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font: 700 13px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      text-align: center;
+      padding: 3px 4px;
+    }
+
+    .csch-num-input:focus {
+      outline: none;
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(255,255,255,0.55);
     }
 
     .csch-toolbar-status {
       display: inline-flex;
       align-items: center;
-      max-width: 320px;
-      min-height: 28px;
-      padding: 5px 8px;
-      border-radius: 999px;
-      font-size: 10px;
-      font-weight: 700;
-      line-height: 1.15;
+      min-height: 26px;
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      background: rgba(255,255,255,0.16);
+      max-width: 260px;
+      background: rgba(255,255,255,0.12);
       color: #fff;
-      border: 1px solid rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.18);
     }
 
-    .csch-toolbar-status-info { background: rgba(255,255,255,0.16); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
-    .csch-toolbar-status-ok   { background: rgba(34,197,94,0.2);   color: #f0fdf4; border: 1px solid rgba(187,247,208,0.35); }
-    .csch-toolbar-status-err  { background: rgba(239,68,68,0.2);   color: #fef2f2; border: 1px solid rgba(254,202,202,0.35); }
+    .csch-toolbar-status-info { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
+    .csch-toolbar-status-ok   { background: rgba(18,122,27,0.35);  color: #d1fae5; border: 1px solid rgba(18,122,27,0.5); }
+    .csch-toolbar-status-err  { background: rgba(188,18,18,0.35);  color: #fee2e2; border: 1px solid rgba(188,18,18,0.5); }
 
-    .csch-settings-menu { position: relative; }
-    .csch-settings-menu summary { list-style: none; }
-    .csch-settings-menu summary::-webkit-details-marker { display: none; }
-
-    .csch-settings-popover {
-      position: absolute;
-      right: 0;
-      top: calc(100% + 6px);
-      z-index: 3;
-      width: 240px;
-      padding: 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(148,163,184,0.3);
-      background: rgba(255,255,255,0.98);
-      box-shadow: 0 14px 30px rgba(15,23,42,0.12);
-      display: grid;
-      gap: 8px;
-    }
-
-    .csch-settings-section { display: grid; gap: 6px; padding-top: 2px; }
-    .csch-settings-section + .csch-settings-section { border-top: 1px solid rgba(148,163,184,0.18); padding-top: 8px; }
-
-    .csch-settings-title {
-      font-size: 10px;
-      font-weight: 800;
-      color: #475569;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .csch-settings-actions { display: grid; gap: 6px; }
-
-    .csch-weekdays { display: flex; gap: 4px; flex-wrap: wrap; }
+    .csch-weekdays { display: flex; gap: 3px; flex-wrap: wrap; }
 
     .csch-day-btn, .csch-btn {
-      border: 1px solid rgba(148,163,184,0.35);
-      border-radius: 8px;
+      border: 1px solid #C7CDD1;
+      border-radius: 3px;
       background: #fff;
-      color: #1e293b;
-      padding: 6px 8px;
+      color: #2D3B45;
+      padding: 5px 8px;
       font: inherit;
       font-size: 11px;
+      font-weight: 600;
       line-height: 1.1;
       cursor: pointer;
-      transition: transform 0.12s ease, background 0.12s ease;
+      transition: background 0.1s ease;
     }
 
-    .csch-day-btn:hover, .csch-btn:hover { transform: translateY(-1px); background: #f8fafc; }
+    .csch-day-btn:hover { background: #E8F1F8; border-color: #0770B8; color: #0770B8; }
+    .csch-btn:hover     { background: #E8F1F8; }
 
     .csch-day-btn.active {
-      background: linear-gradient(135deg, #0f766e, #1d4ed8);
-      border-color: transparent;
+      background: #0770B8;
+      border-color: #0770B8;
       color: #fff;
-      box-shadow: 0 12px 24px rgba(37,99,235,0.18);
     }
 
     .csch-btn-primary {
-      background: linear-gradient(135deg, #0f766e, #1d4ed8);
-      border-color: transparent;
+      background: #0770B8;
+      border-color: #0770B8;
       color: #fff;
       font-weight: 700;
     }
 
+    .csch-btn-primary:hover { background: #0860A8; }
+
     .csch-btn-ghost {
-      background: rgba(255,255,255,0.14);
-      border-color: rgba(255,255,255,0.28);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
       color: #fff;
     }
 
-    .csch-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+    .csch-btn-ghost:hover { background: rgba(255,255,255,0.22); }
 
-    .csch-settings-popover input {
-      border: 1px solid rgba(148,163,184,0.45);
-      border-radius: 8px;
-      padding: 6px 8px;
-      font: inherit;
-      font-size: 11px;
-      line-height: 1.1;
-      color: #0f172a;
-      background: #fff;
+    .csch-btn:disabled { opacity: 0.5; cursor: default; }
+
+    #csch-tb-controls input[type="date"],
+    #csch-tb-controls input[type="time"] {
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 3px;
+      padding: 4px 6px;
+      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      color: #fff;
+      background: rgba(255,255,255,0.12);
+      color-scheme: dark;
+    }
+
+    #csch-tb-controls input[type="date"]:focus,
+    #csch-tb-controls input[type="time"]:focus {
+      outline: none;
+      background: rgba(255,255,255,0.22);
+      border-color: rgba(255,255,255,0.55);
     }
 
     #csch-layout {
@@ -1009,8 +932,8 @@
       grid-template-rows: auto 1fr;
     }
 
-    #csch-left { border-right: 1px solid rgba(37,99,235,0.12); background: rgba(255,255,255,0.78); }
-    #csch-right { background: linear-gradient(180deg, rgba(241,245,249,0.9), rgba(226,232,240,0.74)); }
+    #csch-left  { border-right: 1px solid #C7CDD1; background: #fff; }
+    #csch-right { background: #F2F4F5; }
 
     .csch-pane-head {
       padding: 10px 12px 8px;
@@ -1018,15 +941,16 @@
       justify-content: space-between;
       gap: 10px;
       align-items: center;
-      border-bottom: 1px solid rgba(37,99,235,0.08);
+      border-bottom: 1px solid #C7CDD1;
+      background: #fff;
     }
 
-    .csch-pane-head h2 { font-size: 13px; line-height: 1.1; }
+    .csch-pane-head h2 { font-size: 13px; font-weight: 700; line-height: 1.1; color: #2D3B45; }
 
     .csch-pane-note {
       font-size: 10px;
       font-weight: 700;
-      color: #475569;
+      color: #6B7280;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -1056,22 +980,23 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #475569;
+      color: #6B7280;
     }
 
     .csch-tile-stack { display: grid; gap: 6px; }
 
     .csch-item {
       padding: 8px 9px;
-      border-radius: 12px;
-      border: 1px solid rgba(148,163,184,0.24);
-      background: linear-gradient(180deg, #ffffff, #f8fbff);
-      box-shadow: 0 6px 14px rgba(148,163,184,0.12);
+      border-radius: 3px;
+      border: 1px solid #C7CDD1;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(45,59,69,0.08);
       cursor: grab;
       display: grid;
       gap: 5px;
     }
 
+    .csch-item:hover { border-color: #0770B8; box-shadow: 0 2px 6px rgba(7,112,184,0.12); }
     .csch-item:active { cursor: grabbing; }
 
     .csch-item-top { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1087,12 +1012,12 @@
       line-height: 1.15;
     }
 
-    .csch-item-title { font-size: 12px; font-weight: 700; color: #0f172a; line-height: 1.25; }
+    .csch-item-title { font-size: 12px; font-weight: 700; color: #2D3B45; line-height: 1.25; }
 
     .csch-item-module {
       font-size: 10px;
       font-weight: 700;
-      color: #1d4ed8;
+      color: #0770B8;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
@@ -1103,70 +1028,72 @@
 
     .csch-item-meta {
       font-size: 10px;
-      color: #475569;
+      color: #6B7280;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .csch-item-link { font-size: 10px; font-weight: 700; color: #1d4ed8; text-decoration: none; flex: 0 0 auto; }
+    .csch-item-link { font-size: 10px; font-weight: 700; color: #0770B8; text-decoration: none; flex: 0 0 auto; }
+    .csch-item-link:hover { text-decoration: underline; }
 
     .csch-date-col { min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 6px; }
 
     .csch-date-head {
       padding: 8px 9px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(15,118,110,0.1), rgba(37,99,235,0.14));
-      border: 1px solid rgba(37,99,235,0.12);
-      box-shadow: 0 6px 14px rgba(37,99,235,0.07);
+      border-radius: 3px;
+      background: #fff;
+      border: 1px solid #C7CDD1;
+      box-shadow: 0 1px 3px rgba(45,59,69,0.06);
     }
 
     .csch-date-head-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .csch-date-title { font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.15; }
-    .csch-date-sub { margin-top: 2px; font-size: 10px; color: #475569; line-height: 1.2; }
+    .csch-date-title { font-size: 13px; font-weight: 700; color: #2D3B45; line-height: 1.15; }
+    .csch-date-sub { margin-top: 2px; font-size: 10px; color: #6B7280; line-height: 1.2; }
 
     .csch-date-count {
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.72);
-      color: #0f766e;
+      background: #E8F1F8;
+      color: #0770B8;
       font-size: 10px;
-      font-weight: 800;
+      font-weight: 700;
       line-height: 1.2;
       flex: 0 0 auto;
     }
 
     .csch-dropzone {
       min-height: 84px;
-      border: 1px dashed rgba(148,163,184,0.5);
-      border-radius: 12px;
+      border: 1px dashed #C7CDD1;
+      border-radius: 3px;
       padding: 8px;
-      background: rgba(255,255,255,0.56);
-      transition: border-color 0.12s ease, background 0.12s ease;
+      background: #fff;
+      transition: border-color 0.1s ease, background 0.1s ease;
     }
 
-    .csch-drop-active { border-color: #2563eb; background: rgba(219,234,254,0.74); }
+    .csch-drop-active { border-color: #0770B8; background: #E8F1F8; }
 
-    .csch-dropzone-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #0f172a; margin-bottom: 6px; }
+    .csch-dropzone-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; color: #2D3B45; margin-bottom: 6px; }
 
     .csch-dropzone-help, .csch-empty-slot, .csch-empty-board, .csch-empty-state {
       font-size: 10px;
-      color: #64748b;
+      color: #6B7280;
       line-height: 1.35;
     }
 
     .csch-date-drop { display: grid; gap: 6px; align-content: start; min-height: 160px; }
 
-    .csch-unscheduled { background: linear-gradient(180deg, #fefce8, #fff); }
+    .csch-unscheduled { background: #FFFBEB; border: 1px dashed #C7CDD1; }
 
     @media (max-width: 1100px) {
-      #csch-shell { inset: 6px; }
-      .csch-toolbar-inline { width: 100%; }
+      #csch-shell { top: 6px; bottom: 6px; left: 74px; right: 60px; }
+      #csch-topbar { align-items: flex-start; }
+      #csch-tb-controls { width: 100%; }
       .csch-toolbar-status { max-width: 100%; }
-      .csch-top-actions { margin-left: 0; }
+      .csch-tb-window { font-size: 11px; }
       #csch-layout { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 34%) 1fr; }
-      #csch-left { border-right: none; border-bottom: 1px solid rgba(37,99,235,0.12); }
+      #csch-left { border-right: none; border-bottom: 1px solid #C7CDD1; }
     }
   `;
   document.head.appendChild(styleEl);
