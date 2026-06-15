@@ -2,7 +2,7 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_last_course', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -143,9 +143,14 @@
     .ces-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .ces-template-list { display: flex; flex-direction: column; gap: 8px; }
     .ces-template-card {
-      min-height: 64px; padding: 14px 16px;
-      display: flex; flex-direction: column; justify-content: center;
+      min-height: 0; padding: 7px 10px;
+      display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;
       cursor: pointer;
+    }
+    .ces-template-card strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ces-template-card .ces-template-rule-text {
+      font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 55%; margin-top: 0;
     }
     .ces-flex-between { display: flex; justify-content: space-between; align-items: center; }
     .ces-mt { margin-top: 14px; }
@@ -216,6 +221,7 @@
     TEMPLATES:    'ces_templates',
     TEACHER_NAME: 'ces_teacher_name',
     LAST_COURSE:  'ces_last_course',
+    SEND_SETTINGS: 'ces_send_settings',
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
   };
@@ -405,6 +411,16 @@
 
   function saveTemplates(templates) {
     GM_setValue(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+  }
+
+  function getSendSettings() {
+    const stored = GM_getValue(STORAGE_KEYS.SEND_SETTINGS, '{}');
+    try { return JSON.parse(stored) || {}; } catch(e) { return {}; }
+  }
+
+  function saveSendSettingsPatch(patch) {
+    const next = { ...getSendSettings(), ...patch };
+    GM_setValue(STORAGE_KEYS.SEND_SETTINGS, JSON.stringify(next));
   }
 
   function renderTemplate(template, vars) {
@@ -1008,24 +1024,30 @@
   }
 
   async function renderSendTab(container) {
-    const lastCourses = String(GM_getValue(STORAGE_KEYS.LAST_COURSE, '') || '').split(',').filter(Boolean);
+    const sendSettings = getSendSettings();
+    const lastCourses = Array.isArray(sendSettings.selectedCourseIds)
+      ? sendSettings.selectedCourseIds.map(String)
+      : String(GM_getValue(STORAGE_KEYS.LAST_COURSE, '') || '').split(',').filter(Boolean);
     const templates = getTemplates();
     const visibleTemplates = getVisibleTemplateEntries(templates);
-    const firstTemplateType = visibleTemplates[0]?.[0] || 'upcoming';
+    const savedTemplateType = sendSettings.selectedTemplateType;
+    const firstTemplateType = visibleTemplates.some(([type]) => type === savedTemplateType)
+      ? savedTemplateType
+      : visibleTemplates[0]?.[0] || 'upcoming';
     const templateCards = visibleTemplates.map(([type, tpl], index) => `
-        <div class="ces-card ces-template-card ${index === 0 ? 'selected' : ''}" data-type="${escapeAttr(type)}">
+        <div class="ces-card ces-template-card ${type === firstTemplateType ? 'selected' : ''}" data-type="${escapeAttr(type)}">
           <strong>${escapeHtml(tpl.name || 'Untitled Template')}</strong>
-          <div style="font-size:12px;color:#6b7280;margin-top:4px;">${escapeHtml(describeTemplateCondition(tpl))}</div>
+          <div class="ces-template-rule-text">${escapeHtml(describeTemplateCondition(tpl))}</div>
         </div>
       `).join('');
 
     container.innerHTML = `
       <div id="ces-status-area"></div>
-      <div class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
+      <div class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-announce-check" ${sendSettings.includeAnnouncement ? 'checked' : ''}><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
       <div class="ces-course-toolbar">
         <label class="ces-label">Classes</label>
-        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-published" checked> Published only</label>
-        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-dashboard"> Dashboard only</label>
+        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-published" ${sendSettings.publishedOnly !== false ? 'checked' : ''}> Published only</label>
+        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-dashboard" ${sendSettings.dashboardOnly ? 'checked' : ''}> Dashboard only</label>
         <div class="ces-course-toolbar-actions">
           <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-select-all-courses">Select All</button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-courses">Clear</button>
@@ -1046,15 +1068,24 @@
 
     const selectedCourseIds = new Set(lastCourses);
     await renderCourseChecklist(selectedCourseIds);
-    container.querySelector('#ces-filter-published').addEventListener('change', () => renderCourseChecklist(selectedCourseIds));
-    container.querySelector('#ces-filter-dashboard').addEventListener('change', () => renderCourseChecklist(selectedCourseIds));
+    container.querySelector('#ces-announce-check').addEventListener('change', (event) => saveSendSettingsPatch({ includeAnnouncement: event.target.checked }));
+    container.querySelector('#ces-filter-published').addEventListener('change', (event) => {
+      saveSendSettingsPatch({ publishedOnly: event.target.checked });
+      renderCourseChecklist(selectedCourseIds);
+    });
+    container.querySelector('#ces-filter-dashboard').addEventListener('change', (event) => {
+      saveSendSettingsPatch({ dashboardOnly: event.target.checked });
+      renderCourseChecklist(selectedCourseIds);
+    });
     container.querySelector('#ces-select-all-courses').addEventListener('click', async () => {
       const visibleCourses = await getVisibleCoursesForSend();
       visibleCourses.forEach(course => selectedCourseIds.add(String(course.id)));
+      saveSendSettingsPatch({ selectedCourseIds: [...selectedCourseIds] });
       renderCourseChecklist(selectedCourseIds);
     });
     container.querySelector('#ces-clear-courses').addEventListener('click', () => {
       selectedCourseIds.clear();
+      saveSendSettingsPatch({ selectedCourseIds: [] });
       renderCourseChecklist(selectedCourseIds);
     });
 
@@ -1068,6 +1099,7 @@
 
       currentCourseId = selectedCourses[0].id;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, selectedCourses.map(course => course.id).join(','));
+      saveSendSettingsPatch({ selectedCourseIds: selectedCourses.map(course => String(course.id)), selectedTemplateType: selectedType });
       const selectedTemplate = getTemplates()[selectedType];
       const timing = normalizeTemplateTiming(selectedTemplate);
 
@@ -1109,6 +1141,7 @@
         typeCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         selectedType = card.dataset.type;
+        saveSendSettingsPatch({ selectedTemplateType: selectedType });
         updateAnnouncementAvailability(selectedType);
         buildMessagesForSelection();
       });
@@ -1184,6 +1217,7 @@
         check.addEventListener('change', () => {
           if (check.checked) selectedCourseIds.add(check.value);
           else selectedCourseIds.delete(check.value);
+          saveSendSettingsPatch({ selectedCourseIds: [...selectedCourseIds] });
         });
       });
     } catch(err) {
@@ -1583,7 +1617,7 @@
     const templates = getTemplates();
 
     function renderList() {
-      let html = `<p style="font-size:13px;color:#6b7280;margin-bottom:16px;">Customize email templates and choose when each one is eligible to send. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</p>`;
+      let html = '';
       html += `<div class="ces-mb"><button class="ces-btn ces-btn-primary" id="ces-add-tpl">Add Email Template</button></div>`;
       for (const [type, tpl] of getVisibleTemplateEntries(templates)) {
         const personal = templateHasPersonalData(tpl);
@@ -1644,7 +1678,10 @@
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-link">Link</button>
         </div>
         <div class="ces-editor" id="ces-tpl-body" contenteditable="true">${bodyToEditorHtml(tpl.body)}</div>
-        <label class="ces-label">Canvas Variables</label>
+        <div class="ces-flex-between" style="align-items:flex-end;gap:10px;">
+          <label class="ces-label">Canvas Variables</label>
+          <div style="font-size:12px;color:#6b7280;text-align:right;line-height:1.35;">Customize email templates and choose when each one is eligible to send. Use placeholders like <code>{{studentName}}</code>, <code>{{teacherName}}</code>, <code>{{courseName}}</code>, and more.</div>
+        </div>
         <div class="ces-variable-row">
           ${TEMPLATE_VARIABLES.map(variable => `<button class="ces-btn ces-btn-secondary ces-btn-sm ces-var-btn" type="button" data-var="${variable.key}">${escapeHtml(variable.label)}</button>`).join('')}
         </div>
