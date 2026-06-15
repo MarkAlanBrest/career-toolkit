@@ -59,40 +59,42 @@
     }
 
     // ── FETCH SUBMISSION ──────────────────────────────────────────────────────
+    let fetchSeq = 0;
     async function fetchSubmission() {
+      const seq = ++fetchSeq;
       const { courseId, assignmentId, studentId } = getUrlParts();
-      if (!studentId || !courseId || !assignmentId) return;
+      if (!studentId || !courseId || !assignmentId) return null;
 
-      ctx.courseId = courseId;
-      ctx.assignmentId = assignmentId;
-      ctx.studentId = studentId;
-      ctx.attachments = [];
-      ctx.subText = '';
-      ctx.settings = loadSettings(courseId, assignmentId);
+      const nextCtx = {
+        ...ctx,
+        token,
+        canvasOrigin: location.origin,
+        courseId,
+        assignmentId,
+        studentId,
+        studentName: '',
+        assignmentName: '',
+        settings: loadSettings(courseId, assignmentId),
+        attachments: [],
+        subText: '',
+        mode: 'grade',
+      };
 
-      // Student name from DOM first (fastest)
-      const nameEl = document.querySelector(
-        '#student_carousel_name, .student_selection option:checked, #students_selectmenu-button .ui-selectmenu-text'
-      );
-      if (nameEl) ctx.studentName = nameEl.textContent.trim().replace(/\s*\(.*\)$/, '');
+      try {
+        const a = await canvasApi(`${location.origin}/api/v1/courses/${courseId}/assignments/${assignmentId}`);
+        nextCtx.assignmentName = a.name || '';
+      } catch(_) {}
 
-      // Assignment name
-      if (!ctx.assignmentName) {
-        try {
-          const a = await canvasApi(`${location.origin}/api/v1/courses/${courseId}/assignments/${assignmentId}`);
-          ctx.assignmentName = a.name || '';
-        } catch(_) {}
+      try {
+        const u = await canvasApi(`${location.origin}/api/v1/users/${studentId}/profile`);
+        nextCtx.studentName = u.name || u.short_name || '';
+      } catch(_) {
+        const nameEl = document.querySelector(
+          '#student_carousel_name, .student_selection option:checked, #students_selectmenu-button .ui-selectmenu-text'
+        );
+        if (nameEl) nextCtx.studentName = nameEl.textContent.trim().replace(/\s*\(.*\)$/, '');
       }
 
-      // Profile fallback for student name
-      if (!ctx.studentName) {
-        try {
-          const u = await canvasApi(`${location.origin}/api/v1/users/${studentId}/profile`);
-          ctx.studentName = u.name || u.short_name || '';
-        } catch(_) {}
-      }
-
-      // Submission
       try {
         const sub = await canvasApi(
           `${location.origin}/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/${studentId}?include[]=attachments`
@@ -100,23 +102,28 @@
 
         if (sub.submission_type === 'online_text_entry' && sub.body) {
           const tmp = document.createElement('div'); tmp.innerHTML = sub.body;
-          ctx.subText = (tmp.textContent || tmp.innerText || '').trim();
+          nextCtx.subText = (tmp.textContent || tmp.innerText || '').trim();
         } else if (sub.submission_type === 'online_upload' && sub.attachments?.length) {
-          ctx.attachments = sub.attachments.map(att => ({
+          nextCtx.attachments = sub.attachments.map(att => ({
             id:       att.id,
             filename: decodeURIComponent((att.filename || att.display_name || 'file').replace(/\+/g, ' ')),
             mimeType: att['content-type'] || att.content_type || '',
             url:      att.url || att.preview_url || '',
           }));
-          ctx.subText = `[File upload: ${ctx.attachments.map(a => a.filename).join(', ')}]`;
+          nextCtx.subText = `[File upload: ${nextCtx.attachments.map(a => a.filename).join(', ')}]`;
         } else if (sub.submission_type === 'online_url') {
-          ctx.subText = `[URL submission: ${sub.url}]`;
+          nextCtx.subText = `[URL submission: ${sub.url}]`;
         }
       } catch(_) {}
 
-      saveContext();
-    }
+      const current = getUrlParts();
+      const stillCurrent = current.courseId === courseId && current.assignmentId === assignmentId && current.studentId === studentId;
+      if (seq !== fetchSeq || !stillCurrent) return null;
 
+      ctx = nextCtx;
+      saveContext();
+      return ctx;
+    }
     // ── NAVIGATION TRACKING ───────────────────────────────────────────────────
     let lastStudentId    = getUrlParts().studentId;
     let lastAssignmentId = getUrlParts().assignmentId;
@@ -399,11 +406,22 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       aiBtn.textContent = '⟳ Grading…';
 
       try {
-        const { ce_claude_context: storedCtx, ce_criteria: allCriteria } =
-          await new Promise(r => chrome.storage.local.get(['ce_claude_context', 'ce_criteria'], r));
+        const { ce_criteria: allCriteria } =
+          await new Promise(r => chrome.storage.local.get(['ce_criteria'], r));
 
-        const c = storedCtx;
-        if (!c) throw new Error('No submission loaded yet');
+        aiBtn.textContent = 'Loading current student...';
+        const freshCtx = await fetchSubmission();
+        const current = getUrlParts();
+        const c = freshCtx || ctx;
+        if (
+          !c ||
+          c.courseId !== current.courseId ||
+          c.assignmentId !== current.assignmentId ||
+          c.studentId !== current.studentId
+        ) {
+          throw new Error('Student changed - try again');
+        }
+        if (!c.subText && !c.attachments?.length) throw new Error('No submission loaded yet');
 
         const k        = c.courseId && c.assignmentId ? `${c.courseId}_${c.assignmentId}` : null;
         const criteria = k ? (allCriteria?.[k] || '') : '';
@@ -435,12 +453,30 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
           aiBtn.textContent = '⟳ Grading…';
         }
 
+        const afterFiles = getUrlParts();
+        if (
+          afterFiles.courseId !== c.courseId ||
+          afterFiles.assignmentId !== c.assignmentId ||
+          afterFiles.studentId !== c.studentId
+        ) {
+          throw new Error('Student changed - try again');
+        }
+
         const response = await new Promise(r => chrome.runtime.sendMessage(
           { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteria) }], max_tokens: 1500 } }, r
         ));
         if (response?.error) throw new Error(response.error);
         const text = response?.content?.[0]?.text || '';
         if (!text) throw new Error('Empty response — check your API key in settings');
+
+        const beforeInsert = getUrlParts();
+        if (
+          beforeInsert.courseId !== c.courseId ||
+          beforeInsert.assignmentId !== c.assignmentId ||
+          beforeInsert.studentId !== c.studentId
+        ) {
+          throw new Error('Student changed before insert');
+        }
 
         const inserted = fillFields(text, criteria);
         showTeacherCheckLabel(inserted.teacherCheck);
