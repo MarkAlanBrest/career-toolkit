@@ -2002,47 +2002,47 @@
   }
 
   function getComposeSubjectInput() {
-    return document.querySelector('input[name="subject"], input[placeholder*="Subject"], #compose-message-subject');
+    return document.querySelector('input[name="subject"], input[placeholder*="Subject"], input[aria-label*="Subject"], #compose-message-subject');
   }
 
   function getComposeBodyInput() {
-    return document.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [contenteditable="true"][role="textbox"], [role="textbox"]');
+    return document.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [contenteditable="true"][role="textbox"], [contenteditable="true"], [role="textbox"]');
+  }
+
+  function setNativeValue(el, value) {
+    const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (descriptor?.set) descriptor.set.call(el, value);
+    else el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   function insertIntoCompose(subject, body) {
     const subjectInput = getComposeSubjectInput();
     if (subjectInput && subject) {
-      subjectInput.value = subject;
-      subjectInput.dispatchEvent(new Event('input', { bubbles: true }));
-      subjectInput.dispatchEvent(new Event('change', { bubbles: true }));
+      setNativeValue(subjectInput, subject);
     }
     const bodyInput = getComposeBodyInput();
     if (bodyInput) {
       if (bodyInput.tagName === 'TEXTAREA') {
-        bodyInput.value = body || '';
+        setNativeValue(bodyInput, body || '');
       } else {
         bodyInput.innerHTML = escapeHtml(body || '').replace(/\n/g, '<br>');
+        bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
+        bodyInput.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
-      bodyInput.dispatchEvent(new Event('change', { bubbles: true }));
       bodyInput.focus();
     }
     return Boolean(subjectInput || bodyInput);
   }
 
   function installQuickMessageInserter() {
-    if (document.getElementById('ces-quick-message-btn')) return;
-
-    const button = document.createElement('button');
-    button.id = 'ces-quick-message-btn';
-    button.type = 'button';
-    button.textContent = 'Insert Email Message';
-    button.style.cssText = 'position:fixed;right:74px;bottom:18px;z-index:2147483642;padding:9px 13px;border:1px solid #0770B8;border-radius:3px;background:#0770B8;color:#fff;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.18);';
-    document.body.appendChild(button);
+    if (document.getElementById('ces-quick-message-panel')) return;
 
     const panel = document.createElement('div');
     panel.id = 'ces-quick-message-panel';
-    panel.style.cssText = 'position:fixed;right:74px;bottom:60px;width:360px;max-height:70vh;overflow:auto;z-index:2147483642;display:none;background:#fff;border:1px solid #C7CDD1;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2D3B45;';
+    panel.style.cssText = 'position:fixed;width:360px;max-height:70vh;overflow:auto;z-index:2147483642;display:none;background:#fff;border:1px solid #C7CDD1;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2D3B45;';
     document.body.appendChild(panel);
 
     function renderQuickPanel(editId) {
@@ -2105,10 +2105,41 @@
       });
     }
 
-    button.addEventListener('click', () => {
+    function toggleQuickPanel(anchor) {
       renderQuickPanel();
+      const rect = anchor.getBoundingClientRect();
+      panel.style.top = Math.min(rect.bottom + 6, window.innerHeight - 420) + 'px';
+      panel.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 380)) + 'px';
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    });
+    }
+
+    function findComposeAnchor() {
+      const subjectInput = getComposeSubjectInput();
+      const bodyInput = getComposeBodyInput();
+      const field = subjectInput || bodyInput;
+      if (!field) return null;
+      return field.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form') || field.parentElement;
+    }
+
+    function injectQuickButton() {
+      const anchor = findComposeAnchor();
+      if (!anchor || anchor.querySelector('#ces-quick-message-btn')) return;
+      const button = document.createElement('button');
+      button.id = 'ces-quick-message-btn';
+      button.type = 'button';
+      button.className = 'Button Button--secondary';
+      button.textContent = 'Insert Email Message';
+      button.style.cssText = 'margin:6px 0;padding:6px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#F5F5F5;color:#2D3B45;font:600 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;';
+      const subjectInput = getComposeSubjectInput();
+      const insertAfter = subjectInput?.closest('div') || anchor.firstChild;
+      if (insertAfter?.parentElement) insertAfter.parentElement.insertBefore(button, insertAfter.nextSibling);
+      else anchor.insertBefore(button, anchor.firstChild);
+      button.addEventListener('click', () => toggleQuickPanel(button));
+    }
+
+    injectQuickButton();
+    const observer = new MutationObserver(injectQuickButton);
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   /* =========================================================
