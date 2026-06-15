@@ -172,7 +172,15 @@
         p += `Grade fairly. Total points: ${tot}\n\n`;
       }
       p += `SUBMISSION:\n${(c?.subText || '(no submission)').slice(0, 18000)}\n\n`;
-      p += `Respond in EXACTLY this format:\nSCORE: [number]/${tot}\nFEEDBACK:\n- TEACHER CHECK: [items to verify manually]\n- [Address ${fn} by name, overall]\n- [Specific finding]\n- [Another finding]\n\nUse 3–5 bullets. First must be TEACHER CHECK.`;
+      p += `Respond in EXACTLY this format:
+SCORE: [number]/${tot}
+FEEDBACK:
+- TEACHER CHECK: [private note to the teacher only; items to verify manually]
+- [Address ${fn} by name, overall]
+- [Specific finding]
+- [Another finding]
+
+Use 3-5 bullets. First must be TEACHER CHECK.`;
       return p;
     }
 
@@ -304,7 +312,14 @@
       const grade    = text.match(/SCORE:\s*(\d+)/i)?.[1] || null;
       const fbMatch  = text.match(/FEEDBACK:\s*([\s\S]+)/i);
       const feedback = (fbMatch ? fbMatch[1] : text).trim();
-      const commentTxt = feedback;
+      const feedbackLines = feedback.split('\n');
+      const privateLines = feedbackLines.filter(line => /^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:/i.test(line.trim()));
+      const publicLines = feedbackLines.filter(line => !/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:/i.test(line.trim()) && line.trim());
+      const teacherCheck = privateLines
+        .map(line => line.replace(/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:\s*/i, '').trim())
+        .filter(Boolean)
+        .join('\n');
+      const commentTxt = publicLines.join('\n').trim();
       let gradeInserted = false;
 
       // ── Grade field ──────────────────────────────────────────────────────────
@@ -325,7 +340,7 @@
 
       const commentInserted = findAndFillComment(commentTxt);
       if (!commentInserted) navigator.clipboard?.writeText(commentTxt).catch(() => {});
-      return { gradeInserted, commentInserted };
+      return { gradeInserted, commentInserted, teacherCheck };
     }
 
     const aiBtn = document.createElement('button');
@@ -344,6 +359,27 @@
     aiBtn.addEventListener('mouseenter', () => { if (!aiBtn.disabled) aiBtn.style.background = '#f5f5f5'; });
     aiBtn.addEventListener('mouseleave', () => { if (!aiBtn.disabled) aiBtn.style.background = aiBtn._baseBg || '#fff'; });
 
+    const teacherCheckLabel = document.createElement('div');
+    teacherCheckLabel.id = 'ce-ai-teacher-check';
+    teacherCheckLabel.style.cssText = `
+      display:none;position:fixed;top:${TOP_OFF + 104}px;right:${TOOLBAR_W + 8}px;
+      z-index:2147483640;max-width:320px;background:#fff8e1;color:#5f4200;
+      border:1px solid #f3d27a;border-radius:4px;padding:8px 10px;
+      font:12px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      box-shadow:0 2px 8px rgba(0,0,0,.16);
+    `;
+
+    function showTeacherCheckLabel(text) {
+      const clean = String(text || '').trim();
+      if (!clean) {
+        teacherCheckLabel.style.display = 'none';
+        teacherCheckLabel.textContent = '';
+        return;
+      }
+      teacherCheckLabel.textContent = `Teacher check: ${clean}`;
+      teacherCheckLabel.style.display = 'block';
+    }
+
     let _grading = false;
     function resetBtn(label, bg, color, border) {
       aiBtn.textContent = label || '✦ AI Grade';
@@ -353,6 +389,7 @@
       aiBtn.style.border = border || '1px solid #000';
       aiBtn.disabled = false;
       _grading = false;
+      if (!label) showTeacherCheckLabel('');
     }
 
     aiBtn.addEventListener('click', async () => {
@@ -406,6 +443,7 @@
         if (!text) throw new Error('Empty response — check your API key in settings');
 
         const inserted = fillFields(text, criteria);
+        showTeacherCheckLabel(inserted.teacherCheck);
         aiBtn.textContent = inserted.commentInserted && inserted.gradeInserted
           ? 'Grade & Comment Inserted'
           : inserted.commentInserted
@@ -427,6 +465,7 @@
     });
 
     document.body.appendChild(aiBtn);
+    document.body.appendChild(teacherCheckLabel);
 
   } catch(e) { /* don't crash SpeedGrader */ }
 })();
