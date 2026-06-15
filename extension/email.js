@@ -2,7 +2,7 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -181,6 +181,10 @@
     }
     .ces-editor:focus { border-color: #0770B8; box-shadow: 0 0 0 2px rgba(7,112,184,.12); }
     .ces-variable-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .ces-color-swatch {
+      width: 24px; height: 24px; border-radius: 3px;
+      border: 1px solid #C7CDD1; cursor: pointer;
+    }
     .ces-course-toolbar {
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
       margin-top: 12px; margin-bottom: 6px;
@@ -219,6 +223,7 @@
 
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
+    TEMPLATE_VERSION: 'ces_template_version',
     TEACHER_NAME: 'ces_teacher_name',
     LAST_COURSE:  'ces_last_course',
     SEND_SETTINGS: 'ces_send_settings',
@@ -230,27 +235,55 @@
     upcoming: {
       name: 'Upcoming Assignments',
       subject: 'Upcoming Work for {{courseName}}',
-      body: `Hi {{studentName}},\n\nHere is what is coming up in {{courseName}} over the next {{daysForward}} days:\n\n{{assignmentList}}\n\nThis is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.\n\nPlease review the instructions in Canvas and plan enough time to complete each item before the deadline. If anything is unclear, reach out before the due date so there is time to help.\n\nBest,\n{{teacherName}}`,
+      body: `<h2 style="margin:0 0 12px;color:#0770B8;">Upcoming work in {{courseName}}</h2><p>Hi {{studentName}},</p><p>Here is what is coming up over the next <strong>{{daysForward}} days</strong>:</p><div style="border-left:4px solid #0770B8;background:#E8F1F8;padding:10px 12px;margin:12px 0;">{{assignmentList}}</div><p>This is a good moment to look ahead, block out time, and make sure you understand what each assignment is asking you to do.</p><p>Please review the instructions in Canvas and reach out before the due date if anything is unclear.</p><p>Best,<br>{{teacherName}}</p>`,
       daysForward: 7,
     },
     missing: {
       name: 'Missing Work Reminder',
       subject: 'Missing Work in {{courseName}}',
-      body: `Hi {{studentName}},\n\nI am reaching out because the following work still appears as missing in {{courseName}}:\n\n{{missingAssignmentList}}\n\nMissing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.\n\nIf something is preventing you from completing the work, reply to this message so we can talk about a realistic plan. You do not need to wait until everything is perfect to get started.\n\nBest,\n{{teacherName}}`,
+      body: `<h2 style="margin:0 0 12px;color:#BC1212;">Missing work check-in</h2><p>Hi {{studentName}},</p><p>I am reaching out because the following work still appears as missing in <strong>{{courseName}}</strong>:</p><div style="border-left:4px solid #BC1212;background:#fef2f2;padding:10px 12px;margin:12px 0;">{{missingAssignmentList}}</div><p>Missing work can add up quickly, but there is still value in taking the next step now. Please review the list above and submit what you can as soon as you are able.</p><p>If something is preventing you from completing the work, reply to this message so we can talk about a realistic plan.</p><p>Best,<br>{{teacherName}}</p>`,
       daysBack: 7,
       condition: { type: 'missing_past_days', daysBack: 7 },
     },
     welcome: {
       name: 'Welcome to Class',
       subject: 'Welcome to {{courseName}}!',
-      body: `Hi {{studentName}},\n\nWelcome to {{courseName}}. I am glad you are in the course and look forward to working with you this term.\n\nTo start strong, please take a few minutes to:\n- Review the syllabus and course schedule.\n- Check Canvas regularly for announcements, modules, and due dates.\n- Set aside consistent time each week for readings, assignments, and review.\n- Reach out early if you have questions, need help, or have approved accommodations.\n\nI hope this is a productive and engaging semester for you.\n\nWelcome,\n{{teacherName}}`,
+      body: `<h2 style="margin:0 0 12px;color:#127A1B;">Welcome to {{courseName}}</h2><p>Hi {{studentName}},</p><p>I am glad you are in the course and look forward to working with you this term.</p><div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:12px;margin:12px 0;"><strong>To start strong:</strong><ul><li>Review the syllabus and course schedule.</li><li>Check Canvas regularly for announcements, modules, and due dates.</li><li>Set aside consistent time each week for readings, assignments, and review.</li><li>Reach out early if you have questions or need help.</li></ul></div><p>I hope this is a productive and engaging semester for you.</p><p>Welcome,<br>{{teacherName}}</p>`,
     },
     evaluation: {
       name: 'Student Evaluation',
       subject: 'Progress Update for {{courseName}}',
-      body: `Hi {{studentName}},\n\nI am sending a brief progress update for {{courseName}} so you have a clear picture of where things stand.\n\nCurrent Grade: {{currentGrade}} ({{currentScore}}%)\n\n{{missingSection}}\n\n{{upcomingSection}}\n\nIf your current standing is not where you want it to be, this is a good time to make a plan. Please review the items above and reach out if you would like to discuss next steps.\n\nBest regards,\n{{teacherName}}`,
+      body: `<h2 style="margin:0 0 12px;color:#0770B8;">Progress update</h2><p>Hi {{studentName}},</p><p>I am sending a brief progress update for <strong>{{courseName}}</strong> so you have a clear picture of where things stand.</p><div style="background:#F5F5F5;border:1px solid #C7CDD1;padding:12px;margin:12px 0;"><strong>Current Grade:</strong> {{currentGrade}} ({{currentScore}}%)</div><div style="border-left:4px solid #BC1212;background:#fef2f2;padding:10px 12px;margin:12px 0;">{{missingSection}}</div><div style="border-left:4px solid #0770B8;background:#E8F1F8;padding:10px 12px;margin:12px 0;">{{upcomingSection}}</div><p>If your current standing is not where you want it to be, this is a good time to make a plan. Please review the items above and reach out if you would like to discuss next steps.</p><p>Best regards,<br>{{teacherName}}</p>`,
       daysForward: 7,
       daysBack: 14,
+    },
+    low_grade_checkin: {
+      name: 'Low Grade Check-In',
+      subject: 'Grade Check-In for {{courseName}}',
+      body: `<h2 style="margin:0 0 12px;color:#BC1212;">Grade check-in</h2><p>Hi {{studentName}},</p><p>I am reaching out because your current performance in <strong>{{courseName}}</strong> is below the alert point for this message.</p><div style="border-left:4px solid #BC1212;background:#fef2f2;padding:10px 12px;margin:12px 0;">{{gradeAlertDetail}}</div><p>This message is meant to catch the issue early enough that you can respond. Please review your recent feedback in Canvas and consider what needs attention first.</p><p>If you would like help making a recovery plan, reply to this message.</p><p>Best,<br>{{teacherName}}</p>`,
+      condition: { type: 'grade_below', threshold: 70, daysBack: 14, daysForward: 7 },
+    },
+    attendance_checkin: {
+      name: 'Attendance Check-In',
+      subject: 'Checking In - {{courseName}}',
+      body: `<h2 style="margin:0 0 12px;color:#6B7280;">Checking in</h2><p>Hi {{studentName}},</p><p>I wanted to check in because I have noticed some recent attendance or participation concerns in <strong>{{courseName}}</strong>.</p><div style="background:#F5F5F5;border:1px solid #C7CDD1;padding:12px;margin:12px 0;">If something is getting in the way of attending, participating, or keeping up with the course, please reply so we can talk about next steps.</div><p>You are still part of this class, and reconnecting sooner is better than waiting.</p><p>Best,<br>{{teacherName}}</p>`,
+      daysBack: 14,
+    },
+    positive_note: {
+      name: 'Positive Note',
+      subject: 'Nice Work in {{courseName}}',
+      body: `<h2 style="margin:0 0 12px;color:#127A1B;">Nice work</h2><p>Hi {{studentName}},</p><p>I wanted to send a quick note to recognize the effort and progress you are showing in <strong>{{courseName}}</strong>.</p><div style="border-left:4px solid #127A1B;background:#ecfdf5;padding:10px 12px;margin:12px 0;">Keep protecting the habits that are helping you succeed. Consistent effort matters.</div><p>Thank you for the work you are putting in.</p><p>Best,<br>{{teacherName}}</p>`,
+      containsPersonalData: true,
+    },
+    feedback_followup: {
+      name: 'Feedback Follow-Up',
+      subject: 'Please Review Feedback in {{courseName}}',
+      body: `<h2 style="margin:0 0 12px;color:#0770B8;">Feedback follow-up</h2><p>Hi {{studentName}},</p><p>Please take a few minutes to review your recent feedback in <strong>{{courseName}}</strong>.</p><div style="background:#E8F1F8;border:1px solid #b8d4f0;padding:12px;margin:12px 0;">Feedback is most useful when you use it before the next assignment. Look for one or two specific changes you can apply right away.</div><p>If you have questions about the feedback, reply to this message.</p><p>Best,<br>{{teacherName}}</p>`,
+    },
+    office_hours_invite: {
+      name: 'Office Hours Invitation',
+      subject: 'Office Hours Invitation - {{courseName}}',
+      body: `<h2 style="margin:0 0 12px;color:#0770B8;">Let us make a plan</h2><p>Hi {{studentName}},</p><p>I would like to invite you to office hours or a quick check-in for <strong>{{courseName}}</strong>.</p><div style="border-left:4px solid #0770B8;background:#E8F1F8;padding:10px 12px;margin:12px 0;">Bring one question, one assignment, or one thing that feels unclear. We can start there.</div><p>Reply with a time that works for you, or use the office hours information posted in Canvas.</p><p>Best,<br>{{teacherName}}</p>`,
     },
     auto_late: {
       name: 'Automation: Late Work',
@@ -404,8 +437,21 @@
   function getTemplates() {
     const stored = GM_getValue(STORAGE_KEYS.TEMPLATES, null);
     if (stored) {
-      try { return { ...JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)), ...JSON.parse(stored) }; } catch(e) {}
+      try {
+        const parsed = JSON.parse(stored);
+        if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== '2') {
+          const migrated = { ...parsed };
+          for (const [key, template] of Object.entries(DEFAULT_TEMPLATES)) {
+            migrated[key] = JSON.parse(JSON.stringify(template));
+          }
+          GM_setValue(STORAGE_KEYS.TEMPLATES, JSON.stringify(migrated));
+          GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
+          return migrated;
+        }
+        return { ...JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)), ...parsed };
+      } catch(e) {}
     }
+    GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '2');
     return JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
   }
 
@@ -1289,7 +1335,6 @@
     });
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
-      if (!confirm(`Send ${generatedMessages.length} message(s) via Canvas to all listed students?`)) return;
       const btn = container.querySelector('#ces-send-all-btn');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Sending...';
       let sent = 0, failed = 0;
@@ -1673,9 +1718,19 @@
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="bold"><strong>B</strong></button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="italic"><em>I</em></button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="insertUnorderedList">List</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="insertOrderedList">1. List</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="justifyLeft">Left</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="justifyCenter">Center</button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="formatBlock" data-value="h3">Heading</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="formatBlock" data-value="h2">Title</button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" data-cmd="formatBlock" data-value="p">Text</button>
           <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-link">Link</button>
+          <button class="ces-color-swatch" type="button" title="Blue text" data-color="#0770B8" style="background:#0770B8;"></button>
+          <button class="ces-color-swatch" type="button" title="Green text" data-color="#127A1B" style="background:#127A1B;"></button>
+          <button class="ces-color-swatch" type="button" title="Red text" data-color="#BC1212" style="background:#BC1212;"></button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-highlight">Highlight</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-callout">Callout</button>
+          <button class="ces-btn ces-btn-secondary ces-btn-sm" type="button" id="ces-editor-tile">Tile</button>
         </div>
         <div class="ces-editor" id="ces-tpl-body" contenteditable="true">${bodyToEditorHtml(tpl.body)}</div>
         <div class="ces-flex-between" style="align-items:flex-end;gap:10px;">
@@ -1731,6 +1786,22 @@
         if (!url) return;
         bodyEditor.focus();
         document.execCommand('createLink', false, url);
+      });
+      container.querySelectorAll('.ces-color-swatch').forEach(btn => btn.addEventListener('click', () => {
+        bodyEditor.focus();
+        document.execCommand('foreColor', false, btn.dataset.color);
+      }));
+      container.querySelector('#ces-editor-highlight').addEventListener('click', () => {
+        bodyEditor.focus();
+        document.execCommand('backColor', false, '#fff3bf');
+      });
+      container.querySelector('#ces-editor-callout').addEventListener('click', () => {
+        bodyEditor.focus();
+        document.execCommand('insertHTML', false, '<div style="border-left:4px solid #0770B8;background:#E8F1F8;padding:10px 12px;margin:12px 0;">Type your callout here.</div>');
+      });
+      container.querySelector('#ces-editor-tile').addEventListener('click', () => {
+        bodyEditor.focus();
+        document.execCommand('insertHTML', false, '<div style="background:#F5F5F5;border:1px solid #C7CDD1;padding:12px;margin:12px 0;"><strong>Title</strong><br>Type your tile content here.</div>');
       });
       function insertAtSubject(text) {
         const start = subjectInput.selectionStart || 0;
