@@ -256,15 +256,43 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
     }
   }
 
-  const body = directUrl
+  let body = directUrl
     ? JSON.stringify({ fileUrl: directUrl, filename, mimeType })
     : JSON.stringify({ b64, filename, mimeType });
 
-  const res = await fetch(`${API_BASE}/api/parse-file`, {
+  let res = await fetch(`${API_BASE}/api/parse-file`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
   });
+
+  // If Vercel returned 400 because it doesn't yet support fileUrl (needs deploy),
+  // fall back: fetch the S3 URL directly (we now have amazonaws.com permission)
+  // and retry as base64.
+  if (res.status === 400 && directUrl) {
+    try {
+      const fallbackRes = await fetch(directUrl);
+      if (fallbackRes.ok) {
+        const buf = await fallbackRes.arrayBuffer();
+        if (buf.byteLength > 3.5 * 1024 * 1024) {
+          throw new Error(`File too large (${Math.round(buf.byteLength / 1024 / 1024)}MB) — deploy latest Vercel update`);
+        }
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        const fallbackB64 = btoa(bin);
+        res = await fetch(`${API_BASE}/api/parse-file`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ b64: fallbackB64, filename, mimeType }),
+        });
+      }
+    } catch (e) {
+      if (e.message.includes('too large')) throw e;
+      // fallback failed — fall through to original response
+    }
+  }
+
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }

@@ -213,19 +213,23 @@
     aiBtn.style.cssText = `
       position:fixed;top:${TOP_OFF + 62}px;right:${TOOLBAR_W + 8}px;
       z-index:2147483640;
-      background:#0770B8;color:#fff;border:none;border-radius:4px;
+      background:#fff;color:#2d3b45;border:1px solid #000;border-radius:4px;
       padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      box-shadow:0 2px 6px rgba(0,0,0,.25);white-space:nowrap;
-      transition:opacity .15s,background .2s;
+      box-shadow:0 2px 6px rgba(0,0,0,.15);white-space:nowrap;
+      transition:background .15s,color .15s;
     `;
-    aiBtn.addEventListener('mouseenter', () => { if (!aiBtn.disabled) aiBtn.style.opacity = '.85'; });
-    aiBtn.addEventListener('mouseleave', () => aiBtn.style.opacity = '1');
+    aiBtn._baseBg = '#fff';
+    aiBtn.addEventListener('mouseenter', () => { if (!aiBtn.disabled) aiBtn.style.background = '#f5f5f5'; });
+    aiBtn.addEventListener('mouseleave', () => { if (!aiBtn.disabled) aiBtn.style.background = aiBtn._baseBg || '#fff'; });
 
     let _grading = false;
-    function resetBtn(label, bg) {
+    function resetBtn(label, bg, color, border) {
       aiBtn.textContent = label || '✦ AI Grade';
-      aiBtn.style.background = bg || '#0770B8';
+      aiBtn._baseBg = bg || '#fff';
+      aiBtn.style.background = bg || '#fff';
+      aiBtn.style.color = color || '#2d3b45';
+      aiBtn.style.border = border || '1px solid #000';
       aiBtn.disabled = false;
       _grading = false;
     }
@@ -282,11 +286,17 @@
 
         fillFields(text, criteria);
         aiBtn.textContent = '✓ Review & Submit';
+        aiBtn._baseBg = '#27AE60';
         aiBtn.style.background = '#27AE60';
+        aiBtn.style.color = '#fff';
+        aiBtn.style.border = '1px solid #27AE60';
         setTimeout(() => resetBtn(), 4000);
       } catch(e) {
         aiBtn.textContent = '⚠ ' + e.message.slice(0, 30);
+        aiBtn._baseBg = '#C0392B';
         aiBtn.style.background = '#C0392B';
+        aiBtn.style.color = '#fff';
+        aiBtn.style.border = '1px solid #C0392B';
         setTimeout(() => resetBtn(), 4000);
       }
     });
