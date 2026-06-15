@@ -170,6 +170,26 @@
     }
     .ces-editor:focus { border-color: #0770B8; box-shadow: 0 0 0 2px rgba(7,112,184,.12); }
     .ces-variable-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+    .ces-course-list {
+      border: 1px solid #C7CDD1; border-radius: 3px;
+      max-height: 210px; overflow-y: auto; background: #fff;
+    }
+    .ces-course-option {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 8px 10px; border-bottom: 1px solid #eef1f3;
+      font-size: 13px;
+    }
+    .ces-course-option:last-child { border-bottom: none; }
+    .ces-recipient-list {
+      border: 1px solid #C7CDD1; border-radius: 3px;
+      max-height: 240px; overflow-y: auto; background: #fff;
+    }
+    .ces-recipient-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 10px; border-bottom: 1px solid #eef1f3;
+      font-size: 13px;
+    }
+    .ces-recipient-row:last-child { border-bottom: none; }
     @keyframes ces-spin { to { transform: rotate(360deg); } }
   `;
   document.head.appendChild(_style);
@@ -299,7 +319,11 @@
      DATA FETCHERS
   ========================================================= */
   async function getCourses() {
-    return canvasGet('/courses?enrollment_type=teacher&state[]=available&include[]=term');
+    return canvasGet('/courses?enrollment_type=teacher&state[]=available&state[]=created&include[]=term&include[]=favorites');
+  }
+  async function getDashboardCourseIds() {
+    const cards = await canvasGet('/dashboard/dashboard_cards');
+    return new Set(cards.map(card => String(card.id || card.course_id)).filter(Boolean));
   }
   async function getStudents(courseId) {
     return canvasGet(`/courses/${courseId}/users?enrollment_type[]=student&include[]=email&include[]=enrollments`);
@@ -899,6 +923,7 @@
      UI CONSTRUCTION
   ========================================================= */
   let cachedCourses = null;
+  let cachedDashboardCourseIds = null;
   let generatedMessages = [];
   let currentCourseId = null;
   let _overlay = null;
@@ -942,7 +967,7 @@
 
   async function renderSendTab(container) {
     const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
-    const lastCourse  = GM_getValue(STORAGE_KEYS.LAST_COURSE, '');
+    const lastCourses = String(GM_getValue(STORAGE_KEYS.LAST_COURSE, '') || '').split(',').filter(Boolean);
     const templates = getTemplates();
     const visibleTemplates = getVisibleTemplateEntries(templates);
     const firstTemplateType = visibleTemplates[0]?.[0] || 'upcoming';
@@ -957,15 +982,23 @@
       <div id="ces-status-area"></div>
       <label class="ces-label">Teacher Name</label>
       <input type="text" class="ces-input" id="ces-teacher-name" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
-      <label class="ces-label">Select Course</label>
-      <select class="ces-select" id="ces-course-select"><option value="">Loading courses...</option></select>
+      <label class="ces-label">Classes</label>
+      <div class="ces-grid-2">
+        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-published" checked> Published only</label>
+        <label class="ces-checkbox-row" style="margin-top:0;"><input type="checkbox" id="ces-filter-dashboard"> Dashboard only</label>
+      </div>
+      <div class="ces-flex-between ces-mt" style="gap:8px;">
+        <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-select-all-courses">Select All</button>
+        <button class="ces-btn ces-btn-secondary ces-btn-sm" id="ces-clear-courses">Clear</button>
+      </div>
+      <div id="ces-course-list" class="ces-course-list ces-mt"><div class="ces-status ces-status-info" style="margin:8px;">Loading classes...</div></div>
       <label class="ces-label">Email Type</label>
       <div class="ces-grid-2" id="ces-type-cards">
         ${templateCards}
       </div>
       <div id="ces-template-rule" class="ces-status ces-status-info ces-mt"></div>
       <div class="ces-checkbox-row"><input type="checkbox" id="ces-announce-check"><label for="ces-announce-check" id="ces-announce-label">Also post as Canvas Announcement</label></div>
-      <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Generate Messages</button></div>
+      <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-generate-btn">&#128269; Build Selected Template</button></div>
       <div id="ces-progress-area" style="display:none;" class="ces-mt">
         <div class="ces-status ces-status-info" id="ces-progress-text">Fetching data...</div>
         <div class="ces-progress"><div class="ces-progress-bar" id="ces-progress-bar" style="width:0%"></div></div>
@@ -973,50 +1006,59 @@
       <div id="ces-messages-area" class="ces-mt"></div>
     `;
 
-    loadCourses(lastCourse);
+    const selectedCourseIds = new Set(lastCourses);
+    await renderCourseChecklist(selectedCourseIds);
+    container.querySelector('#ces-filter-published').addEventListener('change', () => renderCourseChecklist(selectedCourseIds));
+    container.querySelector('#ces-filter-dashboard').addEventListener('change', () => renderCourseChecklist(selectedCourseIds));
+    container.querySelector('#ces-select-all-courses').addEventListener('click', async () => {
+      const visibleCourses = await getVisibleCoursesForSend();
+      visibleCourses.forEach(course => selectedCourseIds.add(String(course.id)));
+      renderCourseChecklist(selectedCourseIds);
+    });
+    container.querySelector('#ces-clear-courses').addEventListener('click', () => {
+      selectedCourseIds.clear();
+      renderCourseChecklist(selectedCourseIds);
+    });
 
     let selectedType = firstTemplateType;
     const typeCards = container.querySelectorAll('#ces-type-cards .ces-card');
-    typeCards.forEach(card => {
-      card.addEventListener('click', () => {
-        typeCards.forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedType = card.dataset.type;
-        updateAnnouncementAvailability(selectedType);
-      });
-    });
-
-    container.querySelector('#ces-generate-btn').addEventListener('click', async () => {
-      const courseSelect = container.querySelector('#ces-course-select');
-      const courseId = courseSelect.value;
-      const courseName = courseSelect.options[courseSelect.selectedIndex]?.text || '';
+    const buildMessagesForSelection = async () => {
+      const visibleCourses = await getVisibleCoursesForSend();
+      const selectedCourses = visibleCourses.filter(course => selectedCourseIds.has(String(course.id)));
       const currentTeacherName = container.querySelector('#ces-teacher-name').value.trim();
-      if (!courseId) { showStatus('Please select a course.', 'error'); return; }
+      if (!selectedCourses.length) { showStatus('Please select at least one class.', 'error'); return; }
       if (!currentTeacherName) { showStatus('Please enter your teacher name.', 'error'); return; }
       GM_setValue(STORAGE_KEYS.TEACHER_NAME, currentTeacherName);
 
-      currentCourseId = courseId;
-      GM_setValue(STORAGE_KEYS.LAST_COURSE, courseId);
+      currentCourseId = selectedCourses[0].id;
+      GM_setValue(STORAGE_KEYS.LAST_COURSE, selectedCourses.map(course => course.id).join(','));
       const selectedTemplate = getTemplates()[selectedType];
       const timing = normalizeTemplateTiming(selectedTemplate);
 
       const btn = container.querySelector('#ces-generate-btn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="ces-spinner"></span> Generating...';
+      btn.innerHTML = '<span class="ces-spinner"></span> Building...';
 
       const progressArea = container.querySelector('#ces-progress-area');
       progressArea.style.display = 'block';
       setProgress('Fetching student data from Canvas...', 10);
 
       try {
-        generatedMessages = await generateMessages(courseId, courseName, selectedType, timing.daysForward, timing.daysBack, currentTeacherName);
+        generatedMessages = [];
+        for (let i = 0; i < selectedCourses.length; i++) {
+          const course = selectedCourses[i];
+          const courseName = course.name + (course.term ? ` (${course.term.name})` : '');
+          setProgress(`Building messages for ${course.name}...`, Math.round(((i + 0.25) / selectedCourses.length) * 100));
+          const courseMessages = await generateMessages(course.id, courseName, selectedType, timing.daysForward, timing.daysBack, currentTeacherName);
+          generatedMessages.push(...courseMessages.map(message => ({ ...message, courseId: course.id, courseName })));
+        }
         setProgress('Done!', 100);
         if (generatedMessages.length === 0) {
           showStatus('No messages to send. No students matched the criteria for ' + selectedType + '.', 'info');
           container.querySelector('#ces-messages-area').innerHTML = '';
         } else {
           showStatus(`Generated ${generatedMessages.length} message(s). Review below and send.`, 'success');
-          renderMessagesList(container.querySelector('#ces-messages-area'), courseId, courseName, selectedType);
+          renderMessagesList(container.querySelector('#ces-messages-area'), selectedCourses, selectedType);
         }
       } catch(err) {
         showStatus('Error: ' + err.message, 'error');
@@ -1024,9 +1066,21 @@
       }
 
       btn.disabled = false;
-      btn.innerHTML = '&#128269; Generate Messages';
+      btn.innerHTML = '&#128269; Build Selected Template';
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
+    };
+
+    typeCards.forEach(card => {
+      card.addEventListener('click', () => {
+        typeCards.forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        selectedType = card.dataset.type;
+        updateAnnouncementAvailability(selectedType);
+        buildMessagesForSelection();
+      });
     });
+
+    container.querySelector('#ces-generate-btn').addEventListener('click', buildMessagesForSelection);
 
     updateAnnouncementAvailability(firstTemplateType);
   }
@@ -1057,21 +1111,56 @@
     }
   }
 
-  async function loadCourses(lastCourse) {
-    const select = document.getElementById('ces-course-select');
-    if (!select) return;
+  function isPublishedCourse(course) {
+    return course.workflow_state === 'available' || course.published === true;
+  }
+
+  async function getVisibleCoursesForSend() {
+    if (!cachedCourses) cachedCourses = await getCourses();
+    const publishedOnly = document.getElementById('ces-filter-published')?.checked;
+    const dashboardOnly = document.getElementById('ces-filter-dashboard')?.checked;
+    if (dashboardOnly && !cachedDashboardCourseIds) {
+      cachedDashboardCourseIds = await getDashboardCourseIds();
+    }
+    return cachedCourses.filter(course => {
+      if (publishedOnly && !isPublishedCourse(course)) return false;
+      if (dashboardOnly && !cachedDashboardCourseIds.has(String(course.id))) return false;
+      return true;
+    });
+  }
+
+  async function renderCourseChecklist(selectedCourseIds) {
+    const list = document.getElementById('ces-course-list');
+    if (!list) return;
+    list.innerHTML = '<div class="ces-status ces-status-info" style="margin:8px;">Loading classes...</div>';
     try {
-      if (!cachedCourses) cachedCourses = await getCourses();
-      select.innerHTML = '<option value="">-- Select a course --</option>';
-      cachedCourses.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.name + (c.term ? ` (${c.term.name})` : '');
-        if (String(c.id) === String(lastCourse)) opt.selected = true;
-        select.appendChild(opt);
+      const courses = await getVisibleCoursesForSend();
+      if (!courses.length) {
+        list.innerHTML = '<div class="ces-status ces-status-info" style="margin:8px;">No classes match the current filters.</div>';
+        return;
+      }
+      list.innerHTML = courses.map(course => {
+        const id = String(course.id);
+        const term = course.term ? ` (${course.term.name})` : '';
+        const state = isPublishedCourse(course) ? 'Published' : 'Unpublished';
+        return `
+          <label class="ces-course-option">
+            <input type="checkbox" class="ces-course-check" value="${escapeAttr(id)}" ${selectedCourseIds.has(id) ? 'checked' : ''}>
+            <span>
+              <strong>${escapeHtml(course.name || 'Untitled Class')}</strong>${escapeHtml(term)}
+              <div style="font-size:12px;color:#6b7280;margin-top:2px;">${state}</div>
+            </span>
+          </label>
+        `;
+      }).join('');
+      list.querySelectorAll('.ces-course-check').forEach(check => {
+        check.addEventListener('change', () => {
+          if (check.checked) selectedCourseIds.add(check.value);
+          else selectedCourseIds.delete(check.value);
+        });
       });
     } catch(err) {
-      select.innerHTML = '<option value="">Error loading courses</option>';
+      list.innerHTML = `<div class="ces-status ces-status-error" style="margin:8px;">Error loading classes: ${escapeHtml(err.message)}</div>`;
     }
   }
 
@@ -1089,29 +1178,42 @@
     if (barEl)  barEl.style.width = pct + '%';
   }
 
-  function renderMessagesList(container, courseId, courseName, emailType) {
+  function renderMessagesList(container, selectedCourses, emailType) {
     const announceCheck = document.getElementById('ces-announce-check');
     const templates = getTemplates();
     const tpl = templates[emailType];
     const timing = normalizeTemplateTiming(tpl);
     const includeAnnouncement = announceCheck && announceCheck.checked && !templateHasPersonalData(tpl);
+    const preview = generatedMessages[0];
 
-    let html = `<div class="ces-flex-between ces-mb"><strong>${generatedMessages.length} message(s) ready</strong><div style="display:flex;gap:8px;"><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div></div>`;
+    let html = `
+      <div class="ces-flex-between ces-mb">
+        <strong>${generatedMessages.length} recipient(s) ready</strong>
+        <div style="display:flex;gap:8px;"><button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All via Canvas Message</button></div>
+      </div>
+      <div class="ces-msg-row">
+        <div class="ces-msg-header"><span class="ces-msg-name">Email Preview</span></div>
+        <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(preview.subject)}</div>
+        <div class="ces-msg-body">${renderBodyForPreview(preview.body)}</div>
+      </div>
+      <label class="ces-label">Recipients</label>
+      <div class="ces-recipient-list">
+    `;
     generatedMessages.forEach((msg, i) => {
       html += `
-        <div class="ces-msg-row" id="ces-msg-${i}">
-          <div class="ces-msg-header">
-            <span class="ces-msg-name">${escapeHtml(msg.studentName)}</span>
-            <div class="ces-msg-actions">
-              <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
-              <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Open in Compose</button>
-            </div>
+        <div class="ces-recipient-row" id="ces-msg-${i}">
+          <div>
+            <strong>${escapeHtml(msg.studentName)}</strong>
+            <div style="font-size:12px;color:#6b7280;">${escapeHtml(msg.courseName || '')}</div>
           </div>
-          <div class="ces-msg-subject"><strong>Subject:</strong> ${escapeHtml(msg.subject)}</div>
-          <div class="ces-msg-body">${renderBodyForPreview(msg.body)}</div>
+          <div class="ces-msg-actions">
+            <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-compose-one" data-idx="${i}">&#128221; Open in Compose</button>
+          </div>
         </div>
       `;
     });
+    html += '</div>';
     container.innerHTML = html;
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
@@ -1123,7 +1225,7 @@
         const msg = generatedMessages[i];
         const row = container.querySelector(`#ces-msg-${i}`);
         try {
-          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
+          await sendCanvasMessage(msg.courseId, msg.studentId, msg.subject, msg.body);
           sent++;
           if (row) row.style.background = '#ecfdf5';
         } catch(err) {
@@ -1132,24 +1234,29 @@
         }
       }
       if (includeAnnouncement) {
-        try {
-          await postAnnouncement(courseId,
-            tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
-            tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
-                    .replace(/\{\{courseName\}\}/g, courseName)
-                    .replace(/\{\{studentName\}\}/g, 'Students')
-                    .replace(/\{\{assignmentList\}\}/g, '(see your individual message)')
-                    .replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
-                    .replace(/\{\{currentGrade\}\}/g, '(see your individual message)')
-                    .replace(/\{\{currentScore\}\}/g, '(see your individual message)')
-                    .replace(/\{\{daysForward\}\}/g, String(timing.daysForward))
-                    .replace(/\{\{daysBack\}\}/g, String(timing.daysBack))
-                    .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
-          );
-          showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Announcement posted!`, 'success');
-        } catch(err) {
-          showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Announcement failed: ${err.message}`, 'error');
+        let posted = 0, announcementFailed = 0;
+        for (const course of selectedCourses) {
+          const courseName = course.name + (course.term ? ` (${course.term.name})` : '');
+          try {
+            await postAnnouncement(course.id,
+              tpl.subject.replace(/\{\{courseName\}\}/g, courseName),
+              tpl.body.replace(/\{\{teacherName\}\}/g, GM_getValue(STORAGE_KEYS.TEACHER_NAME, ''))
+                      .replace(/\{\{courseName\}\}/g, courseName)
+                      .replace(/\{\{studentName\}\}/g, 'Students')
+                      .replace(/\{\{assignmentList\}\}/g, '(see your individual message)')
+                      .replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
+                      .replace(/\{\{currentGrade\}\}/g, '(see your individual message)')
+                      .replace(/\{\{currentScore\}\}/g, '(see your individual message)')
+                      .replace(/\{\{daysForward\}\}/g, String(timing.daysForward))
+                      .replace(/\{\{daysBack\}\}/g, String(timing.daysBack))
+                      .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
+            );
+            posted++;
+          } catch(err) {
+            announcementFailed++;
+          }
         }
+        showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}. Posted ${posted} announcement(s)${announcementFailed ? `, ${announcementFailed} failed` : ''}.`, announcementFailed ? 'error' : 'success');
       } else {
         showStatus(`Sent ${sent} message(s)${failed ? `, ${failed} failed` : ''}.`, sent > 0 ? 'success' : 'error');
       }
@@ -1162,7 +1269,7 @@
         const msg = generatedMessages[idx];
         btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
         try {
-          await sendCanvasMessage(courseId, msg.studentId, msg.subject, msg.body);
+          await sendCanvasMessage(msg.courseId, msg.studentId, msg.subject, msg.body);
           btn.innerHTML = '&#10003; Sent'; btn.classList.remove('ces-btn-primary'); btn.style.background = '#059669';
           const row = document.querySelector(`#ces-msg-${idx}`);
           if (row) row.style.background = '#ecfdf5';
@@ -1179,7 +1286,7 @@
         const msg = generatedMessages[idx];
         const composeUrl = `${CANVAS_BASE}/conversations#filter=type=inbox&user_name=${encodeURIComponent(msg.studentName)}&user_id=${msg.studentId}`;
         window.open(composeUrl, '_blank');
-        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.body, courseId }));
+        GM_setValue('ces_compose_pending', JSON.stringify({ recipientId: msg.studentId, recipientName: msg.studentName, subject: msg.subject, body: msg.body, courseId: msg.courseId }));
         showStatus(`Compose window opened for ${msg.studentName}. Click "Insert Message" on the compose page.`, 'info');
       });
     });
