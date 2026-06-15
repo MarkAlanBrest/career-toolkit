@@ -2,7 +2,7 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -228,6 +228,7 @@
     LAST_COURSE:  'ces_last_course',
     SEND_SETTINGS: 'ces_send_settings',
     QUICK_MESSAGES: 'ces_quick_messages',
+    QUICK_MESSAGES_VERSION: 'ces_quick_messages_version',
     AUTOMATIONS:  'ces_automations',
     AUTO_LOGS:    'ces_automation_logs',
   };
