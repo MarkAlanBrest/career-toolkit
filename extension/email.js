@@ -1986,14 +1986,7 @@
       const composeBtn = document.querySelector('[data-testid="compose"], .ic-Layout-contentMain button[aria-label="Compose"], #compose-btn, a[href="#compose"]');
       if (composeBtn) composeBtn.click();
       setTimeout(() => {
-        const subjectInput = document.querySelector('input[name="subject"], input[placeholder*="Subject"], #compose-message-subject');
-        if (subjectInput) { subjectInput.value = data.subject; subjectInput.dispatchEvent(new Event('input', { bubbles: true })); }
-        const bodyInput = document.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [role="textbox"]');
-        if (bodyInput) {
-          if (bodyInput.tagName === 'TEXTAREA') { bodyInput.value = data.body; }
-          else { bodyInput.innerHTML = data.body.replace(/\n/g, '<br>'); }
-          bodyInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
+        insertIntoCompose(data.subject, data.body);
         GM_setValue('ces_compose_pending', '');
         bar.innerHTML = `<span>&#10003; Message inserted! Review and click Send when ready.</span><button id="ces-dismiss2" style="padding:6px 14px;background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;">Dismiss</button>`;
         bar.querySelector('#ces-dismiss2').addEventListener('click', () => bar.remove());
