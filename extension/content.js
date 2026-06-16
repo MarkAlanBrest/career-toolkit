@@ -878,13 +878,33 @@
     return /^\/courses\/\d+\/quizzes(?:\/|$)/.test(window.location.pathname);
   }
 
+  function isVisibleElement(el) {
+    const style = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function normalizeText(text) {
+    return text?.replace(/\s+/g, ' ').trim() || '';
+  }
+
   function findQuizToolbarButton() {
-    const labels = [/^\s*\+\s*Quiz\b/i, /^\s*Add\s+Quiz\b/i, /^\s*\+\s*New\s*Quiz\b/i];
-    const candidates = Array.from(document.querySelectorAll('button, a'));
-    return candidates.find(el => {
-      const text = el.textContent?.trim();
-      return text && labels.some(rx => rx.test(text));
+    const candidates = Array.from(document.querySelectorAll('button, a, [role="button"]'))
+      .filter(el => el instanceof HTMLElement && isVisibleElement(el));
+
+    const exact = candidates.find(el => {
+      const text = normalizeText(el.textContent);
+      return /\+\s*Quiz\b/i.test(text) || /Add\s+Quiz\b/i.test(text) || /\+\s*New\s*Quiz\b/i.test(text);
     });
+    if (exact) return exact;
+
+    const fuzzy = candidates.find(el => {
+      const text = normalizeText(el.textContent);
+      return /quiz/i.test(text) && /\b(add|new|create|\+)\b/i.test(text);
+    });
+    if (fuzzy) return fuzzy;
+
+    return candidates.find(el => /quiz/i.test(normalizeText(el.textContent)));
   }
 
   function removeQuizBuilderPageButton() {
@@ -907,24 +927,21 @@
     const button = document.createElement('button');
     button.id = 'ce-quiz-builder-btn';
     button.type = 'button';
-    button.textContent = 'Quiz Builder';
+    button.textContent = '+ Quiz Builder';
     button.onclick = e => {
       e.stopPropagation();
       document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
     };
 
-    if (target.className) {
-      button.className = target.className;
-    }
     button.style.marginLeft = '8px';
     button.style.whiteSpace = 'nowrap';
     button.style.minWidth = 'auto';
-    button.style.padding = '8px 12px';
+    button.style.padding = '8px 14px';
     button.style.borderRadius = '4px';
     button.style.border = '1px solid #0770B8';
     button.style.background = '#0770B8';
     button.style.color = '#fff';
-    button.style.fontWeight = '600';
+    button.style.fontWeight = '700';
     button.style.cursor = 'pointer';
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
@@ -935,7 +952,12 @@
     button.addEventListener('mouseenter', () => button.style.background = '#055A96');
     button.addEventListener('mouseleave', () => button.style.background = '#0770B8');
 
-    target.insertAdjacentElement('afterend', button);
+    const sibling = target.closest('div') || target.parentElement;
+    if (sibling && sibling.contains(target)) {
+      sibling.insertAdjacentElement('beforeend', button);
+    } else {
+      target.insertAdjacentElement('afterend', button);
+    }
   }
 
   function wireQuizPageNavigation() {
