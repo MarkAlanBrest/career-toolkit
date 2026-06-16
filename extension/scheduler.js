@@ -95,6 +95,59 @@
     return meta ? meta.getAttribute('content') : '';
   }
 
+  function getHolidayName(dateKey) {
+    const [year, month, day] = String(dateKey).split('-').map(Number);
+
+    // Fixed-date holidays
+    const fixed = {
+      '01-01': "New Year's Day",
+      '01-15': null, // MLK lower bound guard
+      '06-19': 'Juneteenth',
+      '07-04': 'Independence Day',
+      '11-11': 'Veterans Day',
+      '12-24': 'Christmas Eve',
+      '12-25': 'Christmas Day',
+      '12-31': "New Year's Eve",
+    };
+    const mmdd = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (fixed[mmdd] !== undefined) return fixed[mmdd] || null;
+
+    function nthWeekday(y, m, wd, n) {
+      const first = new Date(y, m - 1, 1);
+      const offset = (wd - first.getDay() + 7) % 7;
+      return 1 + offset + (n - 1) * 7;
+    }
+    function lastWeekday(y, m, wd) {
+      const last = new Date(y, m, 0);
+      return last.getDate() - (last.getDay() - wd + 7) % 7;
+    }
+
+    if (month === 1  && day === nthWeekday(year, 1,  1, 3)) return 'MLK Day';
+    if (month === 2  && day === nthWeekday(year, 2,  1, 3)) return "Presidents' Day";
+    if (month === 5  && day === lastWeekday(year, 5,  1))   return 'Memorial Day';
+    if (month === 9  && day === nthWeekday(year, 9,  1, 1)) return 'Labor Day';
+    if (month === 10 && day === nthWeekday(year, 10, 1, 2)) return 'Columbus Day';
+    if (month === 11) {
+      const tgiving = nthWeekday(year, 11, 4, 4);
+      if (day === tgiving)     return 'Thanksgiving';
+      if (day === tgiving + 1) return 'Day After Thanksgiving';
+    }
+
+    // Easter / Good Friday
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m2 = Math.floor((a + 11 * h + 22 * l) / 451);
+    const eMonth = Math.floor((h + l - 7 * m2 + 114) / 31);
+    const eDay   = (h + l - 7 * m2 + 114) % 31 + 1;
+    const gfMonth = eMonth - (eDay <= 2 ? 1 : 0);
+    const gfDay   = eDay <= 2 ? new Date(year, eMonth - 1, 0).getDate() + eDay - 2 : eDay - 2;
+    if (month === gfMonth && day === gfDay) return 'Good Friday';
+
+    return null;
+  }
+
   function escHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -576,6 +629,7 @@
 
     rightBody.innerHTML = state.generatedDateKeys.length ? state.generatedDateKeys.map((dateKey) => {
       const items = getItemsForDate(dateKey);
+      const holiday = getHolidayName(dateKey);
       return `
         <section class="csch-date-col">
           <div class="csch-date-head">
@@ -584,6 +638,7 @@
               <div class="csch-date-count">${items.length}</div>
             </div>
             <div class="csch-date-sub">${escHtml(formatFullDateLabel(dateKey))}</div>
+            ${holiday ? `<div class="csch-holiday-badge">${escHtml(holiday)}</div>` : ''}
           </div>
           <div class="csch-dropzone csch-date-drop" data-csch-drop-date="${dateKey}">
             ${items.length ? items.map((item) => {
@@ -676,6 +731,13 @@
   }
 
   function openApp() {
+    const urlCourseId = getCourseId();
+    if (urlCourseId && urlCourseId !== state.selectedCourseId) {
+      state.selectedCourseId = urlCourseId;
+      state.items = [];
+      state.schedule = {};
+      state.modules = [];
+    }
     app.classList.add('open');
     state.open = true;
     if (!state.items.length && !state.loading) loadCourseData();
@@ -1296,6 +1358,23 @@
     .csch-date-head-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .csch-date-title { font-size: 13px; font-weight: 700; color: #2D3B45; line-height: 1.15; }
     .csch-date-sub { margin-top: 2px; font-size: 10px; color: #6B7280; line-height: 1.2; }
+
+    .csch-holiday-badge {
+      margin-top: 4px;
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
 
     .csch-date-count {
       padding: 2px 7px;
