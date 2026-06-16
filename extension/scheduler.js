@@ -112,6 +112,9 @@
     notice: '',
     noticeType: 'info',
     courseId: null,
+    selectedCourseId: getCourseId() || null,
+    allCourses: [],
+    dashboardIds: new Set(),
     draggedItemId: null,
     slotCount: Math.max(12, Number(savedSettings.slotCount) || 12),
     settings: {
@@ -347,8 +350,8 @@
   }
 
   async function loadCourseData() {
-    const courseId = getCourseId();
-    if (!courseId) { setNotice('Open a Canvas course first.', 'err'); return; }
+    const courseId = state.selectedCourseId || getCourseId();
+    if (!courseId) { setNotice('Select a course from the dropdown above.', 'err'); return; }
     state.loading = true;
     state.courseId = courseId;
     setNotice('Loading course items from Canvas...', 'info');
@@ -604,6 +607,41 @@
     state.open = true;
     if (!state.items.length && !state.loading) loadCourseData();
     render();
+    loadCoursesForSelector();
+  }
+
+  async function loadCoursesForSelector() {
+    if (state.allCourses.length) { renderCourseOptions(); return; }
+    try {
+      const [courses, dashCards] = await Promise.all([
+        canvasList('/api/v1/courses?enrollment_type=teacher&per_page=100'),
+        canvasList('/api/v1/dashboard/dashboard_cards'),
+      ]);
+      state.allCourses  = courses || [];
+      state.dashboardIds = new Set((dashCards || []).map(d => String(d.id)));
+      renderCourseOptions();
+    } catch (e) { /* non-fatal */ }
+  }
+
+  function renderCourseOptions() {
+    const sel    = document.getElementById('csch-course-sel');
+    if (!sel) return;
+    const cbPub  = document.getElementById('csch-cb-published');
+    const cbDash = document.getElementById('csch-cb-dashboard');
+    const prev   = sel.value || String(state.selectedCourseId || getCourseId() || '');
+    sel.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value = ''; ph.textContent = '— select course —';
+    sel.appendChild(ph);
+    for (const c of state.allCourses) {
+      if (cbPub?.checked  && c.workflow_state !== 'available') continue;
+      if (cbDash?.checked && !state.dashboardIds.has(String(c.id))) continue;
+      const o = document.createElement('option');
+      o.value = String(c.id); o.textContent = c.course_code || c.name;
+      if (String(c.id) === prev) o.selected = true;
+      sel.appendChild(o);
+    }
+    if (sel.value) state.selectedCourseId = sel.value;
   }
 
   function closeApp() {
@@ -619,7 +657,20 @@
     <div id="csch-shell">
       <div id="csch-topbar">
         <div id="csch-tb-controls">
-          <span id="csch-toolbar-status" class="csch-toolbar-status csch-toolbar-status-info">Open a course to load items</span>
+          <div class="csch-tb-group">
+            <div class="csch-tb-label">Course</div>
+            <div class="csch-tb-checks">
+              <label class="csch-cb-lbl"><input type="checkbox" id="csch-cb-published" checked> Published</label>
+              <label class="csch-cb-lbl"><input type="checkbox" id="csch-cb-dashboard" checked> Dashboard</label>
+            </div>
+            <select id="csch-course-sel" class="csch-course-sel">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+
+          <div class="csch-tb-divider"></div>
+
+          <span id="csch-toolbar-status" class="csch-toolbar-status csch-toolbar-status-info">Select a course to load items</span>
 
           <div class="csch-tb-divider"></div>
 
@@ -691,6 +742,15 @@
 
   document.getElementById('csch-close-btn').addEventListener('click', closeApp);
   document.getElementById('csch-load-btn').addEventListener('click', loadCourseData);
+  document.getElementById('csch-course-sel').addEventListener('change', (e) => {
+    state.selectedCourseId = e.target.value || null;
+    if (state.selectedCourseId) {
+      state.items = []; state.schedule = {}; state.modules = [];
+      loadCourseData();
+    }
+  });
+  document.getElementById('csch-cb-published').addEventListener('change', renderCourseOptions);
+  document.getElementById('csch-cb-dashboard').addEventListener('change', renderCourseOptions);
   document.getElementById('csch-publish-btn').addEventListener('click', publishSchedule);
   document.getElementById('csch-more-dates-btn').addEventListener('click', () => {
     state.slotCount += 6;
@@ -856,6 +916,38 @@
     .csch-toolbar-status-info { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
     .csch-toolbar-status-ok   { background: rgba(18,122,27,0.35);  color: #d1fae5; border: 1px solid rgba(18,122,27,0.5); }
     .csch-toolbar-status-err  { background: rgba(188,18,18,0.35);  color: #fee2e2; border: 1px solid rgba(188,18,18,0.5); }
+
+    .csch-course-sel {
+      display: block;
+      margin-top: 3px;
+      padding: 4px 6px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      cursor: pointer;
+      outline: none;
+      max-width: 240px;
+    }
+    .csch-course-sel option { background: #394B58; color: #fff; }
+    .csch-course-sel:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.2); }
+
+    .csch-tb-checks {
+      display: flex;
+      gap: 10px;
+    }
+
+    .csch-cb-lbl {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.72);
+      cursor: pointer;
+      user-select: none;
+    }
+    .csch-cb-lbl input { margin: 0; cursor: pointer; }
 
     .csch-weekdays { display: flex; gap: 3px; flex-wrap: wrap; }
 
