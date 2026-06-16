@@ -95,13 +95,6 @@
     return meta ? meta.getAttribute('content') : '';
   }
 
-  function makeOvrOptions(selected, max) {
-    const n = Number(selected);
-    return Array.from({ length: (max || 14) + 1 }, (_, i) =>
-      `<option value="${i}"${i === n ? ' selected' : ''}>${i}</option>`
-    ).join('');
-  }
-
   function escHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -606,18 +599,15 @@
                   <div class="csch-ovr-cols">
                     <div class="csch-ovr-col">
                       <span class="csch-ovr-col-lbl">Opens</span>
-                      <select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore">${makeOvrOptions(openVal)}</select>
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" value="${openVal}">
                     </div>
                     <div class="csch-ovr-col">
                       <span class="csch-ovr-col-lbl">Locks</span>
-                      <select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter">${makeOvrOptions(lockVal)}</select>
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" value="${lockVal}">
                     </div>
                     <div class="csch-ovr-col">
                       <span class="csch-ovr-col-lbl">Answers</span>
-                      ${item.quizId
-                        ? `<select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter">${makeOvrOptions(ansVal)}</select>`
-                        : `<select class="csch-ovr-sel" disabled><option>—</option></select>`
-                      }
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" value="${item.quizId ? ansVal : ''}">
                     </div>
                   </div>
                   ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}">↺ reset</button>` : ''}
@@ -664,16 +654,16 @@
       });
       btn.addEventListener('mousedown', (e) => e.stopPropagation());
     });
-    document.querySelectorAll('.csch-ovr-sel').forEach((sel) => {
-      sel.addEventListener('change', (e) => {
+    document.querySelectorAll('.csch-ovr-num').forEach((input) => {
+      input.addEventListener('change', (e) => {
         const id  = e.target.getAttribute('data-ovr-id');
         const key = e.target.getAttribute('data-ovr-key');
         if (!id || !key) return;
         setItemOverride(id, key, normalizeInt(e.target.value, state.settings[key]));
         render();
       });
-      sel.addEventListener('mousedown', (e) => e.stopPropagation());
-      sel.addEventListener('click',     (e) => e.stopPropagation());
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('click',     (e) => e.stopPropagation());
     });
     document.querySelectorAll('.csch-ovr-reset').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -1086,9 +1076,9 @@
       white-space: nowrap;
     }
 
-    .csch-ovr-sel {
+    .csch-ovr-num {
       width: 44px;
-      padding: 2px 2px;
+      padding: 2px 3px;
       border: 1px solid #D1D5DB;
       border-radius: 2px;
       font-size: 11px;
@@ -1096,10 +1086,11 @@
       color: #374151;
       text-align: center;
       background: #F9FAFB;
-      cursor: pointer;
+      -moz-appearance: textfield;
     }
-    .csch-ovr-sel:focus { outline: none; border-color: #2563EB; }
-    .csch-ovr-sel:disabled { color: #9CA3AF; cursor: default; background: #F3F4F6; }
+    .csch-ovr-num::-webkit-inner-spin-button,
+    .csch-ovr-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .csch-ovr-num:focus { outline: none; border-color: #2563EB; background: #fff; }
 
     .csch-ovr-reset {
       font-size: 9px;
