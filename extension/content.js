@@ -919,15 +919,21 @@
     button.style.marginLeft = '8px';
     button.style.whiteSpace = 'nowrap';
     button.style.minWidth = 'auto';
-    if (!button.className) {
-      button.style.padding = '8px 12px';
-      button.style.borderRadius = '4px';
-      button.style.border = '1px solid transparent';
-      button.style.background = '#0770B8';
-      button.style.color = '#fff';
-      button.style.fontWeight = '600';
-      button.style.cursor = 'pointer';
-    }
+    button.style.padding = '8px 12px';
+    button.style.borderRadius = '4px';
+    button.style.border = '1px solid #0770B8';
+    button.style.background = '#0770B8';
+    button.style.color = '#fff';
+    button.style.fontWeight = '600';
+    button.style.cursor = 'pointer';
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.lineHeight = '1.2';
+    button.style.fontSize = '13px';
+    button.style.transition = 'background .15s ease';
+    button.addEventListener('mouseenter', () => button.style.background = '#055A96');
+    button.addEventListener('mouseleave', () => button.style.background = '#0770B8');
 
     target.insertAdjacentElement('afterend', button);
   }
