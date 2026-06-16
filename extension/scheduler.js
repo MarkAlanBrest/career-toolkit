@@ -11,6 +11,12 @@
     Test: '#0f766e'
   };
 
+  const MODULE_PALETTE = [
+    '#C0392B', '#D35400', '#1A7A4A', '#6C3483',
+    '#1566A0', '#C0175C', '#0A7E78', '#8A6914',
+    '#2471A3', '#7D3C98', '#117A65', '#A04000',
+  ];
+
   const _store = await new Promise(resolve =>
     chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token'], resolve)
   );
@@ -486,15 +492,24 @@
     render();
   }
 
-  function buildTileMarkup(item) {
+  function buildModuleColorMap() {
+    const map = {};
+    (state.modules || []).forEach((module, index) => {
+      map[module.name] = MODULE_PALETTE[index % MODULE_PALETTE.length];
+    });
+    return map;
+  }
+
+  function buildTileMarkup(item, moduleColor) {
     const dueLabel = formatCompactCanvasDate(item.currentDueAt);
     const statusLabel = item.published ? dueLabel : `Draft | ${dueLabel}`;
+    const modColor = moduleColor || '#0770B8';
     return `
       <div class="csch-item-top">
         <span class="csch-type-pill" style="background:${item.color}">${escHtml(item.type)}</span>
       </div>
       <div class="csch-item-title">${escHtml(item.title)}</div>
-      <div class="csch-item-module">${escHtml(getPrimaryModuleLabel(item))}</div>
+      <div class="csch-item-module" style="color:${modColor}">${escHtml(getPrimaryModuleLabel(item))}</div>
       <div class="csch-item-meta-row">
         <span class="csch-item-meta">${escHtml(statusLabel)}</span>
         ${item.htmlUrl ? `<a class="csch-item-link" href="${escHtml(item.htmlUrl)}" target="_blank" rel="noopener noreferrer">Open</a>` : ''}
@@ -617,6 +632,7 @@
 
     const unscheduledItems = getUnscheduledItems();
     const grouped = groupItemsByModule(unscheduledItems);
+    const moduleColorMap = buildModuleColorMap();
 
     leftBody.innerHTML = `
       <div class="csch-dropzone csch-unscheduled" data-csch-drop-date="">
@@ -630,11 +646,13 @@
         <section class="csch-module-group">
           <div class="csch-module-head">${escHtml(moduleName)}</div>
           <div class="csch-tile-stack">
-            ${items.map((item) => `
-              <article class="csch-item" draggable="true" data-csch-item-id="${item.id}">
-                ${buildTileMarkup(item)}
-              </article>
-            `).join('')}
+            ${items.map((item) => {
+              const mc = moduleColorMap[item.primaryModuleName] || '#C7CDD1';
+              return `
+              <article class="csch-item" draggable="true" data-csch-item-id="${item.id}" style="border-left: 3px solid ${mc};">
+                ${buildTileMarkup(item, mc)}
+              </article>`;
+            }).join('')}
           </div>
         </section>
       `).join('') : `
@@ -663,9 +681,10 @@
               const lockVal = getItemSetting(item.id, 'closeDaysAfter');
               const ansVal  = getItemSetting(item.id, 'answersDaysAfter');
               const hasOvr  = state.itemOverrides[item.id];
+              const mc = moduleColorMap[item.primaryModuleName] || '#C7CDD1';
               return `
-              <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}">
-                ${buildTileMarkup(item)}
+              <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}" style="border-left: 3px solid ${mc};">
+                ${buildTileMarkup(item, mc)}
                 <button class="csch-ovr-toggle" data-toggle-id="${item.id}">Assignment Timing${hasOvr ? '<span class="csch-ovr-dot">●</span>' : ''}</button>
                 <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}" data-ovr-panel="${item.id}" style="display:none">
                   <div class="csch-ovr-cols">
@@ -1310,7 +1329,7 @@
     .csch-tile-stack { display: grid; gap: 6px; }
 
     .csch-item {
-      padding: 8px 9px;
+      padding: 8px 9px 8px 7px;
       border-radius: 3px;
       border: 1px solid #C7CDD1;
       background: #fff;
@@ -1341,7 +1360,6 @@
     .csch-item-module {
       font-size: 10px;
       font-weight: 700;
-      color: #0770B8;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
