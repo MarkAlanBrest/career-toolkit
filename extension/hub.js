@@ -1593,25 +1593,82 @@
   async function renderAudit() {
     panelBody.innerHTML = '';
 
-    const params = new URLSearchParams(window.location.search);
-    const courseId = window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
-    const assignmentId = params.get('assignment_id') || '';
-    if (!SPEEDGRADER || !courseId || !assignmentId) {
-      const wrap = el('div', 'height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:20px;');
-      const icon = el('div', 'font-size:32px;');
-      icon.textContent = '🔍';
-      const msg = el('div', `font-size:13px;color:${DS.muted};line-height:1.7;`);
-      msg.textContent = 'Audit only works in SpeedGrader. Open an assignment in SpeedGrader to run Canvas audit checks.';
-      wrap.appendChild(icon);
-      wrap.appendChild(msg);
-      panelBody.appendChild(wrap);
-      return;
-    }
-    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token'], r));
+    panelBody.style.padding = '0';
+    panelBody.style.overflow = 'hidden';
+
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_audit_prefs'], r));
     const token = stored.ce_canvas_token || '';
+    const savedAuditPrefs = stored.ce_audit_prefs || {};
+
+    const urlCourseId = window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
+    const urlAssignmentId = SPEEDGRADER ? (new URLSearchParams(window.location.search).get('assignment_id') || '') : '';
+    let courseId = urlCourseId || savedAuditPrefs.courseId || '';
+    let assignmentId = urlAssignmentId || savedAuditPrefs.assignmentId || '';
     let lastReport = null;
 
+    const outer = el('div', 'display:flex;flex-direction:column;height:100%;');
+    panelBody.appendChild(outer);
+
+    // ── PICKER HEADER ───────────────────────────────────────────────────────
+    const pickerHdr = el('div', `flex-shrink:0;padding:8px 10px;background:${DS.gray};border-bottom:1px solid ${DS.border};display:flex;flex-direction:column;gap:6px;`);
+    outer.appendChild(pickerHdr);
+
+    const auditFilterRow = el('div', `display:flex;align-items:center;gap:14px;`);
+    const auditFilterLabel = el('div', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.04em;flex:1;`);
+    auditFilterLabel.textContent = 'Assignment';
+    auditFilterRow.appendChild(auditFilterLabel);
+    function mkAuditCb(labelText, defaultVal) {
+      const lbl = el('label', `display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:${DS.muted};user-select:none;`);
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.checked = defaultVal;
+      box.style.cssText = 'margin:0;cursor:pointer;';
+      const txt = document.createElement('span'); txt.textContent = labelText;
+      lbl.appendChild(box); lbl.appendChild(txt);
+      auditFilterRow.appendChild(lbl);
+      return box;
+    }
+    const cbPublishedAudit = mkAuditCb('Published only', savedAuditPrefs.publishedOnly !== false);
+    const cbDashboardAudit = mkAuditCb('Dashboard only', savedAuditPrefs.dashOnly !== false);
+    pickerHdr.appendChild(auditFilterRow);
+
+    const auditSelRow = el('div', `display:flex;gap:6px;`);
+    const auditCourseSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+    const auditAssignSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+    const auditCourseLoadOpt = document.createElement('option');
+    auditCourseLoadOpt.value = ''; auditCourseLoadOpt.textContent = 'Loading courses…'; auditCourseLoadOpt.disabled = true; auditCourseLoadOpt.selected = true;
+    auditCourseSel.appendChild(auditCourseLoadOpt);
+    const auditAssignPlaceholderOpt = document.createElement('option');
+    auditAssignPlaceholderOpt.value = ''; auditAssignPlaceholderOpt.textContent = '— pick assignment —';
+    auditAssignSel.appendChild(auditAssignPlaceholderOpt);
+    auditAssignSel.disabled = true;
+    auditSelRow.appendChild(auditCourseSel);
+    auditSelRow.appendChild(auditAssignSel);
+    pickerHdr.appendChild(auditSelRow);
+
+    const auditPickerStatus = el('div', `font-size:11px;min-height:14px;font-style:italic;color:${DS.muted};`);
+    pickerHdr.appendChild(auditPickerStatus);
+
+    function updateAuditPickerStatus() {
+      if (courseId && assignmentId) {
+        const aText = auditAssignSel.options[auditAssignSel.selectedIndex]?.text || '';
+        const cText = auditCourseSel.options[auditCourseSel.selectedIndex]?.text || '';
+        auditPickerStatus.textContent = (aText && cText) ? `${aText} — ${cText}` : 'Assignment selected.';
+        auditPickerStatus.style.color = DS.text;
+      } else if (courseId) {
+        auditPickerStatus.textContent = 'Select an assignment above.';
+        auditPickerStatus.style.color = DS.muted;
+      } else {
+        auditPickerStatus.textContent = 'Select a course and assignment above.';
+        auditPickerStatus.style.color = DS.muted;
+      }
+    }
+
+    // ── SCROLL AREA ─────────────────────────────────────────────────────────
+    const auditScrollArea = el('div', 'flex:1;min-height:0;overflow-y:auto;padding:16px;');
+    outer.appendChild(auditScrollArea);
+
     const stack = el('div', 'display:flex;flex-direction:column;gap:14px;min-height:100%;');
+    auditScrollArea.appendChild(stack);
     const head = el('div', '');
     const sub = el('div', `font-size:12px;color:${DS.muted};line-height:1.55;`);
     sub.textContent = 'Runs Canvas-based audit checks for instructor review. This tool does not decide whether a student cheated or violated course rules.';
@@ -2066,7 +2123,7 @@
 
     async function runCheck() {
       if (!token) throw new Error('Add a Canvas API token in Settings first.');
-      if (!courseId || !assignmentId) throw new Error('Open SpeedGrader for an assignment first.');
+      if (!courseId || !assignmentId) throw new Error('Select a course and assignment above first.');
 
       runBtn.disabled = true;
       runBtn.textContent = 'Checking...';
@@ -2214,7 +2271,103 @@
     stack.appendChild(runBtn);
     stack.appendChild(status);
     stack.appendChild(results);
-    panelBody.appendChild(stack);
+
+    // ── COURSE LOADER IIFE ──────────────────────────────────────────────────
+    (async () => {
+      let allAuditCourses = [];
+
+      function visibleAuditCourses() {
+        return allAuditCourses.filter(c => {
+          if (cbPublishedAudit.checked && !['available', 'published'].includes(c.workflow_state)) return false;
+          if (cbDashboardAudit.checked && !c.enrollments?.some(e => e.enrollment_state === 'active')) return false;
+          return c.course_code || c.name;
+        });
+      }
+
+      function renderAuditCourseOptions() {
+        const list = visibleAuditCourses();
+        auditCourseSel.innerHTML = '';
+        const ph = document.createElement('option');
+        ph.value = ''; ph.textContent = list.length ? '— pick a course —' : 'No courses found'; ph.disabled = true;
+        auditCourseSel.appendChild(ph);
+        list.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = String(c.id);
+          opt.textContent = c.course_code ? `${c.course_code} — ${c.name}` : c.name;
+          auditCourseSel.appendChild(opt);
+        });
+        if (courseId && list.some(c => String(c.id) === courseId)) auditCourseSel.value = courseId;
+        else auditCourseSel.value = '';
+      }
+
+      async function loadAuditAssignments(cId) {
+        auditAssignSel.disabled = true;
+        auditAssignSel.innerHTML = '<option value="" disabled selected>Loading…</option>';
+        try {
+          const resp = await fetch(`${location.origin}/api/v1/courses/${cId}/assignments?per_page=100&order_by=name`, {
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          });
+          const data = await resp.json().catch(() => []);
+          auditAssignSel.innerHTML = '';
+          const ph = document.createElement('option');
+          ph.value = ''; ph.textContent = '— pick an assignment —'; ph.disabled = true; ph.selected = true;
+          auditAssignSel.appendChild(ph);
+          (Array.isArray(data) ? data : []).forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = String(a.id);
+            opt.textContent = a.name;
+            auditAssignSel.appendChild(opt);
+          });
+          if (assignmentId && Array.isArray(data) && data.some(a => String(a.id) === assignmentId)) {
+            auditAssignSel.value = assignmentId;
+          }
+          auditAssignSel.disabled = false;
+          updateAuditPickerStatus();
+        } catch (e) {
+          auditAssignSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
+          auditPickerStatus.textContent = `Could not load assignments: ${e.message}`;
+        }
+      }
+
+      auditCourseSel.addEventListener('change', async () => {
+        courseId = auditCourseSel.value;
+        assignmentId = '';
+        chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
+        updateAuditPickerStatus();
+        if (courseId) await loadAuditAssignments(courseId);
+      });
+
+      auditAssignSel.addEventListener('change', () => {
+        assignmentId = auditAssignSel.value;
+        chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
+        updateAuditPickerStatus();
+      });
+
+      [cbPublishedAudit, cbDashboardAudit].forEach(cb => {
+        cb.addEventListener('change', () => {
+          chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
+          renderAuditCourseOptions();
+        });
+      });
+
+      try {
+        auditPickerStatus.textContent = 'Loading your courses…';
+        const resp = await fetch(`${location.origin}/api/v1/courses?per_page=100&include[]=enrollments`, {
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        });
+        const data = await resp.json().catch(() => []);
+        allAuditCourses = Array.isArray(data) ? data : [];
+        renderAuditCourseOptions();
+        if (courseId) {
+          await loadAuditAssignments(courseId);
+        } else {
+          updateAuditPickerStatus();
+        }
+      } catch (e) {
+        auditPickerStatus.textContent = `Failed to load courses: ${e.message}`;
+        auditCourseSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
+      }
+    })();
   }
 
   async function renderNotes() {
