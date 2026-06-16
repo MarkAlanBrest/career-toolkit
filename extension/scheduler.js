@@ -95,6 +95,13 @@
     return meta ? meta.getAttribute('content') : '';
   }
 
+  function makeOvrOptions(selected, max) {
+    const n = Number(selected);
+    return Array.from({ length: (max || 14) + 1 }, (_, i) =>
+      `<option value="${i}"${i === n ? ' selected' : ''}>${i}</option>`
+    ).join('');
+  }
+
   function escHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -594,14 +601,25 @@
               return `
               <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}">
                 ${buildTileMarkup(item)}
-                <button class="csch-ovr-toggle" data-toggle-id="${item.id}" title="Adjust availability windows">⚙${hasOvr ? '<span class="csch-ovr-dot">●</span>' : ''}</button>
+                <button class="csch-ovr-toggle" data-toggle-id="${item.id}">Assignment Timing${hasOvr ? '<span class="csch-ovr-dot">●</span>' : ''}</button>
                 <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}" data-ovr-panel="${item.id}" style="display:none">
-                  <label class="csch-ovr-lbl"><span>Opens</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" type="number" min="0" value="${openVal}"> d before</span></label>
-                  <label class="csch-ovr-lbl"><span>Locks</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" type="number" min="0" value="${lockVal}"> d after</span></label>
-                  ${item.quizId
-                    ? `<label class="csch-ovr-lbl"><span>Answers</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" type="number" min="0" value="${ansVal}"> d after</span></label>`
-                    : `<label class="csch-ovr-lbl"><span>Answers</span><span class="csch-ovr-rhs csch-ovr-na">—</span></label>`
-                  }
+                  <div class="csch-ovr-cols">
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Opens</span>
+                      <select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore">${makeOvrOptions(openVal)}</select>
+                    </div>
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Locks</span>
+                      <select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter">${makeOvrOptions(lockVal)}</select>
+                    </div>
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Answers</span>
+                      ${item.quizId
+                        ? `<select class="csch-ovr-sel" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter">${makeOvrOptions(ansVal)}</select>`
+                        : `<select class="csch-ovr-sel" disabled><option>—</option></select>`
+                      }
+                    </div>
+                  </div>
                   ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}">↺ reset</button>` : ''}
                 </div>
               </article>
@@ -646,15 +664,16 @@
       });
       btn.addEventListener('mousedown', (e) => e.stopPropagation());
     });
-    document.querySelectorAll('.csch-ovr-num').forEach((input) => {
-      input.addEventListener('change', (e) => {
+    document.querySelectorAll('.csch-ovr-sel').forEach((sel) => {
+      sel.addEventListener('change', (e) => {
         const id  = e.target.getAttribute('data-ovr-id');
         const key = e.target.getAttribute('data-ovr-key');
+        if (!id || !key) return;
         setItemOverride(id, key, normalizeInt(e.target.value, state.settings[key]));
         render();
       });
-      input.addEventListener('mousedown', (e) => e.stopPropagation());
-      input.addEventListener('click',     (e) => e.stopPropagation());
+      sel.addEventListener('mousedown', (e) => e.stopPropagation());
+      sel.addEventListener('click',     (e) => e.stopPropagation());
     });
     document.querySelectorAll('.csch-ovr-reset').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -1017,29 +1036,26 @@
     .csch-ovr-toggle {
       display: inline-flex;
       align-items: center;
-      gap: 2px;
-      margin-top: 4px;
-      padding: 2px 6px;
+      gap: 3px;
+      margin-top: 5px;
+      padding: 0;
       font-size: 10px;
-      color: #6B7280;
-      background: #F3F4F6;
-      border: 1px solid #E5E7EB;
-      border-radius: 3px;
+      font-weight: 700;
+      color: #0770B8;
+      background: none;
+      border: none;
       cursor: pointer;
       font-family: inherit;
-      transition: background .12s, color .12s;
       justify-self: end;
+      text-decoration: none;
     }
-    .csch-ovr-toggle:hover, .csch-ovr-toggle-open { background: #E5E7EB; color: #374151; }
+    .csch-ovr-toggle:hover { text-decoration: underline; }
     .csch-ovr-dot { color: #2563EB; font-size: 8px; line-height: 1; }
 
     .csch-item-overrides {
       margin-top: 4px;
       padding-top: 6px;
       border-top: 1px solid rgba(0,0,0,0.09);
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
     }
     .csch-item-overrides-custom {
       border-top-color: rgba(37,99,235,0.3);
@@ -1048,26 +1064,31 @@
       border-radius: 0 0 3px 3px;
     }
 
-    .csch-ovr-lbl {
+    .csch-ovr-cols {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 10px;
-      color: #6B7280;
-      line-height: 1;
+      gap: 6px;
+      justify-content: flex-end;
     }
 
-    .csch-ovr-rhs {
+    .csch-ovr-col {
       display: flex;
+      flex-direction: column;
       align-items: center;
       gap: 3px;
     }
 
-    .csch-ovr-na { color: #9CA3AF; font-size: 11px; }
+    .csch-ovr-col-lbl {
+      font-size: 9px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
 
-    .csch-ovr-num {
-      width: 34px;
-      padding: 2px 3px;
+    .csch-ovr-sel {
+      width: 44px;
+      padding: 2px 2px;
       border: 1px solid #D1D5DB;
       border-radius: 2px;
       font-size: 11px;
@@ -1075,15 +1096,10 @@
       color: #374151;
       text-align: center;
       background: #F9FAFB;
-      -moz-appearance: textfield;
+      cursor: pointer;
     }
-    .csch-ovr-num::-webkit-inner-spin-button,
-    .csch-ovr-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-    .csch-ovr-num:focus {
-      outline: none;
-      border-color: #2563EB;
-      background: #fff;
-    }
+    .csch-ovr-sel:focus { outline: none; border-color: #2563EB; }
+    .csch-ovr-sel:disabled { color: #9CA3AF; cursor: default; background: #F3F4F6; }
 
     .csch-ovr-reset {
       font-size: 9px;
