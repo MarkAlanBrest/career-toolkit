@@ -478,8 +478,9 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
     aiBtn.id = 'ce-ai-grade-btn';
     aiBtn.textContent = '✦ AI Grade';
     aiBtn.style.cssText = `
-      display:block;width:100%;box-sizing:border-box;text-align:center;
-      background:#fff;color:#2d3b45;border:1px solid #c7cdd1;border-radius:4px;
+      position:fixed;top:68px;right:60px;z-index:2147483641;width:160px;
+      text-align:center;background:#fff;color:#2d3b45;
+      border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);
       padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
       white-space:nowrap;transition:background .15s,color .15s;
@@ -644,31 +645,14 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     const teacherCheckWrap = document.createElement('div');
     teacherCheckWrap.id = 'ce-ai-grade-wrap';
+    teacherCheckWrap.style.cssText = 'position:fixed;top:150px;right:60px;z-index:2147483641;width:260px;';
     teacherCheckWrap.appendChild(teacherCheckLabel);
+    document.body.appendChild(teacherCheckWrap);
 
     function injectAiBtn() {
       if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
-      let topBar = document.getElementById('ce-sg-top-bar');
-      if (!topBar) {
-        topBar = document.createElement('div');
-        topBar.id = 'ce-sg-top-bar';
-        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);min-width:150px;';
-        document.body.appendChild(topBar);
-      }
-      topBar.insertBefore(aiBtn, topBar.firstChild);
-      if (!document.getElementById('ce-ai-grade-wrap')?.isConnected) {
-        topBar.appendChild(teacherCheckWrap);
-      }
+      document.body.appendChild(aiBtn);
     }
-
-    injectAiBtn();
-    let _aiScheduled = false;
-    const _aiObserver = new MutationObserver(() => {
-      if (_aiScheduled) return;
-      _aiScheduled = true;
-      setTimeout(() => { _aiScheduled = false; injectAiBtn(); }, 300);
-    });
-    _aiObserver.observe(document.body, { childList: true, subtree: false });
     let _aiPoll = 0;
     const _aiTimer = setInterval(() => {
       injectAiBtn();
