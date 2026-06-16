@@ -927,62 +927,9 @@
     return document.body;
   }
 
-  function removeQuizBuilderHoverButton() {
-    const existing = document.getElementById('ce-quiz-builder-hover-btn');
-    if (existing) existing.remove();
-  }
-
-  function createQuizBuilderHoverButton() {
-    const existing = document.getElementById('ce-quiz-builder-hover-btn');
-    if (existing) return existing;
-
-    const button = document.createElement('button');
-    button.id = 'ce-quiz-builder-hover-btn';
-    button.type = 'button';
-    button.textContent = '+ Quiz Builder';
-    button.onclick = e => {
-      e.stopPropagation();
-      document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
-    };
-
-    button.style.cssText = `
-      position:fixed;
-      top:120px;
-      right:180px;
-      z-index:999999;
-      padding:12px 16px;
-      border-radius:999px;
-      border:none;
-      background:#0770B8;
-      color:#fff;
-      font-weight:700;
-      font-size:13px;
-      cursor:pointer;
-      box-shadow:0 16px 34px rgba(0,0,0,.22);
-      transition:transform .15s ease, background .15s ease, opacity .15s ease;
-      opacity:.98;
-      white-space:nowrap;
-    `;
-    button.addEventListener('mouseenter', () => {
-      button.style.background = '#055A96';
-      button.style.transform = 'translateY(-2px)';
-    });
-    button.addEventListener('mouseleave', () => {
-      button.style.background = '#0770B8';
-      button.style.transform = 'translateY(0)';
-    });
-
-    document.body.appendChild(button);
-    return button;
-  }
-
   function insertQuizBuilderPageButton() {
-    if (!isQuizListPage()) {
-      removeQuizBuilderHoverButton();
-      return;
-    }
-
-    createQuizBuilderHoverButton();
+    // Trigger hub toolbar to update quiz visibility based on current page
+    window.dispatchEvent(new CustomEvent('ce-page-changed'));
   }
 
   function wireQuizPageNavigation() {
@@ -997,11 +944,12 @@
     wrapHistoryEvent('pushState');
     wrapHistoryEvent('replaceState');
 
-    window.addEventListener('popstate', insertQuizBuilderPageButton);
-    window.addEventListener('pushState', insertQuizBuilderPageButton);
-    window.addEventListener('replaceState', insertQuizBuilderPageButton);
+    const updateToolbar = () => window.dispatchEvent(new CustomEvent('ce-page-changed'));
+    window.addEventListener('popstate', updateToolbar);
+    window.addEventListener('pushState', updateToolbar);
+    window.addEventListener('replaceState', updateToolbar);
 
-    new MutationObserver(() => insertQuizBuilderPageButton()).observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(updateToolbar).observe(document.body, { childList: true, subtree: true });
   }
 
   function showContentBuilder() {

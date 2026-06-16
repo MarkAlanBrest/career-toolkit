@@ -38,6 +38,7 @@
   const TOOLS = [
     { id: 'quick-ai',  icon: '⚡', label: 'Chat',      noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
     { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
+    { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
     { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
     { id: 'reports',   icon: '📊', label: 'Reports',                 desc: 'Canvas course checkups that turn gradebook data into clear next steps.' },
     { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
@@ -48,6 +49,17 @@
   let _active      = null;          // tool id with open panel
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
+
+  function isQuizListPage() {
+    return /^\/courses\/\d+\/quizzes(?:\/|$)/.test(window.location.pathname);
+  }
+
+  function updateQuizToolVisibility() {
+    const quizBtn = btnMap['quiz'];
+    if (quizBtn) {
+      quizBtn.style.display = isQuizListPage() ? 'flex' : 'none';
+    }
+  }
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -2675,12 +2687,21 @@
     document.body.appendChild(panel);
     document.body.appendChild(tab);
     applyToolbarState();
+    updateQuizToolVisibility();
     chrome.storage.local.get('ce_features', ({ ce_features }) => {
       if (ce_features) applyFeatures(ce_features);
     });
   }
 
   document.addEventListener('ce-open-ai-grader', () => openPanel({ id: 'ai-grader', label: 'AI Grader' }));
+  document.addEventListener('ce-page-changed', updateQuizToolVisibility);
+  window.addEventListener('popstate', updateQuizToolVisibility);
+  const origPushState = history.pushState;
+  history.pushState = function () {
+    const result = origPushState.apply(this, arguments);
+    setTimeout(updateQuizToolVisibility, 100);
+    return result;
+  };
 
   if (document.body) mount();
   else document.addEventListener('DOMContentLoaded', mount);
