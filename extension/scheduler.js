@@ -128,8 +128,19 @@
     modules: [],
     items: [],
     generatedDateKeys: [],
-    schedule: {}
+    schedule: {},
+    itemOverrides: savedSettings.itemOverrides || {}
   };
+
+  function getItemSetting(itemId, key) {
+    return state.itemOverrides[itemId]?.[key] ?? state.settings[key];
+  }
+
+  function setItemOverride(itemId, key, value) {
+    if (!state.itemOverrides[itemId]) state.itemOverrides[itemId] = {};
+    state.itemOverrides[itemId][key] = value;
+    persistSettings();
+  }
 
   function setNotice(message, type) {
     state.notice = message;
@@ -145,7 +156,8 @@
       openDaysBefore: state.settings.openDaysBefore,
       closeDaysAfter: state.settings.closeDaysAfter,
       answersDaysAfter: state.settings.answersDaysAfter,
-      slotCount: state.slotCount
+      slotCount: state.slotCount,
+      itemOverrides: state.itemOverrides
     });
   }
 
@@ -449,17 +461,20 @@
 
     try {
       for (const item of scheduledItems) {
-        const dueDateKey = state.schedule[item.id];
-        const dueAt = combineLocalDateAndTime(dueDateKey, state.settings.dueTime);
-        const unlockAt = combineLocalDateAndTime(addDays(dueDateKey, -state.settings.openDaysBefore), '00:00');
-        const lockAt = combineLocalDateAndTime(addDays(dueDateKey, state.settings.closeDaysAfter), '23:59');
+        const dueDateKey  = state.schedule[item.id];
+        const openBefore  = getItemSetting(item.id, 'openDaysBefore');
+        const closAfter   = getItemSetting(item.id, 'closeDaysAfter');
+        const ansAfter    = getItemSetting(item.id, 'answersDaysAfter');
+        const dueAt    = combineLocalDateAndTime(dueDateKey, state.settings.dueTime);
+        const unlockAt = combineLocalDateAndTime(addDays(dueDateKey, -openBefore), '00:00');
+        const lockAt   = combineLocalDateAndTime(addDays(dueDateKey, closAfter), '23:59');
 
         await canvasAPI('PUT', `/api/v1/courses/${state.courseId}/assignments/${item.assignmentId}`, {
           assignment: { due_at: dueAt, unlock_at: unlockAt, lock_at: lockAt }
         });
 
         if (item.quizId) {
-          const answersAt = combineLocalDateAndTime(addDays(dueDateKey, state.settings.answersDaysAfter), state.settings.dueTime);
+          const answersAt = combineLocalDateAndTime(addDays(dueDateKey, ansAfter), state.settings.dueTime);
           await canvasAPI('PUT', `/api/v1/courses/${state.courseId}/quizzes/${item.quizId}`, {
             quiz: { show_correct_answers: true, show_correct_answers_at: answersAt }
           });
@@ -471,11 +486,11 @@
         if (!dueDateKey) return item;
         return {
           ...item,
-          currentDueAt: combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
-          currentUnlockAt: combineLocalDateAndTime(addDays(dueDateKey, -state.settings.openDaysBefore), '00:00'),
-          currentLockAt: combineLocalDateAndTime(addDays(dueDateKey, state.settings.closeDaysAfter), '23:59'),
+          currentDueAt:    combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
+          currentUnlockAt: combineLocalDateAndTime(addDays(dueDateKey, -getItemSetting(item.id, 'openDaysBefore')), '00:00'),
+          currentLockAt:   combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'closeDaysAfter')), '23:59'),
           currentAnswersAt: item.quizId
-            ? combineLocalDateAndTime(addDays(dueDateKey, state.settings.answersDaysAfter), state.settings.dueTime)
+            ? combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'answersDaysAfter')), state.settings.dueTime)
             : item.currentAnswersAt
         };
       });
@@ -497,9 +512,10 @@
 
   function wireDragAndDrop() {
     document.querySelectorAll('[data-csch-item-id]').forEach((element) => {
-      element.addEventListener('dragstart', (event) =>
-        handleTileDragStart(element.getAttribute('data-csch-item-id'), event)
-      );
+      element.addEventListener('dragstart', (event) => {
+        if (event.target.closest('.csch-item-overrides')) { event.preventDefault(); return; }
+        handleTileDragStart(element.getAttribute('data-csch-item-id'), event);
+      });
     });
 
     document.querySelectorAll('[data-csch-drop-date]').forEach((zone) => {
@@ -570,11 +586,22 @@
             <div class="csch-date-sub">${escHtml(formatFullDateLabel(dateKey))}</div>
           </div>
           <div class="csch-dropzone csch-date-drop" data-csch-drop-date="${dateKey}">
-            ${items.length ? items.map((item) => `
+            ${items.length ? items.map((item) => {
+              const openVal = getItemSetting(item.id, 'openDaysBefore');
+              const lockVal = getItemSetting(item.id, 'closeDaysAfter');
+              const ansVal  = getItemSetting(item.id, 'answersDaysAfter');
+              const hasOvr  = state.itemOverrides[item.id];
+              return `
               <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}">
                 ${buildTileMarkup(item)}
+                <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}">
+                  <label class="csch-ovr-lbl">Opens <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" type="number" min="0" value="${openVal}"> d before</label>
+                  <label class="csch-ovr-lbl">Locks <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" type="number" min="0" value="${lockVal}"> d after</label>
+                  ${item.quizId ? `<label class="csch-ovr-lbl">Ans <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" type="number" min="0" value="${ansVal}"> d after</label>` : ''}
+                  ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}" title="Reset to global defaults">↺ reset</button>` : ''}
+                </div>
               </article>
-            `).join('') : `
+            `}).join('') : `
               <div class="csch-empty-slot">Drop items here</div>
             `}
           </div>
@@ -600,6 +627,29 @@
     document.getElementById('csch-answer-offset').value = String(state.settings.answersDaysAfter);
 
     wireDragAndDrop();
+    wireOverrideControls();
+  }
+
+  function wireOverrideControls() {
+    document.querySelectorAll('.csch-ovr-num').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const id  = e.target.getAttribute('data-ovr-id');
+        const key = e.target.getAttribute('data-ovr-key');
+        setItemOverride(id, key, normalizeInt(e.target.value, state.settings[key]));
+        render();
+      });
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('click',     (e) => e.stopPropagation());
+    });
+    document.querySelectorAll('.csch-ovr-reset').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-reset-id');
+        delete state.itemOverrides[id];
+        persistSettings();
+        render();
+      });
+    });
   }
 
   function openApp() {
@@ -948,6 +998,65 @@
       user-select: none;
     }
     .csch-cb-lbl input { margin: 0; cursor: pointer; }
+
+    .csch-item-overrides {
+      margin-top: 7px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(0,0,0,0.09);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 10px;
+      align-items: center;
+    }
+    .csch-item-overrides-custom {
+      border-top-color: rgba(37,99,235,0.3);
+      background: rgba(37,99,235,0.04);
+      margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px;
+      border-radius: 0 0 3px 3px;
+    }
+
+    .csch-ovr-lbl {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: #6B7280;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .csch-ovr-num {
+      width: 34px;
+      padding: 2px 3px;
+      border: 1px solid #D1D5DB;
+      border-radius: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #374151;
+      text-align: center;
+      background: #F9FAFB;
+      -moz-appearance: textfield;
+    }
+    .csch-ovr-num::-webkit-inner-spin-button,
+    .csch-ovr-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .csch-ovr-num:focus {
+      outline: none;
+      border-color: #2563EB;
+      background: #fff;
+    }
+
+    .csch-ovr-reset {
+      font-size: 9px;
+      color: #2563EB;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 1px 3px;
+      border-radius: 2px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .csch-ovr-reset:hover { background: rgba(37,99,235,0.08); }
 
     .csch-weekdays { display: flex; gap: 3px; flex-wrap: wrap; }
 
