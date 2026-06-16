@@ -90,17 +90,6 @@
   `);
   toolbar.id = 'ce-hub';
 
-  // Brand dot
-  const brand = el('div', `
-    width:100%;height:48px;flex-shrink:0;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    border-bottom:1px solid ${DS.navBorder};gap:3px;
-  `);
-  const dot1 = el('div', `width:7px;height:7px;border-radius:50%;background:${DS.navText};`);
-  const dot2 = el('div', `width:3px;height:3px;border-radius:50%;background:${DS.navText};opacity:.4;`);
-  brand.appendChild(dot1);
-  brand.appendChild(dot2);
-  toolbar.appendChild(brand);
 
   // Nav
   const nav = el('div', `
