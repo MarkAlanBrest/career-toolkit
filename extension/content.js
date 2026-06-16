@@ -907,6 +907,26 @@
     return candidates.find(el => /quiz/i.test(normalizeText(el.textContent)));
   }
 
+  function findQuizActionBar() {
+    const selectors = [
+      '.ic-page-header__actions',
+      '.ic-app-header__actions',
+      '.fg-toolbar, .toolbar, .btn-group, .ButtonGroup',
+      '.ic-Layout--top',
+      'header',
+      '.page-header',
+      '.ic-page-header__main',
+      '.ic-page-header__content',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && el instanceof HTMLElement && isVisibleElement(el)) return el;
+    }
+    const h1 = Array.from(document.querySelectorAll('h1, h2, h3')).find(title => /quizzes?/i.test(normalizeText(title.textContent || '')));
+    if (h1 && h1.parentElement) return h1.parentElement;
+    return document.body;
+  }
+
   function removeQuizBuilderPageButton() {
     const existing = document.getElementById('ce-quiz-builder-btn');
     if (existing) existing.remove();
@@ -922,7 +942,8 @@
     if (existing) return;
 
     const target = findQuizToolbarButton();
-    if (!target || !target.parentElement) return;
+    const actionBar = findQuizActionBar();
+    if (!actionBar) return;
 
     const button = document.createElement('button');
     button.id = 'ce-quiz-builder-btn';
@@ -952,12 +973,15 @@
     button.addEventListener('mouseenter', () => button.style.background = '#055A96');
     button.addEventListener('mouseleave', () => button.style.background = '#0770B8');
 
-    const sibling = target.closest('div') || target.parentElement;
-    if (sibling && sibling.contains(target)) {
-      sibling.insertAdjacentElement('beforeend', button);
-    } else {
-      target.insertAdjacentElement('afterend', button);
+    if (target && target.parentElement) {
+      const container = target.closest('div') || target.parentElement;
+      if (container && container.contains(target)) {
+        container.insertAdjacentElement('beforeend', button);
+        return;
+      }
     }
+
+    actionBar.appendChild(button);
   }
 
   function wireQuizPageNavigation() {
