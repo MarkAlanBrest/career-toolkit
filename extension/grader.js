@@ -208,7 +208,7 @@
       fetchSubmission();
       // Reset the AI Grade button for the new student
       const btn = document.getElementById('ce-ai-grade-btn');
-      if (btn) { btn.textContent = '✦ AI Grade'; btn.style.background = '#0770B8'; btn.disabled = false; }
+      if (btn) { btn.textContent = '✦ AI Grade'; btn.style.background = '#fff'; btn.style.color = '#2d3b45'; btn.disabled = false; }
       _grading = false;
     }
 
