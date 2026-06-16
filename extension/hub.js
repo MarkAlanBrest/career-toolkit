@@ -1465,19 +1465,23 @@
 
       const pointsIn = input('ce-crit-points', 'number', '100', exTot);
       pointsIn.min = '1'; pointsIn.max = '9999';
-      form.appendChild(row('Total Points', pointsIn));
+      const rPts = row('Total Points', pointsIn); rPts.style.flex = '0 0 84px';
 
       const strictSel = el('select', `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${DS.border};border-radius:3px;font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
       for (const [v, l] of [['lenient','Lenient — be generous with partial credit'],['balanced','Balanced — grade fairly against the rubric'],['strict','Strict — hold students to high standards']]) {
         const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === exStyle) o.selected = true; strictSel.appendChild(o);
       }
-      form.appendChild(row('How Harsh to Grade', strictSel));
+      const rHarsh = row('How Harsh to Grade', strictSel); rHarsh.style.flex = '1'; rHarsh.style.minWidth = '0';
 
       const toneSel = el('select', `width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid ${DS.border};border-radius:3px;font-size:13px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
       for (const [v, l] of [['encouraging','Encouraging — warm and supportive'],['neutral','Neutral — objective and professional'],['direct','Direct — concise, focus on improvements']]) {
         const o = document.createElement('option'); o.value = v; o.textContent = l; if (v === exTone) o.selected = true; toneSel.appendChild(o);
       }
-      form.appendChild(row('Type of Comments', toneSel));
+      const rTone = row('Type of Comments', toneSel); rTone.style.flex = '1'; rTone.style.minWidth = '0';
+
+      const topRow = el('div', 'display:flex;gap:8px;align-items:flex-start;');
+      topRow.appendChild(rPts); topRow.appendChild(rHarsh); topRow.appendChild(rTone);
+      form.appendChild(topRow);
 
       const rubricTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:80px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       rubricTa.placeholder = 'e.g. Thesis 20pts, Evidence 30pts, Writing 25pts, Analysis 25pts';
@@ -1491,14 +1495,18 @@
       keyTa.value = exKey;
       keyTa.addEventListener('focus', () => keyTa.style.borderColor = DS.blue);
       keyTa.addEventListener('blur',  () => keyTa.style.borderColor = DS.border);
-      form.appendChild(row('Answer Key', keyTa, 'Optional'));
+      const rKey = row('Answer Key', keyTa, 'Optional'); rKey.style.flex = '1'; rKey.style.minWidth = '0';
 
-      const instrTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:50px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
+      const instrTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:60px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       instrTa.placeholder = 'Optional — any special grading notes';
       instrTa.value = exInstr;
       instrTa.addEventListener('focus', () => instrTa.style.borderColor = DS.blue);
       instrTa.addEventListener('blur',  () => instrTa.style.borderColor = DS.border);
-      form.appendChild(row('Special Instructions', instrTa, 'Optional'));
+      const rInstr = row('Special Instructions', instrTa, 'Optional'); rInstr.style.flex = '1'; rInstr.style.minWidth = '0';
+
+      const botRow = el('div', 'display:flex;gap:8px;align-items:flex-start;');
+      botRow.appendChild(rKey); botRow.appendChild(rInstr);
+      form.appendChild(botRow);
 
       const saveMsgEl = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
 
