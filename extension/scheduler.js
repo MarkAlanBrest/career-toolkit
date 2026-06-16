@@ -594,11 +594,12 @@
               return `
               <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}">
                 ${buildTileMarkup(item)}
-                <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}">
+                <button class="csch-ovr-toggle" data-toggle-id="${item.id}" title="Adjust availability windows">⚙${hasOvr ? ' <span class="csch-ovr-dot">●</span>' : ''}</button>
+                <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}" data-ovr-panel="${item.id}" style="display:none">
                   <label class="csch-ovr-lbl">Opens <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" type="number" min="0" value="${openVal}"> d before</label>
                   <label class="csch-ovr-lbl">Locks <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" type="number" min="0" value="${lockVal}"> d after</label>
                   ${item.quizId ? `<label class="csch-ovr-lbl">Ans <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" type="number" min="0" value="${ansVal}"> d after</label>` : ''}
-                  ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}" title="Reset to global defaults">↺ reset</button>` : ''}
+                  ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}">↺ reset</button>` : ''}
                 </div>
               </article>
             `}).join('') : `
@@ -631,6 +632,17 @@
   }
 
   function wireOverrideControls() {
+    document.querySelectorAll('.csch-ovr-toggle').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.querySelector(`[data-ovr-panel="${btn.getAttribute('data-toggle-id')}"]`);
+        if (!panel) return;
+        const opening = panel.style.display === 'none';
+        panel.style.display = opening ? '' : 'none';
+        btn.classList.toggle('csch-ovr-toggle-open', opening);
+      });
+      btn.addEventListener('mousedown', (e) => e.stopPropagation());
+    });
     document.querySelectorAll('.csch-ovr-num').forEach((input) => {
       input.addEventListener('change', (e) => {
         const id  = e.target.getAttribute('data-ovr-id');
@@ -999,8 +1011,28 @@
     }
     .csch-cb-lbl input { margin: 0; cursor: pointer; }
 
+    .csch-ovr-toggle {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 6px;
+      padding: 2px 7px;
+      font-size: 10px;
+      color: #6B7280;
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .12s, color .12s;
+      width: 100%;
+      justify-content: center;
+    }
+    .csch-ovr-toggle:hover, .csch-ovr-toggle-open { background: #E5E7EB; color: #374151; }
+    .csch-ovr-dot { color: #2563EB; font-size: 8px; line-height: 1; }
+
     .csch-item-overrides {
-      margin-top: 7px;
+      margin-top: 6px;
       padding-top: 6px;
       border-top: 1px solid rgba(0,0,0,0.09);
       display: flex;
