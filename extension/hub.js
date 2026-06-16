@@ -36,11 +36,14 @@
   ];
 
   const TOOLS = [
+    // ── All Plans ───────────────────────────────────────────────────────────
+    { _sep: 'All Plans' },
+    { id: 'quick-ai',  icon: '⚡', label: 'AI Chat',   noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
+    { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
     // ── Course Design ───────────────────────────────────────────────────────
     { _sep: 'Course Design' },
-    { id: 'quick-ai',  icon: '⚡', label: 'Chat',      noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
+    { id: 'designer',  icon: '🎨', label: 'Designer',                desc: 'Build beautiful Canvas pages and assignments with a drag-and-drop editor. No HTML required.' },
     { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
-    { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
     // ── Teaching & Grading ──────────────────────────────────────────────────
     { _sep: 'Teaching' },
     { id: 'ai-grader', icon: '🎓', label: 'Grader',                  desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
@@ -245,6 +248,21 @@
     const sEl = el('div', `font-size:13px;color:${DS.muted};`);
     sEl.textContent = sub;
     wrap.appendChild(iEl); wrap.appendChild(tEl); wrap.appendChild(sEl);
+    panelBody.appendChild(wrap);
+  }
+
+  function renderComingSoon(icon, title, desc) {
+    panelBody.innerHTML = '';
+    const wrap = el('div', 'text-align:center;padding:48px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;');
+    const iEl = el('div', 'font-size:44px;');
+    iEl.textContent = icon;
+    const tEl = el('div', `font-size:15px;font-weight:700;color:${DS.text};`);
+    tEl.textContent = title;
+    const badge = el('div', `display:inline-block;background:${DS.blueBg};color:${DS.blue};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:3px 10px;border-radius:20px;`);
+    badge.textContent = 'Coming Soon';
+    const dEl = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;max-width:240px;`);
+    dEl.textContent = desc;
+    wrap.appendChild(iEl); wrap.appendChild(tEl); wrap.appendChild(badge); wrap.appendChild(dEl);
     panelBody.appendChild(wrap);
   }
 
@@ -2299,6 +2317,7 @@
 
     switch (tool.id) {
       case 'ai-grader':  await renderAIGrader();                                                     break;
+      case 'designer':   renderComingSoon('🎨', 'Page Designer', 'A drag-and-drop editor for building beautiful Canvas pages and assignments. Coming soon.'); break;
       case 'cheater':    await renderAudit();                                                         break;
       case 'reports':    await renderReports();                                                    break;
       case 'snippets':   await renderSnippets();                                                     break;
