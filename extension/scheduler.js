@@ -970,7 +970,7 @@
       top: 8px;
       bottom: 8px;
       left: 74px;   /* 66px Canvas global nav + 8px gap */
-      right: 60px;  /* 52px CE hub toolbar + 8px gap */
+      right: 68px;  /* 52px CE hub toolbar + 16px gap */
       border-radius: 6px;
       overflow: hidden;
       display: grid;
@@ -1446,7 +1446,7 @@
     .csch-unscheduled { background: #FFFBEB; border: 1px dashed #C7CDD1; }
 
     @media (max-width: 1100px) {
-      #csch-shell { top: 6px; bottom: 6px; left: 74px; right: 60px; }
+      #csch-shell { top: 6px; bottom: 6px; left: 74px; right: 68px; }
       #csch-topbar { align-items: flex-start; }
       #csch-tb-controls { width: 100%; }
       .csch-toolbar-status { max-width: 100%; }
