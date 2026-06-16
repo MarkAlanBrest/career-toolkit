@@ -1472,30 +1472,57 @@
       topRow.appendChild(rPts); topRow.appendChild(rHarsh); topRow.appendChild(rTone);
       form.appendChild(topRow);
 
-      const rubricTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:80px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
+      const rubricTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:100px;border:none;border-radius:0;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       rubricTa.placeholder = 'e.g. Thesis 20pts, Evidence 30pts, Writing 25pts, Analysis 25pts';
       rubricTa.value = exRubric;
-      rubricTa.addEventListener('focus', () => rubricTa.style.borderColor = DS.blue);
-      rubricTa.addEventListener('blur',  () => rubricTa.style.borderColor = DS.border);
-      form.appendChild(row('Rubric', rubricTa, 'How will points be divided?'));
 
-      const keyTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:60px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
+      const keyTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:100px;border:none;border-radius:0;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       keyTa.placeholder = 'Optional — correct answers or model response';
       keyTa.value = exKey;
-      keyTa.addEventListener('focus', () => keyTa.style.borderColor = DS.blue);
-      keyTa.addEventListener('blur',  () => keyTa.style.borderColor = DS.border);
-      const rKey = row('Answer Key', keyTa, 'Optional'); rKey.style.flex = '1'; rKey.style.minWidth = '0';
 
-      const instrTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:60px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
+      const instrTa = el('textarea', `width:100%;box-sizing:border-box;padding:8px 10px;height:100px;border:none;border-radius:0;font-size:12px;font-family:${DS.font};color:${DS.text};resize:vertical;outline:none;background:${DS.white};`);
       instrTa.placeholder = 'Optional — any special grading notes';
       instrTa.value = exInstr;
-      instrTa.addEventListener('focus', () => instrTa.style.borderColor = DS.blue);
-      instrTa.addEventListener('blur',  () => instrTa.style.borderColor = DS.border);
-      const rInstr = row('Special Instructions', instrTa, 'Optional'); rInstr.style.flex = '1'; rInstr.style.minWidth = '0';
 
-      const botRow = el('div', 'display:flex;gap:8px;align-items:flex-start;');
-      botRow.appendChild(rKey); botRow.appendChild(rInstr);
-      form.appendChild(botRow);
+      const tabFolder = el('div', `border:1px solid ${DS.border};border-radius:3px;overflow:hidden;flex-shrink:0;`);
+      const tabBar2 = el('div', `display:flex;background:${DS.gray};border-bottom:1px solid ${DS.border};`);
+      const tabPanes = { rubric: rubricTa, key: keyTa, instr: instrTa };
+      const tabDefs = [['rubric','Rubric'],['key','Answer Key'],['instr','Instructions']];
+      const tabBtns2 = {};
+      let activeTab2 = 'rubric';
+
+      function switchTab2(id) {
+        activeTab2 = id;
+        for (const [tid, tb] of Object.entries(tabBtns2)) {
+          const on = tid === id;
+          tb.style.background    = on ? DS.white : 'transparent';
+          tb.style.color         = on ? DS.blue  : DS.muted;
+          tb.style.fontWeight    = on ? '700'    : '500';
+          tb.style.borderBottom  = on ? `2px solid ${DS.blue}` : '2px solid transparent';
+        }
+        for (const [tid, pane] of Object.entries(tabPanes)) {
+          pane.style.display = tid === id ? 'block' : 'none';
+        }
+      }
+
+      for (const [id, label] of tabDefs) {
+        const tb = el('button', `
+          flex:1;padding:7px 4px;font-size:11px;border:none;border-bottom:2px solid transparent;
+          background:transparent;cursor:pointer;color:${DS.muted};font-weight:500;
+          font-family:${DS.font};transition:all .12s;
+        `, { type: 'button', textContent: label });
+        tb.addEventListener('click', () => switchTab2(id));
+        tabBtns2[id] = tb;
+        tabBar2.appendChild(tb);
+      }
+
+      tabFolder.appendChild(tabBar2);
+      for (const pane of Object.values(tabPanes)) {
+        pane.style.display = 'none';
+        tabFolder.appendChild(pane);
+      }
+      switchTab2('rubric');
+      form.appendChild(tabFolder);
 
       const saveMsgEl = el('div', `font-size:11px;min-height:14px;flex-shrink:0;`);
 
