@@ -41,7 +41,7 @@
     { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
     { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
     { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
-    { id: 'reports',   icon: '📊', label: 'Reports',                 desc: 'Canvas course checkups that turn gradebook data into clear next steps.' },
+    { id: 'reports',   icon: '📊', label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
     { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
     { id: 'eval',      icon: '📈', label: 'Eval',                          desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
@@ -448,7 +448,7 @@
 
     if (!token) {
       panelBody.style.padding = '20px 16px';
-      placeholder('📊', 'Reports', 'Add your Canvas API token in Settings first.');
+      placeholder('📊', 'At Risk', 'Add your Canvas API token in Settings first.');
       return;
     }
 
@@ -505,52 +505,13 @@
     pickerWrap.appendChild(filterRow);
     pickerWrap.appendChild(courseSelect);
 
-    // ── TABS ───────────────────────────────────────────────────────────────
-    let activeTab = 'health';
-
-    const tabBar = el('div', `
-      display:flex;flex-shrink:0;
-      border-bottom:2px solid ${DS.border};
-      background:${DS.white};
-    `);
-
     const tabContent = el('div', `
       flex:1;min-height:0;overflow-y:auto;
       padding:16px;display:flex;flex-direction:column;gap:12px;
     `);
 
     panelBody.appendChild(pickerWrap);
-    panelBody.appendChild(tabBar);
     panelBody.appendChild(tabContent);
-
-    const TABS = [
-      { id: 'health', label: 'Course Snapshot' },
-      { id: 'atrisk', label: 'At-Risk Students' },
-    ];
-
-    const tabBtns = {};
-    function setTab(id) {
-      activeTab = id;
-      for (const [tid, tb] of Object.entries(tabBtns)) {
-        const active = tid === id;
-        tb.style.color             = active ? DS.blue  : DS.muted;
-        tb.style.borderBottomColor = active ? DS.blue  : 'transparent';
-        tb.style.fontWeight        = active ? '700'    : '500';
-      }
-      renderTab();
-    }
-
-    for (const t of TABS) {
-      const tb = el('button', `
-        flex:1;padding:11px 6px;font-size:12px;
-        border:none;border-bottom:2px solid transparent;margin-bottom:-2px;
-        background:transparent;cursor:pointer;color:${DS.muted};font-weight:500;
-        font-family:${DS.font};transition:all .15s;
-      `, { type: 'button', textContent: t.label });
-      tb.addEventListener('click', () => setTab(t.id));
-      tabBtns[t.id] = tb;
-      tabBar.appendChild(tb);
-    }
 
     // ── SHARED HELPERS ─────────────────────────────────────────────────────
     function recItem(text, type) {
@@ -575,298 +536,6 @@
       const d = el('div', `padding:10px;border-radius:3px;background:${bg};color:${co};font-size:12px;`);
       d.textContent = text;
       container.appendChild(d);
-    }
-
-    // ── COURSE SNAPSHOT ────────────────────────────────────────────────────
-    async function renderHealthTab() {
-      const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`);
-      desc.textContent = 'A quick Canvas checkup that shows what needs attention and what to do next.';
-      tabContent.appendChild(desc);
-
-      const runBtn = btn('Run Course Snapshot', `background:${DS.blue};color:#fff;`);
-      tabContent.appendChild(runBtn);
-
-      const results = el('div', 'display:flex;flex-direction:column;gap:10px;');
-      tabContent.appendChild(results);
-
-      runBtn.addEventListener('click', async () => {
-        runBtn.disabled = true; runBtn.textContent = 'Checking course...';
-        results.innerHTML = '';
-
-        try {
-          const [assignments, enrollments] = await Promise.all([
-            api(`/api/v1/courses/${selectedCourseId}/assignments?per_page=100`),
-            api(`/api/v1/courses/${selectedCourseId}/enrollments?type[]=StudentEnrollment&per_page=100&include[]=grades`),
-          ]);
-
-          const uniqueEnrollments = Object.values((enrollments || []).reduce((map, e) => {
-            if (e?.user_id != null) map[e.user_id] = map[e.user_id] || e;
-            return map;
-          }, {}));
-          const studentCount = uniqueEnrollments.length;
-          if (!studentCount) { statusMsg(results, 'No enrolled students found.', 'err'); return; }
-
-          const topAssignments = (assignments || []).filter(a => a.points_possible > 0).slice(0, 30);
-          const subMap = {};
-          await Promise.all(topAssignments.map(async a => {
-            const subs = await api(`/api/v1/courses/${selectedCourseId}/assignments/${a.id}/submissions?per_page=200`);
-            subMap[a.id] = subs || [];
-          }));
-
-          function uniqueStudentSubmissions(subs) {
-            const byUser = {};
-            for (const sub of (subs || [])) {
-              if (sub?.user_id == null) continue;
-              const current = byUser[sub.user_id];
-              if (!current) {
-                byUser[sub.user_id] = sub;
-                continue;
-              }
-              if (current.missing && !sub.missing) {
-                byUser[sub.user_id] = sub;
-                continue;
-              }
-              const currentTime = Date.parse(current.graded_at || current.submitted_at || current.cached_due_date || '') || 0;
-              const nextTime = Date.parse(sub.graded_at || sub.submitted_at || sub.cached_due_date || '') || 0;
-              if (nextTime > currentTime) byUser[sub.user_id] = sub;
-            }
-            return Object.values(byUser);
-          }
-
-          const uniqueSubMap = {};
-          for (const a of topAssignments) uniqueSubMap[a.id] = uniqueStudentSubmissions(subMap[a.id] || []);
-          const allSubs = Object.values(uniqueSubMap).flat();
-
-          // Per-assignment stats
-          const stats = topAssignments.map(a => {
-            const subs      = uniqueSubMap[a.id] || [];
-            const submitted = subs.filter(s => s.submitted_at).length;
-            const missing   = subs.filter(s => s.missing).length;
-            const graded    = subs.filter(s => s.score != null && a.points_possible > 0);
-            const avgPct    = graded.length ? graded.reduce((s, x) => s + (x.score / a.points_possible) * 100, 0) / graded.length : null;
-            return {
-              name:           a.name,
-              dueAt:          a.due_at,
-              pointsPossible: a.points_possible,
-              submissionTypes: a.submission_types || [],
-              completionRate: studentCount > 0 ? Math.min(100, (submitted / studentCount) * 100) : 0,
-              missingRate:    studentCount > 0 ? Math.min(100, (missing  / studentCount) * 100) : 0,
-              avgPct,
-              gradedCount:    graded.length,
-              ungradedCount:  subs.filter(s => s.submitted_at && s.score == null).length,
-            };
-          });
-
-          // Course-level grades
-          const grades    = uniqueEnrollments.map(e => e.grades?.current_score).filter(g => g != null);
-          const avgGrade  = grades.length ? grades.reduce((s, g) => s + g, 0) / grades.length : 0;
-          const lowGraders = grades.filter(g => g < 70).length;
-          const avgMissing  = stats.length ? stats.reduce((s, a) => s + a.missingRate, 0)  / stats.length : 0;
-
-          // ── Feedback turnaround (submitted → graded, days) ─────────────
-          const turnaroundDays = allSubs
-            .filter(s => s.submitted_at && s.graded_at)
-            .map(s => (new Date(s.graded_at) - new Date(s.submitted_at)) / 86400000)
-            .filter(d => d >= 0 && d < 365);
-          const avgTurnaround = turnaroundDays.length
-            ? turnaroundDays.reduce((s, d) => s + d, 0) / turnaroundDays.length : null;
-
-          // ── Ungraded pile ──────────────────────────────────────────────
-          const totalUngraded = stats.reduce((s, a) => s + a.ungradedCount, 0);
-
-          // ── Late submission rate ───────────────────────────────────────
-          const allSubmittedCount = allSubs.filter(s => s.submitted_at).length;
-          const lateRate = allSubmittedCount > 0
-            ? (allSubs.filter(s => s.late).length / allSubmittedCount) * 100 : 0;
-
-          // ── Never-submitted students ───────────────────────────────────
-          const enrolledIds   = new Set(uniqueEnrollments.map(e => String(e.user_id)));
-          const submittedIds  = new Set(allSubs.filter(s => s.submitted_at).map(s => String(s.user_id)));
-          const neverSubmitted = [...enrolledIds].filter(id => !submittedIds.has(id)).length;
-
-          // ── Grade distribution / bimodal ───────────────────────────────
-          const bands = { A: 0, B: 0, C: 0, D: 0, F: 0 };
-          for (const g of grades) {
-            if (g >= 90) bands.A++;
-            else if (g >= 80) bands.B++;
-            else if (g >= 70) bands.C++;
-            else if (g >= 60) bands.D++;
-            else bands.F++;
-          }
-          const isBimodal = grades.length >= 8 &&
-            (bands.A + bands.B) > 0 && (bands.D + bands.F) > 0 &&
-            bands.C < (bands.A + bands.B + bands.D + bands.F) * 0.3;
-
-          // ── Grade std deviation ────────────────────────────────────────
-          const gradeStdDev = grades.length > 1
-            ? Math.sqrt(grades.reduce((s, g) => s + Math.pow(g - avgGrade, 2), 0) / grades.length)
-            : 0;
-
-          const highMissing = stats.filter(a => a.missingRate > 30).sort((a, b) => b.missingRate - a.missingRate).slice(0, 3);
-          const lowScoreA = stats.filter(a => a.avgPct != null && a.avgPct < 70 && a.gradedCount >= 3).sort((a, b) => a.avgPct - b.avgPct).slice(0, 2);
-          const lowComplete = stats.filter(a => a.completionRate < 65 && a.completionRate > 0).sort((a, b) => a.completionRate - b.completionRate).slice(0, 2);
-
-          const groups = {
-            students: [],
-            workflow: [],
-          };
-
-          function add(group, severity, title, fact, why, action, ctaLabel, ctaAction) {
-            groups[group].push({ severity, title, fact, why, action, ctaLabel, ctaAction });
-          }
-
-          if (neverSubmitted > 0) {
-            add('students', 'urgent', 'Students Have Not Started', `${neverSubmitted} student${neverSubmitted !== 1 ? 's have' : ' has'} not submitted anything yet.`, 'These students may already be disconnected from the course.', 'Contact them today and consider looping in an advisor if they do not respond.', 'Open At-Risk List', () => setTab('atrisk'));
-          }
-          if (grades.length && lowGraders / grades.length > 0.25) {
-            add('students', 'urgent', 'Several Students Are Failing', `${lowGraders} of ${grades.length} graded students are below 70%.`, 'This is the clearest sign that students need outreach before the next major due date.', 'Send a short personal check-in and point them to the next assignment they can complete.', 'Open Messages', () => document.dispatchEvent(new CustomEvent('ce-toggle-messages')));
-          }
-          if (avgGrade > 0 && avgGrade < 74) {
-            add('students', 'warn', 'Class Average Is Low', `The current class average is ${Math.round(avgGrade)}%.`, 'The whole class may need clarification, review, or a recovery path.', 'Post a review resource or use the next class meeting to reteach the hardest concept.', 'Open Messages', () => document.dispatchEvent(new CustomEvent('ce-toggle-messages')));
-          }
-          for (const a of highMissing) {
-            add('students', 'warn', 'Missing Work Spike', `${Math.round(a.missingRate)}% of students are missing "${a.name}."`, 'A high missing rate usually means students missed the deadline, misunderstood the task, or need a reminder.', 'Send a missing-work reminder and consider extending the due date if the assignment is essential.', 'Open Messages', () => document.dispatchEvent(new CustomEvent('ce-toggle-messages')));
-          }
-          for (const a of lowScoreA) {
-            add('students', 'warn', 'Assignment Scores Are Low', `The class average on "${a.name}" is ${Math.round(a.avgPct)}%.`, 'Students may not have understood the skill or instructions for this assignment.', 'Add a short explanation, example, or practice item before the next related assignment.', '', null);
-          }
-          for (const a of lowComplete) {
-            add('students', 'warn', 'Low Completion Assignment', `Only ${Math.round(a.completionRate)}% of students submitted "${a.name}."`, 'Low completion can point to unclear directions, a hidden item, or a deadline that was easy to miss.', 'Open the assignment as a student would and check the instructions, due date, and module placement.', '', null);
-          }
-          if (isBimodal) {
-            add('students', 'warn', 'Class Is Splitting Into Two Groups', 'Grades show a strong high group and a strong low group, with fewer students in the middle.', 'Some students may have quietly stopped participating while stronger students keep moving.', 'Use the At-Risk tab to identify the lower group and reach out individually.', 'Open At-Risk List', () => setTab('atrisk'));
-          }
-          if (gradeStdDev > 20) {
-            add('students', 'info', 'Wide Grade Spread', 'Student grades vary a lot across the course.', 'The same material may be landing very differently for different students.', 'Consider adding optional practice or peer support for the students who are behind.', '', null);
-          }
-
-          if (totalUngraded > 0) {
-            add('workflow', totalUngraded >= 10 ? 'urgent' : 'warn', 'Ungraded Work Is Waiting', `${totalUngraded} submitted item${totalUngraded !== 1 ? 's are' : ' is'} not graded.`, 'Students cannot make good choices if Canvas does not show where they stand.', 'Clear the oldest submissions first, then message students once grades are updated.', '', null);
-          }
-          if (avgTurnaround != null && avgTurnaround > 4) {
-            add('workflow', avgTurnaround > 7 ? 'urgent' : 'warn', 'Feedback Is Slow', `Average grading turnaround is ${avgTurnaround.toFixed(1)} days.`, 'Feedback loses value when students receive it after they have already moved on.', 'Try a twice-weekly grading block or shorter rubric comments for routine assignments.', '', null);
-          }
-          if (lateRate > 20) {
-            add('workflow', 'warn', 'Late Work Is High', `${Math.round(lateRate)}% of submitted work is late.`, 'Students may be falling behind or may need more reminders before deadlines.', 'Send a reminder to students with late or missing work.', 'Open Messages', () => document.dispatchEvent(new CustomEvent('ce-toggle-messages')));
-          }
-
-          const issues = [...groups.students, ...groups.workflow];
-          const urgentCount = issues.filter(i => i.severity === 'urgent').length;
-          const warnCount = issues.filter(i => i.severity === 'warn').length;
-          const statusLabel = urgentCount ? 'Needs Attention Today' : warnCount ? 'Needs Review' : 'Looks Good';
-          const statusBg = urgentCount ? '#FEF2F2' : warnCount ? '#FFFBEB' : '#F0FDF4';
-          const statusBorder = urgentCount ? '#FCA5A5' : warnCount ? '#FDE68A' : '#86EFAC';
-          const statusColor = urgentCount ? '#991B1B' : warnCount ? '#92400E' : DS.green;
-
-          const hero = el('div', `border:1px solid ${statusBorder};background:${statusBg};border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:8px;`);
-          const heroTop = el('div', 'display:flex;align-items:flex-start;justify-content:space-between;gap:10px;');
-          const heroText = el('div', 'min-width:0;');
-          const heroTitle = el('div', `font-size:18px;font-weight:800;color:${statusColor};line-height:1.2;`);
-          heroTitle.textContent = statusLabel;
-          const heroSub = el('div', `font-size:12px;color:${DS.text};line-height:1.5;margin-top:4px;`);
-          heroSub.textContent = issues.length
-            ? `${issues.length} item${issues.length !== 1 ? 's' : ''} to review. Start with the priorities below.`
-            : 'No major course issues found in Canvas right now.';
-          const heroBadge = el('div', `font-size:11px;font-weight:700;border-radius:999px;padding:5px 9px;background:#fff;border:1px solid ${statusBorder};color:${statusColor};white-space:nowrap;`);
-          heroBadge.textContent = `${studentCount} students`;
-          heroText.appendChild(heroTitle);
-          heroText.appendChild(heroSub);
-          heroTop.appendChild(heroText);
-          heroTop.appendChild(heroBadge);
-          hero.appendChild(heroTop);
-          results.appendChild(hero);
-
-          function metricTile(label, value, note, state) {
-            const color = state === 'bad' ? '#991B1B' : state === 'warn' ? '#92400E' : state === 'good' ? DS.green : DS.text;
-            const bg = state === 'bad' ? '#FEF2F2' : state === 'warn' ? '#FFFBEB' : state === 'good' ? '#F0FDF4' : DS.white;
-            const border = state === 'bad' ? '#FCA5A5' : state === 'warn' ? '#FDE68A' : state === 'good' ? '#86EFAC' : DS.border;
-            const card = el('div', `border:1px solid ${border};border-radius:4px;background:${bg};padding:10px;min-width:0;`);
-            const val = el('div', `font-size:18px;font-weight:800;color:${color};line-height:1;`);
-            val.textContent = value;
-            const lbl = el('div', `font-size:11px;font-weight:700;color:${DS.text};margin-top:6px;`);
-            lbl.textContent = label;
-            const small = el('div', `font-size:10px;color:${DS.muted};line-height:1.35;margin-top:3px;`);
-            small.textContent = note;
-            card.appendChild(val);
-            card.appendChild(lbl);
-            card.appendChild(small);
-            return card;
-          }
-
-          const metrics = el('div', 'display:grid;grid-template-columns:1fr 1fr;gap:8px;');
-          metrics.appendChild(metricTile('At-Risk', String(lowGraders), 'students below 70%', lowGraders ? 'bad' : 'good'));
-          metrics.appendChild(metricTile('Missing Work', `${Math.round(avgMissing)}%`, 'average missing rate', avgMissing > 25 ? 'bad' : avgMissing > 10 ? 'warn' : 'good'));
-          metrics.appendChild(metricTile('Ungraded', String(totalUngraded), 'submitted items', totalUngraded >= 10 ? 'bad' : totalUngraded > 0 ? 'warn' : 'good'));
-          metrics.appendChild(metricTile('Late Work', `${Math.round(lateRate)}%`, 'of submitted work', lateRate > 20 ? 'warn' : 'good'));
-          metrics.appendChild(metricTile('Feedback', avgTurnaround != null ? `${avgTurnaround.toFixed(1)}d` : 'N/A', 'average return time', avgTurnaround == null ? 'neutral' : avgTurnaround > 7 ? 'bad' : avgTurnaround > 4 ? 'warn' : 'good'));
-          metrics.appendChild(metricTile('Class Avg', grades.length ? `${Math.round(avgGrade)}%` : 'N/A', 'current Canvas score', grades.length && avgGrade < 74 ? 'warn' : grades.length ? 'good' : 'neutral'));
-          results.appendChild(metrics);
-
-          function issueCard(item) {
-            const color = item.severity === 'urgent' ? '#991B1B' : item.severity === 'warn' ? '#92400E' : DS.blue;
-            const bg = item.severity === 'urgent' ? '#FEF2F2' : item.severity === 'warn' ? '#FFFBEB' : DS.blueBg;
-            const border = item.severity === 'urgent' ? '#FCA5A5' : item.severity === 'warn' ? '#FDE68A' : DS.border;
-            const card = el('div', `border:1px solid ${border};border-radius:4px;background:${bg};padding:10px;display:flex;flex-direction:column;gap:7px;`);
-            const title = el('div', `font-size:13px;font-weight:800;color:${color};`);
-            title.textContent = item.title;
-            const fact = el('div', `font-size:12px;font-weight:700;color:${DS.text};line-height:1.45;`);
-            fact.textContent = item.fact;
-            const why = el('div', `font-size:11px;color:${DS.muted};line-height:1.45;`);
-            why.textContent = item.why;
-            const action = el('div', `font-size:12px;color:${DS.text};line-height:1.45;`);
-            action.innerHTML = `<strong>Next step:</strong> ${item.action}`;
-            card.appendChild(title);
-            card.appendChild(fact);
-            card.appendChild(why);
-            card.appendChild(action);
-            if (item.ctaLabel && item.ctaAction) {
-              const cta = el('button', `align-self:flex-start;border:1px solid ${DS.blue};background:#fff;color:${DS.blue};border-radius:3px;padding:6px 9px;font-size:11px;font-weight:700;cursor:pointer;font-family:${DS.font};`, { type: 'button', textContent: item.ctaLabel });
-              cta.addEventListener('click', item.ctaAction);
-              card.appendChild(cta);
-            }
-            return card;
-          }
-
-          const priorities = issues
-            .filter(i => i.severity !== 'info')
-            .sort((a, b) => (a.severity === 'urgent' ? -1 : 1) - (b.severity === 'urgent' ? -1 : 1))
-            .slice(0, 3);
-          if (priorities.length) {
-            results.appendChild(sectionHead('What to do first'));
-            const priorityList = el('div', 'display:flex;flex-direction:column;gap:8px;');
-            priorities.forEach(i => priorityList.appendChild(issueCard(i)));
-            results.appendChild(priorityList);
-          } else {
-            results.appendChild(recItem('No urgent action found. Your course looks steady based on the Canvas data available.', 'ok'));
-          }
-
-          function groupSection(title, subtitle, items) {
-            const wrap = el('div', 'display:flex;flex-direction:column;gap:8px;');
-            const head = el('div', '');
-            const h = el('div', `font-size:13px;font-weight:800;color:${DS.text};`);
-            h.textContent = title;
-            const p = el('div', `font-size:11px;color:${DS.muted};line-height:1.45;margin-top:2px;`);
-            p.textContent = subtitle;
-            head.appendChild(h);
-            head.appendChild(p);
-            wrap.appendChild(head);
-            if (!items.length) {
-              wrap.appendChild(recItem('No major concern found in this area.', 'ok'));
-            } else {
-              items.forEach(i => wrap.appendChild(issueCard(i)));
-            }
-            results.appendChild(wrap);
-          }
-
-          groupSection('Students', 'Grades, missing work, and participation signals.', groups.students);
-          groupSection('Instructor Workflow', 'Grading pace, ungraded work, and late-work patterns.', groups.workflow);
-
-        } catch (e) {
-          statusMsg(results, 'Error: ' + e.message, 'err');
-        } finally {
-          runBtn.disabled = false; runBtn.textContent = 'Run Course Snapshot';
-        }
-      });
     }
 
     // ── AT-RISK STUDENTS ───────────────────────────────────────────────────
@@ -1217,11 +886,10 @@
         tabContent.appendChild(msg);
         return;
       }
-      if (activeTab === 'health') await renderHealthTab();
-      else await renderAtRiskTab();
+      await renderAtRiskTab();
     }
 
-    setTab('health'); // renders "select a course" placeholder until dropdown loads
+    renderTab(); // renders "select a course" placeholder until dropdown loads
 
     // ── LOAD COURSES INTO PICKER ───────────────────────────────────────────
     (async () => {
