@@ -1080,6 +1080,22 @@
           selLabel.textContent = 'Viewing criteria for';
           selHdr.appendChild(selLabel);
 
+          const checkRow = el('div', `display:flex;gap:14px;flex-wrap:wrap;`);
+          selHdr.appendChild(checkRow);
+          function mkCb(labelText) {
+            const lbl = el('label', `display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:${DS.muted};user-select:none;`);
+            const box = document.createElement('input');
+            box.type = 'checkbox'; box.checked = true;
+            box.style.cssText = 'margin:0;cursor:pointer;';
+            const txt = document.createElement('span');
+            txt.textContent = labelText;
+            lbl.appendChild(box); lbl.appendChild(txt);
+            checkRow.appendChild(lbl);
+            return box;
+          }
+          const cbPublished = mkCb('Published only');
+          const cbDashboard = mkCb('Dashboard only');
+
           const selRow = el('div', `display:flex;gap:6px;`);
           selHdr.appendChild(selRow);
 
@@ -1105,6 +1121,37 @@
 
           const _courseNames = {};
           const _assignNames = {};
+          let _allCourses   = [];
+          let _dashboardIds = new Set();
+
+          function renderCourseOptions() {
+            const prev = courseSel.value || _critCourseId;
+            courseSel.innerHTML = '';
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = '— select course —';
+            courseSel.appendChild(ph);
+            for (const c of _allCourses) {
+              if (cbPublished.checked && c.workflow_state !== 'available') continue;
+              if (cbDashboard.checked && !_dashboardIds.has(String(c.id))) continue;
+              const o = document.createElement('option');
+              o.value = String(c.id); o.textContent = _courseNames[String(c.id)];
+              if (String(c.id) === prev) o.selected = true;
+              courseSel.appendChild(o);
+            }
+            if (courseSel.value !== prev) {
+              _critCourseId = '';
+              _critAssignmentId = '';
+              assignSel.innerHTML = '';
+              const aph = document.createElement('option');
+              aph.value = ''; aph.textContent = '— pick assignment —';
+              assignSel.appendChild(aph);
+              criteriaContent.innerHTML = '';
+              updateStatus();
+            }
+          }
+
+          cbPublished.addEventListener('change', renderCourseOptions);
+          cbDashboard.addEventListener('change', renderCourseOptions);
 
           function updateStatus() {
             if (_critCourseId && _critAssignmentId) {
@@ -1165,19 +1212,15 @@
 
           // ── INITIAL LOAD ────────────────────────────────────────────────
           (async () => {
-            const courses = await apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100');
-            courseSel.innerHTML = '';
-            const ph = document.createElement('option');
-            ph.value = ''; ph.textContent = '— select course —';
-            courseSel.appendChild(ph);
-            for (const c of (courses || [])) {
-              _courseNames[String(c.id)] = c.course_code || c.name;
-              const o = document.createElement('option');
-              o.value = String(c.id); o.textContent = c.course_code || c.name;
-              if (String(c.id) === _critCourseId) o.selected = true;
-              courseSel.appendChild(o);
-            }
-            if (_critCourseId) {
+            const [courses, dashCards] = await Promise.all([
+              apiCall('/api/v1/courses?enrollment_type=teacher&per_page=100'),
+              apiCall('/api/v1/dashboard/dashboard_cards'),
+            ]);
+            _allCourses   = courses || [];
+            _dashboardIds = new Set((dashCards || []).map(d => String(d.id)));
+            for (const c of _allCourses) _courseNames[String(c.id)] = c.course_code || c.name;
+            renderCourseOptions();
+            if (_critCourseId && courseSel.value === _critCourseId) {
               await loadAssignments(_critCourseId);
             } else {
               updateStatus();
