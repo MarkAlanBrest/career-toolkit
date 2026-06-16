@@ -973,15 +973,22 @@
     button.addEventListener('mouseenter', () => button.style.background = '#055A96');
     button.addEventListener('mouseleave', () => button.style.background = '#0770B8');
 
-    if (target && target.parentElement) {
-      const container = target.closest('div') || target.parentElement;
-      if (container && container.contains(target)) {
-        container.insertAdjacentElement('beforeend', button);
-        return;
+    if (actionBar) {
+      button.style.marginLeft = 'auto';
+      if (actionBar instanceof HTMLElement) {
+        const style = window.getComputedStyle(actionBar);
+        if (style.display === 'flex' || style.display === 'inline-flex') {
+          actionBar.appendChild(button);
+          return;
+        }
       }
+      actionBar.appendChild(button);
+      return;
     }
 
-    actionBar.appendChild(button);
+    if (target && target.parentElement) {
+      target.parentElement.appendChild(button);
+    }
   }
 
   function wireQuizPageNavigation() {
