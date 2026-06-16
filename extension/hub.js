@@ -1029,7 +1029,7 @@
       const hdrTitle = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
       hdrTitle.textContent = 'Needs Grading';
       const hdrSub = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;`);
-      hdrSub.textContent = 'Click any assignment to open in SpeedGrader.';
+      hdrSub.textContent = 'All submitted, ungraded work across your courses.';
       hdr.appendChild(hdrTitle); hdr.appendChild(hdrSub);
       outer.appendChild(hdr);
 
@@ -1044,57 +1044,92 @@
         list.appendChild(m);
       }
 
-      listMsg('Loading assignments…');
-
-      const courseId = window.location.pathname.match(/\/courses\/(\d+)/)?.[1];
-      if (!courseId) { listMsg('Navigate to a course page to see assignments that need grading.'); return; }
+      listMsg('Loading…');
 
       const s = await new Promise(r => chrome.storage.local.get('ce_canvas_token', r));
       const tok = s.ce_canvas_token;
       if (!tok) { listMsg('Add your Canvas API token in Settings first.'); return; }
 
-      try {
-        const assignments = await new Promise(r => chrome.runtime.sendMessage({
-          type: 'CANVAS_API',
-          payload: { url: `${window.location.origin}/api/v1/courses/${courseId}/assignments?per_page=100&order_by=due_at`, token: tok },
-        }, r));
+      const origin = window.location.origin;
 
-        const pending = (assignments || [])
-          .filter(a => a.needs_grading_count > 0 && a.published !== false)
-          .sort((a, b) => (a.due_at ? new Date(a.due_at) : new Date('9999')) - (b.due_at ? new Date(b.due_at) : new Date('9999')));
+      function apiCall(path) {
+        return new Promise(r => chrome.runtime.sendMessage({
+          type: 'CANVAS_API',
+          payload: { url: origin + path, token: tok },
+        }, r));
+      }
+
+      try {
+        // Fetch todo items (Canvas natively tracks all ungraded submitted work per teacher)
+        // and course list in parallel for course names
+        const [todoItems, courses] = await Promise.all([
+          apiCall('/api/v1/users/self/todo?per_page=100'),
+          apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100'),
+        ]);
+
+        // Build course name map
+        const courseNames = {};
+        for (const c of (courses || [])) courseNames[c.id] = c.course_code || c.name;
+
+        // Filter to grading tasks only, sort oldest due date first
+        const pending = (todoItems || [])
+          .filter(item => item.type === 'grading' && item.assignment)
+          .sort((a, b) => {
+            const da = a.assignment.due_at ? new Date(a.assignment.due_at) : new Date('9999-01-01');
+            const db = b.assignment.due_at ? new Date(b.assignment.due_at) : new Date('9999-01-01');
+            return da - db;
+          });
 
         list.innerHTML = '';
 
         if (!pending.length) {
-          listMsg('✅  No assignments currently need grading.');
+          listMsg('✅  All caught up — nothing left to grade.');
           return;
         }
 
-        for (const a of pending) {
-          const sgUrl = `${window.location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`;
+        // Total count badge in header
+        const countBadge = el('span', `
+          display:inline-block;margin-left:8px;
+          background:#FEF3C7;color:#92400E;
+          font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;vertical-align:middle;
+        `);
+        countBadge.textContent = pending.length + ' assignment' + (pending.length !== 1 ? 's' : '');
+        hdrTitle.appendChild(countBadge);
+
+        for (const item of pending) {
+          const a = item.assignment;
+          const cid = a.course_id;
+          const sgUrl = `${origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}`;
+
           const row = document.createElement('a');
           row.href = sgUrl;
           row.style.cssText = `
             display:flex;align-items:center;justify-content:space-between;gap:10px;
             padding:10px 16px;text-decoration:none;
-            border-bottom:1px solid ${DS.border};
-            transition:background .12s;
+            border-bottom:1px solid ${DS.border};transition:background .12s;
           `;
 
           const left = el('div', `min-width:0;flex:1;`);
+
+          const courseLbl = el('div', `font-size:10px;color:${DS.muted};text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          courseLbl.textContent = courseNames[cid] || 'Course ' + cid;
+
           const name = el('div', `font-size:12px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
           name.textContent = a.name;
+
           const due = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;`);
           due.textContent = a.due_at
             ? 'Due ' + new Date(a.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : 'No due date';
-          left.appendChild(name); left.appendChild(due);
+
+          left.appendChild(courseLbl); left.appendChild(name); left.appendChild(due);
 
           const badge = el('div', `
             flex-shrink:0;background:#FEF3C7;color:#92400E;
             font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;
           `);
-          badge.textContent = a.needs_grading_count + ' to grade';
+          const count = item.needs_grading_count ?? a.needs_grading_count ?? '?';
+          badge.textContent = count + ' to grade';
 
           row.appendChild(left); row.appendChild(badge);
           row.addEventListener('mouseenter', () => row.style.background = DS.gray);
@@ -1102,7 +1137,7 @@
           list.appendChild(row);
         }
       } catch (e) {
-        listMsg('Error loading assignments: ' + e.message, '#991B1B');
+        listMsg('Error: ' + e.message, '#991B1B');
       }
       return;
     }
@@ -2478,6 +2513,39 @@
     }
   }
 
+  // ── GRADER BADGE ───────────────────────────────────────────────────────────
+  async function updateGraderBadge() {
+    const s = await new Promise(r => chrome.storage.local.get('ce_canvas_token', r));
+    const tok = s.ce_canvas_token;
+    if (!tok) return;
+    try {
+      const data = await new Promise(r => chrome.runtime.sendMessage({
+        type: 'CANVAS_API',
+        payload: { url: window.location.origin + '/api/v1/users/self/todo_item_count', token: tok },
+      }, r));
+      const count = data?.needs_grading_count || 0;
+      const btn = btnMap['ai-grader'];
+      if (!btn) return;
+      let badge = btn.querySelector('.ce-hub-badge');
+      if (!badge) {
+        btn.style.position = 'relative';
+        badge = el('div', `
+          position:absolute;top:5px;right:5px;
+          min-width:16px;height:16px;border-radius:8px;
+          background:#EF4444;color:#fff;
+          font-size:9px;font-weight:700;font-family:${DS.font};
+          display:flex;align-items:center;justify-content:center;
+          padding:0 3px;box-sizing:border-box;pointer-events:none;
+          line-height:1;
+        `);
+        badge.className = 'ce-hub-badge';
+        btn.appendChild(badge);
+      }
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.style.display = count > 0 ? 'flex' : 'none';
+    } catch (_) {}
+  }
+
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
     // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar.
@@ -2512,4 +2580,7 @@
 
   if (document.body) mount();
   else document.addEventListener('DOMContentLoaded', mount);
+
+  // Fetch grader badge count after a short delay so the page token is ready
+  setTimeout(updateGraderBadge, 1500);
 })();
