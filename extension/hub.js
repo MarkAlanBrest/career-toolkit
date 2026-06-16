@@ -37,6 +37,7 @@
 
   const TOOLS = [
     { id: 'quick-ai',  icon: '⚡', label: 'Chat',      noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
+    { id: 'ai-grader', icon: '🎓', label: 'Grader',                  desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
     { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
     { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
     { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
