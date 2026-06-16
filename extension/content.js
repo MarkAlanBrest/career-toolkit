@@ -948,7 +948,7 @@
     button.style.cssText = `
       position:fixed;
       top:120px;
-      right:24px;
+      right:180px;
       z-index:999999;
       padding:12px 16px;
       border-radius:999px;
