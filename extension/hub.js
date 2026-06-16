@@ -23,7 +23,7 @@
     font:   '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif',
   };
 
-  const TOOLBAR_W  = 52;
+  const TOOLBAR_W  = 68;
   const SPEEDGRADER = /speed_grader/.test(window.location.href);
   const TOP_OFFSET  = SPEEDGRADER ? 60 : 0;
 
@@ -41,7 +41,7 @@
     { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
     { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
     { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
-    { id: 'reports',   icon: '📊', label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
+    { id: 'reports',   icon: '⚠️',  label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
     { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
     { id: 'eval',      icon: '📈', label: 'Eval',                          desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
@@ -122,7 +122,7 @@
     icon.textContent = tool.icon;
 
     const label = el('span', `display:block;text-align:center;font-size:9px;color:${DS.navText};opacity:.75;letter-spacing:.3px;text-transform:uppercase;`);
-    label.textContent = tool.label.split(' ')[0];
+    label.textContent = tool.label;
 
     inner.appendChild(icon);
     inner.appendChild(label);
@@ -448,7 +448,7 @@
 
     if (!token) {
       panelBody.style.padding = '20px 16px';
-      placeholder('📊', 'At Risk', 'Add your Canvas API token in Settings first.');
+      placeholder('⚠️', 'At Risk', 'Add your Canvas API token in Settings first.');
       return;
     }
 
