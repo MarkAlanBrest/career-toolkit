@@ -1026,10 +1026,20 @@
     let criteriaEditing = false;
     const tok = stored.ce_canvas_token;
     let content;
+    let _critCourseId     = String(ctx?.courseId     || '');
+    let _critAssignmentId = String(ctx?.assignmentId || '');
 
     if (!/speed_grader/.test(window.location.href)) {
       panelBody.style.padding = '0';
       panelBody.style.overflow = 'hidden';
+
+      const origin = window.location.origin;
+      function apiCall(path) {
+        if (!tok) return Promise.resolve(null);
+        return new Promise(r => chrome.runtime.sendMessage({
+          type: 'CANVAS_API', payload: { url: origin + path, token: tok },
+        }, r));
+      }
 
       const outer = el('div', `display:flex;flex-direction:column;height:100%;`);
       panelBody.appendChild(outer);
@@ -1061,8 +1071,118 @@
         }
         if (id === 'criteria' && !criteriaPane._built) {
           criteriaPane._built = true;
-          content = criteriaPane;
-          buildCriteriaSection();
+
+          // ── ASSIGNMENT SELECTOR HEADER ──────────────────────────────────
+          const selHdr = el('div', `flex-shrink:0;padding-bottom:12px;border-bottom:1px solid ${DS.border};display:flex;flex-direction:column;gap:8px;`);
+          criteriaPane.appendChild(selHdr);
+
+          const selLabel = el('div', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;`);
+          selLabel.textContent = 'Viewing criteria for';
+          selHdr.appendChild(selLabel);
+
+          const selRow = el('div', `display:flex;gap:6px;`);
+          selHdr.appendChild(selRow);
+
+          const courseSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+          const assignSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
+
+          const cpOpt = document.createElement('option');
+          cpOpt.value = ''; cpOpt.textContent = 'Loading courses…'; cpOpt.disabled = true; cpOpt.selected = true;
+          courseSel.appendChild(cpOpt);
+          const apOpt = document.createElement('option');
+          apOpt.value = ''; apOpt.textContent = '— pick assignment —';
+          assignSel.appendChild(apOpt);
+          selRow.appendChild(courseSel);
+          selRow.appendChild(assignSel);
+
+          const statusEl = el('div', `font-size:11px;min-height:14px;font-style:italic;`);
+          selHdr.appendChild(statusEl);
+
+          // ── SCROLLABLE CRITERIA AREA ────────────────────────────────────
+          const criteriaContent = el('div', `flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:8px;padding-top:12px;`);
+          criteriaPane.appendChild(criteriaContent);
+          content = criteriaContent;
+
+          const _courseNames = {};
+          const _assignNames = {};
+
+          function updateStatus() {
+            if (_critCourseId && _critAssignmentId) {
+              statusEl.textContent = (_assignNames[_critAssignmentId] || 'Unknown assignment') + ' — ' + (_courseNames[_critCourseId] || 'Unknown course');
+              statusEl.style.color = DS.text;
+            } else if (_critCourseId) {
+              statusEl.textContent = 'Select an assignment above';
+              statusEl.style.color = DS.muted;
+            } else {
+              statusEl.textContent = 'Select a course and assignment above';
+              statusEl.style.color = DS.muted;
+            }
+          }
+
+          async function loadAssignments(courseId) {
+            assignSel.innerHTML = '';
+            const loadOpt = document.createElement('option');
+            loadOpt.value = ''; loadOpt.textContent = 'Loading…'; loadOpt.disabled = true; loadOpt.selected = true;
+            assignSel.appendChild(loadOpt);
+
+            const data = await apiCall(`/api/v1/courses/${courseId}/assignments?per_page=100&order_by=due_at`);
+            assignSel.innerHTML = '';
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = '— pick assignment —';
+            assignSel.appendChild(ph);
+            for (const a of (data || [])) {
+              _assignNames[String(a.id)] = a.name;
+              const o = document.createElement('option');
+              o.value = String(a.id); o.textContent = a.name;
+              if (String(a.id) === _critAssignmentId) o.selected = true;
+              assignSel.appendChild(o);
+            }
+            criteriaContent.innerHTML = '';
+            if (_critAssignmentId && assignSel.value === _critAssignmentId) {
+              criteriaEditing = false;
+              updateStatus();
+              buildCriteriaSection();
+            } else {
+              updateStatus();
+            }
+          }
+
+          courseSel.addEventListener('change', () => {
+            _critCourseId = courseSel.value;
+            _critAssignmentId = '';
+            criteriaContent.innerHTML = '';
+            updateStatus();
+            loadAssignments(_critCourseId);
+          });
+
+          assignSel.addEventListener('change', () => {
+            _critAssignmentId = assignSel.value;
+            criteriaEditing = false;
+            criteriaContent.innerHTML = '';
+            updateStatus();
+            if (_critAssignmentId) buildCriteriaSection();
+          });
+
+          // ── INITIAL LOAD ────────────────────────────────────────────────
+          (async () => {
+            const courses = await apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100');
+            courseSel.innerHTML = '';
+            const ph = document.createElement('option');
+            ph.value = ''; ph.textContent = '— select course —';
+            courseSel.appendChild(ph);
+            for (const c of (courses || [])) {
+              _courseNames[String(c.id)] = c.course_code || c.name;
+              const o = document.createElement('option');
+              o.value = String(c.id); o.textContent = c.course_code || c.name;
+              if (String(c.id) === _critCourseId) o.selected = true;
+              courseSel.appendChild(o);
+            }
+            if (_critCourseId) {
+              await loadAssignments(_critCourseId);
+            } else {
+              updateStatus();
+            }
+          })();
         }
       }
 
@@ -1103,15 +1223,6 @@
       if (!tok) {
         listMsg('Add your Canvas API token in Settings first.');
       } else {
-        const origin = window.location.origin;
-
-        function apiCall(path) {
-          return new Promise(r => chrome.runtime.sendMessage({
-            type: 'CANVAS_API',
-            payload: { url: origin + path, token: tok },
-          }, r));
-        }
-
         try {
           const [todoItems, courses] = await Promise.all([
             apiCall('/api/v1/users/self/todo?per_page=100'),
@@ -1192,7 +1303,7 @@
       const ngListener = changes => {
         if (changes.ce_criteria) {
           allCriteria = changes.ce_criteria.newValue || {};
-          if (criteriaPane._built) { content = criteriaPane; buildCriteriaSection(); }
+          if (criteriaPane._built && _critAssignmentId) buildCriteriaSection();
         }
       };
       chrome.storage.onChanged.addListener(ngListener);
@@ -1214,10 +1325,12 @@
     }
 
     function criteriaKey() {
-      const current = SPEEDGRADER ? speedGraderUrlParts() : { courseId: '', assignmentId: '' };
-      const courseId = current.courseId || ctx?.courseId || '';
-      const assignmentId = current.assignmentId || ctx?.assignmentId || '';
-      return courseId && assignmentId ? `${courseId}_${assignmentId}` : null;
+      if (SPEEDGRADER) {
+        const { courseId, assignmentId } = speedGraderUrlParts();
+        return courseId && assignmentId ? `${courseId}_${assignmentId}` : null;
+      }
+      return _critCourseId && _critAssignmentId
+        ? `${_critCourseId}_${_critAssignmentId}` : null;
     }
     function savedCriteria() { const k = criteriaKey(); return k ? (allCriteria[k] || '') : ''; }
 
