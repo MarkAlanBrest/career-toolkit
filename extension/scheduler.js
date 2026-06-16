@@ -908,6 +908,10 @@
     if (app.classList.contains('open')) closeApp(); else openApp();
   });
 
+  document.addEventListener('ce-close-scheduler', () => {
+    if (app.classList.contains('open')) closeApp();
+  });
+
   /* ── Event listeners ─────────────────────────────────────────────────── */
 
   document.getElementById('csch-close-btn').addEventListener('click', closeApp);

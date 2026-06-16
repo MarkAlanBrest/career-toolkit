@@ -2630,21 +2630,32 @@
     renderList();
   }
 
+  function closeAllExternal() {
+    document.dispatchEvent(new CustomEvent('ce-close-scheduler'));
+  }
+
   function onToolClick(tool) {
     if (tool.id === 'message') {
+      closePanel();
+      closeAllExternal();
       document.dispatchEvent(new CustomEvent('ce-toggle-messages'));
       return;
     }
     if (tool.id === 'quiz') {
+      closePanel();
+      closeAllExternal();
       document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
       return;
     }
     if (tool.noPanel) { openQuickAI(); return; }
     if (tool.id === 'scheduler') {
+      closePanel();
+      closeAllExternal();
       document.dispatchEvent(new CustomEvent('ce-toggle-scheduler'));
       return;
     }
     if (_active === tool.id) { closePanel(); return; }
+    closeAllExternal();
     openPanel(tool);
   }
 
