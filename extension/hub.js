@@ -485,7 +485,9 @@
     const token      = stored.ce_canvas_token;
     const savedPrefs = stored.ce_reports_prefs || {};
     const urlCourseId = window.location.href.match(/\/courses\/(\d+)/)?.[1] || null;
-    let selectedCourseId = savedPrefs.selectedId || urlCourseId || null;
+    const savedIds = (savedPrefs.selectedIds || (savedPrefs.selectedId ? [savedPrefs.selectedId] : urlCourseId ? [urlCourseId] : [])).map(String);
+    const selectedCourseIds = new Set(savedIds);
+    let allCoursesData = null;
     const origin = window.location.origin;
 
     if (!token) {
@@ -533,19 +535,22 @@
     filterRow.appendChild(pubLbl);
     filterRow.appendChild(dashLbl);
 
-    // Course dropdown
-    const courseSelect = el('select', `
-      width:100%;padding:5px 8px;border:1px solid ${DS.border};border-radius:3px;
-      font-size:12px;font-family:${DS.font};color:${DS.text};background:${DS.white};
-      cursor:pointer;
-    `);
-    const selectLoading = el('option', '');
-    selectLoading.textContent = 'Loading courses…';
-    courseSelect.appendChild(selectLoading);
-    courseSelect.disabled = true;
+    // Course list toolbar
+    const courseListToolbar = el('div', `display:flex;align-items:center;gap:6px;margin-bottom:4px;`);
+    const selectAllBtn = el('button', `font-size:10px;padding:2px 8px;border:1px solid ${DS.border};border-radius:3px;background:${DS.white};color:${DS.text};cursor:pointer;`);
+    selectAllBtn.textContent = 'Select All';
+    const clearCoursesBtn = el('button', `font-size:10px;padding:2px 8px;border:1px solid ${DS.border};border-radius:3px;background:${DS.white};color:${DS.text};cursor:pointer;`);
+    clearCoursesBtn.textContent = 'Clear';
+    courseListToolbar.appendChild(selectAllBtn);
+    courseListToolbar.appendChild(clearCoursesBtn);
+
+    const courseListEl = el('div', `border:1px solid ${DS.border};border-radius:3px;background:${DS.white};max-height:150px;overflow-y:auto;`);
+    courseListEl.id = 'ce-risk-course-list';
+    courseListEl.innerHTML = `<div style="padding:8px;font-size:12px;color:${DS.muted};">Loading classes…</div>`;
 
     pickerWrap.appendChild(filterRow);
-    pickerWrap.appendChild(courseSelect);
+    pickerWrap.appendChild(courseListToolbar);
+    pickerWrap.appendChild(courseListEl);
 
     const tabContent = el('div', `
       flex:1;min-height:0;overflow-y:auto;
@@ -606,7 +611,7 @@
         return { row: r, inp };
       }
 
-      const { row: r1, inp: gradeInp    } = threshRow('Current grade below',         'ce-ar-grade',    70, '%');
+      const { row: r1, inp: gradeInp    } = threshRow('Current grade below',         'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
 
       const windowHead = el('div', `
         font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
@@ -615,9 +620,9 @@
       windowHead.textContent = 'Within lookback window';
       threshCard.appendChild(windowHead);
 
-      const { row: r2, inp: missingInp  } = threshRow('Missing assignments ≥',        'ce-ar-missing',   3, 'assignments');
-      const { row: r3, inp: lowScoreInp } = threshRow('Any assignment score below',   'ce-ar-lowscore', 60, '%');
-      const { row: r4, inp: daysInp     } = threshRow('Days to look back',            'ce-ar-days',      7, 'days');
+      const { row: r2, inp: missingInp  } = threshRow('Missing assignments ≥',        'ce-ar-missing',  savedPrefs.missingT  ?? 3,  'assignments');
+      const { row: r3, inp: lowScoreInp } = threshRow('Any assignment score below',   'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
+      const { row: r4, inp: daysInp     } = threshRow('Days to look back',            'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
 
       threshCard.appendChild(r1);
       threshCard.appendChild(r2); threshCard.appendChild(r3);
@@ -640,6 +645,13 @@
         const lowScoreT = parseFloat(lowScoreInp.value) || 60;
         const days      = parseInt(daysInp.value)        || 7;
         const cutoff    = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        if (!selectedCourseIds.size) {
+          statusMsg(results, 'Select at least one class above before running.', 'err');
+          runBtn.disabled = false; runBtn.textContent = '▶  Find At-Risk Students';
+          return;
+        }
+        savePrefs({ gradeT, missingT, lowScoreT, days });
 
         function fmtDate(iso) {
           if (!iso) return '—';
@@ -664,20 +676,23 @@
         }
 
         try {
-          const [enrollments, allSubs] = await Promise.all([
-            api(`/api/v1/courses/${selectedCourseId}/enrollments?type[]=StudentEnrollment&per_page=100&include[]=grades`),
-            api(`/api/v1/courses/${selectedCourseId}/students/submissions?student_ids[]=all&per_page=200&include[]=assignment`),
-          ]);
-
-          // Group submissions by student
-          const subsByStu = {};
-          for (const s of (allSubs || [])) {
-            if (!subsByStu[s.user_id]) subsByStu[s.user_id] = [];
-            subsByStu[s.user_id].push(s);
-          }
-
           const atRisk = [];
-          for (const en of (enrollments || [])) {
+
+          for (const cId of selectedCourseIds) {
+            const courseName = (allCoursesData || []).find(c => String(c.id) === cId)?.name || `Course ${cId}`;
+            const [enrollments, allSubs] = await Promise.all([
+              api(`/api/v1/courses/${cId}/enrollments?type[]=StudentEnrollment&per_page=100&include[]=grades`),
+              api(`/api/v1/courses/${cId}/students/submissions?student_ids[]=all&per_page=200&include[]=assignment`),
+            ]);
+
+            // Group submissions by student
+            const subsByStu = {};
+            for (const s of (allSubs || [])) {
+              if (!subsByStu[s.user_id]) subsByStu[s.user_id] = [];
+              subsByStu[s.user_id].push(s);
+            }
+
+            for (const en of (enrollments || [])) {
             const uid   = en.user_id;
             const name  = en.user?.name || `Student ${uid}`;
             const grade = en.grades?.current_score;
@@ -712,7 +727,8 @@
             if (lowCount)
               flags.push(`${lowCount} low score${lowCount !== 1 ? 's' : ''} in last ${days} days`);
 
-            atRisk.push({ name, grade, subs, flaggedSubs, letterSubs, days, flags });
+              atRisk.push({ name, grade, subs, flaggedSubs, letterSubs, days, flags, courseName });
+            }
           }
 
           atRisk.sort((a, b) => (a.grade ?? 999) - (b.grade ?? 999));
@@ -733,11 +749,18 @@
               display:flex;align-items:center;justify-content:space-between;
               padding:8px 12px;background:#FEF3C7;border-bottom:1px solid #FDE68A;
             `);
+            const nameWrap = el('div', `display:flex;flex-direction:column;gap:1px;`);
             const nameEl  = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
             nameEl.textContent = s.name;
+            nameWrap.appendChild(nameEl);
+            if (selectedCourseIds.size > 1) {
+              const courseEl = el('div', `font-size:10px;color:${DS.muted};`);
+              courseEl.textContent = s.courseName;
+              nameWrap.appendChild(courseEl);
+            }
             const gradeEl = el('div', `font-size:13px;font-weight:700;color:${s.grade != null && s.grade < gradeT ? '#DC2626' : DS.text};`);
             gradeEl.textContent = s.grade != null ? `Avg: ${Math.round(s.grade)}%` : '';
-            hdr.appendChild(nameEl); hdr.appendChild(gradeEl);
+            hdr.appendChild(nameWrap); hdr.appendChild(gradeEl);
             card.appendChild(hdr);
 
             // Flag badges
@@ -922,83 +945,79 @@
     // ── RENDER INITIAL TAB ─────────────────────────────────────────────────
     async function renderTab() {
       tabContent.innerHTML = '';
-      if (!selectedCourseId) {
-        const msg = el('div', `text-align:center;padding:36px 16px;font-size:13px;color:${DS.muted};line-height:1.6;`);
-        msg.textContent = 'Select a course above to run this report.';
-        tabContent.appendChild(msg);
-        return;
-      }
       await renderAtRiskTab();
     }
 
-    renderTab(); // renders "select a course" placeholder until dropdown loads
+    renderTab();
 
     // ── LOAD COURSES INTO PICKER ───────────────────────────────────────────
     (async () => {
       try {
-        const [allCourses, dashCards] = await Promise.all([
+        const [fetchedCourses, dashCards] = await Promise.all([
           api(`/api/v1/courses?enrollment_type=teacher&per_page=100`),
           api(`/api/v1/dashboard/dashboard_cards`),
         ]);
 
+        allCoursesData = fetchedCourses || [];
         const dashIds = new Set((dashCards || []).map(c => String(c.id)));
 
         function visibleCourses() {
-          let list = allCourses || [];
+          let list = allCoursesData;
           if (pubChk.checked)  list = list.filter(c => c.workflow_state === 'available');
           if (dashChk.checked) list = list.filter(c => dashIds.has(String(c.id)));
           return list;
         }
 
-        function rebuildDropdown() {
-          courseSelect.innerHTML = '';
+        function rebuildCourseList() {
+          const container = document.getElementById('ce-risk-course-list');
+          if (!container) return;
           const list = visibleCourses();
 
           if (!list.length) {
-            const opt = el('option', '');
-            opt.textContent = '— No courses match filters —';
-            courseSelect.appendChild(opt);
-            courseSelect.disabled = true;
+            container.innerHTML = `<div style="padding:8px;font-size:12px;color:${DS.muted};">No courses match the current filters.</div>`;
             return;
           }
 
-          courseSelect.disabled = false;
+          // Auto-select URL course if nothing is selected yet
+          if (!selectedCourseIds.size && urlCourseId) selectedCourseIds.add(urlCourseId);
 
-          // Keep selected course if still in list; otherwise fall back to URL course or first
-          const listIds = list.map(c => String(c.id));
-          if (!listIds.includes(selectedCourseId)) {
-            selectedCourseId = listIds.includes(urlCourseId) ? urlCourseId : listIds[0];
-          }
+          container.innerHTML = list.map(c => {
+            const id    = String(c.id);
+            const label = c.course_code ? `${c.course_code} — ${c.name}` : c.name;
+            return `<label style="display:flex;gap:8px;align-items:center;padding:5px 10px;border-bottom:1px solid #eef1f3;font-size:12px;cursor:pointer;">
+              <input type="checkbox" value="${id}" ${selectedCourseIds.has(id) ? 'checked' : ''} style="cursor:pointer;accent-color:${DS.blue};">
+              <span>${label.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>
+            </label>`;
+          }).join('');
 
-          for (const course of list) {
-            const opt = document.createElement('option');
-            opt.value       = String(course.id);
-            opt.textContent = course.course_code
-              ? `${course.course_code} — ${course.name}`
-              : course.name;
-            if (String(course.id) === String(selectedCourseId)) opt.selected = true;
-            courseSelect.appendChild(opt);
-          }
+          container.querySelectorAll('input[type=checkbox]').forEach(chk => {
+            chk.addEventListener('change', () => {
+              if (chk.checked) selectedCourseIds.add(chk.value);
+              else selectedCourseIds.delete(chk.value);
+              savePrefs({ selectedIds: [...selectedCourseIds], publishedOnly: pubChk.checked, dashOnly: dashChk.checked });
+            });
+          });
 
-          savePrefs({ selectedId: selectedCourseId, publishedOnly: pubChk.checked, dashOnly: dashChk.checked });
+          savePrefs({ selectedIds: [...selectedCourseIds], publishedOnly: pubChk.checked, dashOnly: dashChk.checked });
         }
 
-        courseSelect.addEventListener('change', () => {
-          selectedCourseId = courseSelect.value;
-          savePrefs({ selectedId: selectedCourseId });
-          renderTab();
+        selectAllBtn.addEventListener('click', () => {
+          visibleCourses().forEach(c => selectedCourseIds.add(String(c.id)));
+          rebuildCourseList();
+        });
+        clearCoursesBtn.addEventListener('click', () => {
+          selectedCourseIds.clear();
+          rebuildCourseList();
         });
 
-        pubChk.addEventListener('change',  () => { savePrefs({ publishedOnly: pubChk.checked  }); rebuildDropdown(); renderTab(); });
-        dashChk.addEventListener('change', () => { savePrefs({ dashOnly:      dashChk.checked }); rebuildDropdown(); renderTab(); });
+        pubChk.addEventListener('change',  () => { savePrefs({ publishedOnly: pubChk.checked  }); rebuildCourseList(); });
+        dashChk.addEventListener('change', () => { savePrefs({ dashOnly:      dashChk.checked }); rebuildCourseList(); });
 
-        rebuildDropdown();
+        rebuildCourseList();
         renderTab();
       } catch(e) {
-        courseSelect.innerHTML = '';
-        const opt = el('option', '');
-        opt.textContent = 'Could not load courses';
-        courseSelect.appendChild(opt);
+        const container = document.getElementById('ce-risk-course-list');
+        if (container) container.innerHTML = `<div style="padding:8px;font-size:12px;color:#DC2626;">Could not load courses.</div>`;
       }
     })();
   }
