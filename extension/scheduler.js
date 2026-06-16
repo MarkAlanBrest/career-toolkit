@@ -594,11 +594,14 @@
               return `
               <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}">
                 ${buildTileMarkup(item)}
-                <button class="csch-ovr-toggle" data-toggle-id="${item.id}" title="Adjust availability windows">⚙${hasOvr ? ' <span class="csch-ovr-dot">●</span>' : ''}</button>
+                <button class="csch-ovr-toggle" data-toggle-id="${item.id}" title="Adjust availability windows">⚙${hasOvr ? '<span class="csch-ovr-dot">●</span>' : ''}</button>
                 <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}" data-ovr-panel="${item.id}" style="display:none">
-                  <label class="csch-ovr-lbl">Opens <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" type="number" min="0" value="${openVal}"> d before</label>
-                  <label class="csch-ovr-lbl">Locks <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" type="number" min="0" value="${lockVal}"> d after</label>
-                  ${item.quizId ? `<label class="csch-ovr-lbl">Ans <input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" type="number" min="0" value="${ansVal}"> d after</label>` : ''}
+                  <label class="csch-ovr-lbl"><span>Opens</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" type="number" min="0" value="${openVal}"> d before</span></label>
+                  <label class="csch-ovr-lbl"><span>Locks</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" type="number" min="0" value="${lockVal}"> d after</span></label>
+                  ${item.quizId
+                    ? `<label class="csch-ovr-lbl"><span>Answers</span><span class="csch-ovr-rhs"><input class="csch-ovr-num" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" type="number" min="0" value="${ansVal}"> d after</span></label>`
+                    : `<label class="csch-ovr-lbl"><span>Answers</span><span class="csch-ovr-rhs csch-ovr-na">—</span></label>`
+                  }
                   ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}">↺ reset</button>` : ''}
                 </div>
               </article>
@@ -1012,11 +1015,11 @@
     .csch-cb-lbl input { margin: 0; cursor: pointer; }
 
     .csch-ovr-toggle {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 3px;
-      margin-top: 6px;
-      padding: 2px 7px;
+      gap: 2px;
+      margin-top: 4px;
+      padding: 2px 6px;
       font-size: 10px;
       color: #6B7280;
       background: #F3F4F6;
@@ -1025,20 +1028,18 @@
       cursor: pointer;
       font-family: inherit;
       transition: background .12s, color .12s;
-      width: 100%;
-      justify-content: center;
+      justify-self: end;
     }
     .csch-ovr-toggle:hover, .csch-ovr-toggle-open { background: #E5E7EB; color: #374151; }
     .csch-ovr-dot { color: #2563EB; font-size: 8px; line-height: 1; }
 
     .csch-item-overrides {
-      margin-top: 6px;
+      margin-top: 4px;
       padding-top: 6px;
       border-top: 1px solid rgba(0,0,0,0.09);
       display: flex;
-      flex-wrap: wrap;
-      gap: 3px 10px;
-      align-items: center;
+      flex-direction: column;
+      gap: 4px;
     }
     .csch-item-overrides-custom {
       border-top-color: rgba(37,99,235,0.3);
@@ -1050,12 +1051,19 @@
     .csch-ovr-lbl {
       display: flex;
       align-items: center;
-      gap: 3px;
+      justify-content: space-between;
       font-size: 10px;
       color: #6B7280;
       line-height: 1;
-      white-space: nowrap;
     }
+
+    .csch-ovr-rhs {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .csch-ovr-na { color: #9CA3AF; font-size: 11px; }
 
     .csch-ovr-num {
       width: 34px;
