@@ -874,6 +874,83 @@
     return 'page';
   }
 
+  function isQuizListPage() {
+    return /^\/courses\/\d+\/quizzes(?:\/|$)/.test(window.location.pathname);
+  }
+
+  function findQuizToolbarButton() {
+    const labels = [/^\s*\+\s*Quiz\b/i, /^\s*Add\s+Quiz\b/i, /^\s*\+\s*New\s*Quiz\b/i];
+    const candidates = Array.from(document.querySelectorAll('button, a'));
+    return candidates.find(el => {
+      const text = el.textContent?.trim();
+      return text && labels.some(rx => rx.test(text));
+    });
+  }
+
+  function removeQuizBuilderPageButton() {
+    const existing = document.getElementById('ce-quiz-builder-btn');
+    if (existing) existing.remove();
+  }
+
+  function insertQuizBuilderPageButton() {
+    if (!isQuizListPage()) {
+      removeQuizBuilderPageButton();
+      return;
+    }
+
+    const existing = document.getElementById('ce-quiz-builder-btn');
+    if (existing) return;
+
+    const target = findQuizToolbarButton();
+    if (!target || !target.parentElement) return;
+
+    const button = document.createElement('button');
+    button.id = 'ce-quiz-builder-btn';
+    button.type = 'button';
+    button.textContent = 'Quiz Builder';
+    button.onclick = e => {
+      e.stopPropagation();
+      document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
+    };
+
+    if (target.className) {
+      button.className = target.className;
+    }
+    button.style.marginLeft = '8px';
+    button.style.whiteSpace = 'nowrap';
+    button.style.minWidth = 'auto';
+    if (!button.className) {
+      button.style.padding = '8px 12px';
+      button.style.borderRadius = '4px';
+      button.style.border = '1px solid transparent';
+      button.style.background = '#0770B8';
+      button.style.color = '#fff';
+      button.style.fontWeight = '600';
+      button.style.cursor = 'pointer';
+    }
+
+    target.insertAdjacentElement('afterend', button);
+  }
+
+  function wireQuizPageNavigation() {
+    const wrapHistoryEvent = (type) => {
+      const original = history[type];
+      history[type] = function () {
+        const result = original.apply(this, arguments);
+        window.dispatchEvent(new Event(type));
+        return result;
+      };
+    };
+    wrapHistoryEvent('pushState');
+    wrapHistoryEvent('replaceState');
+
+    window.addEventListener('popstate', insertQuizBuilderPageButton);
+    window.addEventListener('pushState', insertQuizBuilderPageButton);
+    window.addEventListener('replaceState', insertQuizBuilderPageButton);
+
+    new MutationObserver(() => insertQuizBuilderPageButton()).observe(document.body, { childList: true, subtree: true });
+  }
+
   function showContentBuilder() {
     if (document.getElementById('ce-ai-overlay')) document.getElementById('ce-ai-overlay').remove();
 
@@ -2188,6 +2265,8 @@ Critical rules:
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();
+  insertQuizBuilderPageButton();
+  wireQuizPageNavigation();
 
   // Verify local file is loading correctly
   setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
@@ -2196,6 +2275,7 @@ Critical rules:
   if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
     if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    insertQuizBuilderPageButton();
   }).observe(document.body, { childList:true, subtree:true });
 
 })();
