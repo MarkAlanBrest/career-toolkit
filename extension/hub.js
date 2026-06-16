@@ -63,17 +63,6 @@
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
 
-  function isQuizListPage() {
-    return /^\/courses\/\d+\/quizzes(?:\/|$)/.test(window.location.pathname);
-  }
-
-  function updateQuizToolVisibility() {
-    const quizBtn = btnMap['quiz'];
-    if (quizBtn) {
-      quizBtn.style.display = isQuizListPage() ? 'flex' : 'none';
-    }
-  }
-
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
     const e = document.createElement(tag);
@@ -2783,21 +2772,12 @@
     document.body.appendChild(panel);
     document.body.appendChild(tab);
     applyToolbarState();
-    updateQuizToolVisibility();
     chrome.storage.local.get('ce_features', ({ ce_features }) => {
       if (ce_features) applyFeatures(ce_features);
     });
   }
 
   document.addEventListener('ce-open-ai-grader', () => openPanel({ id: 'ai-grader', label: 'AI Grader' }));
-  document.addEventListener('ce-page-changed', updateQuizToolVisibility);
-  window.addEventListener('popstate', updateQuizToolVisibility);
-  const origPushState = history.pushState;
-  history.pushState = function () {
-    const result = origPushState.apply(this, arguments);
-    setTimeout(updateQuizToolVisibility, 100);
-    return result;
-  };
 
   if (document.body) mount();
   else document.addEventListener('DOMContentLoaded', mount);
