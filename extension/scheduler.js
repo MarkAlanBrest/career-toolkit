@@ -623,7 +623,6 @@
       <div class="csch-empty-board">Pick one or more weekdays to generate due-date columns.</div>
     `;
 
-    document.getElementById('csch-load-btn').disabled = state.loading;
     document.getElementById('csch-publish-btn').disabled = state.loading || state.saving || !state.items.length;
     document.getElementById('csch-publish-btn').textContent = state.saving ? 'Publishing...' : 'Publish';
 
@@ -781,7 +780,6 @@
 
         <div id="csch-tb-actions">
           <button type="button" class="csch-btn" id="csch-more-dates-btn">+ Dates</button>
-          <button type="button" class="csch-btn" id="csch-load-btn">Reload</button>
           <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
           <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
         </div>
@@ -815,7 +813,6 @@
   /* ── Event listeners ─────────────────────────────────────────────────── */
 
   document.getElementById('csch-close-btn').addEventListener('click', closeApp);
-  document.getElementById('csch-load-btn').addEventListener('click', loadCourseData);
   document.getElementById('csch-course-sel').addEventListener('change', (e) => {
     state.selectedCourseId = e.target.value || null;
     if (state.selectedCourseId) {
