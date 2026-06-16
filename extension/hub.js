@@ -1019,13 +1019,91 @@
     panelBody.innerHTML = '';
 
     if (!/speed_grader/.test(window.location.href)) {
-      const wrap = el('div', `text-align:center;padding:52px 16px;`);
-      const icon = el('div', `font-size:36px;margin-bottom:14px;opacity:.3;`);
-      icon.textContent = '🎓';
-      const msg = el('div', `font-size:13px;color:${DS.muted};line-height:1.7;`);
-      msg.textContent = 'AI Grader only works in SpeedGrader. Open an assignment in SpeedGrader to activate.';
-      wrap.appendChild(icon); wrap.appendChild(msg);
-      panelBody.appendChild(wrap);
+      panelBody.style.padding = '0';
+      panelBody.style.overflow = 'hidden';
+      _panelCleanup = () => { panelBody.style.padding = ''; panelBody.style.overflow = ''; };
+
+      const outer = el('div', `display:flex;flex-direction:column;height:100%;`);
+
+      const hdr = el('div', `padding:12px 16px;border-bottom:1px solid ${DS.border};flex-shrink:0;`);
+      const hdrTitle = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
+      hdrTitle.textContent = 'Needs Grading';
+      const hdrSub = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;`);
+      hdrSub.textContent = 'Click any assignment to open in SpeedGrader.';
+      hdr.appendChild(hdrTitle); hdr.appendChild(hdrSub);
+      outer.appendChild(hdr);
+
+      const list = el('div', `flex:1;overflow-y:auto;`);
+      outer.appendChild(list);
+      panelBody.appendChild(outer);
+
+      function listMsg(text, color) {
+        list.innerHTML = '';
+        const m = el('div', `padding:40px 16px;text-align:center;font-size:12px;color:${color || DS.muted};line-height:1.6;`);
+        m.textContent = text;
+        list.appendChild(m);
+      }
+
+      listMsg('Loading assignments…');
+
+      const courseId = window.location.pathname.match(/\/courses\/(\d+)/)?.[1];
+      if (!courseId) { listMsg('Navigate to a course page to see assignments that need grading.'); return; }
+
+      const s = await new Promise(r => chrome.storage.local.get('ce_canvas_token', r));
+      const tok = s.ce_canvas_token;
+      if (!tok) { listMsg('Add your Canvas API token in Settings first.'); return; }
+
+      try {
+        const assignments = await new Promise(r => chrome.runtime.sendMessage({
+          type: 'CANVAS_API',
+          payload: { url: `${window.location.origin}/api/v1/courses/${courseId}/assignments?per_page=100&order_by=due_at`, token: tok },
+        }, r));
+
+        const pending = (assignments || [])
+          .filter(a => a.needs_grading_count > 0 && a.published !== false)
+          .sort((a, b) => (a.due_at ? new Date(a.due_at) : new Date('9999')) - (b.due_at ? new Date(b.due_at) : new Date('9999')));
+
+        list.innerHTML = '';
+
+        if (!pending.length) {
+          listMsg('✅  No assignments currently need grading.');
+          return;
+        }
+
+        for (const a of pending) {
+          const sgUrl = `${window.location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`;
+          const row = document.createElement('a');
+          row.href = sgUrl;
+          row.style.cssText = `
+            display:flex;align-items:center;justify-content:space-between;gap:10px;
+            padding:10px 16px;text-decoration:none;
+            border-bottom:1px solid ${DS.border};
+            transition:background .12s;
+          `;
+
+          const left = el('div', `min-width:0;flex:1;`);
+          const name = el('div', `font-size:12px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          name.textContent = a.name;
+          const due = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;`);
+          due.textContent = a.due_at
+            ? 'Due ' + new Date(a.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : 'No due date';
+          left.appendChild(name); left.appendChild(due);
+
+          const badge = el('div', `
+            flex-shrink:0;background:#FEF3C7;color:#92400E;
+            font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap;
+          `);
+          badge.textContent = a.needs_grading_count + ' to grade';
+
+          row.appendChild(left); row.appendChild(badge);
+          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+          row.addEventListener('mouseleave', () => row.style.background = '');
+          list.appendChild(row);
+        }
+      } catch (e) {
+        listMsg('Error loading assignments: ' + e.message, '#991B1B');
+      }
       return;
     }
 
