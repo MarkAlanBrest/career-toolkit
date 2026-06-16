@@ -12,8 +12,10 @@
   };
 
   const _store = await new Promise(resolve =>
-    chrome.storage.local.get([STORAGE_KEY], resolve)
+    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token'], resolve)
   );
+
+  const canvasToken = _store['ce_canvas_token'] || '';
 
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -210,7 +212,8 @@
       closeDaysAfter: state.settings.closeDaysAfter,
       answersDaysAfter: state.settings.answersDaysAfter,
       slotCount: state.slotCount,
-      itemOverrides: state.itemOverrides
+      itemOverrides: state.itemOverrides,
+      savedSchedule: state.courseId ? { courseId: state.courseId, schedule: state.schedule } : (savedSettings.savedSchedule || null),
     });
   }
 
@@ -349,14 +352,19 @@
   }
 
   async function canvasRequest(url, options) {
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (canvasToken) {
+      headers['Authorization'] = `Bearer ${canvasToken}`;
+    } else {
+      headers['X-CSRF-Token'] = getCSRF();
+    }
     const response = await fetch(url, {
       method: options.method || 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': getCSRF()
-      },
-      credentials: 'same-origin',
+      headers,
+      credentials: canvasToken ? 'omit' : 'same-origin',
       body: options.body ? JSON.stringify(options.body) : undefined
     });
     if (!response.ok) {
@@ -411,6 +419,11 @@
       if (Number.isNaN(dueDate.getTime())) return;
       nextSchedule[item.id] = toDateKey(dueDate);
     });
+    // Overlay saved working state so unsaved drag positions survive page navigation
+    const saved = savedSettings.savedSchedule;
+    if (saved && saved.courseId === state.courseId && saved.schedule) {
+      Object.assign(nextSchedule, saved.schedule);
+    }
     state.schedule = nextSchedule;
   }
 
@@ -467,6 +480,7 @@
     } else {
       delete state.schedule[itemId];
     }
+    persistSettings();
     syncGeneratedDates();
     render();
   }
