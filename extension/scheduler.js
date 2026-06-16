@@ -419,10 +419,12 @@
       if (Number.isNaN(dueDate.getTime())) return;
       nextSchedule[item.id] = toDateKey(dueDate);
     });
-    // Overlay saved working state so unsaved drag positions survive page navigation
+    // Restore saved positions only for items Canvas has no date for (unsaved drag work on new items)
     const saved = savedSettings.savedSchedule;
     if (saved && saved.courseId === state.courseId && saved.schedule) {
-      Object.assign(nextSchedule, saved.schedule);
+      for (const [id, dateKey] of Object.entries(saved.schedule)) {
+        if (!nextSchedule[id] && dateKey) nextSchedule[id] = dateKey;
+      }
     }
     state.schedule = nextSchedule;
   }
@@ -563,6 +565,7 @@
       });
 
       setNotice(`Canvas updated ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'}.`, 'ok');
+      await loadCourseData();
     } catch (error) {
       setNotice(`Canvas could not save the schedule: ${error.message}`, 'err');
     } finally {
