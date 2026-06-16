@@ -36,29 +36,27 @@
   ];
 
   const TOOLS = [
-    // ── All Plans ───────────────────────────────────────────────────────────
-    { id: 'quick-ai',  group: 'all',      icon: '⚡', label: 'AI Chat',   noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
-    { id: 'notes',     group: 'all',      icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
-    // ── Course Design ───────────────────────────────────────────────────────
-    { id: 'designer',  group: 'design',   icon: '🎨', label: 'Designer',                desc: 'Build beautiful Canvas pages and assignments with a drag-and-drop editor. No HTML required.' },
-    { id: 'quiz',      group: 'design',   icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
-    // ── Teaching & Grading ──────────────────────────────────────────────────
-    { id: 'ai-grader', group: 'teaching', icon: '🎓', label: 'Grader',                  desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
-    { id: 'scheduler', group: 'teaching', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
-    { id: 'message',   group: 'teaching', icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
-    // ── Student Success ─────────────────────────────────────────────────────
-    { id: 'reports',   group: 'students', icon: '⚠️',  label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
-    { id: 'cheater',   group: 'students', icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
-    { id: 'eval',      group: 'students', icon: '📈', label: 'Eval',                    desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
-    // ── Utility ─────────────────────────────────────────────────────────────
-    { id: 'settings',  icon: '⚙️', label: 'Settings' },
+    // ── Course Design Toolbar ────────────────────────────────────────────────
+    { _section: 'cd', label: 'Course Design' },
+    { id: 'quick-ai',  group: 'cd', icon: '⚡', label: 'AI Chat',   noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
+    { id: 'notes',     group: 'cd', icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
+    { id: 'designer',  group: 'cd', icon: '🎨', label: 'Designer',                desc: 'Build beautiful Canvas pages and assignments with a drag-and-drop editor. No HTML required.' },
+    { id: 'quiz',      group: 'cd', icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
+    { id: 'settings',  group: 'cd', icon: '⚙️', label: 'Settings' },
+    // ── Teaching & Grading Toolbar ───────────────────────────────────────────
+    { _section: 'tg', label: 'Teaching' },
+    { id: 'ai-grader',    group: 'tg', icon: '🎓', label: 'Grader',        desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
+    { id: 'scheduler',    group: 'tg', icon: '📅', label: 'Scheduler',     desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
+    { id: 'message',      group: 'tg', icon: '✉️',  label: 'Message',      noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
+    { id: 'reports',      group: 'tg', icon: '⚠️',  label: 'At Risk',      desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
+    { id: 'cheater',      group: 'tg', icon: '🔍', label: 'Audit',         desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
+    { id: 'eval',         group: 'tg', icon: '📊', label: 'Course Health', desc: 'Data-driven course health dashboard. Scores the course across 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
+    { id: 'settings-tg',  group: 'tg', icon: '⚙️', label: 'Settings' },
   ];
 
   const GROUP_BG = {
-    all:      'rgba(255,255,255,0.06)',
-    design:   'rgba(100,160,230,0.13)',
-    teaching: 'rgba(60,190,120,0.13)',
-    students: 'rgba(240,150,60,0.13)',
+    cd: 'rgba(100,160,230,0.11)',
+    tg: 'rgba(60,190,120,0.11)',
   };
 
   let _active      = null;          // tool id with open panel
@@ -106,7 +104,41 @@
 
   const btnMap     = {};
   const btnGroupBg = {};
+  let _currentSectionWrap = nav;
+
   for (const tool of TOOLS) {
+    // Section header — creates a collapsible group
+    if (tool._section) {
+      const sectionOpen = { value: true };
+      const sectionWrap = el('div', `width:100%;display:flex;flex-direction:column;`);
+
+      const hdr = el('button', `
+        width:100%;height:26px;flex-shrink:0;
+        border:none;border-top:1px solid rgba(255,255,255,.08);
+        background:rgba(0,0,0,.25);cursor:pointer;
+        display:flex;align-items:center;justify-content:space-between;
+        padding:0 8px;box-sizing:border-box;
+        font-family:${DS.font};
+      `, { type: 'button' });
+      const hdrLabel = el('span', `font-size:7px;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.45);`);
+      hdrLabel.textContent = tool.label;
+      const hdrArrow = el('span', `font-size:8px;color:rgba(255,255,255,.35);transition:transform .2s;`);
+      hdrArrow.textContent = '▾';
+      hdr.appendChild(hdrLabel);
+      hdr.appendChild(hdrArrow);
+
+      hdr.addEventListener('click', () => {
+        sectionOpen.value = !sectionOpen.value;
+        sectionWrap.style.display = sectionOpen.value ? '' : 'none';
+        hdrArrow.textContent = sectionOpen.value ? '▾' : '▸';
+      });
+
+      nav.appendChild(hdr);
+      nav.appendChild(sectionWrap);
+      _currentSectionWrap = sectionWrap;
+      continue;
+    }
+
     const groupBg = GROUP_BG[tool.group] || 'transparent';
     btnGroupBg[tool.id] = groupBg;
 
@@ -143,7 +175,7 @@
     btn.addEventListener('click', () => onToolClick(tool));
 
     btnMap[tool.id] = btn;
-    nav.appendChild(btn);
+    _currentSectionWrap.appendChild(btn);
   }
   toolbar.appendChild(nav);
 
@@ -2310,8 +2342,9 @@
       case 'cheater':    await renderAudit();                                                         break;
       case 'reports':    await renderReports();                                                    break;
       case 'snippets':   await renderSnippets();                                                     break;
-      case 'notes':      await renderNotes();                                                         break;
-      case 'settings':   await renderSettings();                                                     break;
+      case 'notes':        await renderNotes();                                                       break;
+      case 'settings':
+      case 'settings-tg': await renderSettings();                                                    break;
       case 'eval':
         _panelCleanup = () => { panelBody.style.padding = ''; panelBody.style.overflow = ''; };
         document.dispatchEvent(new CustomEvent('ce-render-eval', { detail: { container: panelBody } }));
