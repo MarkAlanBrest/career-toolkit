@@ -478,7 +478,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
     aiBtn.id = 'ce-ai-grade-btn';
     aiBtn.textContent = '✦ AI Grade';
     aiBtn.style.cssText = `
-      display:inline-flex;align-items:center;
+      display:block;width:100%;box-sizing:border-box;text-align:center;
       background:#fff;color:#2d3b45;border:1px solid #c7cdd1;border-radius:4px;
       padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
