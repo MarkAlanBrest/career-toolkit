@@ -927,26 +927,17 @@
     return document.body;
   }
 
-  function removeQuizBuilderPageButton() {
-    const existing = document.getElementById('ce-quiz-builder-btn');
+  function removeQuizBuilderHoverButton() {
+    const existing = document.getElementById('ce-quiz-builder-hover-btn');
     if (existing) existing.remove();
   }
 
-  function insertQuizBuilderPageButton() {
-    if (!isQuizListPage()) {
-      removeQuizBuilderPageButton();
-      return;
-    }
-
-    const existing = document.getElementById('ce-quiz-builder-btn');
-    if (existing) return;
-
-    const target = findQuizToolbarButton();
-    const actionBar = findQuizActionBar();
-    if (!actionBar) return;
+  function createQuizBuilderHoverButton() {
+    const existing = document.getElementById('ce-quiz-builder-hover-btn');
+    if (existing) return existing;
 
     const button = document.createElement('button');
-    button.id = 'ce-quiz-builder-btn';
+    button.id = 'ce-quiz-builder-hover-btn';
     button.type = 'button';
     button.textContent = '+ Quiz Builder';
     button.onclick = e => {
@@ -954,41 +945,44 @@
       document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
     };
 
-    button.style.marginLeft = '8px';
-    button.style.whiteSpace = 'nowrap';
-    button.style.minWidth = 'auto';
-    button.style.padding = '8px 14px';
-    button.style.borderRadius = '4px';
-    button.style.border = '1px solid #0770B8';
-    button.style.background = '#0770B8';
-    button.style.color = '#fff';
-    button.style.fontWeight = '700';
-    button.style.cursor = 'pointer';
-    button.style.display = 'inline-flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
-    button.style.lineHeight = '1.2';
-    button.style.fontSize = '13px';
-    button.style.transition = 'background .15s ease';
-    button.addEventListener('mouseenter', () => button.style.background = '#055A96');
-    button.addEventListener('mouseleave', () => button.style.background = '#0770B8');
+    button.style.cssText = `
+      position:fixed;
+      top:120px;
+      right:24px;
+      z-index:999999;
+      padding:12px 16px;
+      border-radius:999px;
+      border:none;
+      background:#0770B8;
+      color:#fff;
+      font-weight:700;
+      font-size:13px;
+      cursor:pointer;
+      box-shadow:0 16px 34px rgba(0,0,0,.22);
+      transition:transform .15s ease, background .15s ease, opacity .15s ease;
+      opacity:.98;
+      white-space:nowrap;
+    `;
+    button.addEventListener('mouseenter', () => {
+      button.style.background = '#055A96';
+      button.style.transform = 'translateY(-2px)';
+    });
+    button.addEventListener('mouseleave', () => {
+      button.style.background = '#0770B8';
+      button.style.transform = 'translateY(0)';
+    });
 
-    if (actionBar) {
-      button.style.marginLeft = 'auto';
-      if (actionBar instanceof HTMLElement) {
-        const style = window.getComputedStyle(actionBar);
-        if (style.display === 'flex' || style.display === 'inline-flex') {
-          actionBar.appendChild(button);
-          return;
-        }
-      }
-      actionBar.appendChild(button);
+    document.body.appendChild(button);
+    return button;
+  }
+
+  function insertQuizBuilderPageButton() {
+    if (!isQuizListPage()) {
+      removeQuizBuilderHoverButton();
       return;
     }
 
-    if (target && target.parentElement) {
-      target.parentElement.appendChild(button);
-    }
+    createQuizBuilderHoverButton();
   }
 
   function wireQuizPageNavigation() {
