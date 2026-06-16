@@ -36,15 +36,22 @@
   ];
 
   const TOOLS = [
+    // ── Course Design ───────────────────────────────────────────────────────
+    { _sep: 'Course Design' },
     { id: 'quick-ai',  icon: '⚡', label: 'Chat',      noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
-    { id: 'ai-grader', icon: '🎓', label: 'Grader',                  desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
-    { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
     { id: 'quiz',      icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
-    { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
-    { id: 'reports',   icon: '⚠️',  label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
-    { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
-    { id: 'eval',      icon: '📈', label: 'Eval',                          desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
+    // ── Teaching & Grading ──────────────────────────────────────────────────
+    { _sep: 'Teaching' },
+    { id: 'ai-grader', icon: '🎓', label: 'Grader',                  desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
+    { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
+    { id: 'message',   icon: '✉️',  label: 'Message',  noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
+    // ── Student Success ─────────────────────────────────────────────────────
+    { _sep: 'Students' },
+    { id: 'reports',   icon: '⚠️',  label: 'At Risk',                 desc: 'Identifies at-risk students based on grades, missing work, and low scores. Includes printable teacher reports and student progress letters.' },
+    { id: 'cheater',   icon: '🔍', label: 'Audit',                   desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
+    { id: 'eval',      icon: '📈', label: 'Eval',                    desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
+    // ── Utility ─────────────────────────────────────────────────────────────
     { id: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
@@ -104,6 +111,24 @@
 
   const btnMap = {};
   for (const tool of TOOLS) {
+    if (tool._sep) {
+      const sep = el('div', `
+        width:100%;display:flex;align-items:center;gap:4px;
+        padding:10px 6px 3px;box-sizing:border-box;flex-shrink:0;
+      `);
+      const sepLine = el('div', `flex:1;height:1px;background:rgba(255,255,255,.15);`);
+      const sepLabel = el('span', `
+        font-size:7px;color:rgba(255,255,255,.35);
+        text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;
+        font-family:${DS.font};
+      `);
+      sepLabel.textContent = tool._sep;
+      sep.appendChild(sepLine);
+      sep.appendChild(sepLabel);
+      nav.appendChild(sep);
+      continue;
+    }
+
     const btn = el('button', `
       width:100%;height:52px;
       border:none;border-left:3px solid transparent;
