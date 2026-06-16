@@ -32,7 +32,7 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["hub.js", "content.js", "grader.js", "scheduler.js", "date-autofill.js", "email.js"],
+      "js": ["hub.js", "content.js", "grader.js", "scheduler.js", "date-autofill.js", "email.js", "eval.js"],
       "css": ["toolbar.css"],
       "run_at": "document_idle"
     }

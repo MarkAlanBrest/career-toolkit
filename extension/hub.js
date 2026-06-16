@@ -44,6 +44,7 @@
     { id: 'reports',   icon: '📊', label: 'Reports',                 desc: 'Canvas course checkups that turn gradebook data into clear next steps.' },
     { id: 'scheduler', icon: '📅', label: 'Scheduler',               desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'notes',     icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
+    { id: 'eval',      icon: '📈', label: 'Eval',                          desc: 'Data-driven course evaluation dashboard. Scores 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
     { id: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
@@ -2621,6 +2622,10 @@
       case 'snippets':   await renderSnippets();                                                     break;
       case 'notes':      await renderNotes();                                                         break;
       case 'settings':   await renderSettings();                                                     break;
+      case 'eval':
+        _panelCleanup = () => { panelBody.style.padding = ''; panelBody.style.overflow = ''; };
+        document.dispatchEvent(new CustomEvent('ce-render-eval', { detail: { container: panelBody } }));
+        break;
     }
 
     panel.style.display = 'flex';
