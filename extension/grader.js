@@ -17,7 +17,7 @@
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';
     const floatBar = document.createElement('div');
     floatBar.id = 'ce-sg-float-bar';
-    floatBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;flex-direction:row;gap:4px;';
+    floatBar.style.cssText = 'position:fixed;top:113px;right:60px;z-index:2147483641;display:flex;flex-direction:row;gap:4px;';
     document.body.appendChild(floatBar);
 
     if (!token) return;
@@ -646,7 +646,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     const teacherCheckWrap = document.createElement('div');
     teacherCheckWrap.id = 'ce-ai-grade-wrap';
-    teacherCheckWrap.style.cssText = 'position:fixed;top:108px;right:60px;z-index:2147483641;width:300px;';
+    teacherCheckWrap.style.cssText = 'position:fixed;top:153px;right:60px;z-index:2147483641;width:300px;';
     teacherCheckWrap.appendChild(teacherCheckLabel);
     document.body.appendChild(teacherCheckWrap);
 
