@@ -2368,7 +2368,7 @@
     sgBtn.type = 'button';
     sgBtn.textContent = 'Insert Comment';
     sgBtn.title = 'Insert a stored comment into the comment box';
-    sgBtn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#fff;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;line-height:1.2;cursor:pointer;white-space:nowrap;';
+    sgBtn.style.cssText = 'display:block;width:100%;box-sizing:border-box;text-align:center;padding:6px 12px;border:1px solid #C7CDD1;border-radius:4px;background:#fff;color:#2D3B45;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s;';
     sgBtn.addEventListener('mouseenter', () => { sgBtn.style.background = '#F5F5F5'; sgBtn.style.borderColor = '#8B969E'; });
     sgBtn.addEventListener('mouseleave', () => { sgBtn.style.background = '#fff'; sgBtn.style.borderColor = '#C7CDD1'; });
 
@@ -2451,10 +2451,11 @@
       if (!topBar) {
         topBar = document.createElement('div');
         topBar.id = 'ce-sg-top-bar';
-        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);min-width:150px;';
         document.body.appendChild(topBar);
       }
-      topBar.appendChild(sgBtn);
+      const teacherCheck = document.getElementById('ce-ai-grade-wrap');
+      topBar.insertBefore(sgBtn, teacherCheck || null);
     }
 
     injectSgBtn();

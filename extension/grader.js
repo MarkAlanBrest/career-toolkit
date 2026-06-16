@@ -644,9 +644,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     const teacherCheckWrap = document.createElement('div');
     teacherCheckWrap.id = 'ce-ai-grade-wrap';
-    teacherCheckWrap.style.cssText = 'position:fixed;top:108px;right:60px;z-index:2147483641;width:260px;';
     teacherCheckWrap.appendChild(teacherCheckLabel);
-    document.body.appendChild(teacherCheckWrap);
 
     function injectAiBtn() {
       if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
@@ -654,10 +652,13 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       if (!topBar) {
         topBar = document.createElement('div');
         topBar.id = 'ce-sg-top-bar';
-        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;flex-direction:column;gap:4px;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);min-width:150px;';
         document.body.appendChild(topBar);
       }
-      topBar.appendChild(aiBtn);
+      topBar.insertBefore(aiBtn, topBar.firstChild);
+      if (!document.getElementById('ce-ai-grade-wrap')?.isConnected) {
+        topBar.appendChild(teacherCheckWrap);
+      }
     }
 
     injectAiBtn();
