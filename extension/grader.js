@@ -644,24 +644,20 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     const teacherCheckWrap = document.createElement('div');
     teacherCheckWrap.id = 'ce-ai-grade-wrap';
-    teacherCheckWrap.style.cssText = 'padding:4px 10px 2px;';
+    teacherCheckWrap.style.cssText = 'position:fixed;top:108px;right:60px;z-index:2147483641;width:260px;';
     teacherCheckWrap.appendChild(teacherCheckLabel);
+    document.body.appendChild(teacherCheckWrap);
 
     function injectAiBtn() {
       if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
-      const target = document.querySelector('#right_side_inner, #right_side');
-      if (!target) return;
       let topBar = document.getElementById('ce-sg-top-bar');
       if (!topBar) {
         topBar = document.createElement('div');
         topBar.id = 'ce-sg-top-bar';
-        topBar.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #c7cdd1;';
-        target.insertBefore(topBar, target.firstChild);
+        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+        document.body.appendChild(topBar);
       }
       topBar.appendChild(aiBtn);
-      if (!document.getElementById('ce-ai-grade-wrap')?.isConnected) {
-        topBar.insertAdjacentElement('afterend', teacherCheckWrap);
-      }
     }
 
     injectAiBtn();
@@ -671,8 +667,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       _aiScheduled = true;
       setTimeout(() => { _aiScheduled = false; injectAiBtn(); }, 300);
     });
-    const _aiTarget = document.querySelector('#right_side_inner, #right_side') || document.body;
-    _aiObserver.observe(_aiTarget, { childList: true, subtree: true });
+    _aiObserver.observe(document.body, { childList: true, subtree: false });
     let _aiPoll = 0;
     const _aiTimer = setInterval(() => {
       injectAiBtn();

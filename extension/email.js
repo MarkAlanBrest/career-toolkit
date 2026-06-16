@@ -2447,14 +2447,12 @@
 
     function injectSgBtn() {
       if (document.getElementById('ces-sg-message-btn')?.isConnected) return;
-      const target = document.querySelector('#right_side_inner, #right_side');
-      if (!target) return;
       let topBar = document.getElementById('ce-sg-top-bar');
       if (!topBar) {
         topBar = document.createElement('div');
         topBar.id = 'ce-sg-top-bar';
-        topBar.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #c7cdd1;';
-        target.insertBefore(topBar, target.firstChild);
+        topBar.style.cssText = 'position:fixed;top:68px;right:60px;z-index:2147483641;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 8px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.15);';
+        document.body.appendChild(topBar);
       }
       topBar.appendChild(sgBtn);
     }
@@ -2466,8 +2464,7 @@
       sgScheduled = true;
       window.setTimeout(() => { sgScheduled = false; injectSgBtn(); }, 300);
     });
-    const sgTarget = document.getElementById('right_side') || document.body;
-    sgObserver.observe(sgTarget, { childList: true, subtree: true });
+    sgObserver.observe(document.body, { childList: true, subtree: false });
     let _sgPoll = 0;
     const _sgTimer = window.setInterval(() => {
       injectSgBtn();
