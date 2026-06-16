@@ -213,7 +213,7 @@
       answersDaysAfter: state.settings.answersDaysAfter,
       slotCount: state.slotCount,
       itemOverrides: state.itemOverrides,
-      savedSchedule: state.courseId ? { courseId: state.courseId, schedule: state.schedule } : (savedSettings.savedSchedule || null),
+      savedSchedule: state.courseId ? { courseId: state.courseId, schedule: state.schedule } : ((_store[STORAGE_KEY] || savedSettings).savedSchedule || null),
     });
   }
 
@@ -419,8 +419,9 @@
       if (Number.isNaN(dueDate.getTime())) return;
       nextSchedule[item.id] = toDateKey(dueDate);
     });
-    // Overlay saved drag positions so working state survives page navigation
-    const saved = savedSettings.savedSchedule;
+    // Read from _store (always current) not savedSettings (stale snapshot from page load)
+    const liveSettings = _store[STORAGE_KEY] || savedSettings;
+    const saved = liveSettings.savedSchedule;
     if (saved && saved.courseId === state.courseId && saved.schedule) {
       Object.assign(nextSchedule, saved.schedule);
     }
