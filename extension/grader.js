@@ -271,127 +271,190 @@
       };
     }
 
-    async function mountSpeedGraderRail() {
-      if (document.getElementById('ce-sg-rail')) return true;
+    async function mountSpeedGraderToolbar() {
+      if (document.getElementById('ce-sg-toolbar')) return true;
       const { courseId, assignmentId } = getSpeedGraderUrlParts();
-      const rightSide = document.querySelector('#right_side_inner, #right_side, #right-side');
-      if (!rightSide) return false;
+      const host = document.querySelector('#full_width_container, #main, .ic-app-main-content, body');
+      if (!host) return false;
 
-      const stored = await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']);
+      const state = {
+        courseId,
+        assignmentId,
+        stored: await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']),
+        draftScore: '',
+        draftComment: '',
+        teacherCheck: '',
+      };
       const criteriaKey = `${courseId}_${assignmentId}`;
 
-      const panel = document.createElement('section');
-      panel.id = 'ce-sg-rail';
-      panel.style.cssText = 'margin:10px 0 12px;background:#fff;border:1px solid #c7cdd1;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;box-sizing:border-box;overflow:hidden;';
+      const style = document.createElement('style');
+      style.id = 'ce-sg-toolbar-style';
+      style.textContent = `
+        #ce-sg-toolbar { margin:0 0 10px 0; border:1px solid #c7cdd1; border-left:0; border-right:0; background:#f5f5f5; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; box-sizing:border-box; }
+        #ce-sg-toolbar * { box-sizing:border-box; }
+        .ce-sg-mainbar { min-height:46px; display:flex; align-items:center; gap:8px; padding:6px 10px; flex-wrap:wrap; }
+        .ce-sg-brand { font-size:13px; font-weight:700; margin-right:4px; white-space:nowrap; }
+        .ce-sg-btn { border:1px solid #c7cdd1; border-radius:3px; background:#fff; color:#2d3b45; padding:7px 10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; line-height:1.2; }
+        .ce-sg-btn:hover { background:#eef2f4; }
+        .ce-sg-btn-primary { border-color:#0b5f7f; background:#0b5f7f; color:#fff; }
+        .ce-sg-btn-primary:hover { background:#084f6a; }
+        .ce-sg-drawer { display:none; border-top:1px solid #c7cdd1; background:#fff; padding:10px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+        .ce-sg-drawer.ce-open { display:flex; }
+        .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
+        .ce-sg-field label { font-size:12px; font-weight:700; color:#2d3b45; }
+        .ce-sg-input, .ce-sg-textarea, .ce-sg-select { width:100%; border:1px solid #c7cdd1; border-radius:3px; padding:8px; font:13px/1.35 inherit; color:#2d3b45; background:#fff; }
+        .ce-sg-textarea { min-height:92px; resize:vertical; }
+        .ce-sg-small { font-size:12px; color:#6b7780; line-height:1.35; }
+        .ce-sg-list { display:flex; flex-direction:column; gap:6px; max-height:190px; overflow:auto; min-width:260px; flex:1 1 320px; }
+        .ce-sg-teacher { display:none; background:#fff8e1; border:1px solid #e6c45f; color:#5f4200; border-radius:3px; padding:8px; font-size:12px; line-height:1.35; flex:1 1 100%; }
+      `;
+      document.head.appendChild(style);
 
-      const head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
-      head.innerHTML = '<div><div style="font-size:14px;font-weight:700;line-height:1.2;">Grading Assistant</div><div style="font-size:11px;color:#6b7780;margin-top:2px;">Canvas Enhancer</div></div>';
-      const collapse = ceSgBtn('Collapse', false);
-      collapse.style.cssText += 'padding:4px 7px;font-size:12px;';
-      head.appendChild(collapse);
-      panel.appendChild(head);
+      const bar = document.createElement('section');
+      bar.id = 'ce-sg-toolbar';
 
-      const body = document.createElement('div');
-      body.style.cssText = 'background:#fff;display:flex;flex-direction:column;';
-      panel.appendChild(body);
+      const main = document.createElement('div');
+      main.className = 'ce-sg-mainbar';
+      const brand = document.createElement('div');
+      brand.className = 'ce-sg-brand';
+      brand.textContent = 'Canvas Enhancer Grader';
+      const needsBtn = ceSgToolbarButton('Needs Grading');
+      const aiBtn = ceSgToolbarButton('AI Grade', true);
+      const criteriaBtn = ceSgToolbarButton('Criteria');
+      const commentsBtn = ceSgToolbarButton('Comments');
+      const insertDraftBtn = ceSgToolbarButton('Insert Draft', true);
+      main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn);
+      bar.appendChild(main);
 
-      const actionBox = document.createElement('div');
-      actionBox.style.cssText = 'padding:10px;border-bottom:1px solid #c7cdd1;display:flex;flex-direction:column;gap:8px;';
-      const actionRow = document.createElement('div');
-      actionRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-      const aiDraft = ceSgBtn('AI Grade', true);
-      const insertComment = ceSgBtn('Insert Comment', false);
-      actionRow.append(aiDraft, insertComment);
+      const drawer = document.createElement('div');
+      drawer.className = 'ce-sg-drawer';
+      bar.appendChild(drawer);
 
-      const draftScore = document.createElement('input');
-      draftScore.placeholder = 'Suggested score';
-      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
-      const draftComment = document.createElement('textarea');
-      draftComment.placeholder = 'AI feedback draft appears here. Edit before inserting.';
-      draftComment.style.cssText = 'width:100%;min-height:96px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
-      const insertDraft = ceSgBtn('Insert Draft into Grade + Comment', true);
-      const teacherCheck = document.createElement('div');
-      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
-      actionBox.append(actionRow, draftScore, draftComment, insertDraft, teacherCheck);
-      body.appendChild(actionBox);
+      const scoreInput = document.createElement('input');
+      scoreInput.className = 'ce-sg-input';
+      scoreInput.placeholder = 'Suggested score';
+      const draftInput = document.createElement('textarea');
+      draftInput.className = 'ce-sg-textarea';
+      draftInput.placeholder = 'AI feedback draft appears here. Edit before inserting.';
+      const teacherBox = document.createElement('div');
+      teacherBox.className = 'ce-sg-teacher';
 
-      const criteriaBox = ceSgSection(body, 'Assignment Criteria');
-      const criteria = document.createElement('textarea');
-      criteria.value = stored.ce_criteria?.[criteriaKey] || '';
-      criteria.placeholder = 'Paste rubric, answer key, grading rules, or AI instructions for this assignment.';
-      criteria.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
-      criteria.addEventListener('input', async () => {
+      const criteriaInput = document.createElement('textarea');
+      criteriaInput.className = 'ce-sg-textarea';
+      criteriaInput.placeholder = 'Paste rubric, answer key, grading rules, or AI instructions for this assignment.';
+      criteriaInput.value = state.stored.ce_criteria?.[criteriaKey] || '';
+      criteriaInput.addEventListener('input', async () => {
         const latest = await ceSgStorageGet(['ce_criteria']);
-        ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteria.value } });
+        ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteriaInput.value } });
       });
-      criteriaBox.appendChild(criteria);
 
-      const comments = ceSgSection(body, 'Stored Comments');
-      const snippets = document.createElement('textarea');
-      snippets.value = stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
-      snippets.placeholder = 'One reusable comment per blank line.';
-      snippets.style.cssText = 'width:100%;min-height:64px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
-      const select = document.createElement('select');
-      select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:7px;font-size:13px;background:#fff;color:#2d3b45;';
-      const refreshSnippets = () => {
-        ceSgStorageSet({ ce_sg_comment_snippets: snippets.value });
-        select.innerHTML = '';
-        snippets.value.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).forEach(s => {
+      const snippetEdit = document.createElement('textarea');
+      snippetEdit.className = 'ce-sg-textarea';
+      snippetEdit.placeholder = 'One reusable comment per blank line.';
+      snippetEdit.value = state.stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
+      const snippetSelect = document.createElement('select');
+      snippetSelect.className = 'ce-sg-select';
+      function refreshSnippets() {
+        ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value });
+        snippetSelect.innerHTML = '';
+        snippetEdit.value.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).forEach(s => {
           const opt = document.createElement('option');
           opt.value = s;
-          opt.textContent = s.slice(0, 75);
-          select.appendChild(opt);
+          opt.textContent = s.slice(0, 90);
+          snippetSelect.appendChild(opt);
         });
-      };
-      snippets.addEventListener('input', refreshSnippets);
+      }
+      snippetEdit.addEventListener('input', refreshSnippets);
       refreshSnippets();
-      comments.append(select, snippets);
 
-      const queue = ceSgSection(body, 'Needs Grading');
       const queueStatus = document.createElement('div');
-      queueStatus.style.cssText = 'font-size:12px;color:#6b7780;line-height:1.35;';
-      queueStatus.textContent = courseId ? 'Load assignments with submitted work.' : 'Course not detected.';
-      const queueBtn = ceSgBtn('Refresh List', false);
+      queueStatus.className = 'ce-sg-small';
+      queueStatus.textContent = courseId ? 'Click Refresh to load assignments with submitted work.' : 'Course not detected.';
       const queueList = document.createElement('div');
-      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto;';
-      queue.append(queueStatus, queueBtn, queueList);
+      queueList.className = 'ce-sg-list';
+      const refreshQueueBtn = ceSgToolbarButton('Refresh');
 
-      insertComment.addEventListener('click', () => select.value && ceSgInsertComment(select.value, true));
-      insertDraft.addEventListener('click', () => {
-        if (draftScore.value.trim()) ceSgInsertGrade(draftScore.value.trim());
-        if (draftComment.value.trim()) ceSgInsertComment(draftComment.value.trim(), false);
-      });
+      function ceSgToolbarButton(label, primary) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.className = primary ? 'ce-sg-btn ce-sg-btn-primary' : 'ce-sg-btn';
+        return b;
+      }
 
-      aiDraft.addEventListener('click', async () => {
+      function field(label, control) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ce-sg-field';
+        const l = document.createElement('label');
+        l.textContent = label;
+        wrap.append(l, control);
+        return wrap;
+      }
+
+      function showDrawer(mode) {
+        drawer.dataset.mode = mode;
+        drawer.innerHTML = '';
+        drawer.classList.add('ce-open');
+        [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        if (mode === 'needs') {
+          needsBtn.classList.add('ce-sg-btn-primary');
+          const box = document.createElement('div');
+          box.className = 'ce-sg-field';
+          box.style.flex = '1 1 100%';
+          box.append(queueStatus, refreshQueueBtn, queueList);
+          drawer.appendChild(box);
+        } else if (mode === 'ai') {
+          aiBtn.classList.add('ce-sg-btn-primary');
+          drawer.append(field('Suggested score', scoreInput), field('Draft feedback', draftInput), teacherBox);
+        } else if (mode === 'criteria') {
+          criteriaBtn.classList.add('ce-sg-btn-primary');
+          drawer.appendChild(field('Assignment criteria', criteriaInput));
+        } else if (mode === 'comments') {
+          commentsBtn.classList.add('ce-sg-btn-primary');
+          const insertCommentBtn = ceSgToolbarButton('Insert Selected Comment', true);
+          insertCommentBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
+          drawer.append(field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
+        }
+      }
+
+      needsBtn.addEventListener('click', () => showDrawer('needs'));
+      criteriaBtn.addEventListener('click', () => showDrawer('criteria'));
+      commentsBtn.addEventListener('click', () => showDrawer('comments'));
+      aiBtn.addEventListener('click', async () => {
+        showDrawer('ai');
         const subText = ceSgVisibleSubmissionText();
-        if (!subText) { aiDraft.textContent = 'No submission text'; setTimeout(() => aiDraft.textContent = 'AI Grade', 2500); return; }
-        aiDraft.disabled = true;
-        aiDraft.textContent = 'Grading...';
+        if (!subText) { aiBtn.textContent = 'No submission text'; setTimeout(() => aiBtn.textContent = 'AI Grade', 2500); return; }
+        aiBtn.disabled = true;
+        aiBtn.textContent = 'Grading...';
         try {
           const student = document.querySelector('#student_carousel_name,#students_selectmenu-button .ui-selectmenu-text,#students_selectmenu-button')?.textContent?.trim() || 'the student';
-          const prompt = `Grade this Canvas submission.\nStudent: ${student}\nCourse ID: ${courseId}\nAssignment ID: ${assignmentId}\n\nGRADING CRITERIA:\n${criteria.value || 'Grade fairly. Be specific and concise.'}\n\nSUBMISSION:\n${subText}\n\nRespond exactly in this format:\nSCORE: [number]\nCOMMENTS:\n[student-facing feedback]\nTEACHER CHECK:\n[private verification notes for the teacher]`;
+          const prompt = `Grade this Canvas submission.\nStudent: ${student}\nCourse ID: ${courseId}\nAssignment ID: ${assignmentId}\n\nGRADING CRITERIA:\n${criteriaInput.value || 'Grade fairly. Be specific and concise.'}\n\nSUBMISSION:\n${subText}\n\nRespond exactly in this format:\nSCORE: [number]\nCOMMENTS:\n[student-facing feedback]\nTEACHER CHECK:\n[private verification notes for the teacher]`;
           const response = await new Promise(resolve => chrome.runtime.sendMessage(
             { type: 'GENERATE', payload: { messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: gradingModel } },
             resolve
           ));
           if (response?.error) throw new Error(response.error);
           const parsed = ceSgParseAi(response?.content?.[0]?.text || '');
-          draftScore.value = parsed.score;
-          draftComment.value = parsed.comments;
-          teacherCheck.textContent = parsed.teacherCheck ? `Teacher check: ${parsed.teacherCheck}` : '';
-          teacherCheck.style.display = parsed.teacherCheck ? 'block' : 'none';
+          scoreInput.value = parsed.score;
+          draftInput.value = parsed.comments;
+          teacherBox.textContent = parsed.teacherCheck ? `Teacher check: ${parsed.teacherCheck}` : '';
+          teacherBox.style.display = parsed.teacherCheck ? 'block' : 'none';
         } catch (e) {
-          draftComment.value = e.message || 'AI grading failed.';
+          draftInput.value = e.message || 'AI grading failed.';
         } finally {
-          aiDraft.disabled = false;
-          aiDraft.textContent = 'AI Grade';
+          aiBtn.disabled = false;
+          aiBtn.textContent = 'AI Grade';
         }
       });
 
-      queueBtn.addEventListener('click', async () => {
+      insertDraftBtn.addEventListener('click', () => {
+        if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
+        if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
+      });
+
+      refreshQueueBtn.addEventListener('click', async () => {
         if (!courseId) return;
-        queueBtn.disabled = true;
+        refreshQueueBtn.disabled = true;
         queueStatus.textContent = 'Loading assignments...';
         queueList.innerHTML = '';
         try {
@@ -399,7 +462,7 @@
           const needing = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
           queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'No assignments with Canvas needs_grading_count.';
           needing.slice(0, 40).forEach(a => {
-            const b = ceSgBtn(`${a.name} (${a.needs_grading_count})`, false);
+            const b = ceSgToolbarButton(`${a.name} (${a.needs_grading_count})`);
             b.style.textAlign = 'left';
             b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
             queueList.appendChild(b);
@@ -407,32 +470,28 @@
         } catch (e) {
           queueStatus.textContent = e.message || 'Could not load list.';
         } finally {
-          queueBtn.disabled = false;
+          refreshQueueBtn.disabled = false;
         }
       });
 
-      let collapsed = false;
-      collapse.addEventListener('click', () => {
-        collapsed = !collapsed;
-        body.style.display = collapsed ? 'none' : 'flex';
-        collapse.textContent = collapsed ? 'Open' : 'Collapse';
-      });
-
-      rightSide.insertBefore(panel, rightSide.firstChild);
+      const header = document.querySelector('#speed_grader_header, .speedgrader_header, #gradebook_header, .ic-app-nav-toggle-and-crumbs, #breadcrumbs');
+      if (header?.parentElement) header.insertAdjacentElement('afterend', bar);
+      else if (host === document.body) document.body.insertBefore(bar, document.body.firstChild);
+      else host.insertBefore(bar, host.firstChild);
       return true;
     }
-    let _railMounting = false;
-    function ensureSpeedGraderRail() {
-      if (_railMounting || document.getElementById('ce-sg-rail')) return;
-      _railMounting = true;
-      mountSpeedGraderRail().finally(() => { _railMounting = false; });
-    }
-    ensureSpeedGraderRail();
-    setInterval(ensureSpeedGraderRail, 1500);
-    new MutationObserver(() => {
-      if (!document.getElementById('ce-sg-rail')) setTimeout(ensureSpeedGraderRail, 100);
-    }).observe(document.body, { childList: true, subtree: true });
 
+    let _sgToolbarMounting = false;
+    function ensureSpeedGraderToolbar() {
+      if (_sgToolbarMounting || document.getElementById('ce-sg-toolbar')) return;
+      _sgToolbarMounting = true;
+      mountSpeedGraderToolbar().finally(() => { _sgToolbarMounting = false; });
+    }
+    ensureSpeedGraderToolbar();
+    setInterval(ensureSpeedGraderToolbar, 1500);
+    new MutationObserver(() => {
+      if (!document.getElementById('ce-sg-toolbar')) setTimeout(ensureSpeedGraderToolbar, 100);
+    }).observe(document.body, { childList: true, subtree: true });
     if (!token) return;
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -1084,7 +1143,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       }
       return false;
     }
-    // Right-sidebar controls replace the old floating AI Grade button.
+    // Dedicated SpeedGrader toolbar replaces the old floating AI Grade button.
 
     function getCurrentCommentText() {
       const tiny = window.tinymce || window.tinyMCE;

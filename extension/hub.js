@@ -2419,6 +2419,7 @@
 
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
+    if (SPEEDGRADER) return;
     // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar.
     // SpeedGrader renders its layout inside #full_width_container — padding-right
     // on that element shrinks available space for its children regardless of their
