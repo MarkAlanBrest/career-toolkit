@@ -149,19 +149,19 @@
       btn.type = 'button';
       btn.textContent = label;
       btn.style.cssText = primary
-        ? 'padding:8px 10px;border:1px solid #0b6f92;border-radius:4px;background:#0b6f92;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;'
-        : 'padding:8px 10px;border:1px solid #c7cdd1;border-radius:4px;background:#fff;color:#2d3b45;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;';
+        ? 'padding:7px 10px;border:1px solid #0b5f7f;border-radius:3px;background:#0b5f7f;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1.25;'
+        : 'padding:7px 10px;border:1px solid #c7cdd1;border-radius:3px;background:#f5f5f5;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;line-height:1.25;';
       return btn;
     }
 
     function ceSgSection(parent, title) {
       const box = document.createElement('section');
-      box.style.cssText = 'border:1px solid #dfe3e8;border-radius:6px;background:#fff;overflow:hidden;';
+      box.style.cssText = 'border-top:1px solid #c7cdd1;background:#fff;';
       const head = document.createElement('div');
       head.textContent = title;
-      head.style.cssText = 'padding:8px 10px;background:#f5f7f8;border-bottom:1px solid #dfe3e8;font-size:12px;font-weight:800;text-transform:uppercase;color:#4b5963;';
+      head.style.cssText = 'padding:10px 12px 6px;background:#fff;font-size:13px;font-weight:700;color:#2d3b45;';
       const body = document.createElement('div');
-      body.style.cssText = 'padding:10px;display:flex;flex-direction:column;gap:8px;';
+      body.style.cssText = 'padding:0 12px 12px;display:flex;flex-direction:column;gap:8px;';
       box.append(head, body);
       parent.appendChild(box);
       return body;
@@ -274,29 +274,24 @@
     async function mountSpeedGraderRail() {
       if (document.getElementById('ce-sg-rail')) return true;
       const { courseId, assignmentId } = getSpeedGraderUrlParts();
-      const navOffset = Math.round(document.querySelector('#global_nav,#menu')?.getBoundingClientRect?.().width || 0);
-
-      if (!document.getElementById('ce-sg-rail-space')) {
-        const st = document.createElement('style');
-        st.id = 'ce-sg-rail-space';
-        st.textContent = '@media (min-width:900px){body.ce-sg-rail-open #full_width_container,body.ce-sg-rail-open #main,body.ce-sg-rail-open .ic-app-main-content{margin-left:320px!important;width:calc(100% - 320px)!important;}}';
-        document.head.appendChild(st);
-      }
+      const contentAnchor = document.querySelector('#left_side, #left-side, #submission_preview, #iframe_holder, #speedgrader_iframe');
+      const embedHost = contentAnchor?.parentElement || document.querySelector('#full_width_container, #main, .ic-app-main-content');
+      if (!embedHost) return false;
 
       const rail = document.createElement('aside');
       rail.id = 'ce-sg-rail';
-      rail.style.cssText = `position:fixed;left:${navOffset}px;top:58px;bottom:0;width:320px;background:#fff;border-right:1px solid #c7cdd1;box-shadow:2px 0 10px rgba(0,0,0,.12);z-index:9998;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;`;
+      rail.style.cssText = 'position:sticky;top:0;align-self:flex-start;flex:0 0 320px;width:320px;max-width:320px;min-height:calc(100vh - 58px);max-height:calc(100vh - 58px);background:#fff;border-right:1px solid #c7cdd1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;';
 
       const head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#2d3b45;color:#fff;';
-      head.innerHTML = '<div><div style="font-size:14px;font-weight:800;">Canvas Enhancer</div><div style="font-size:11px;color:#c8d8e4;">SpeedGrader tools</div></div>';
-      const hide = ceSgBtn('Hide', false);
-      hide.style.cssText += 'padding:5px 8px;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.28);';
+      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
+      head.innerHTML = '<div><div style="font-size:15px;font-weight:700;line-height:1.2;">Canvas Enhancer</div><div style="font-size:12px;color:#6b7780;margin-top:2px;">SpeedGrader tools</div></div>';
+      const hide = ceSgBtn('Collapse', false);
+      hide.style.cssText += 'padding:5px 8px;';
       head.appendChild(hide);
       rail.appendChild(head);
 
       const body = document.createElement('div');
-      body.style.cssText = 'overflow:auto;flex:1;padding:12px;display:flex;flex-direction:column;gap:12px;';
+      body.style.cssText = 'overflow:auto;flex:1;background:#fff;display:flex;flex-direction:column;';
       rail.appendChild(body);
 
       const queue = ceSgSection(body, 'Needs Grading');
@@ -314,7 +309,7 @@
       const criteria = document.createElement('textarea');
       criteria.value = stored.ce_criteria?.[criteriaKey] || '';
       criteria.placeholder = 'Paste rubric, answer key, grading rules, or custom AI instructions for this assignment.';
-      criteria.style.cssText = 'width:100%;min-height:120px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;';
+      criteria.style.cssText = 'width:100%;min-height:120px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
       criteria.addEventListener('input', async () => {
         const latest = await ceSgStorageGet(['ce_criteria']);
         ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteria.value } });
@@ -325,9 +320,9 @@
       const snippets = document.createElement('textarea');
       snippets.value = stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
       snippets.placeholder = 'One reusable comment per blank line.';
-      snippets.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;';
+      snippets.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
       const select = document.createElement('select');
-      select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:7px;font-size:13px;';
+      select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:7px;font-size:13px;background:#fff;color:#2d3b45;';
       const refreshSnippets = () => {
         ceSgStorageSet({ ce_sg_comment_snippets: snippets.value });
         select.innerHTML = '';
@@ -347,12 +342,12 @@
       const ai = ceSgSection(body, 'AI Grader');
       const draftScore = document.createElement('input');
       draftScore.placeholder = 'Score';
-      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:13px;';
+      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
       const draftComment = document.createElement('textarea');
       draftComment.placeholder = 'AI feedback or your edited comment.';
       draftComment.style.cssText = criteria.style.cssText + 'min-height:130px;';
       const teacherCheck = document.createElement('div');
-      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #f3d27a;color:#5f4200;border-radius:4px;padding:8px;font-size:12px;line-height:1.4;';
+      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
       const aiRow = document.createElement('div');
       aiRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
       const aiDraft = ceSgBtn('AI Grade', true);
@@ -413,13 +408,29 @@
         }
       });
 
-      const toggle = ceSgBtn('CE Grader', true);
-      toggle.id = 'ce-sg-rail-toggle';
-      toggle.style.cssText = `display:none;position:fixed;left:${navOffset}px;top:120px;z-index:9999;transform:rotate(-90deg) translateX(-100%);transform-origin:left top;border:1px solid #0b6f92;background:#0b6f92;color:#fff;border-radius:4px 4px 0 0;padding:7px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;`;
-      hide.addEventListener('click', () => { rail.style.display = 'none'; toggle.style.display = 'block'; document.body.classList.remove('ce-sg-rail-open'); });
-      toggle.addEventListener('click', () => { rail.style.display = 'flex'; toggle.style.display = 'none'; document.body.classList.add('ce-sg-rail-open'); });
-      document.body.append(rail, toggle);
-      document.body.classList.add('ce-sg-rail-open');
+      let collapsed = false;
+      hide.addEventListener('click', () => {
+        collapsed = !collapsed;
+        body.style.display = collapsed ? 'none' : 'flex';
+        rail.style.flexBasis = collapsed ? '44px' : '320px';
+        rail.style.width = collapsed ? '44px' : '320px';
+        rail.style.maxWidth = collapsed ? '44px' : '320px';
+        head.style.writingMode = collapsed ? 'vertical-rl' : '';
+        head.style.alignItems = collapsed ? 'center' : 'center';
+        head.style.gap = collapsed ? '10px' : '';
+        hide.textContent = collapsed ? 'Open' : 'Collapse';
+      });
+
+      embedHost.style.display = 'flex';
+      embedHost.style.alignItems = 'stretch';
+      embedHost.style.gap = '0';
+      if (contentAnchor) {
+        contentAnchor.style.flex = contentAnchor.style.flex || '1 1 auto';
+        contentAnchor.style.minWidth = contentAnchor.style.minWidth || '0';
+        embedHost.insertBefore(rail, contentAnchor);
+      } else {
+        embedHost.insertBefore(rail, embedHost.firstChild);
+      }
       return true;
     }
 
