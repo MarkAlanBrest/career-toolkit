@@ -522,14 +522,20 @@
       .ce-ev-nav-btn:hover{background:#F5F5F5;}
       .ce-ev-nav-btn.ml{margin-left:auto;}
       .ce-ev-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+      .ce-ev-top{display:flex;flex-direction:column;gap:18px;padding:18px;border:1px solid #E2E8F0;border-radius:12px;background:#fff;}
+      .ce-ev-form-grid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px;align-items:start;}
+      .ce-ev-action-row{display:flex;justify-content:flex-end;}
       .ce-ev-group{display:flex;flex-direction:column;gap:5px;}
       .ce-ev-label{font-size:12px;font-weight:600;color:#2D3B45;}
-      .ce-ev-input,.ce-ev-select{width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;font-family:inherit;color:#2D3B45;background:#fff;outline:none;}
-      .ce-ev-input:focus,.ce-ev-select:focus{border-color:#0770B8;}
+      .ce-ev-input,.ce-ev-select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #C7CDD1;border-radius:8px;font-size:13px;font-family:inherit;color:#2D3B45;background:#F8FAFC;outline:none;}
+      .ce-ev-input:focus,.ce-ev-select:focus{border-color:#0770B8;background:#fff;}
       .ce-ev-hint{font-size:11px;color:#6B7280;line-height:1.4;}
-      .ce-ev-submit{width:100%;padding:9px;border:none;border-radius:3px;background:#0770B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
+      .ce-ev-submit{width:auto;padding:11px 20px;border:none;border-radius:8px;background:#0770B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
       .ce-ev-submit:hover{opacity:.88;}
       .ce-ev-submit:disabled{opacity:.5;cursor:not-allowed;}
+      @media (max-width: 840px) {
+        .ce-ev-form-grid{grid-template-columns:1fr;}
+      }
       .ce-ev-loading{text-align:center;padding:48px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;}
       .ce-ev-spinner{width:36px;height:36px;border:3px solid #E2E8F0;border-top:3px solid #0770B8;border-radius:50%;animation:ce-ev-spin .8s linear infinite;}
       @keyframes ce-ev-spin{to{transform:rotate(360deg);}}
@@ -616,7 +622,13 @@
     const intro = document.createElement('div');
     intro.className = 'ce-ev-intro';
     intro.textContent = 'Configure the course context below, then run the evaluation to score this course across 6 categories.';
-    scroll.appendChild(intro);
+
+    const top = document.createElement('div');
+    top.className = 'ce-ev-top';
+    top.appendChild(intro);
+
+    const formGrid = document.createElement('div');
+    formGrid.className = 'ce-ev-form-grid';
 
     function formGroup(labelText, inputEl, hint) {
       const g = document.createElement('div');
@@ -639,13 +651,13 @@
     hoursIn.className = 'ce-ev-input';
     hoursIn.type = 'number'; hoursIn.min = '1';
     hoursIn.value = ctx.courseHours || '45'; hoursIn.placeholder = '45';
-    scroll.appendChild(formGroup('Total Course Hours', hoursIn, 'e.g. 45 for a 3-credit course'));
+    formGrid.appendChild(formGroup('Total Course Hours', hoursIn, 'e.g. 45 for a 3-credit course'));
 
     const weeksIn = document.createElement('input');
     weeksIn.className = 'ce-ev-input';
     weeksIn.type = 'number'; weeksIn.min = '1';
     weeksIn.value = ctx.termWeeks || '16'; weeksIn.placeholder = '16';
-    scroll.appendChild(formGroup('Term Length (weeks)', weeksIn));
+    formGrid.appendChild(formGroup('Term Length (weeks)', weeksIn));
 
     const delivSel = document.createElement('select');
     delivSel.className = 'ce-ev-select';
@@ -655,13 +667,15 @@
       if (v === (ctx.deliveryType || 'online')) opt.selected = true;
       delivSel.appendChild(opt);
     }
-    scroll.appendChild(formGroup('Delivery Type', delivSel));
+    formGrid.appendChild(formGroup('Delivery Type', delivSel));
+    top.appendChild(formGrid);
 
     const errEl = document.createElement('div');
     errEl.className = 'ce-ev-error';
     errEl.style.display = 'none';
-    scroll.appendChild(errEl);
 
+    const submitRow = document.createElement('div');
+    submitRow.className = 'ce-ev-action-row';
     const submitBtn = document.createElement('button');
     submitBtn.className = 'ce-ev-submit';
     submitBtn.textContent = '▶  Run Evaluation';
@@ -681,7 +695,10 @@
       const currentSettings = await loadSettings();
       await runEvaluation(context, currentSettings);
     });
-    scroll.appendChild(submitBtn);
+    submitRow.appendChild(submitBtn);
+    top.appendChild(submitRow);
+    scroll.appendChild(top);
+    scroll.appendChild(errEl);
     wrap.appendChild(scroll);
     _container.appendChild(wrap);
   }
