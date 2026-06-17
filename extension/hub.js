@@ -650,14 +650,6 @@
     settingsIntro.textContent = 'Choose the Canvas signals that should put a student on your review list. The report is an early-warning checklist for teacher follow-up; it does not diagnose a student or replace your judgment.';
     settingsPane.appendChild(settingsIntro);
 
-    const { row: r4, inp: daysInp     } = threshRow('Review recent assignment activity from the last', 'ce-ar-days', savedPrefs.days ?? 7, 'days');
-    const grp0 = settingsGroup(
-      'Recent Work Window',
-      'Sets the time window used for missing work, low scores, zeroes, and late submissions.',
-      ['Use a shorter window for weekly check-ins.', 'Use a longer window for progress reports or parent contact.']
-    ); grp0.add(r4);
-    settingsPane.appendChild(grp0.wrap);
-
     const { row: r1, inp: gradeInp    } = threshRow('Flag when current course grade is below', 'ce-ar-grade', savedPrefs.gradeT ?? 70, '%', { step: '0.1' });
     const grp1 = settingsGroup(
       'Falling Overall Performance',
@@ -667,19 +659,21 @@
     settingsPane.appendChild(grp1.wrap);
 
     const { row: r2, inp: missingInp  } = threshRow('Flag when missing assignments or quizzes reach', 'ce-ar-missing', savedPrefs.missingT ?? 3, 'items');
+    const { row: r2d, inp: missingDaysInp } = threshRow('Look back over the last', 'ce-ar-missing-days', savedPrefs.missingDays ?? savedPrefs.days ?? 7, 'days');
     const grp2 = settingsGroup(
       'Work Avoidance Or Non-Submission',
-      'Look for a pattern of assigned work not being turned in during the review window.',
+      'Look for a pattern of assigned work not being turned in during the time period you choose.',
       ['Several missing assignments in a short stretch.', 'Missing quizzes or major checks that block grade recovery.']
-    ); grp2.add(r2);
+    ); grp2.add(r2); grp2.add(r2d);
     settingsPane.appendChild(grp2.wrap);
 
     const { row: r3, inp: lowScoreInp } = threshRow('Flag each recent assignment or quiz score below', 'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%', { step: '0.1' });
+    const { row: r3d, inp: lowScoreDaysInp } = threshRow('Look back over the last', 'ce-ar-lowscore-days', savedPrefs.lowScoreDays ?? savedPrefs.days ?? 7, 'days');
     const grp3b = settingsGroup(
       'Struggling Despite Submitting',
       'Look for students who are turning in work but scoring low enough to suggest confusion, incomplete understanding, or rushed work.',
       ['Multiple recent scores below the selected percentage.', 'Low quiz scores after instruction or practice.']
-    ); grp3b.add(r3);
+    ); grp3b.add(r3); grp3b.add(r3d);
     settingsPane.appendChild(grp3b.wrap);
 
     const { row: r5, inp: inactiveInp } = threshRow('Flag when there has been no Canvas activity for', 'ce-ar-inactive', savedPrefs.inactiveT ?? 7, 'days');
@@ -691,19 +685,21 @@
     settingsPane.appendChild(grp3.wrap);
 
     const { row: r6, inp: zeroInp     } = threshRow('Flag when zero-score assignments reach', 'ce-ar-zeroes', savedPrefs.zeroT ?? 2, 'items');
+    const { row: r6d, inp: zeroDaysInp } = threshRow('Look back over the last', 'ce-ar-zeroes-days', savedPrefs.zeroDays ?? savedPrefs.days ?? 7, 'days');
     const grp4 = settingsGroup(
       'Repeated Zero Scores',
       'Look for zeros that may point to blank submissions, incomplete attempts, or work that was attempted but not successful.',
-      ['Two or more zeros in the recent work window.', 'Set this to 0 to ignore zero-score patterns.']
-    ); grp4.add(r6);
+      ['Two or more zeros in the selected time period.', 'Set this to 0 to ignore zero-score patterns.']
+    ); grp4.add(r6); grp4.add(r6d);
     settingsPane.appendChild(grp4.wrap);
 
     const { row: r7, inp: lateInp     } = threshRow('Flag when late submissions reach', 'ce-ar-late', savedPrefs.lateT ?? 0, 'items');
+    const { row: r7d, inp: lateDaysInp } = threshRow('Look back over the last', 'ce-ar-late-days', savedPrefs.lateDays ?? savedPrefs.days ?? 7, 'days');
     const grp5 = settingsGroup(
       'Late Or Overdue Patterns',
       'Look for students who are submitting after deadlines often enough that timing is becoming part of the risk pattern.',
-      ['Several late submissions in the recent work window.', 'Set this to 0 to ignore late-submission patterns.']
-    ); grp5.add(r7);
+      ['Several late submissions in the selected time period.', 'Set this to 0 to ignore late-submission patterns.']
+    ); grp5.add(r7); grp5.add(r7d);
     settingsPane.appendChild(grp5.wrap);
 
     function numValue(input, fallback) {
@@ -721,10 +717,13 @@
         gradeT:    numValue(gradeInp, 70),
         missingT:  intValue(missingInp, 3),
         lowScoreT: numValue(lowScoreInp, 60),
-        days:      intValue(daysInp, 7),
+        missingDays: intValue(missingDaysInp, 7),
+        lowScoreDays: intValue(lowScoreDaysInp, 7),
         inactiveT: intValue(inactiveInp, 0),
         zeroT:     intValue(zeroInp, 0),
+        zeroDays:  intValue(zeroDaysInp, 7),
         lateT:     intValue(lateInp, 0),
+        lateDays:  intValue(lateDaysInp, 7),
       });
       saveSettingsBtn.textContent = 'Saved ✓';
       setTimeout(() => saveSettingsBtn.textContent = 'Save Settings', 1500);
@@ -775,18 +774,20 @@
         const gradeT    = numValue(gradeInp, 70);
         const missingT  = intValue(missingInp, 3);
         const lowScoreT = numValue(lowScoreInp, 60);
-        const days      = intValue(daysInp, 7);
+        const missingDays = intValue(missingDaysInp, 7);
+        const lowScoreDays = intValue(lowScoreDaysInp, 7);
         const inactiveT = intValue(inactiveInp, 0);
         const zeroT     = intValue(zeroInp, 0);
+        const zeroDays  = intValue(zeroDaysInp, 7);
         const lateT     = intValue(lateInp, 0);
-        const cutoff    = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const lateDays  = intValue(lateDaysInp, 7);
 
         if (!selectedCourseIds.size) {
           statusMsg(results, 'Select at least one class above before running.', 'err');
           runBtn.disabled = false; runBtn.textContent = '▶  Find At-Risk Students';
           return;
         }
-        savePrefs({ gradeT, missingT, lowScoreT, days, inactiveT, zeroT, lateT });
+        savePrefs({ gradeT, missingT, lowScoreT, missingDays, lowScoreDays, inactiveT, zeroT, zeroDays, lateT, lateDays });
 
         function fmtDate(iso) {
           if (!iso) return '—';
@@ -799,15 +800,21 @@
           const pct = pp ? Math.round((sub.score / pp) * 100) : null;
           return pp ? `${sub.score}/${pp} (${pct}%)` : `${sub.score} pts`;
         }
-        function inWindow(sub) {
+        function inWindow(sub, days) {
           const due = sub.assignment?.due_at ? new Date(sub.assignment.due_at) : null;
+          const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
           return due && due >= cutoff;
         }
-        function isFlagged(sub) {
-          if (!inWindow(sub)) return false;
-          if (sub.missing) return true;
+        function isLowScore(sub) {
           const pp = sub.assignment?.points_possible;
           return pp && sub.score != null && (sub.score / pp) * 100 < lowScoreT;
+        }
+        function isFlagged(sub) {
+          if (sub.missing && inWindow(sub, missingDays)) return true;
+          if (isLowScore(sub) && inWindow(sub, lowScoreDays)) return true;
+          if (!sub.missing && sub.score === 0 && zeroT > 0 && inWindow(sub, zeroDays)) return true;
+          if (sub.late && !sub.missing && lateT > 0 && inWindow(sub, lateDays)) return true;
+          return false;
         }
 
         try {
@@ -835,8 +842,11 @@
               .filter(s => s.assignment?.due_at && s.assignment?.points_possible > 0)
               .sort((a, b) => new Date(b.assignment.due_at) - new Date(a.assignment.due_at));
 
-            const windowSubs  = subs.filter(inWindow);
-            const missCount   = windowSubs.filter(s => s.missing).length;
+            const missingWindowSubs = subs.filter(s => inWindow(s, missingDays));
+            const zeroWindowSubs = subs.filter(s => inWindow(s, zeroDays));
+            const lateWindowSubs = subs.filter(s => inWindow(s, lateDays));
+            const missCount   = missingWindowSubs.filter(s => s.missing).length;
+            const lowCount    = subs.filter(s => isLowScore(s) && inWindow(s, lowScoreDays)).length;
             const flaggedSubs = subs.filter(isFlagged);
 
             // Inactivity
@@ -845,24 +855,23 @@
             const isInactive   = inactiveT > 0 && (lastActive === null || inactiveDays >= inactiveT);
 
             // Zero scores in window
-            const zeroCount       = windowSubs.filter(s => !s.missing && s.score === 0).length;
+            const zeroCount       = zeroWindowSubs.filter(s => !s.missing && s.score === 0).length;
             const hasTooManyZeros = zeroT > 0 && zeroCount >= zeroT;
 
             // Late submissions in window
-            const lateCount      = windowSubs.filter(s => s.late && !s.missing).length;
+            const lateCount      = lateWindowSubs.filter(s => s.late && !s.missing).length;
             const hasTooManyLate = lateT > 0 && lateCount >= lateT;
 
             // For letters: all missing (any time) + in-window low scores
             const letterSubs = subs.filter(sub => {
               if (sub.missing) return true;
-              const pp = sub.assignment?.points_possible;
-              return inWindow(sub) && pp && sub.score != null && (sub.score / pp) * 100 < lowScoreT;
+              return isLowScore(sub) && inWindow(sub, lowScoreDays);
             });
 
             const isAtRisk =
               (grade != null && grade < gradeT) ||
               missCount >= missingT ||
-              flaggedSubs.some(s => !s.missing) ||
+              lowCount > 0 ||
               isInactive ||
               hasTooManyZeros ||
               hasTooManyLate;
@@ -873,18 +882,20 @@
             if (grade != null && grade < gradeT)
               flags.push(`Grade: ${Math.round(grade)}%`);
             if (missCount >= missingT)
-              flags.push(`${missCount} missing in last ${days} days`);
-            const lowCount = flaggedSubs.filter(s => !s.missing).length;
+              flags.push(`${missCount} missing in last ${missingDays} days`);
             if (lowCount)
-              flags.push(`${lowCount} low score${lowCount !== 1 ? 's' : ''} in last ${days} days`);
+              flags.push(`${lowCount} low score${lowCount !== 1 ? 's' : ''} in last ${lowScoreDays} days`);
             if (isInactive)
               flags.push(lastActive ? `Inactive ${inactiveDays}d` : 'No Canvas activity');
             if (hasTooManyZeros)
-              flags.push(`${zeroCount} zero${zeroCount !== 1 ? 's' : ''} in window`);
+              flags.push(`${zeroCount} zero${zeroCount !== 1 ? 's' : ''} in last ${zeroDays} days`);
             if (hasTooManyLate)
-              flags.push(`${lateCount} late in window`);
+              flags.push(`${lateCount} late in last ${lateDays} days`);
 
-              atRisk.push({ name, grade, subs, flaggedSubs, letterSubs, days, flags, courseName });
+              atRisk.push({
+                name, grade, subs, flaggedSubs, letterSubs, flags, courseName,
+                windows: { missingDays, lowScoreDays, zeroDays, lateDays },
+              });
             }
           }
 
@@ -895,7 +906,7 @@
             return;
           }
 
-          results.appendChild(sectionHead(`${atRisk.length} at-risk student${atRisk.length !== 1 ? 's' : ''} found — flagged rows are within the ${days}-day window`));
+          results.appendChild(sectionHead(`${atRisk.length} at-risk student${atRisk.length !== 1 ? 's' : ''} found — flagged rows match the criteria windows in Settings`));
 
           const list = el('div', 'display:flex;flex-direction:column;gap:10px;');
           for (const s of atRisk) {
@@ -999,7 +1010,8 @@
     function printAtRisk(students, perPage) {
       const course = document.querySelector('.course-title span, h1.course-title, .context_title')?.textContent?.trim() || 'Course';
       const date   = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const days   = students[0]?.days ?? 7;
+      const windows = students[0]?.windows || {};
+      const windowText = `Windows: missing ${windows.missingDays ?? 7}d, low scores ${windows.lowScoreDays ?? 7}d, zeroes ${windows.zeroDays ?? 7}d, late ${windows.lateDays ?? 7}d`;
 
       function fmtDate(iso) {
         if (!iso) return '—';
@@ -1031,7 +1043,7 @@
 
       if (!perPage) {
         body += `<h1>At-Risk Student Report</h1>
-          <div class="meta">${course} · Generated ${date} · ${students.length} student${students.length !== 1 ? 's' : ''} · Lookback: ${days} days (⚠ = within window)</div>`;
+          <div class="meta">${course} · Generated ${date} · ${students.length} student${students.length !== 1 ? 's' : ''} · ${windowText} (⚠ = matched criterion)</div>`;
 
         students.forEach(s => {
           body += `<div class="student">
