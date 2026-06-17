@@ -290,18 +290,22 @@
       const style = document.createElement('style');
       style.id = 'ce-sg-toolbar-style';
       style.textContent = `
-        body.ce-sg-toolbar-open { padding-top:56px !important; box-sizing:border-box !important; }
-        #ce-sg-toolbar { position:fixed; top:0; left:0; right:0; height:56px; z-index:2147483640; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); transition:transform .2s ease; }
-        #ce-sg-toolbar.ce-sg-collapsed { transform:translateY(-56px); }
+        body.ce-sg-toolbar-open { padding-top:0 !important; box-sizing:border-box !important; }
+        #ce-sg-toolbar { position:sticky; top:0; width:100%; height:56px; z-index:2147483640; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); }
+        #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
         .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:2px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
-        .ce-sg-brand { min-width:148px; height:100%; border-right:1px solid #c7cdd1; background:#f5f5f5; color:#6b7280; display:flex; align-items:center; justify-content:center; padding:0 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
-        .ce-sg-btn { min-width:78px; height:100%; border:none; border-bottom:3px solid transparent; background:#fff; color:#2d3b45; padding:0 10px; font-size:10px; font-weight:700; cursor:pointer; font-family:inherit; line-height:1.15; text-transform:uppercase; letter-spacing:.2px; }
+        .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid #c7cdd1; background:#f5f5f5; color:#6b7280; display:flex; align-items:center; justify-content:center; padding:0 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:rgba(60,190,120,0.11); color:#2d3b45; padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; }
+        .ce-sg-btn-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; pointer-events:none; }
+        .ce-sg-btn-icon { font-size:18px; line-height:1; display:block; text-align:center; }
+        .ce-sg-btn-label { display:block; text-align:center; font-size:10px; color:#2d3b45; opacity:.8; letter-spacing:.2px; text-transform:uppercase; font-weight:700; line-height:1.05; }
         .ce-sg-btn:hover { background:#eef2f4; }
         .ce-sg-btn-primary { border-bottom-color:#0770b8; background:#1b303d; color:#fff; }
         .ce-sg-btn-primary:hover { background:#1b303d; }
-        .ce-sg-collapse { margin-left:auto; min-width:54px; border-left:1px solid #c7cdd1; background:#f5f5f5; color:#2d3b45; }
-        #ce-sg-tab { position:fixed; top:0; right:14px; z-index:2147483641; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
+        .ce-sg-btn-primary .ce-sg-btn-label { color:#fff; opacity:1; }
+        .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid #c7cdd1; background:#f5f5f5; color:#2d3b45; }
+        #ce-sg-tab { position:sticky; top:0; margin-left:auto; z-index:2147483641; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
@@ -321,13 +325,13 @@
       main.className = 'ce-sg-mainbar';
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
-      brand.textContent = 'Canvas Enhancer Grader';
-      const needsBtn = ceSgToolbarButton('Needs Grading');
-      const aiBtn = ceSgToolbarButton('AI Grade', true);
-      const criteriaBtn = ceSgToolbarButton('Criteria');
-      const commentsBtn = ceSgToolbarButton('Comments');
-      const insertDraftBtn = ceSgToolbarButton('Insert Draft', true);
-      const collapseBtn = ceSgToolbarButton('Hide');
+      brand.textContent = 'Grading';
+      const needsBtn = ceSgToolbarButton('Needs', false, '📋');
+      const aiBtn = ceSgToolbarButton('AI Grade', true, '🎓');
+      const criteriaBtn = ceSgToolbarButton('Criteria', false, '📌');
+      const commentsBtn = ceSgToolbarButton('Comments', false, '💬');
+      const insertDraftBtn = ceSgToolbarButton('Insert', true, '↪');
+      const collapseBtn = ceSgToolbarButton('Hide', false, '▴');
       collapseBtn.classList.add('ce-sg-collapse');
       main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn, collapseBtn);
       bar.appendChild(main);
@@ -399,11 +403,24 @@
       queueList.className = 'ce-sg-list';
       const refreshQueueBtn = ceSgToolbarButton('Refresh');
 
-      function ceSgToolbarButton(label, primary) {
+      function ceSgToolbarButton(label, primary, iconText) {
         const b = document.createElement('button');
         b.type = 'button';
-        b.textContent = label;
         b.className = primary ? 'ce-sg-btn ce-sg-btn-primary' : 'ce-sg-btn';
+        if (iconText) {
+          const inner = document.createElement('div');
+          inner.className = 'ce-sg-btn-inner';
+          const icon = document.createElement('span');
+          icon.className = 'ce-sg-btn-icon';
+          icon.textContent = iconText;
+          const text = document.createElement('span');
+          text.className = 'ce-sg-btn-label';
+          text.textContent = label;
+          inner.append(icon, text);
+          b.appendChild(inner);
+        } else {
+          b.textContent = label;
+        }
         return b;
       }
 

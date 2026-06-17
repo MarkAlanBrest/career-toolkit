@@ -73,7 +73,7 @@
 
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
   const toolbar = el('div', `
-    position:fixed;top:0;left:0;right:0;height:${TOOLBAR_H}px;
+    position:sticky;top:0;width:100%;height:${TOOLBAR_H}px;
     z-index:2147483640;
     background:${DS.white};
     border-bottom:1px solid ${DS.border};
@@ -186,7 +186,7 @@
 
   // ── COLLAPSED TAB ──────────────────────────────────────────────────────────
   const tab = el('button', `
-    position:fixed;top:0;right:14px;
+    position:sticky;top:0;margin-left:auto;
     z-index:2147483641;
     width:118px;height:26px;
     border:1px solid ${DS.border};border-top:none;
@@ -2356,12 +2356,12 @@
   function setBodyPadding(active) {
     const s = document.getElementById('ce-body-space');
     if (!s) return;
-    if (!active) { s.textContent = ''; return; }
-    s.textContent = `body { padding-top: ${TOOLBAR_H}px !important; box-sizing: border-box !important; }`;
+    s.textContent = '';
   }
 
   function applyToolbarState() {
-    toolbar.style.transform = _expanded ? 'none' : `translateY(-${TOOLBAR_H}px)`;
+    toolbar.style.transform = 'none';
+    toolbar.style.display = _expanded ? 'flex' : 'none';
     tab.style.display = _expanded ? 'none' : 'flex';
     if (!_expanded) {
       closePanel();
@@ -2436,9 +2436,9 @@
     ceStyle.textContent = '';
     (document.head || document.documentElement).appendChild(ceStyle);
 
-    document.body.appendChild(toolbar);
+    document.body.insertBefore(tab, document.body.firstChild);
+    document.body.insertBefore(toolbar, tab);
     document.body.appendChild(panel);
-    document.body.appendChild(tab);
     applyToolbarState();
     chrome.storage.local.get('ce_features', ({ ce_features }) => {
       if (ce_features) applyFeatures(ce_features);
