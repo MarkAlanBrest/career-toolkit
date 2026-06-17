@@ -290,14 +290,18 @@
       const style = document.createElement('style');
       style.id = 'ce-sg-toolbar-style';
       style.textContent = `
-        #ce-sg-toolbar { margin:0 0 10px 0; border:1px solid #c7cdd1; border-left:0; border-right:0; background:#f5f5f5; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; box-sizing:border-box; }
+        body.ce-sg-toolbar-open { padding-top:56px !important; box-sizing:border-box !important; }
+        #ce-sg-toolbar { position:fixed; top:0; left:0; right:0; height:56px; z-index:2147483640; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); transition:transform .2s ease; }
+        #ce-sg-toolbar.ce-sg-collapsed { transform:translateY(-56px); }
         #ce-sg-toolbar * { box-sizing:border-box; }
-        .ce-sg-mainbar { min-height:46px; display:flex; align-items:center; gap:8px; padding:6px 10px; flex-wrap:wrap; }
-        .ce-sg-brand { font-size:13px; font-weight:700; margin-right:4px; white-space:nowrap; }
-        .ce-sg-btn { border:1px solid #c7cdd1; border-radius:3px; background:#fff; color:#2d3b45; padding:7px 10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; line-height:1.2; }
+        .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:2px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
+        .ce-sg-brand { min-width:148px; height:100%; border-right:1px solid #c7cdd1; background:#f5f5f5; color:#6b7280; display:flex; align-items:center; justify-content:center; padding:0 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+        .ce-sg-btn { min-width:78px; height:100%; border:none; border-bottom:3px solid transparent; background:#fff; color:#2d3b45; padding:0 10px; font-size:10px; font-weight:700; cursor:pointer; font-family:inherit; line-height:1.15; text-transform:uppercase; letter-spacing:.2px; }
         .ce-sg-btn:hover { background:#eef2f4; }
-        .ce-sg-btn-primary { border-color:#0b5f7f; background:#0b5f7f; color:#fff; }
-        .ce-sg-btn-primary:hover { background:#084f6a; }
+        .ce-sg-btn-primary { border-bottom-color:#0770b8; background:#1b303d; color:#fff; }
+        .ce-sg-btn-primary:hover { background:#1b303d; }
+        .ce-sg-collapse { margin-left:auto; min-width:54px; border-left:1px solid #c7cdd1; background:#f5f5f5; color:#2d3b45; }
+        #ce-sg-tab { position:fixed; top:0; right:14px; z-index:2147483641; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
@@ -323,12 +327,33 @@
       const criteriaBtn = ceSgToolbarButton('Criteria');
       const commentsBtn = ceSgToolbarButton('Comments');
       const insertDraftBtn = ceSgToolbarButton('Insert Draft', true);
-      main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn);
+      const collapseBtn = ceSgToolbarButton('Hide');
+      collapseBtn.classList.add('ce-sg-collapse');
+      main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
       drawer.className = 'ce-sg-drawer';
       bar.appendChild(drawer);
+
+      const tab = document.createElement('button');
+      tab.id = 'ce-sg-tab';
+      tab.type = 'button';
+      tab.textContent = 'Grader Toolbar';
+      document.body.classList.add('ce-sg-toolbar-open');
+
+      function setToolbarOpen(open) {
+        bar.classList.toggle('ce-sg-collapsed', !open);
+        tab.style.display = open ? 'none' : 'flex';
+        document.body.classList.toggle('ce-sg-toolbar-open', open);
+        if (!open) {
+          drawer.classList.remove('ce-open');
+          [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        }
+      }
+
+      collapseBtn.addEventListener('click', () => setToolbarOpen(false));
+      tab.addEventListener('click', () => setToolbarOpen(true));
 
       const scoreInput = document.createElement('input');
       scoreInput.className = 'ce-sg-input';
@@ -484,10 +509,8 @@
         }
       });
 
-      const header = document.querySelector('#speed_grader_header, .speedgrader_header, #gradebook_header, .ic-app-nav-toggle-and-crumbs, #breadcrumbs');
-      if (header?.parentElement) header.insertAdjacentElement('afterend', bar);
-      else if (host === document.body) document.body.insertBefore(bar, document.body.firstChild);
-      else host.insertBefore(bar, host.firstChild);
+      document.body.appendChild(bar);
+      document.body.appendChild(tab);
       return true;
     }
 

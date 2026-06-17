@@ -202,12 +202,12 @@
 
   // ── PANEL ──────────────────────────────────────────────────────────────────
   const panel = el('div', `
-    position:fixed;top:${TOOLBAR_H + 8}px;bottom:16px;right:16px;
-    width:30vw;min-width:460px;max-width:580px;
+    position:fixed;top:${TOOLBAR_H}px;bottom:0;right:0;
+    width:32vw;min-width:460px;max-width:600px;
     z-index:2147483639;
     background:${DS.white};
-    border:1px solid ${DS.border};border-radius:4px;
-    box-shadow:0 8px 28px rgba(0,0,0,.16);
+    border-left:1px solid ${DS.border};border-top:1px solid ${DS.border};border-radius:0;
+    box-shadow:-4px 4px 16px rgba(0,0,0,.10);
     display:none;flex-direction:column;
     font-family:${DS.font};
   `);
@@ -2365,9 +2365,9 @@
     tab.style.display = _expanded ? 'none' : 'flex';
     if (!_expanded) {
       closePanel();
-      panel.style.right = '16px';
+      panel.style.right = '0';
     } else {
-      panel.style.right = '16px';
+      panel.style.right = '0';
     }
     collapseBtn.textContent = _expanded ? 'Hide' : 'Show';
     setBodyPadding(_expanded);
