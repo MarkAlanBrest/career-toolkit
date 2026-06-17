@@ -2571,23 +2571,28 @@
     });
 
     function injectSgBtn() {
-      if (document.getElementById('ces-sg-message-btn')?.isConnected) return;
-      const bar = document.getElementById('ce-sg-float-bar');
+      if (document.getElementById('ces-sg-message-btn')?.isConnected) return true;
+      const bar = document.getElementById('ce-sg-float-bar-row') || document.getElementById('ce-sg-float-bar');
       if (bar) {
         bar.appendChild(sgBtn);
+        return true;
       }
+      return false;
     }
     let _sgPoll = 0;
     const _sgTimer = window.setInterval(() => {
-      injectSgBtn();
-      if (++_sgPoll >= 10 || document.getElementById('ces-sg-message-btn')?.isConnected) {
-        if (!document.getElementById('ces-sg-message-btn')?.isConnected) {
+      const attached = injectSgBtn();
+      if (attached || ++_sgPoll >= 30) {
+        if (!attached && !document.getElementById('ces-sg-message-btn')?.isConnected) {
           sgBtn.style.cssText = 'position:fixed;top:110px;right:60px;z-index:2147483641;width:160px;text-align:center;padding:6px 12px;border:1px solid #C7CDD1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2D3B45;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s;';
           document.body.appendChild(sgBtn);
         }
         clearInterval(_sgTimer);
       }
     }, 1000);
+
+    const _sgObserver = new MutationObserver(() => injectSgBtn());
+    _sgObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   /* =========================================================

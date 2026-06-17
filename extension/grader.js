@@ -13,20 +13,50 @@
     const token        = GM_getValue('ce_canvas_token', '');
     const gradingModel = GM_getValue('ce_grading_model', 'claude-haiku-4-5-20251001');
 
-    // ── FLOATING TOOLBAR ──────────────────────────────────────────────────────
+    // ── SPEEDGRADER COMMENT TOOLBAR ───────────────────────────────────────────
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';
     const floatBar = document.createElement('div');
     floatBar.id = 'ce-sg-float-bar';
-    floatBar.style.cssText = 'display:flex;flex-direction:row;gap:4px;flex-wrap:wrap;align-items:center;';
-    document.body.appendChild(floatBar);
+    floatBar.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-width:100%;';
+
+    const floatBarRow = document.createElement('div');
+    floatBarRow.id = 'ce-sg-float-bar-row';
+    floatBarRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
+    floatBar.appendChild(floatBarRow);
+
+    function findSpeedGraderToolbarAnchor() {
+      const toolbarSelectors = [
+        '.ic-app-header__actions',
+        '.ic-page-header__actions',
+        '.page-header__actions',
+        '.ic-actions',
+        '.speedgrader-header-actions',
+        '.sg-navigation',
+        '.assignment-header .actions',
+        '.page-header-right',
+        '.title-bar__actions',
+        '.ic-app-header__toolbar',
+      ];
+      for (const selector of toolbarSelectors) {
+        const el = document.querySelector(selector);
+        if (el) return el;
+      }
+      return null;
+    }
 
     function findSpeedGraderCommentAnchor() {
       const selectors = [
         '#comments_container',
         '#submission_comment_form',
         '.submission-comment-form',
+        '.submission-comments',
         '.grading_comment',
         '.comment-input',
+        '.comment-form',
+        '.assignment-comments',
+        '.speed_grader_comment',
+        '.speedgrader_comment',
+        '.ic-RichContentEditor',
         '#right_side_inner',
         '#right_side',
       ];
@@ -42,24 +72,48 @@
         'textarea[name="comment[text_comment]"]',
         'textarea[aria-label*="comment" i]',
         'textarea[placeholder*="comment" i]',
+        '[contenteditable="true"][aria-label*="comment" i]',
       ].join(','));
-      if (textarea) return textarea.closest('form,div,section') || textarea.parentElement;
-      const label = [...document.querySelectorAll('label,div,span,h1,h2,h3,h4,h5,h6')]
-        .find(el => /assignment comments/i.test(el.textContent || ''));
-      if (label) return label.closest('section,div,fieldset') || label.parentElement;
+      if (textarea) return textarea.closest('form,section,div,article,aside') || textarea.parentElement;
+      const label = [...document.querySelectorAll('label,button,strong,div,span,h1,h2,h3,h4,h5,h6')]
+        .find(el => /assignment comments|post a comment|add a comment|student comment/i.test(el.textContent || ''));
+      if (label) return label.closest('section,div,fieldset,form,article,aside') || label.parentElement;
       return null;
     }
 
     function placeSpeedGraderFloatBar() {
-      const anchor = findSpeedGraderCommentAnchor();
+      const commentAnchor = findSpeedGraderCommentAnchor();
+      const toolbarAnchor = commentAnchor ? null : findSpeedGraderToolbarAnchor();
+      const anchor = commentAnchor || toolbarAnchor;
       if (!anchor) return false;
-      floatBar.style.cssText = 'display:flex;flex-direction:row;gap:4px;flex-wrap:wrap;align-items:center;margin:10px 0 8px;';
-      if (anchor.nextSibling === floatBar) return true;
+
+      const isToolbar = !commentAnchor && !!toolbarAnchor;
+      floatBar.style.cssText = isToolbar
+        ? 'display:flex;flex-direction:row;align-items:center;flex-wrap:wrap;gap:4px;max-width:100%;margin:8px 0;padding:8px 10px;border:1px solid #dfe3e8;border-radius:8px;background:#fff;'
+        : 'display:flex;flex-direction:column;gap:6px;max-width:100%;margin:10px 0 8px;padding:8px 10px;border:1px solid #dfe3e8;border-radius:8px;background:#fff;';
+
+      if (anchor.contains(floatBar)) return true;
       try {
-        anchor.insertAdjacentElement('afterend', floatBar);
+        if (isToolbar && anchor.appendChild) {
+          anchor.appendChild(floatBar);
+        } else {
+          const tag = anchor.tagName.toLowerCase();
+          if (tag === 'textarea' || tag === 'input') {
+            anchor.insertAdjacentElement('beforebegin', floatBar);
+          } else if (anchor.parentElement) {
+            anchor.parentElement.insertBefore(floatBar, anchor.nextSibling);
+          } else {
+            anchor.insertAdjacentElement('afterend', floatBar);
+          }
+        }
         return true;
       } catch (_) {
-        return false;
+        try {
+          anchor.appendChild(floatBar);
+          return true;
+        } catch (_) {
+          return false;
+        }
       }
     }
 
@@ -705,19 +759,31 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
     floatBar.appendChild(teacherCheckWrap);
 
     function injectAiBtn() {
-      if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
-      if (!placeSpeedGraderFloatBar()) return;
+      const existing = document.getElementById('ce-ai-grade-btn');
+      if (existing?.isConnected) return;
+      if (!placeSpeedGraderFloatBar()) return false;
+      const barRow = document.getElementById('ce-sg-float-bar-row');
+      if (barRow) {
+        barRow.appendChild(aiBtn);
+        return true;
+      }
       const bar = document.getElementById('ce-sg-float-bar');
       if (bar) {
         bar.appendChild(aiBtn);
-        bar.appendChild(teacherCheckWrap);
+        return true;
       }
+      return false;
     }
     let _aiPoll = 0;
     const _aiTimer = setInterval(() => {
-      injectAiBtn();
-      if (++_aiPoll >= 10 || document.getElementById('ce-ai-grade-btn')?.isConnected) clearInterval(_aiTimer);
+      const attached = injectAiBtn();
+      if (++_aiPoll >= 30 || attached || document.getElementById('ce-ai-grade-btn')?.isConnected) {
+        clearInterval(_aiTimer);
+      }
     }, 1000);
+
+    const _aiObserver = new MutationObserver(() => injectAiBtn());
+    _aiObserver.observe(document.body, { childList: true, subtree: true });
 
     function getCurrentCommentText() {
       const tiny = window.tinymce || window.tinyMCE;
