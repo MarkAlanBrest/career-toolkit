@@ -127,24 +127,308 @@
       }
     }
 
-    const workspaceBtn = document.createElement('button');
-    workspaceBtn.id = 'ce-grader-workspace-btn';
-    workspaceBtn.textContent = 'Open Grader Workspace';
-    workspaceBtn.style.cssText = _barBtnCss;
-    workspaceBtn.addEventListener('click', () => {
-      const { courseId, assignmentId } = getSpeedGraderUrlParts();
-      const url = new URL('https://career-toolkit-ruby.vercel.app/grader');
-      url.searchParams.set('canvasBase', location.origin);
-      if (courseId) url.searchParams.set('courseId', courseId);
-      if (assignmentId) url.searchParams.set('assignmentId', assignmentId);
-      window.open(url.toString(), '_blank', 'noopener,noreferrer');
-    });
-    floatBarRow.appendChild(workspaceBtn);
+    function ceSgStorageGet(keys) {
+      return new Promise(resolve => chrome.storage.local.get(keys, resolve));
+    }
 
-    let _workspacePoll = 0;
-    const _workspaceTimer = setInterval(() => {
-      if (placeSpeedGraderFloatBar() || ++_workspacePoll >= 30) clearInterval(_workspaceTimer);
-    }, 1000);
+    function ceSgStorageSet(values) {
+      chrome.storage.local.set(values);
+    }
+
+    async function ceSgCanvasGet(path) {
+      const res = await fetch(location.origin + path, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`Canvas ${res.status}`);
+      return res.json();
+    }
+
+    function ceSgBtn(label, primary) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = label;
+      btn.style.cssText = primary
+        ? 'padding:8px 10px;border:1px solid #0b6f92;border-radius:4px;background:#0b6f92;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;'
+        : 'padding:8px 10px;border:1px solid #c7cdd1;border-radius:4px;background:#fff;color:#2d3b45;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;';
+      return btn;
+    }
+
+    function ceSgSection(parent, title) {
+      const box = document.createElement('section');
+      box.style.cssText = 'border:1px solid #dfe3e8;border-radius:6px;background:#fff;overflow:hidden;';
+      const head = document.createElement('div');
+      head.textContent = title;
+      head.style.cssText = 'padding:8px 10px;background:#f5f7f8;border-bottom:1px solid #dfe3e8;font-size:12px;font-weight:800;text-transform:uppercase;color:#4b5963;';
+      const body = document.createElement('div');
+      body.style.cssText = 'padding:10px;display:flex;flex-direction:column;gap:8px;';
+      box.append(head, body);
+      parent.appendChild(box);
+      return body;
+    }
+
+    function ceSgVisibleSubmissionText() {
+      const selectors = [
+        '#iframe_holder iframe', '#submission_preview iframe', '#speedgrader_iframe',
+        'iframe[src*="/submissions/"]', '#iframe_holder', '#submission_preview',
+        '#document_preview', '.submission_preview', '.submission-details', '.submission_body',
+      ];
+      for (const selector of selectors) {
+        for (const el of document.querySelectorAll(selector)) {
+          try {
+            const text = el.tagName?.toLowerCase() === 'iframe'
+              ? (el.contentDocument?.body?.innerText || '')
+              : (el.innerText || el.textContent || '');
+            const clean = String(text || '').replace(/\n{3,}/g, '\n\n').trim();
+            if (clean.length > 40) return clean.slice(0, 45000);
+          } catch (_) {}
+        }
+      }
+      return '';
+    }
+
+    function ceSgHtml(value) {
+      return String(value || '')
+        .split(/\n{2,}/)
+        .map(p => `<p>${p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+
+    function ceSgSetValue(el, value) {
+      if (!el) return false;
+      const tag = el.tagName?.toLowerCase();
+      if (tag === 'textarea' || tag === 'input') {
+        const proto = tag === 'textarea' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        if (setter) setter.call(el, value);
+        else el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.focus();
+        return true;
+      }
+      if (el.isContentEditable || el.getAttribute?.('contenteditable') === 'true') {
+        el.focus();
+        el.innerHTML = ceSgHtml(value);
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      }
+      return false;
+    }
+
+    function ceSgInsertComment(value, append) {
+      const opener = document.querySelector('button[data-testid*="add-comment" i],button[aria-label*="add comment" i],button[title*="add comment" i],a[aria-label*="add comment" i],a[title*="add comment" i],.add_comment_link,#add_a_comment');
+      try { opener?.click(); } catch (_) {}
+      const currentEl = document.querySelector('#speed_grader_comment_textarea,#speedgrader_textarea,textarea[name="comment[text_comment]"],#grading_comment,#submission_comment_form textarea,#right_side_inner textarea,.tox-edit-area [contenteditable="true"],[contenteditable="true"][aria-label*="comment" i]');
+      const current = append ? (currentEl?.value || currentEl?.innerText || '').trim() : '';
+      const next = current ? `${current}\n\n${value}` : value;
+      const tiny = window.tinymce || window.tinyMCE;
+      if (tiny?.get) {
+        for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
+          const ed = tiny.get(id);
+          if (ed) {
+            ed.setContent(ceSgHtml(next));
+            ed.fire?.('input');
+            ed.fire?.('change');
+            ed.save?.();
+            return true;
+          }
+        }
+      }
+      const selectors = [
+        '#speed_grader_comment_textarea', '#speedgrader_textarea', 'textarea[name="comment[text_comment]"]',
+        '#grading_comment', '#comment_textarea', '.submission-comment-form textarea', '.grading_comment textarea',
+        'textarea[data-testid*="comment" i]', 'textarea[aria-label*="comment" i]', 'textarea[placeholder*="comment" i]',
+        '#comments_container textarea', '#submission_comment_form textarea', '.comment-input textarea',
+        '#right_side textarea', '#right_side_inner textarea', '[contenteditable="true"][aria-label*="comment" i]',
+        '[contenteditable="true"][data-testid*="comment" i]', '.tox-edit-area [contenteditable="true"]',
+      ];
+      for (const selector of selectors) if (ceSgSetValue(document.querySelector(selector), next)) return true;
+      navigator.clipboard?.writeText(value).catch(() => {});
+      return false;
+    }
+
+    function ceSgInsertGrade(value) {
+      const selectors = [
+        'input.grading_value', '#grading-box-extended input', 'input[data-testid="grading-box-extended-grade-input"]',
+        'input[data-testid*="grade" i]', '#grade_container input', '#grading_box input',
+        '#student_and_assignment_grade input', '.grading-box input', 'input.grade',
+        'input[name*="grade" i]', 'input[id*="grade" i]', 'input[aria-label*="grade" i]',
+      ];
+      for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el && !el.disabled && !el.readOnly && ceSgSetValue(el, value)) return true;
+      }
+      return false;
+    }
+
+    function ceSgParseAi(text) {
+      return {
+        score: text.match(/SCORE:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '',
+        comments: (text.match(/COMMENTS?:\s*([\s\S]*?)(?:TEACHER CHECK:|$)/i)?.[1] || text).trim(),
+        teacherCheck: (text.match(/TEACHER CHECK:\s*([\s\S]*)/i)?.[1] || '').trim(),
+      };
+    }
+
+    async function mountSpeedGraderRail() {
+      if (document.getElementById('ce-sg-rail')) return true;
+      const { courseId, assignmentId } = getSpeedGraderUrlParts();
+      const navOffset = Math.round(document.querySelector('#global_nav,#menu')?.getBoundingClientRect?.().width || 0);
+
+      if (!document.getElementById('ce-sg-rail-space')) {
+        const st = document.createElement('style');
+        st.id = 'ce-sg-rail-space';
+        st.textContent = '@media (min-width:900px){body.ce-sg-rail-open #full_width_container,body.ce-sg-rail-open #main,body.ce-sg-rail-open .ic-app-main-content{margin-left:320px!important;width:calc(100% - 320px)!important;}}';
+        document.head.appendChild(st);
+      }
+
+      const rail = document.createElement('aside');
+      rail.id = 'ce-sg-rail';
+      rail.style.cssText = `position:fixed;left:${navOffset}px;top:58px;bottom:0;width:320px;background:#fff;border-right:1px solid #c7cdd1;box-shadow:2px 0 10px rgba(0,0,0,.12);z-index:9998;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;`;
+
+      const head = document.createElement('div');
+      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#2d3b45;color:#fff;';
+      head.innerHTML = '<div><div style="font-size:14px;font-weight:800;">Canvas Enhancer</div><div style="font-size:11px;color:#c8d8e4;">SpeedGrader tools</div></div>';
+      const hide = ceSgBtn('Hide', false);
+      hide.style.cssText += 'padding:5px 8px;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.28);';
+      head.appendChild(hide);
+      rail.appendChild(head);
+
+      const body = document.createElement('div');
+      body.style.cssText = 'overflow:auto;flex:1;padding:12px;display:flex;flex-direction:column;gap:12px;';
+      rail.appendChild(body);
+
+      const queue = ceSgSection(body, 'Needs Grading');
+      const queueStatus = document.createElement('div');
+      queueStatus.style.cssText = 'font-size:12px;color:#6b7780;line-height:1.35;';
+      queueStatus.textContent = courseId ? 'Load assignments with submitted work.' : 'Course not detected.';
+      const queueBtn = ceSgBtn('Refresh List', false);
+      const queueList = document.createElement('div');
+      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;';
+      queue.append(queueStatus, queueBtn, queueList);
+
+      const criteriaBox = ceSgSection(body, 'Assignment Criteria');
+      const stored = await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']);
+      const criteriaKey = `${courseId}_${assignmentId}`;
+      const criteria = document.createElement('textarea');
+      criteria.value = stored.ce_criteria?.[criteriaKey] || '';
+      criteria.placeholder = 'Paste rubric, answer key, grading rules, or custom AI instructions for this assignment.';
+      criteria.style.cssText = 'width:100%;min-height:120px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;';
+      criteria.addEventListener('input', async () => {
+        const latest = await ceSgStorageGet(['ce_criteria']);
+        ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteria.value } });
+      });
+      criteriaBox.appendChild(criteria);
+
+      const comments = ceSgSection(body, 'Reusable Comments');
+      const snippets = document.createElement('textarea');
+      snippets.value = stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
+      snippets.placeholder = 'One reusable comment per blank line.';
+      snippets.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;';
+      const select = document.createElement('select');
+      select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:7px;font-size:13px;';
+      const refreshSnippets = () => {
+        ceSgStorageSet({ ce_sg_comment_snippets: snippets.value });
+        select.innerHTML = '';
+        snippets.value.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s.slice(0, 75);
+          select.appendChild(opt);
+        });
+      };
+      snippets.addEventListener('input', refreshSnippets);
+      refreshSnippets();
+      const insertComment = ceSgBtn('Insert Comment', true);
+      insertComment.addEventListener('click', () => select.value && ceSgInsertComment(select.value, true));
+      comments.append(snippets, select, insertComment);
+
+      const ai = ceSgSection(body, 'AI Grader');
+      const draftScore = document.createElement('input');
+      draftScore.placeholder = 'Score';
+      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:4px;padding:8px;font-size:13px;';
+      const draftComment = document.createElement('textarea');
+      draftComment.placeholder = 'AI feedback or your edited comment.';
+      draftComment.style.cssText = criteria.style.cssText + 'min-height:130px;';
+      const teacherCheck = document.createElement('div');
+      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #f3d27a;color:#5f4200;border-radius:4px;padding:8px;font-size:12px;line-height:1.4;';
+      const aiRow = document.createElement('div');
+      aiRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+      const aiDraft = ceSgBtn('AI Grade', true);
+      const aiInsert = ceSgBtn('Insert Draft', false);
+      aiRow.append(aiDraft, aiInsert);
+      ai.append(aiRow, draftScore, draftComment, teacherCheck);
+
+      aiDraft.addEventListener('click', async () => {
+        const subText = ceSgVisibleSubmissionText();
+        if (!subText) { aiDraft.textContent = 'No submission text'; setTimeout(() => aiDraft.textContent = 'AI Grade', 2500); return; }
+        aiDraft.disabled = true;
+        aiDraft.textContent = 'Grading...';
+        try {
+          const student = document.querySelector('#student_carousel_name,#students_selectmenu-button .ui-selectmenu-text,#students_selectmenu-button')?.textContent?.trim() || 'the student';
+          const prompt = `Grade this Canvas submission.\nStudent: ${student}\nCourse ID: ${courseId}\nAssignment ID: ${assignmentId}\n\nGRADING CRITERIA:\n${criteria.value || 'Grade fairly. Be specific and concise.'}\n\nSUBMISSION:\n${subText}\n\nRespond exactly in this format:\nSCORE: [number]\nCOMMENTS:\n[student-facing feedback]\nTEACHER CHECK:\n[private verification notes for the teacher]`;
+          const response = await new Promise(resolve => chrome.runtime.sendMessage(
+            { type: 'GENERATE', payload: { messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: gradingModel } },
+            resolve
+          ));
+          if (response?.error) throw new Error(response.error);
+          const parsed = ceSgParseAi(response?.content?.[0]?.text || '');
+          draftScore.value = parsed.score;
+          draftComment.value = parsed.comments;
+          teacherCheck.textContent = parsed.teacherCheck ? `Teacher check: ${parsed.teacherCheck}` : '';
+          teacherCheck.style.display = parsed.teacherCheck ? 'block' : 'none';
+        } catch (e) {
+          draftComment.value = e.message || 'AI grading failed.';
+        } finally {
+          aiDraft.disabled = false;
+          aiDraft.textContent = 'AI Grade';
+        }
+      });
+
+      aiInsert.addEventListener('click', () => {
+        if (draftScore.value.trim()) ceSgInsertGrade(draftScore.value.trim());
+        if (draftComment.value.trim()) ceSgInsertComment(draftComment.value.trim(), false);
+      });
+
+      queueBtn.addEventListener('click', async () => {
+        if (!courseId) return;
+        queueBtn.disabled = true;
+        queueStatus.textContent = 'Loading assignments...';
+        queueList.innerHTML = '';
+        try {
+          const assignments = await ceSgCanvasGet(`/api/v1/courses/${courseId}/assignments?order_by=due_at&per_page=100`);
+          const needing = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
+          queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'No assignments with Canvas needs_grading_count.';
+          needing.slice(0, 40).forEach(a => {
+            const b = ceSgBtn(`${a.name} (${a.needs_grading_count})`, false);
+            b.style.textAlign = 'left';
+            b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
+            queueList.appendChild(b);
+          });
+        } catch (e) {
+          queueStatus.textContent = e.message || 'Could not load list.';
+        } finally {
+          queueBtn.disabled = false;
+        }
+      });
+
+      const toggle = ceSgBtn('CE Grader', true);
+      toggle.id = 'ce-sg-rail-toggle';
+      toggle.style.cssText = `display:none;position:fixed;left:${navOffset}px;top:120px;z-index:9999;transform:rotate(-90deg) translateX(-100%);transform-origin:left top;border:1px solid #0b6f92;background:#0b6f92;color:#fff;border-radius:4px 4px 0 0;padding:7px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;`;
+      hide.addEventListener('click', () => { rail.style.display = 'none'; toggle.style.display = 'block'; document.body.classList.remove('ce-sg-rail-open'); });
+      toggle.addEventListener('click', () => { rail.style.display = 'flex'; toggle.style.display = 'none'; document.body.classList.add('ce-sg-rail-open'); });
+      document.body.append(rail, toggle);
+      document.body.classList.add('ce-sg-rail-open');
+      return true;
+    }
+
+    let _railPoll = 0;
+    const _railTimer = setInterval(() => {
+      mountSpeedGraderRail().then(mounted => {
+        if (mounted || ++_railPoll >= 30) clearInterval(_railTimer);
+      });
+    }, 750);
 
     if (!token) return;
 
