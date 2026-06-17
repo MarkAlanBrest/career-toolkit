@@ -329,10 +329,10 @@
       brand.className = 'ce-sg-brand';
       brand.textContent = 'Grading';
       const needsBtn = ceSgToolbarButton('Needs', false, '📋');
-      const aiBtn = ceSgToolbarButton('AI Grade', true, '🎓');
+      const aiBtn = ceSgToolbarButton('AI Grade', false, '🎓');
       const criteriaBtn = ceSgToolbarButton('Criteria', false, '📌');
       const commentsBtn = ceSgToolbarButton('Comments', false, '💬');
-      const insertDraftBtn = ceSgToolbarButton('Insert', true, '↪');
+      const insertDraftBtn = ceSgToolbarButton('Insert', false, '↪');
       const collapseBtn = ceSgToolbarButton('Hide', false, '▴');
       collapseBtn.classList.add('ce-sg-collapse');
       main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn, collapseBtn);
