@@ -73,7 +73,7 @@
 
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
   const toolbar = el('div', `
-    position:sticky;top:0;width:100%;height:${TOOLBAR_H}px;
+    position:relative;width:100%;height:${TOOLBAR_H}px;
     z-index:2147483640;
     background:${DS.white};
     border-bottom:1px solid ${DS.border};
@@ -186,7 +186,7 @@
 
   // ── COLLAPSED TAB ──────────────────────────────────────────────────────────
   const tab = el('button', `
-    position:sticky;top:0;margin-left:auto;
+    position:relative;margin-left:auto;
     z-index:2147483641;
     width:118px;height:26px;
     border:1px solid ${DS.border};border-top:none;
