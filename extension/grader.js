@@ -330,12 +330,11 @@
       brand.textContent = 'Grading';
       const needsBtn = ceSgToolbarButton('Needs', false, '📋');
       const aiBtn = ceSgToolbarButton('AI Grade', false, '🎓');
-      const criteriaBtn = ceSgToolbarButton('Criteria', false, '📌');
       const commentsBtn = ceSgToolbarButton('Comments', false, '💬');
-      const insertDraftBtn = ceSgToolbarButton('Insert', false, '↪');
+      const auditBtn = ceSgToolbarButton('Audit', false, '🩺');
       const collapseBtn = ceSgToolbarButton('Hide', false, '▴');
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, needsBtn, aiBtn, criteriaBtn, commentsBtn, insertDraftBtn, collapseBtn);
+      main.append(brand, needsBtn, aiBtn, commentsBtn, auditBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -354,7 +353,7 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
 
@@ -445,12 +444,12 @@
         drawer.dataset.mode = mode;
         drawer.innerHTML = '';
         drawer.classList.add('ce-open');
-        [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         const close = ceSgToolbarButton('Close');
         close.style.marginLeft = 'auto';
         close.addEventListener('click', () => {
           drawer.classList.remove('ce-open');
-          [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         });
         if (mode === 'needs') {
           needsBtn.classList.add('ce-sg-btn-primary');
@@ -462,55 +461,116 @@
           drawer.appendChild(box);
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
+          const runBtn = ceSgBtn('▶ Run AI Grade', true);
+          const insertBtn = ceSgBtn('↪ Insert Grade & Comment', false);
+          const statusEl = document.createElement('div');
+          statusEl.className = 'ce-sg-small';
+          statusEl.style.cssText = 'flex:1 1 100%;min-height:18px;';
+          runBtn.addEventListener('click', async () => {
+            if (runBtn.disabled) return;
+            runBtn.disabled = true;
+            scoreInput.value = '';
+            draftInput.value = '';
+            teacherBox.style.display = 'none';
+            statusEl.textContent = 'Loading submission…';
+            try {
+              let c = null;
+              try {
+                const freshCtx = await fetchSubmission();
+                c = freshCtx || ctx;
+              } catch (_) {}
+              if (!c) {
+                const vis = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
+                if (!vis) throw new Error('No submission found — check Canvas token in Settings');
+                const { courseId: cid, assignmentId: aid } = getSpeedGraderUrlParts();
+                c = { subText: vis, courseId: cid, assignmentId: aid, studentId: '', studentName: 'the student', assignmentName: '', attachments: [], token: '' };
+              }
+              if (!c.subText && !c.attachments?.length) throw new Error('No submission loaded yet');
+              if (c.attachments?.length && (!c.subText || c.subText.startsWith('[File upload'))) {
+                const vis = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
+                if (vis.length > 200) {
+                  c.subText = `[Visible preview]\n${vis}`;
+                } else {
+                  const parts = [];
+                  for (const att of c.attachments) {
+                    statusEl.textContent = `Reading ${att.filename}…`;
+                    let url = att.url;
+                    if (att.id && c.token) {
+                      try {
+                        const info = await new Promise(r => chrome.runtime.sendMessage(
+                          { type: 'CANVAS_API', payload: { url: `${c.canvasOrigin}/api/v1/files/${att.id}`, token: c.token } }, r
+                        ));
+                        if (info?.url) url = info.url;
+                      } catch(_) {}
+                    }
+                    const res = await new Promise(r => chrome.runtime.sendMessage(
+                      { type: 'PARSE_FILE', payload: { fileUrl: url, token: c.token, filename: att.filename, mimeType: att.mimeType } }, r
+                    ));
+                    if (res?.error) {
+                      const fb = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
+                      if (fb.length > 200) { parts.push(`[${att.filename}]\n${fb}`); continue; }
+                      throw new Error(res.error);
+                    }
+                    const parsed = res?.text?.trim();
+                    if (!parsed) {
+                      const fb = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
+                      if (fb.length > 200) { parts.push(`[${att.filename}]\n${fb}`); continue; }
+                      throw new Error(`Could not read ${att.filename}`);
+                    }
+                    parts.push(`[${att.filename}]\n${parsed}`);
+                  }
+                  c.subText = parts.join('\n\n');
+                  chrome.storage.local.set({ ce_claude_context: c });
+                }
+              }
+              statusEl.textContent = 'AI is grading…';
+              const response = await new Promise(resolve => chrome.runtime.sendMessage(
+                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaInput.value) }], max_tokens: 1500, model: gradingModel } },
+                resolve
+              ));
+              if (response?.error) throw new Error(response.error);
+              const text = response?.content?.[0]?.text || '';
+              if (!text) throw new Error('Empty response — check API key in Settings');
+              const p = ceSgParseAi(text);
+              scoreInput.value = p.score;
+              draftInput.value = p.comments;
+              if (p.teacherCheck) { teacherBox.textContent = `Teacher check: ${p.teacherCheck}`; teacherBox.style.display = 'block'; }
+              statusEl.textContent = p.score ? `✓ Score: ${p.score} — review and insert below` : '✓ Done — review and insert below';
+            } catch(e) {
+              statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
+            } finally {
+              runBtn.disabled = false;
+            }
+          });
+          insertBtn.addEventListener('click', () => {
+            if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
+            if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
+          });
+          const btnRow = document.createElement('div');
+          btnRow.style.cssText = 'display:flex;gap:8px;flex:1 1 100%;align-items:center;flex-wrap:wrap;';
+          btnRow.append(runBtn, statusEl);
           drawer.appendChild(close);
-          drawer.append(field('Suggested score', scoreInput), field('Draft feedback', draftInput), teacherBox);
-        } else if (mode === 'criteria') {
-          criteriaBtn.classList.add('ce-sg-btn-primary');
-          drawer.appendChild(close);
-          drawer.appendChild(field('Assignment criteria', criteriaInput));
+          drawer.append(field('Grading Criteria', criteriaInput), btnRow, field('Score', scoreInput), field('Draft Feedback', draftInput), teacherBox, insertBtn);
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
-          const insertCommentBtn = ceSgToolbarButton('Insert Selected Comment', true);
+          const insertCommentBtn = ceSgBtn('Insert Selected', true);
           insertCommentBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
           drawer.appendChild(close);
           drawer.append(field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
+        } else if (mode === 'audit') {
+          auditBtn.classList.add('ce-sg-btn-primary');
+          const auditContainer = document.createElement('div');
+          auditContainer.style.cssText = 'flex:1 1 100%;min-height:280px;overflow:auto;';
+          drawer.appendChild(close);
+          drawer.appendChild(auditContainer);
+          setTimeout(() => document.dispatchEvent(new CustomEvent('ce-render-eval', { detail: { container: auditContainer } })), 0);
         }
       }
 
       needsBtn.addEventListener('click', () => showDrawer('needs'));
-      criteriaBtn.addEventListener('click', () => showDrawer('criteria'));
       commentsBtn.addEventListener('click', () => showDrawer('comments'));
-      aiBtn.addEventListener('click', async () => {
-        showDrawer('ai');
-        const subText = ceSgVisibleSubmissionText();
-        if (!subText) { setToolbarButtonLabel(aiBtn, 'No Text'); setTimeout(() => setToolbarButtonLabel(aiBtn, 'AI Grade'), 2500); return; }
-        aiBtn.disabled = true;
-        setToolbarButtonLabel(aiBtn, 'Grading...');
-        try {
-          const student = document.querySelector('#student_carousel_name,#students_selectmenu-button .ui-selectmenu-text,#students_selectmenu-button')?.textContent?.trim() || 'the student';
-          const prompt = `Grade this Canvas submission.\nStudent: ${student}\nCourse ID: ${courseId}\nAssignment ID: ${assignmentId}\n\nGRADING CRITERIA:\n${criteriaInput.value || 'Grade fairly. Be specific and concise.'}\n\nSUBMISSION:\n${subText}\n\nRespond exactly in this format:\nSCORE: [number]\nCOMMENTS:\n[student-facing feedback]\nTEACHER CHECK:\n[private verification notes for the teacher]`;
-          const response = await new Promise(resolve => chrome.runtime.sendMessage(
-            { type: 'GENERATE', payload: { messages: [{ role: 'user', content: prompt }], max_tokens: 1500, model: gradingModel } },
-            resolve
-          ));
-          if (response?.error) throw new Error(response.error);
-          const parsed = ceSgParseAi(response?.content?.[0]?.text || '');
-          scoreInput.value = parsed.score;
-          draftInput.value = parsed.comments;
-          teacherBox.textContent = parsed.teacherCheck ? `Teacher check: ${parsed.teacherCheck}` : '';
-          teacherBox.style.display = parsed.teacherCheck ? 'block' : 'none';
-        } catch (e) {
-          draftInput.value = e.message || 'AI grading failed.';
-        } finally {
-          aiBtn.disabled = false;
-          setToolbarButtonLabel(aiBtn, 'AI Grade');
-        }
-      });
-
-      insertDraftBtn.addEventListener('click', () => {
-        if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
-        if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
-      });
+      auditBtn.addEventListener('click', () => showDrawer('audit'));
+      aiBtn.addEventListener('click', () => showDrawer('ai'));
 
       refreshQueueBtn.addEventListener('click', async () => {
         if (!courseId) return;
@@ -903,17 +963,6 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       return false;
     }
 
-    function injectInlineUiIfNeeded() {
-      if (placeSpeedGraderFloatBar()) {
-        const bar = document.getElementById('ce-sg-float-bar');
-        if (bar) {
-          bar.style.position = 'static';
-          bar.style.margin = '10px 0 8px';
-        }
-        teacherCheckWrap.style.display = 'block';
-      }
-    }
-
     function openCommentEditorIfCollapsed() {
       const opener = document.querySelector([
         'button[data-testid*="add-comment" i]',
@@ -991,217 +1040,6 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       }
       return false;
     }
-
-    function fillFields(text, criteria) {
-      const tot      = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
-      const grade    = text.match(/SCORE:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || null;
-      const fbMatch  = text.match(/FEEDBACK:\s*([\s\S]+)/i);
-      const feedback = (fbMatch ? fbMatch[1] : text).trim();
-      const feedbackLines = feedback.split('\n');
-      const privateLines = feedbackLines.filter(line => /^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:/i.test(line.trim()));
-      const publicLines = feedbackLines.filter(line => !/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:/i.test(line.trim()) && line.trim());
-      const teacherCheck = privateLines
-        .map(line => line.replace(/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:\s*/i, '').trim())
-        .filter(Boolean)
-        .join('\n');
-      const commentTxt = publicLines.join('\n').trim();
-      let gradeInserted = false;
-
-      // ── Grade field ──────────────────────────────────────────────────────────
-      if (grade) {
-        gradeInserted = setGradeValue(grade);
-      }
-
-      const commentInserted = findAndFillComment(commentTxt);
-      if (!commentInserted) navigator.clipboard?.writeText(commentTxt).catch(() => {});
-      return { gradeInserted, commentInserted, teacherCheck };
-    }
-
-    const aiBtn = document.createElement('button');
-    aiBtn.id = 'ce-ai-grade-btn';
-    aiBtn.textContent = '✦ AI Grade';
-    aiBtn.style.cssText = _barBtnCss;
-    aiBtn._baseBg = '#fff';
-    aiBtn.addEventListener('mouseenter', () => { if (!aiBtn.disabled) aiBtn.style.background = '#f5f5f5'; });
-    aiBtn.addEventListener('mouseleave', () => { if (!aiBtn.disabled) aiBtn.style.background = aiBtn._baseBg || '#fff'; });
-
-    const teacherCheckLabel = document.createElement('div');
-    teacherCheckLabel.id = 'ce-ai-teacher-check';
-    teacherCheckLabel.style.cssText = `
-      display:none;margin-top:6px;background:#fff8e1;color:#5f4200;
-      border:1px solid #f3d27a;border-radius:4px;padding:8px 10px;
-      font:12px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    `;
-
-    function showTeacherCheckLabel(text) {
-      const clean = String(text || '').trim();
-      if (!clean) {
-        teacherCheckLabel.style.display = 'none';
-        teacherCheckLabel.textContent = '';
-        return;
-      }
-      teacherCheckLabel.textContent = `Teacher check: ${clean}`;
-      teacherCheckLabel.style.display = 'block';
-    }
-
-    let _grading = false;
-    function resetBtn(label, bg, color, border) {
-      aiBtn.textContent = label || '✦ AI Grade';
-      aiBtn._baseBg = bg || '#fff';
-      aiBtn.style.background = bg || '#fff';
-      aiBtn.style.color = color || '#2d3b45';
-      aiBtn.style.border = border || '1px solid #000';
-      aiBtn.disabled = false;
-      _grading = false;
-      if (!label) showTeacherCheckLabel('');
-    }
-
-    aiBtn.addEventListener('click', async () => {
-      if (_grading) return;
-      _grading = true;
-      aiBtn.disabled = true;
-      aiBtn.textContent = '⟳ Grading…';
-
-      try {
-        const { ce_criteria: allCriteria } =
-          await new Promise(r => chrome.storage.local.get(['ce_criteria'], r));
-
-        aiBtn.textContent = 'Loading current student...';
-        const freshCtx = await fetchSubmission();
-        const current = getUrlParts();
-        const c = freshCtx || ctx;
-        if (
-          !c ||
-          c.courseId !== current.courseId ||
-          c.assignmentId !== current.assignmentId ||
-          c.studentId !== current.studentId
-        ) {
-          throw new Error('Student changed - try again');
-        }
-        if (!c.subText && !c.attachments?.length) throw new Error('No submission loaded yet');
-
-        const k        = c.courseId && c.assignmentId ? `${c.courseId}_${c.assignmentId}` : null;
-        const criteria = k ? (allCriteria?.[k] || '') : '';
-
-        // Fetch file content if not yet parsed
-        if (c.attachments?.length && (!c.subText || c.subText.startsWith('[File upload'))) {
-          const visiblePreview = getVisibleSubmissionText();
-          if (visiblePreview.length > 200) {
-            c.subText = `[Visible SpeedGrader preview]\n${visiblePreview}`;
-          } else {
-          const parts = [];
-          for (const att of c.attachments) {
-            aiBtn.textContent = '⟳ Reading file…';
-            let url = att.url;
-            if (att.id && c.token) {
-              try {
-                const info = await new Promise(r => chrome.runtime.sendMessage(
-                  { type: 'CANVAS_API', payload: { url: `${c.canvasOrigin}/api/v1/files/${att.id}`, token: c.token } }, r
-                ));
-                if (info?.url) url = info.url;
-              } catch(_) {}
-            }
-            const res = await new Promise(r => chrome.runtime.sendMessage(
-              { type: 'PARSE_FILE', payload: { fileUrl: url, token: c.token, filename: att.filename, mimeType: att.mimeType } }, r
-            ));
-            if (res?.error) {
-              const fallbackPreview = getVisibleSubmissionText();
-              if (fallbackPreview.length > 200) {
-                parts.push(`[${att.filename} - visible SpeedGrader preview]\n${fallbackPreview}`);
-                continue;
-              }
-              throw new Error(res.error);
-            }
-            const parsed = res?.text?.trim();
-            if (!parsed) {
-              const fallbackPreview = getVisibleSubmissionText();
-              if (fallbackPreview.length > 200) {
-                parts.push(`[${att.filename} - visible SpeedGrader preview]\n${fallbackPreview}`);
-                continue;
-              }
-              throw new Error(`Could not read ${att.filename}`);
-            }
-            const note = res.truncated
-              ? `[Large file note: parsed ${Number(res.originalChars || parsed.length).toLocaleString()} characters and used an excerpt for reliable grading]\n`
-              : '';
-            parts.push(`[${att.filename}]\n${note}${parsed}`);
-          }
-          c.subText = parts.join('\n\n');
-          }
-          chrome.storage.local.set({ ce_claude_context: c });
-          aiBtn.textContent = '⟳ Grading…';
-        }
-
-        const afterFiles = getUrlParts();
-        if (
-          afterFiles.courseId !== c.courseId ||
-          afterFiles.assignmentId !== c.assignmentId ||
-          afterFiles.studentId !== c.studentId
-        ) {
-          throw new Error('Student changed - try again');
-        }
-
-        const response = await new Promise(r => chrome.runtime.sendMessage(
-          { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteria) }], max_tokens: 1500, model: gradingModel } }, r
-        ));
-        if (response?.error) throw new Error(response.error);
-        const text = response?.content?.[0]?.text || '';
-        if (!text) throw new Error('Empty response — check your API key in settings');
-
-        const beforeInsert = getUrlParts();
-        if (
-          beforeInsert.courseId !== c.courseId ||
-          beforeInsert.assignmentId !== c.assignmentId ||
-          beforeInsert.studentId !== c.studentId
-        ) {
-          throw new Error('Student changed before insert');
-        }
-
-        const inserted = fillFields(text, criteria);
-        showTeacherCheckLabel(inserted.teacherCheck);
-        aiBtn.textContent = inserted.commentInserted && inserted.gradeInserted
-          ? 'Grade & Comment Inserted'
-          : inserted.commentInserted
-            ? 'Comment Inserted'
-            : 'Comment copied';
-        aiBtn._baseBg = '#27AE60';
-        aiBtn.style.background = '#27AE60';
-        aiBtn.style.color = '#fff';
-        aiBtn.style.border = '1px solid #27AE60';
-        setTimeout(() => resetBtn(), 12000);
-      } catch(e) {
-        aiBtn.textContent = '⚠ ' + e.message.slice(0, 30);
-        aiBtn._baseBg = '#C0392B';
-        aiBtn.style.background = '#C0392B';
-        aiBtn.style.color = '#fff';
-        aiBtn.style.border = '1px solid #C0392B';
-        setTimeout(() => resetBtn(), 10000);
-      }
-    });
-
-    const teacherCheckWrap = document.createElement('div');
-    teacherCheckWrap.id = 'ce-ai-grade-wrap';
-    teacherCheckWrap.style.cssText = 'display:block;max-width:100%;';
-    teacherCheckWrap.appendChild(teacherCheckLabel);
-    floatBar.appendChild(teacherCheckWrap);
-
-    function injectAiBtn() {
-      const existing = document.getElementById('ce-ai-grade-btn');
-      if (existing?.isConnected) return;
-      if (!placeSpeedGraderFloatBar()) return false;
-      const barRow = document.getElementById('ce-sg-float-bar-row');
-      if (barRow) {
-        barRow.appendChild(aiBtn);
-        return true;
-      }
-      const bar = document.getElementById('ce-sg-float-bar');
-      if (bar) {
-        bar.appendChild(aiBtn);
-        return true;
-      }
-      return false;
-    }
-    // Dedicated SpeedGrader toolbar replaces the old floating AI Grade button.
 
     function getCurrentCommentText() {
       const tiny = window.tinymce || window.tinyMCE;
