@@ -49,7 +49,7 @@
     { id: 'scheduler',    group: 'tg', icon: '📅', label: 'Scheduler',     desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'message',      group: 'tg', icon: '✉️',  label: 'Message',      noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
     { id: 'cheater',      group: 'tg', icon: '🔍', label: 'Audit',         desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
-    { id: 'eval',         group: 'tg', icon: '📊', label: 'Course Health', desc: 'Data-driven course health dashboard. Scores the course across 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
+    { id: 'eval',         group: 'tg', icon: '🩺', label: 'Vitals',        desc: 'Data-driven course health dashboard. Scores the course across 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
     { id: 'settings-tg',  group: 'tg', icon: '⚙️', label: 'Settings' },
   ];
 

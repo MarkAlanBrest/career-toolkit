@@ -17,8 +17,51 @@
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';
     const floatBar = document.createElement('div');
     floatBar.id = 'ce-sg-float-bar';
-    floatBar.style.cssText = 'position:fixed;top:113px;right:60px;z-index:2147483641;display:flex;flex-direction:row;gap:4px;';
+    floatBar.style.cssText = 'display:flex;flex-direction:row;gap:4px;flex-wrap:wrap;align-items:center;';
     document.body.appendChild(floatBar);
+
+    function findSpeedGraderCommentAnchor() {
+      const selectors = [
+        '#comments_container',
+        '#submission_comment_form',
+        '.submission-comment-form',
+        '.grading_comment',
+        '.comment-input',
+        '#right_side_inner',
+        '#right_side',
+      ];
+      for (const selector of selectors) {
+        const el = document.querySelector(selector);
+        if (el) return el;
+      }
+      const textarea = document.querySelector([
+        '#speed_grader_comment_textarea',
+        '#speedgrader_textarea',
+        '#grading_comment',
+        '#comment_textarea',
+        'textarea[name="comment[text_comment]"]',
+        'textarea[aria-label*="comment" i]',
+        'textarea[placeholder*="comment" i]',
+      ].join(','));
+      if (textarea) return textarea.closest('form,div,section') || textarea.parentElement;
+      const label = [...document.querySelectorAll('label,div,span,h1,h2,h3,h4,h5,h6')]
+        .find(el => /assignment comments/i.test(el.textContent || ''));
+      if (label) return label.closest('section,div,fieldset') || label.parentElement;
+      return null;
+    }
+
+    function placeSpeedGraderFloatBar() {
+      const anchor = findSpeedGraderCommentAnchor();
+      if (!anchor) return false;
+      floatBar.style.cssText = 'display:flex;flex-direction:row;gap:4px;flex-wrap:wrap;align-items:center;margin:10px 0 8px;';
+      if (anchor.nextSibling === floatBar) return true;
+      try {
+        anchor.insertAdjacentElement('afterend', floatBar);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
 
     if (!token) return;
 
@@ -379,6 +422,17 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       return false;
     }
 
+    function injectInlineUiIfNeeded() {
+      if (placeSpeedGraderFloatBar()) {
+        const bar = document.getElementById('ce-sg-float-bar');
+        if (bar) {
+          bar.style.position = 'static';
+          bar.style.margin = '10px 0 8px';
+        }
+        teacherCheckWrap.style.display = 'block';
+      }
+    }
+
     function openCommentEditorIfCollapsed() {
       const opener = document.querySelector([
         'button[data-testid*="add-comment" i]',
@@ -646,14 +700,18 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
 
     const teacherCheckWrap = document.createElement('div');
     teacherCheckWrap.id = 'ce-ai-grade-wrap';
-    teacherCheckWrap.style.cssText = 'position:fixed;top:153px;right:60px;z-index:2147483641;width:300px;';
+    teacherCheckWrap.style.cssText = 'display:block;max-width:100%;';
     teacherCheckWrap.appendChild(teacherCheckLabel);
-    document.body.appendChild(teacherCheckWrap);
+    floatBar.appendChild(teacherCheckWrap);
 
     function injectAiBtn() {
       if (document.getElementById('ce-ai-grade-btn')?.isConnected) return;
+      if (!placeSpeedGraderFloatBar()) return;
       const bar = document.getElementById('ce-sg-float-bar');
-      if (bar) bar.appendChild(aiBtn);
+      if (bar) {
+        bar.appendChild(aiBtn);
+        bar.appendChild(teacherCheckWrap);
+      }
     }
     let _aiPoll = 0;
     const _aiTimer = setInterval(() => {
