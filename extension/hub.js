@@ -631,15 +631,21 @@
     }
 
     // ── BUILD SETTINGS PANE ────────────────────────────────────────────────
-    const { row: r1, inp: gradeInp    } = threshRow('Grade below',                  'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
-    const { row: r4, inp: daysInp     } = threshRow('Lookback window',               'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
-    const grp1 = settingsGroup('Grade & Window'); grp1.add(r1); grp1.add(divider()); grp1.add(r4);
+    const { row: r1, inp: gradeInp    } = threshRow('Overall course grade below',    'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
+    const grp1 = settingsGroup('Overall Grade'); grp1.add(r1);
     settingsPane.appendChild(grp1.wrap);
 
-    const { row: r2, inp: missingInp  } = threshRow('Missing assignments ≥',         'ce-ar-missing',  savedPrefs.missingT  ?? 3,  'assignments');
-    const { row: r3, inp: lowScoreInp } = threshRow('Assignment score below',         'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
-    const grp2 = settingsGroup('Assignments (within window)'); grp2.add(r2); grp2.add(r3);
+    const { row: r4, inp: daysInp     } = threshRow('Look back',                     'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
+    const grp0 = settingsGroup('Lookback Window  (applies to assignment checks below)'); grp0.add(r4);
+    settingsPane.appendChild(grp0.wrap);
+
+    const { row: r2, inp: missingInp  } = threshRow('Missing assignments & quizzes ≥', 'ce-ar-missing', savedPrefs.missingT  ?? 3,  'items');
+    const grp2 = settingsGroup('Missing Work'); grp2.add(r2);
     settingsPane.appendChild(grp2.wrap);
+
+    const { row: r3, inp: lowScoreInp } = threshRow('Assignment or quiz score below', 'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
+    const grp3b = settingsGroup('Low Scores'); grp3b.add(r3);
+    settingsPane.appendChild(grp3b.wrap);
 
     const { row: r5, inp: inactiveInp } = threshRow('No login for more than',         'ce-ar-inactive', savedPrefs.inactiveT ?? 7,  'days  (0 = off)');
     const grp3 = settingsGroup('Inactivity'); grp3.add(r5);
