@@ -277,13 +277,16 @@
       const rightSide = document.querySelector('#right_side_inner, #right_side, #right-side');
       if (!rightSide) return false;
 
+      const stored = await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']);
+      const criteriaKey = `${courseId}_${assignmentId}`;
+
       const panel = document.createElement('section');
       panel.id = 'ce-sg-rail';
-      panel.style.cssText = 'margin:10px 0 12px;background:#fff;border:1px solid #c7cdd1;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;box-sizing:border-box;';
+      panel.style.cssText = 'margin:10px 0 12px;background:#fff;border:1px solid #c7cdd1;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;box-sizing:border-box;overflow:hidden;';
 
       const head = document.createElement('div');
       head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
-      head.innerHTML = '<div style="font-size:14px;font-weight:700;line-height:1.2;">Canvas Enhancer Grading</div>';
+      head.innerHTML = '<div><div style="font-size:14px;font-weight:700;line-height:1.2;">Grading Assistant</div><div style="font-size:11px;color:#6b7780;margin-top:2px;">Canvas Enhancer</div></div>';
       const collapse = ceSgBtn('Collapse', false);
       collapse.style.cssText += 'padding:4px 7px;font-size:12px;';
       head.appendChild(collapse);
@@ -293,18 +296,27 @@
       body.style.cssText = 'background:#fff;display:flex;flex-direction:column;';
       panel.appendChild(body);
 
-      const queue = ceSgSection(body, 'Needs Grading');
-      const queueStatus = document.createElement('div');
-      queueStatus.style.cssText = 'font-size:12px;color:#6b7780;line-height:1.35;';
-      queueStatus.textContent = courseId ? 'Load assignments with submitted work.' : 'Course not detected.';
-      const queueBtn = ceSgBtn('Refresh List', false);
-      const queueList = document.createElement('div');
-      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto;';
-      queue.append(queueStatus, queueBtn, queueList);
+      const actionBox = document.createElement('div');
+      actionBox.style.cssText = 'padding:10px;border-bottom:1px solid #c7cdd1;display:flex;flex-direction:column;gap:8px;';
+      const actionRow = document.createElement('div');
+      actionRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+      const aiDraft = ceSgBtn('AI Grade', true);
+      const insertComment = ceSgBtn('Insert Comment', false);
+      actionRow.append(aiDraft, insertComment);
+
+      const draftScore = document.createElement('input');
+      draftScore.placeholder = 'Suggested score';
+      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
+      const draftComment = document.createElement('textarea');
+      draftComment.placeholder = 'AI feedback draft appears here. Edit before inserting.';
+      draftComment.style.cssText = 'width:100%;min-height:96px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
+      const insertDraft = ceSgBtn('Insert Draft into Grade + Comment', true);
+      const teacherCheck = document.createElement('div');
+      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
+      actionBox.append(actionRow, draftScore, draftComment, insertDraft, teacherCheck);
+      body.appendChild(actionBox);
 
       const criteriaBox = ceSgSection(body, 'Assignment Criteria');
-      const stored = await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']);
-      const criteriaKey = `${courseId}_${assignmentId}`;
       const criteria = document.createElement('textarea');
       criteria.value = stored.ce_criteria?.[criteriaKey] || '';
       criteria.placeholder = 'Paste rubric, answer key, grading rules, or AI instructions for this assignment.';
@@ -319,7 +331,7 @@
       const snippets = document.createElement('textarea');
       snippets.value = stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
       snippets.placeholder = 'One reusable comment per blank line.';
-      snippets.style.cssText = 'width:100%;min-height:70px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
+      snippets.style.cssText = 'width:100%;min-height:64px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
       const select = document.createElement('select');
       select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:7px;font-size:13px;background:#fff;color:#2d3b45;';
       const refreshSnippets = () => {
@@ -334,25 +346,22 @@
       };
       snippets.addEventListener('input', refreshSnippets);
       refreshSnippets();
-      const insertComment = ceSgBtn('Insert Stored Comment', true);
-      insertComment.addEventListener('click', () => select.value && ceSgInsertComment(select.value, true));
-      comments.append(snippets, select, insertComment);
+      comments.append(select, snippets);
 
-      const ai = ceSgSection(body, 'AI Grader');
-      const aiRow = document.createElement('div');
-      aiRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
-      const aiDraft = ceSgBtn('AI Grade', true);
-      const aiInsert = ceSgBtn('Insert Draft', false);
-      aiRow.append(aiDraft, aiInsert);
-      const draftScore = document.createElement('input');
-      draftScore.placeholder = 'Score';
-      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
-      const draftComment = document.createElement('textarea');
-      draftComment.placeholder = 'AI feedback or your edited comment.';
-      draftComment.style.cssText = 'width:100%;min-height:100px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
-      const teacherCheck = document.createElement('div');
-      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
-      ai.append(aiRow, draftScore, draftComment, teacherCheck);
+      const queue = ceSgSection(body, 'Needs Grading');
+      const queueStatus = document.createElement('div');
+      queueStatus.style.cssText = 'font-size:12px;color:#6b7780;line-height:1.35;';
+      queueStatus.textContent = courseId ? 'Load assignments with submitted work.' : 'Course not detected.';
+      const queueBtn = ceSgBtn('Refresh List', false);
+      const queueList = document.createElement('div');
+      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto;';
+      queue.append(queueStatus, queueBtn, queueList);
+
+      insertComment.addEventListener('click', () => select.value && ceSgInsertComment(select.value, true));
+      insertDraft.addEventListener('click', () => {
+        if (draftScore.value.trim()) ceSgInsertGrade(draftScore.value.trim());
+        if (draftComment.value.trim()) ceSgInsertComment(draftComment.value.trim(), false);
+      });
 
       aiDraft.addEventListener('click', async () => {
         const subText = ceSgVisibleSubmissionText();
@@ -378,11 +387,6 @@
           aiDraft.disabled = false;
           aiDraft.textContent = 'AI Grade';
         }
-      });
-
-      aiInsert.addEventListener('click', () => {
-        if (draftScore.value.trim()) ceSgInsertGrade(draftScore.value.trim());
-        if (draftComment.value.trim()) ceSgInsertComment(draftComment.value.trim(), false);
       });
 
       queueBtn.addEventListener('click', async () => {
@@ -414,20 +418,20 @@
         collapse.textContent = collapsed ? 'Open' : 'Collapse';
       });
 
-      const commentAnchor = findSpeedGraderCommentAnchor();
-      if (commentAnchor && commentAnchor !== rightSide && rightSide.contains(commentAnchor)) {
-        commentAnchor.insertAdjacentElement('beforebegin', panel);
-      } else {
-        rightSide.insertBefore(panel, rightSide.firstChild);
-      }
+      rightSide.insertBefore(panel, rightSide.firstChild);
       return true;
     }
-    let _railPoll = 0;
-    const _railTimer = setInterval(() => {
-      mountSpeedGraderRail().then(mounted => {
-        if (mounted || ++_railPoll >= 30) clearInterval(_railTimer);
-      });
-    }, 750);
+    let _railMounting = false;
+    function ensureSpeedGraderRail() {
+      if (_railMounting || document.getElementById('ce-sg-rail')) return;
+      _railMounting = true;
+      mountSpeedGraderRail().finally(() => { _railMounting = false; });
+    }
+    ensureSpeedGraderRail();
+    setInterval(ensureSpeedGraderRail, 1500);
+    new MutationObserver(() => {
+      if (!document.getElementById('ce-sg-rail')) setTimeout(ensureSpeedGraderRail, 100);
+    }).observe(document.body, { childList: true, subtree: true });
 
     if (!token) return;
 
