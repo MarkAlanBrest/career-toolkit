@@ -609,12 +609,13 @@
     panelBody.appendChild(settingsPane);
 
     // ── THRESHOLD INPUT HELPERS ────────────────────────────────────────────
-    function threshRow(label, id, def, unit) {
-      const r = el('div', 'display:flex;align-items:center;justify-content:space-between;');
-      const lbl = el('label', `font-size:12px;color:${DS.text};`, { htmlFor: id });
+    function threshRow(label, id, def, unit, opts = {}) {
+      const r = el('div', 'display:flex;align-items:center;justify-content:space-between;gap:12px;');
+      const lbl = el('label', `font-size:12px;color:${DS.text};line-height:1.35;`, { htmlFor: id });
       lbl.textContent = label;
       const right = el('div', 'display:flex;align-items:center;gap:5px;');
       const inp = el('input', `width:58px;padding:4px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};text-align:right;`, { type: 'number', id, value: def, min: 0 });
+      if (opts.step) inp.step = opts.step;
       inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
       const u = el('span', `font-size:11px;color:${DS.muted};`, { textContent: unit });
@@ -622,53 +623,108 @@
       r.appendChild(lbl); r.appendChild(right);
       return { row: r, inp };
     }
-    function settingsGroup(title) {
+    function settingsGroup(title, summary, examples) {
       const wrap = el('div', `padding:12px 14px;border:1px solid ${DS.border};border-radius:3px;background:${DS.white};display:flex;flex-direction:column;gap:8px;`);
-      const hdr = el('div', `font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${DS.muted};margin-bottom:2px;`);
+      const hdr = el('div', `font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${DS.text};`);
       hdr.textContent = title;
       wrap.appendChild(hdr);
+      if (summary) {
+        const s = el('div', `font-size:12px;color:${DS.text};line-height:1.45;`);
+        s.textContent = summary;
+        wrap.appendChild(s);
+      }
+      if (examples?.length) {
+        const list = el('ul', `margin:0;padding-left:16px;font-size:11px;color:${DS.muted};line-height:1.45;`);
+        for (const ex of examples) {
+          const li = el('li', '');
+          li.textContent = ex;
+          list.appendChild(li);
+        }
+        wrap.appendChild(list);
+      }
       return { wrap, add: row => wrap.appendChild(row) };
     }
 
     // ── BUILD SETTINGS PANE ────────────────────────────────────────────────
-    const { row: r1, inp: gradeInp    } = threshRow('Overall course grade below',    'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
-    const grp1 = settingsGroup('Overall Grade'); grp1.add(r1);
-    settingsPane.appendChild(grp1.wrap);
+    const settingsIntro = el('div', `padding:12px 14px;border:1px solid ${DS.border};border-radius:3px;background:${DS.blueBg};color:${DS.text};font-size:12px;line-height:1.55;`);
+    settingsIntro.textContent = 'Choose the Canvas signals that should put a student on your review list. The report is an early-warning checklist for teacher follow-up; it does not diagnose a student or replace your judgment.';
+    settingsPane.appendChild(settingsIntro);
 
-    const { row: r4, inp: daysInp     } = threshRow('Look back',                     'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
-    const grp0 = settingsGroup('Lookback Window  (applies to assignment checks below)'); grp0.add(r4);
+    const { row: r4, inp: daysInp     } = threshRow('Review recent assignment activity from the last', 'ce-ar-days', savedPrefs.days ?? 7, 'days');
+    const grp0 = settingsGroup(
+      'Recent Work Window',
+      'Sets the time window used for missing work, low scores, zeroes, and late submissions.',
+      ['Use a shorter window for weekly check-ins.', 'Use a longer window for progress reports or parent contact.']
+    ); grp0.add(r4);
     settingsPane.appendChild(grp0.wrap);
 
-    const { row: r2, inp: missingInp  } = threshRow('Missing assignments & quizzes ≥', 'ce-ar-missing', savedPrefs.missingT  ?? 3,  'items');
-    const grp2 = settingsGroup('Missing Work'); grp2.add(r2);
+    const { row: r1, inp: gradeInp    } = threshRow('Flag when current course grade is below', 'ce-ar-grade', savedPrefs.gradeT ?? 70, '%', { step: '0.1' });
+    const grp1 = settingsGroup(
+      'Falling Overall Performance',
+      'Look for a student whose overall grade has dropped into a range that may put course credit or mastery at risk.',
+      ['Current grade is below the class passing target.', 'The student may need a recovery plan even if recent work has improved.']
+    ); grp1.add(r1);
+    settingsPane.appendChild(grp1.wrap);
+
+    const { row: r2, inp: missingInp  } = threshRow('Flag when missing assignments or quizzes reach', 'ce-ar-missing', savedPrefs.missingT ?? 3, 'items');
+    const grp2 = settingsGroup(
+      'Work Avoidance Or Non-Submission',
+      'Look for a pattern of assigned work not being turned in during the review window.',
+      ['Several missing assignments in a short stretch.', 'Missing quizzes or major checks that block grade recovery.']
+    ); grp2.add(r2);
     settingsPane.appendChild(grp2.wrap);
 
-    const { row: r3, inp: lowScoreInp } = threshRow('Assignment or quiz score below', 'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
-    const grp3b = settingsGroup('Low Scores'); grp3b.add(r3);
+    const { row: r3, inp: lowScoreInp } = threshRow('Flag each recent assignment or quiz score below', 'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%', { step: '0.1' });
+    const grp3b = settingsGroup(
+      'Struggling Despite Submitting',
+      'Look for students who are turning in work but scoring low enough to suggest confusion, incomplete understanding, or rushed work.',
+      ['Multiple recent scores below the selected percentage.', 'Low quiz scores after instruction or practice.']
+    ); grp3b.add(r3);
     settingsPane.appendChild(grp3b.wrap);
 
-    const { row: r5, inp: inactiveInp } = threshRow('No login for more than',         'ce-ar-inactive', savedPrefs.inactiveT ?? 7,  'days  (0 = off)');
-    const grp3 = settingsGroup('Inactivity'); grp3.add(r5);
+    const { row: r5, inp: inactiveInp } = threshRow('Flag when there has been no Canvas activity for', 'ce-ar-inactive', savedPrefs.inactiveT ?? 7, 'days');
+    const grp3 = settingsGroup(
+      'Disengagement From Canvas',
+      'Look for students who have stopped logging in or have no recorded Canvas activity.',
+      ['No recent login or course activity.', 'Set this to 0 to ignore activity data.']
+    ); grp3.add(r5);
     settingsPane.appendChild(grp3.wrap);
 
-    const { row: r6, inp: zeroInp     } = threshRow('Zero-score assignments ≥',       'ce-ar-zeroes',   savedPrefs.zeroT     ?? 2,  'in window  (0 = off)');
-    const grp4 = settingsGroup('Zero Scores'); grp4.add(r6);
+    const { row: r6, inp: zeroInp     } = threshRow('Flag when zero-score assignments reach', 'ce-ar-zeroes', savedPrefs.zeroT ?? 2, 'items');
+    const grp4 = settingsGroup(
+      'Repeated Zero Scores',
+      'Look for zeros that may point to blank submissions, incomplete attempts, or work that was attempted but not successful.',
+      ['Two or more zeros in the recent work window.', 'Set this to 0 to ignore zero-score patterns.']
+    ); grp4.add(r6);
     settingsPane.appendChild(grp4.wrap);
 
-    const { row: r7, inp: lateInp     } = threshRow('Late submissions ≥',             'ce-ar-late',     savedPrefs.lateT     ?? 0,  'in window  (0 = off)');
-    const grp5 = settingsGroup('Late Work'); grp5.add(r7);
+    const { row: r7, inp: lateInp     } = threshRow('Flag when late submissions reach', 'ce-ar-late', savedPrefs.lateT ?? 0, 'items');
+    const grp5 = settingsGroup(
+      'Late Or Overdue Patterns',
+      'Look for students who are submitting after deadlines often enough that timing is becoming part of the risk pattern.',
+      ['Several late submissions in the recent work window.', 'Set this to 0 to ignore late-submission patterns.']
+    ); grp5.add(r7);
     settingsPane.appendChild(grp5.wrap);
+
+    function numValue(input, fallback) {
+      const n = parseFloat(input.value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+    function intValue(input, fallback) {
+      const n = parseInt(input.value, 10);
+      return Number.isFinite(n) ? n : fallback;
+    }
 
     const saveSettingsBtn = btn('Save Settings', `background:${DS.blue};color:#fff;margin-top:4px;`);
     saveSettingsBtn.addEventListener('click', () => {
       savePrefs({
-        gradeT:    parseFloat(gradeInp.value)    || 70,
-        missingT:  parseInt(missingInp.value)    || 3,
-        lowScoreT: parseFloat(lowScoreInp.value) || 60,
-        days:      parseInt(daysInp.value)       || 7,
-        inactiveT: parseInt(inactiveInp.value),
-        zeroT:     parseInt(zeroInp.value),
-        lateT:     parseInt(lateInp.value),
+        gradeT:    numValue(gradeInp, 70),
+        missingT:  intValue(missingInp, 3),
+        lowScoreT: numValue(lowScoreInp, 60),
+        days:      intValue(daysInp, 7),
+        inactiveT: intValue(inactiveInp, 0),
+        zeroT:     intValue(zeroInp, 0),
+        lateT:     intValue(lateInp, 0),
       });
       saveSettingsBtn.textContent = 'Saved ✓';
       setTimeout(() => saveSettingsBtn.textContent = 'Save Settings', 1500);
@@ -703,7 +759,7 @@
     // ── AT-RISK STUDENTS ───────────────────────────────────────────────────
     async function renderAtRiskTab() {
       const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`);
-      desc.textContent = 'Lists every at-risk student with all their assignments. Configure detection thresholds in the Settings tab.';
+      desc.textContent = 'Finds students who match your review criteria, then shows the specific Canvas signals that triggered each flag.';
       findingsPane.appendChild(desc);
 
       const runBtn = btn('▶  Find At-Risk Students', `background:${DS.blue};color:#fff;`);
@@ -716,13 +772,13 @@
         runBtn.disabled = true; runBtn.textContent = 'Loading…';
         results.innerHTML = '';
 
-        const gradeT    = parseFloat(gradeInp.value)    || 70;
-        const missingT  = parseInt(missingInp.value)    || 3;
-        const lowScoreT = parseFloat(lowScoreInp.value) || 60;
-        const days      = parseInt(daysInp.value)       || 7;
-        const inactiveT = parseInt(inactiveInp.value)   || 0;
-        const zeroT     = parseInt(zeroInp.value)       || 0;
-        const lateT     = parseInt(lateInp.value)       || 0;
+        const gradeT    = numValue(gradeInp, 70);
+        const missingT  = intValue(missingInp, 3);
+        const lowScoreT = numValue(lowScoreInp, 60);
+        const days      = intValue(daysInp, 7);
+        const inactiveT = intValue(inactiveInp, 0);
+        const zeroT     = intValue(zeroInp, 0);
+        const lateT     = intValue(lateInp, 0);
         const cutoff    = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
         if (!selectedCourseIds.size) {
