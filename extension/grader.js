@@ -291,7 +291,7 @@
       style.id = 'ce-sg-toolbar-style';
       style.textContent = `
         body.ce-sg-toolbar-open { padding-top:0 !important; box-sizing:border-box !important; }
-        #ce-sg-toolbar { position:sticky; top:0; width:100%; height:56px; z-index:2147483640; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); }
+        #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); }
         #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
         .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:2px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
@@ -305,7 +305,7 @@
         .ce-sg-btn-primary:hover { background:#1b303d; }
         .ce-sg-btn-primary .ce-sg-btn-label { color:#fff; opacity:1; }
         .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid #c7cdd1; background:#f5f5f5; color:#2d3b45; }
-        #ce-sg-tab { position:sticky; top:0; margin-left:auto; z-index:2147483641; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
+        #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sg-drawer .ce-sg-btn { width:auto; height:auto; min-width:auto; min-height:34px; border:1px solid #c7cdd1; border-radius:3px; background:#fff; color:#2d3b45; padding:7px 10px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; line-height:1.2; }
