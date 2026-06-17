@@ -274,13 +274,19 @@
     async function mountSpeedGraderRail() {
       if (document.getElementById('ce-sg-rail')) return true;
       const { courseId, assignmentId } = getSpeedGraderUrlParts();
-      const contentAnchor = document.querySelector('#left_side, #left-side, #submission_preview, #iframe_holder, #speedgrader_iframe');
-      const embedHost = contentAnchor?.parentElement || document.querySelector('#full_width_container, #main, .ic-app-main-content');
-      if (!embedHost) return false;
+      const leftSide = document.querySelector('#left_side, #left-side');
+      const rightSide = document.querySelector('#right_side, #right-side, #right_side_inner');
+      const embedHost = leftSide && rightSide && leftSide.parentElement === rightSide.parentElement
+        ? leftSide.parentElement
+        : null;
+      const useEmbeddedMount = !!(embedHost && leftSide);
+      const navOffset = Math.round(document.querySelector('#global_nav,#menu')?.getBoundingClientRect?.().width || 0);
 
       const rail = document.createElement('aside');
       rail.id = 'ce-sg-rail';
-      rail.style.cssText = 'position:sticky;top:0;align-self:flex-start;flex:0 0 320px;width:320px;max-width:320px;min-height:calc(100vh - 58px);max-height:calc(100vh - 58px);background:#fff;border-right:1px solid #c7cdd1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;';
+      rail.style.cssText = useEmbeddedMount
+        ? 'position:relative;align-self:stretch;flex:0 0 320px;width:320px;max-width:320px;min-height:calc(100vh - 58px);background:#fff;border-right:1px solid #c7cdd1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;'
+        : `position:fixed;left:${navOffset}px;top:58px;bottom:0;width:320px;background:#fff;border-right:1px solid #c7cdd1;z-index:9998;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;`;
 
       const head = document.createElement('div');
       head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
@@ -421,15 +427,15 @@
         hide.textContent = collapsed ? 'Open' : 'Collapse';
       });
 
-      embedHost.style.display = 'flex';
-      embedHost.style.alignItems = 'stretch';
-      embedHost.style.gap = '0';
-      if (contentAnchor) {
-        contentAnchor.style.flex = contentAnchor.style.flex || '1 1 auto';
-        contentAnchor.style.minWidth = contentAnchor.style.minWidth || '0';
-        embedHost.insertBefore(rail, contentAnchor);
+      if (useEmbeddedMount) {
+        embedHost.style.display = 'flex';
+        embedHost.style.alignItems = 'stretch';
+        embedHost.style.gap = '0';
+        leftSide.style.flex = leftSide.style.flex || '1 1 auto';
+        leftSide.style.minWidth = leftSide.style.minWidth || '0';
+        embedHost.insertBefore(rail, leftSide);
       } else {
-        embedHost.insertBefore(rail, embedHost.firstChild);
+        document.body.appendChild(rail);
       }
       return true;
     }
