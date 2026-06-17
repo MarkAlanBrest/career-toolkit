@@ -1454,6 +1454,112 @@
     if (barEl)  barEl.style.width = pct + '%';
   }
 
+  function messagePlainText(body) {
+    const text = String(body || '');
+    if (!/<\/?[a-z][\s\S]*>/i.test(text)) return text;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = text;
+    return wrap.innerText || wrap.textContent || '';
+  }
+
+  function messageFindings(msg) {
+    const text = messagePlainText(msg.body);
+    const lines = text.split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    const findings = [];
+    for (const line of lines) {
+      if (/^(current grade|current score|current course score|grade check-in|missing work|missing assignments|progress update|what i am seeing|items to review)/i.test(line)) {
+        findings.push(line);
+      } else if (/^[-*]\s+/.test(line)) {
+        findings.push(line.replace(/^[-*]\s+/, ''));
+      }
+      if (findings.length >= 6) break;
+    }
+    if (!findings.length && msg.subject) findings.push(msg.subject);
+    return findings;
+  }
+
+  function bodyToLetterHtml(body) {
+    const text = messagePlainText(body).trim();
+    if (!text) return '<p>No message body generated.</p>';
+    return text.split(/\n{2,}/)
+      .map(part => `<p>${escapeHtml(part).replace(/\n/g, '<br>')}</p>`)
+      .join('');
+  }
+
+  function printableWarningLetter(msg, pageBreak) {
+    const date = new Date().toLocaleDateString();
+    return `
+      <section class="letter${pageBreak ? ' page-break' : ''}">
+        <div class="letter-meta">${escapeHtml(msg.courseName || 'Course')} &middot; ${escapeHtml(date)}</div>
+        <h1>Student Progress Warning</h1>
+        <div class="recipient">
+          <strong>Student:</strong> ${escapeHtml(msg.studentName || 'Student')}<br>
+          <strong>Subject:</strong> ${escapeHtml(msg.subject || 'Progress check-in')}
+        </div>
+        <div class="message-body">${bodyToLetterHtml(msg.body)}</div>
+        <div class="signature">
+          <p>Sincerely,</p>
+          <p>____________________________<br>${escapeHtml(GM_getValue(STORAGE_KEYS.TEACHER_NAME, 'Instructor'))}</p>
+        </div>
+      </section>
+    `;
+  }
+
+  function printHtmlDocument(title, bodyHtml) {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><title>${escapeHtml(title)}</title><style>
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; color: #111827; margin: 0; padding: 24px; font-size: 11pt; }
+      h1 { font-size: 18pt; margin: 0 0 12px; color: #1f2937; }
+      h2 { font-size: 13pt; margin: 18px 0 8px; }
+      .meta, .letter-meta { color: #6b7280; font-size: 9pt; margin-bottom: 12px; }
+      .recipient { border: 1px solid #d1d5db; background: #f9fafb; padding: 10px 12px; margin: 10px 0 16px; }
+      .message-body p { margin: 0 0 11px; line-height: 1.45; }
+      .signature { margin-top: 28px; }
+      .letter { min-height: 9.5in; padding-bottom: 16px; }
+      .page-break { page-break-after: always; }
+      table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+      th { text-align: left; background: #374151; color: #fff; padding: 7px 8px; }
+      td { border-bottom: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: top; }
+      tr:nth-child(even) td { background: #f9fafb; }
+      ul { margin: 0; padding-left: 18px; }
+    </style></head><body>${bodyHtml}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 500);
+  }
+
+  function printWarningLetters(messages) {
+    const body = messages.map((msg, i) => printableWarningLetter(msg, i < messages.length - 1)).join('');
+    printHtmlDocument('Student Progress Warning Letters', body);
+  }
+
+  function printTeacherMessageReport(messages) {
+    const date = new Date().toLocaleString();
+    const rows = messages.map(msg => {
+      const findings = messageFindings(msg);
+      return `
+        <tr>
+          <td>${escapeHtml(msg.studentName || 'Student')}</td>
+          <td>${escapeHtml(msg.courseName || '')}</td>
+          <td>${escapeHtml(msg.subject || '')}</td>
+          <td><ul>${findings.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></td>
+          <td>${escapeHtml(date)}</td>
+        </tr>
+      `;
+    }).join('');
+    printHtmlDocument('Teacher Message Findings Report', `
+      <h1>Teacher Findings Report</h1>
+      <div class="meta">Generated ${escapeHtml(date)} &middot; ${messages.length} student${messages.length === 1 ? '' : 's'}</div>
+      <table>
+        <thead><tr><th>Student</th><th>Class</th><th>Message</th><th>Findings</th><th>Date</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `);
+  }
+
   function renderMessagesList(container, selectedCourses, emailType, failedCourses) {
     const announceCheck = document.getElementById('ces-announce-check');
     const templates = getTemplates();
@@ -1469,7 +1575,9 @@
           <strong>${generatedMessages.length} recipient(s) ready</strong>
           ${failedCourses ? `<div style="font-size:12px;color:#BC1212;margin-top:3px;">${failedCourses} class(es) could not be checked.</div>` : ''}
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="ces-btn ces-btn-secondary" id="ces-print-report-btn">Print Report</button>
+          <button class="ces-btn ces-btn-secondary" id="ces-print-letters-btn">Print Letters</button>
           <button class="ces-btn ces-btn-secondary" id="ces-review-cancel">Cancel</button>
           <button class="ces-btn ces-btn-primary" id="ces-send-all-btn">&#9993; Send All</button>
         </div>
@@ -1490,6 +1598,7 @@
             <div style="font-size:12px;color:#6b7280;">${escapeHtml(msg.courseName || '')}</div>
           </div>
           <div class="ces-msg-actions">
+            <button class="ces-btn ces-btn-secondary ces-btn-sm ces-print-one" data-idx="${i}">Print Letter</button>
             <button class="ces-btn ces-btn-primary ces-btn-sm ces-send-one" data-idx="${i}">&#9993; Send</button>
           </div>
         </div>
@@ -1501,6 +1610,14 @@
     container.querySelector('#ces-review-cancel').addEventListener('click', () => {
       generatedMessages = [];
       renderSendTab(container);
+    });
+
+    container.querySelector('#ces-print-report-btn').addEventListener('click', () => {
+      printTeacherMessageReport(generatedMessages);
+    });
+
+    container.querySelector('#ces-print-letters-btn').addEventListener('click', () => {
+      printWarningLetters(generatedMessages);
     });
 
     container.querySelector('#ces-send-all-btn').addEventListener('click', async () => {
@@ -1563,6 +1680,14 @@
           btn.innerHTML = '&#10007; Failed'; btn.classList.add('ces-btn-danger');
           showStatus('Failed to send to ' + msg.studentName + ': ' + err.message, 'error');
         }
+      });
+    });
+
+    container.querySelectorAll('.ces-print-one').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const msg = generatedMessages[idx];
+        if (msg) printWarningLetters([msg]);
       });
     });
 
