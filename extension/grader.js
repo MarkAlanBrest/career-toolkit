@@ -308,6 +308,8 @@
         #ce-sg-tab { position:sticky; top:0; margin-left:auto; z-index:2147483641; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
         .ce-sg-drawer.ce-open { display:flex; }
+        .ce-sg-drawer .ce-sg-btn { width:auto; height:auto; min-width:auto; min-height:34px; border:1px solid #c7cdd1; border-radius:3px; background:#fff; color:#2d3b45; padding:7px 10px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; line-height:1.2; }
+        .ce-sg-drawer .ce-sg-btn-primary { border-color:#0b5f7f; background:#0b5f7f; color:#fff; }
         .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
         .ce-sg-field label { font-size:12px; font-weight:700; color:#2d3b45; }
         .ce-sg-input, .ce-sg-textarea, .ce-sg-select { width:100%; border:1px solid #c7cdd1; border-radius:3px; padding:8px; font:13px/1.35 inherit; color:#2d3b45; background:#fff; }
@@ -424,6 +426,12 @@
         return b;
       }
 
+      function setToolbarButtonLabel(button, label) {
+        const labelEl = button.querySelector('.ce-sg-btn-label');
+        if (labelEl) labelEl.textContent = label;
+        else button.textContent = label;
+      }
+
       function field(label, control) {
         const wrap = document.createElement('div');
         wrap.className = 'ce-sg-field';
@@ -475,9 +483,9 @@
       aiBtn.addEventListener('click', async () => {
         showDrawer('ai');
         const subText = ceSgVisibleSubmissionText();
-        if (!subText) { aiBtn.textContent = 'No submission text'; setTimeout(() => aiBtn.textContent = 'AI Grade', 2500); return; }
+        if (!subText) { setToolbarButtonLabel(aiBtn, 'No Text'); setTimeout(() => setToolbarButtonLabel(aiBtn, 'AI Grade'), 2500); return; }
         aiBtn.disabled = true;
-        aiBtn.textContent = 'Grading...';
+        setToolbarButtonLabel(aiBtn, 'Grading...');
         try {
           const student = document.querySelector('#student_carousel_name,#students_selectmenu-button .ui-selectmenu-text,#students_selectmenu-button')?.textContent?.trim() || 'the student';
           const prompt = `Grade this Canvas submission.\nStudent: ${student}\nCourse ID: ${courseId}\nAssignment ID: ${assignmentId}\n\nGRADING CRITERIA:\n${criteriaInput.value || 'Grade fairly. Be specific and concise.'}\n\nSUBMISSION:\n${subText}\n\nRespond exactly in this format:\nSCORE: [number]\nCOMMENTS:\n[student-facing feedback]\nTEACHER CHECK:\n[private verification notes for the teacher]`;
@@ -495,7 +503,7 @@
           draftInput.value = e.message || 'AI grading failed.';
         } finally {
           aiBtn.disabled = false;
-          aiBtn.textContent = 'AI Grade';
+          setToolbarButtonLabel(aiBtn, 'AI Grade');
         }
       });
 
@@ -526,8 +534,8 @@
         }
       });
 
-      document.body.appendChild(bar);
-      document.body.appendChild(tab);
+      document.body.insertBefore(tab, document.body.firstChild);
+      document.body.insertBefore(bar, tab);
       return true;
     }
 
