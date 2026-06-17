@@ -137,7 +137,7 @@ export default function CertificateClient() {
           <div className="relative text-center px-20">
 
             <div className="mb-6 text-blue-900 font-bold text-xl">
-              YOUR SCHOOL NAME
+              BusinessLaw25 Assignment
             </div>
 
             <h1 className="text-5xl font-serif font-bold text-blue-900 mb-6">
@@ -153,11 +153,11 @@ export default function CertificateClient() {
             </h2>
 
             <p className="text-xl mb-6">
-              has successfully completed the training program
+              has successfully completed the BusinessLaw25 assignment
             </p>
 
             <h3 className="text-3xl font-bold text-blue-900 mb-8">
-              Ladder Safety Training
+              Business Law 25
             </h3>
 
             <p className="mb-12">

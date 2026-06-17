@@ -45,9 +45,9 @@ export default function CourseCodePage() {
         <div className="max-w-6xl mx-auto px-8 py-5 flex justify-between items-center">
 
           <div>
-            <h1 className="text-xl font-bold">Career Safety Certifications</h1>
+            <h1 className="text-xl font-bold">Assignments</h1>
             <p className="text-sm text-slate-300">
-              Professional training that employers recognize
+              Access the BusinessLaw25 assignment portal with your assignment code.
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export default function CourseCodePage() {
 
             <input
               type="text"
-              placeholder="Enter Course Code"
+              placeholder="Enter Assignment Code"
               className="px-4 py-2 rounded bg-white text-slate-900 uppercase tracking-wider"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -87,37 +87,34 @@ export default function CourseCodePage() {
 
         <div>
           <h2 className="text-4xl font-bold mb-6">
-            Industry-Recognized Certifications
+            BusinessLaw25 Assignment
           </h2>
 
           <p className="text-lg text-slate-200 mb-6 leading-relaxed">
-            Earning safety certifications demonstrates professionalism,
-            responsibility, and job readiness. Employers actively look for
-            certified candidates because it reduces risk and training time.
+            Complete the BusinessLaw25 assignment with interactive learning,
+            quizzes, and a final report you can download as a PDF.
           </p>
 
           <ul className="space-y-3 text-slate-200">
-            <li>✔ Strengthens your resume instantly</li>
-            <li>✔ Shows commitment to safety and professionalism</li>
-            <li>✔ Makes you stand out from other applicants</li>
-            <li>✔ Often required for trade and industrial jobs</li>
-            <li>✔ Helps you qualify for higher-paying positions</li>
+            <li>✔ Interactive learning activities</li>
+            <li>✔ Quiz questions with instant feedback</li>
+            <li>✔ Progress saved automatically</li>
+            <li>✔ Final report and PDF export</li>
+            <li>✔ Designed for BusinessLaw25 assignment delivery</li>
           </ul>
         </div>
 
         <div className="bg-slate-800 rounded-2xl p-8 border border-slate-600 shadow-2xl">
-          <h3 className="text-2xl font-bold mb-4">Why Certifications Matter</h3>
+          <h3 className="text-2xl font-bold mb-4">BusinessLaw25 Overview</h3>
 
           <p className="text-slate-200 leading-relaxed mb-4">
-            Hiring managers frequently filter applicants by certifications.
-            Having documented training proves you can work safely, follow
-            procedures, and contribute immediately on the job site.
+            This assignment helps students review core business law concepts,
+            complete interactive questions, and produce a final score report.
           </p>
 
           <p className="text-slate-200 leading-relaxed">
-            Whether you are entering the workforce or advancing your career,
-            certifications provide a measurable advantage and demonstrate
-            real-world competence.
+            The portal is built for active learning and includes a PDF report
+            you can download when the assignment is complete.
           </p>
         </div>
 
@@ -129,25 +126,23 @@ export default function CourseCodePage() {
         <div className="max-w-6xl mx-auto px-8 grid md:grid-cols-3 gap-8 text-center">
 
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
-            <h4 className="text-xl font-semibold mb-3">Employer Approved</h4>
+            <h4 className="text-xl font-semibold mb-3">Interactive Learning</h4>
             <p className="text-slate-300">
-              Training aligned with industry standards and workplace
-              expectations.
+              Engage with assignment content using built-in questions and slides.
             </p>
           </div>
 
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
-            <h4 className="text-xl font-semibold mb-3">Career Boost</h4>
+            <h4 className="text-xl font-semibold mb-3">Quiz Feedback</h4>
             <p className="text-slate-300">
-              Certifications demonstrate initiative and improve hiring
-              prospects.
+              Get instant feedback and see how well you understand key concepts.
             </p>
           </div>
 
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
-            <h4 className="text-xl font-semibold mb-3">Fast & Practical</h4>
+            <h4 className="text-xl font-semibold mb-3">Downloadable Report</h4>
             <p className="text-slate-300">
-              Learn real skills you will actually use on the job.
+              Finish the assignment and download a PDF report with your score.
             </p>
           </div>
 
@@ -158,15 +153,15 @@ export default function CourseCodePage() {
       {/* ===== FOOTER ===== */}
       <footer className="text-center py-8 text-slate-400 text-sm space-y-2">
 
-        <div>Professional Certification Training Platform</div>
+        <div>BusinessLaw25 Assignment Portal</div>
 
         {/* 🔒 SMALL ADMIN LINK */}
         <div>
           <a
-            href="https://safety-training-platform-eta.vercel.app/admin/login"
+            href="/admin/login"
             className="text-slate-500 hover:text-slate-400 text-xs"
           >
-            Admin Login
+            Instructor Login
           </a>
         </div>
 

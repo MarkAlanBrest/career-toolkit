@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     return Response.json({
       FirstName: "Test",
       LastName: "User",
-      CourseName: "Ladder Safety",
+      CourseName: "Business Law 25",
       Progress: 0,
       Email: "test@test.com"
     });

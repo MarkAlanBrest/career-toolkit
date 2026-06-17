@@ -86,6 +86,16 @@ type CompletionSlide = {
   text: string;
 };
 
+type ReportSlide = {
+  type: "report";
+  title: string;
+  score: number;
+  passingScore: number;
+  summary: string;
+  details?: { label: string; value: string }[];
+  downloadPdf?: boolean;
+};
+
 type CertificateSlide = {
   type: "certificate";
   title: string;
@@ -107,6 +117,7 @@ type Slide =
   | HotspotSlide
   | CalloutSlide
   | CompletionSlide
+  | ReportSlide
   | CertificateSlide;
 
 
@@ -205,12 +216,10 @@ useEffect(() => {
         return;
       }
 
-      // 2) Convert "Ladder Safety" → "LadderSafety"
-const folder = record.SlidesPath;
+      const folder = record.SlidesPath;
 
-
-const courseRes = await fetch(`/api/get-course?folder=${folder}`);
-const courseData = await courseRes.json();
+      const courseRes = await fetch(`/api/get-course?folder=${folder}`);
+      const courseData = await courseRes.json();
 
 setSlides(courseData.course.slides || []);
 
@@ -595,50 +604,81 @@ useEffect(() => {
     );
   };
 
- const renderCertificateSlide = (slide: CertificateSlide) => {
-  const today = new Date().toLocaleDateString();
+  const renderReportSlide = (slide: ReportSlide) => {
+    return (
+      <div id="report" className="space-y-6 text-center min-h-[350px]">
+        <h2 className="text-4xl font-bold">{slide.title}</h2>
+        <p className="text-lg text-slate-200 max-w-3xl mx-auto">{slide.summary}</p>
 
-  const certId =
-    slide.certificateIdField
-      ? `${slide.certificateIdField}-${recordId ?? "0000"}`
-      : `CERT-${recordId ?? "0000"}`;
+        <div className="mx-auto grid gap-3 max-w-2xl text-left bg-slate-900/70 border border-slate-700 rounded-3xl p-6">
+          <div className="flex justify-between">
+            <span className="font-semibold">Final score</span>
+            <span>{slide.score}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-semibold">Passing score</span>
+            <span>{slide.passingScore}%</span>
+          </div>
+          {slide.details?.map((item) => (
+            <div key={item.label} className="flex justify-between">
+              <span>{item.label}</span>
+              <span>{item.value}</span>
+            </div>
+          ))}
+        </div>
 
+        {slide.downloadPdf && (
+          <button
+            onClick={() => downloadPDF("report", "BusinessLaw25-Report.pdf")}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl"
+          >
+            Download PDF Report
+          </button>
+        )}
+      </div>
+    );
+  };
 
+const downloadPDF = async (elementId: string, filename: string) => {
+    if (typeof window === "undefined") return;
 
+    const element = document.getElementById(elementId);
 
-const downloadPDF = async () => {
-  // ⭐ Only run in browser
-  if (typeof window === "undefined") return;
+    if (!element) {
+      alert("Element not found.");
+      return;
+    }
 
-  const element = document.getElementById("certificate");
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
 
-  if (!element) {
-    alert("Certificate not found.");
-    return;
-  }
+      html2pdf()
+        .set({
+          margin: 0.5,
+          filename,
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: {
+            unit: "in",
+            format: "letter",
+            orientation: "landscape",
+          },
+        })
+        .from(element)
+        .save();
 
-  try {
-    const html2pdf = (await import("html2pdf.js")).default;
+    } catch (err) {
+      console.error(err);
+      alert("PDF generation failed.");
+    }
+  };
 
-    html2pdf()
-      .set({
-        margin: 0.5,
-        filename: "Certificate.pdf",
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: {
-          unit: "in",
-          format: "letter",
-          orientation: "landscape",
-        },
-      })
-      .from(element)
-      .save();
+  const renderCertificateSlide = (slide: CertificateSlide) => {
+    const today = new Date().toLocaleDateString();
 
-  } catch (err) {
-    console.error(err);
-    alert("PDF generation failed.");
-  }
-};
+    const certId =
+      slide.certificateIdField
+        ? `${slide.certificateIdField}-${recordId ?? "0000"}`
+        : `CERT-${recordId ?? "0000"}`;
 
   return (
     <div className="text-center space-y-6">
@@ -691,7 +731,7 @@ const downloadPDF = async () => {
 
         {slide.downloadPdf && (
           <button
-            onClick={downloadPDF}
+            onClick={() => downloadPDF("certificate", "Certificate.pdf")}
             className="px-6 py-3 bg-green-600 text-white rounded-xl"
           >
             Download PDF
@@ -856,6 +896,8 @@ await fetch("/api/update-student", {
         return renderCalloutSlide(current);
       case "completion":
         return renderCompletionSlide(current);
+      case "report":
+        return renderReportSlide(current);
       case "certificate":
         return renderCertificateSlide(current);
 
