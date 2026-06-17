@@ -2,5 +2,6 @@ node_modules/
 .next/
 .env*
 tsconfig.tsbuildinfo
+.next-dev*.log
 
 .vercel
