@@ -24,6 +24,7 @@
   };
 
   const TOOLBAR_W  = 68;
+  const TOOLBAR_H  = 56;
   const SPEEDGRADER = /speed_grader/.test(window.location.href);
   const TOP_OFFSET  = SPEEDGRADER ? 60 : 0;
 
@@ -72,11 +73,12 @@
 
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
   const toolbar = el('div', `
-    position:fixed;top:${TOP_OFFSET}px;right:0;bottom:0;width:${TOOLBAR_W}px;
+    position:fixed;top:0;left:0;right:0;height:${TOOLBAR_H}px;
     z-index:2147483640;
-    background:${DS.navBg};
-    box-shadow:-2px 0 10px rgba(0,0,0,.25);
-    display:flex;flex-direction:column;align-items:center;
+    background:${DS.white};
+    border-bottom:1px solid ${DS.border};
+    box-shadow:0 2px 8px rgba(0,0,0,.10);
+    display:flex;flex-direction:row;align-items:stretch;
     font-family:${DS.font};
     transition:transform .2s ease;
   `);
@@ -85,9 +87,9 @@
 
   // Nav
   const nav = el('div', `
-    flex:1;width:100%;
-    display:flex;flex-direction:column;align-items:center;
-    padding:8px 0;gap:2px;overflow-y:auto;overflow-x:hidden;
+    flex:1;height:100%;min-width:0;
+    display:flex;flex-direction:row;align-items:stretch;
+    padding:0 8px;gap:2px;overflow-x:auto;overflow-y:hidden;
   `);
 
   const btnMap     = {};
@@ -98,19 +100,19 @@
     // Section header — creates a collapsible group
     if (tool._section) {
       const sectionOpen = { value: true };
-      const sectionWrap = el('div', `width:100%;display:flex;flex-direction:column;`);
+      const sectionWrap = el('div', `height:100%;display:flex;flex-direction:row;align-items:stretch;`);
 
       const hdr = el('button', `
-        width:100%;height:26px;flex-shrink:0;
-        border:none;border-top:1px solid rgba(255,255,255,.08);
-        background:rgba(0,0,0,.25);cursor:pointer;
-        display:flex;align-items:center;justify-content:space-between;
-        padding:0 8px;box-sizing:border-box;
+        width:auto;min-width:84px;height:100%;flex-shrink:0;
+        border:none;border-right:1px solid ${DS.border};
+        background:${DS.gray};cursor:pointer;
+        display:flex;align-items:center;justify-content:center;gap:6px;
+        padding:0 10px;box-sizing:border-box;
         font-family:${DS.font};
       `, { type: 'button' });
-      const hdrLabel = el('span', `font-size:7px;text-transform:uppercase;letter-spacing:.7px;color:rgba(255,255,255,.45);`);
+      const hdrLabel = el('span', `font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:${DS.muted};font-weight:700;`);
       hdrLabel.textContent = tool.label;
-      const hdrArrow = el('span', `font-size:8px;color:rgba(255,255,255,.35);transition:transform .2s;`);
+      const hdrArrow = el('span', `font-size:10px;color:${DS.muted};transition:transform .2s;`);
       hdrArrow.textContent = '▾';
       hdr.appendChild(hdrLabel);
       hdr.appendChild(hdrArrow);
@@ -131,8 +133,8 @@
     btnGroupBg[tool.id] = groupBg;
 
     const btn = el('button', `
-      width:100%;height:52px;
-      border:none;border-left:3px solid transparent;
+      width:78px;height:100%;
+      border:none;border-bottom:3px solid transparent;
       background:${groupBg};cursor:pointer;
       display:flex;align-items:center;justify-content:center;
       font-family:${DS.font};transition:background .12s;flex-shrink:0;
@@ -147,7 +149,7 @@
     const icon = el('span', 'font-size:18px;line-height:1;display:block;text-align:center;');
     icon.textContent = tool.icon;
 
-    const label = el('span', `display:block;text-align:center;font-size:9px;color:${DS.navText};opacity:.75;letter-spacing:.3px;text-transform:uppercase;`);
+    const label = el('span', `display:block;text-align:center;font-size:10px;color:${DS.text};opacity:.8;letter-spacing:.2px;text-transform:uppercase;font-weight:700;`);
     label.textContent = tool.label;
 
     inner.appendChild(icon);
@@ -155,7 +157,7 @@
     btn.appendChild(inner);
 
     btn.addEventListener('mouseenter', () => {
-      if (_active !== tool.id) btn.style.background = DS.navHover;
+      if (_active !== tool.id) btn.style.background = '#EEF2F4';
     });
     btn.addEventListener('mouseleave', () => {
       if (_active !== tool.id) btn.style.background = groupBg;
@@ -169,10 +171,10 @@
 
   // Collapse button
   const collapseBtn = el('button', `
-    width:100%;height:40px;flex-shrink:0;
-    border:none;border-top:1px solid ${DS.navBorder};
-    background:transparent;cursor:pointer;
-    font-size:12px;color:${DS.navText};opacity:.6;
+    width:54px;height:100%;flex-shrink:0;
+    border:none;border-left:1px solid ${DS.border};
+    background:${DS.gray};cursor:pointer;
+    font-size:11px;color:${DS.text};opacity:.75;
     font-family:${DS.font};
     display:flex;align-items:center;justify-content:center;
     transition:opacity .12s;
@@ -184,28 +186,28 @@
 
   // ── COLLAPSED TAB ──────────────────────────────────────────────────────────
   const tab = el('button', `
-    position:fixed;top:50%;right:0;transform:translateY(-50%);
+    position:fixed;top:0;right:14px;
     z-index:2147483641;
-    width:18px;height:72px;
-    border:none;
-    border-radius:4px 0 0 4px;
-    background:${DS.navBg};
-    box-shadow:-2px 0 8px rgba(0,0,0,.3);
+    width:118px;height:26px;
+    border:1px solid ${DS.border};border-top:none;
+    border-radius:0 0 4px 4px;
+    background:${DS.white};
+    box-shadow:0 2px 8px rgba(0,0,0,.14);
     cursor:pointer;display:none;
     align-items:center;justify-content:center;
-    font-size:10px;color:${DS.navText};
+    font-size:11px;color:${DS.text};font-weight:700;
     font-family:${DS.font};
-  `, { type: 'button', title: 'Open Canvas Enhancer', textContent: '▶' });
+  `, { type: 'button', title: 'Open Canvas Enhancer', textContent: 'Canvas Enhancer' });
   tab.addEventListener('click', toggleToolbar);
 
   // ── PANEL ──────────────────────────────────────────────────────────────────
   const panel = el('div', `
-    position:fixed;top:${TOP_OFFSET}px;bottom:0;right:${TOOLBAR_W}px;
+    position:fixed;top:${TOOLBAR_H + 8}px;bottom:16px;right:16px;
     width:30vw;min-width:460px;max-width:580px;
     z-index:2147483639;
     background:${DS.white};
-    border-left:1px solid ${DS.border};
-    box-shadow:-4px 0 16px rgba(0,0,0,.1);
+    border:1px solid ${DS.border};border-radius:4px;
+    box-shadow:0 8px 28px rgba(0,0,0,.16);
     display:none;flex-direction:column;
     font-family:${DS.font};
   `);
@@ -2302,16 +2304,22 @@
   function setActive(id) {
     if (_active && btnMap[_active]) {
       btnMap[_active].style.background = btnGroupBg[_active] || 'transparent';
-      btnMap[_active].style.borderLeftColor = 'transparent';
+      btnMap[_active].style.borderBottomColor = 'transparent';
       const lbl = btnMap[_active].querySelector('span:last-child');
-      if (lbl) lbl.style.opacity = '.75';
+      if (lbl) {
+        lbl.style.opacity = '.8';
+        lbl.style.color = DS.text;
+      }
     }
     _active = id;
     if (id && btnMap[id]) {
       btnMap[id].style.background = DS.navActive;
-      btnMap[id].style.borderLeftColor = DS.navText;
+      btnMap[id].style.borderBottomColor = DS.blue;
       const lbl = btnMap[id].querySelector('span:last-child');
-      if (lbl) lbl.style.opacity = '1';
+      if (lbl) {
+        lbl.style.opacity = '1';
+        lbl.style.color = DS.navText;
+      }
     }
   }
 
@@ -2349,21 +2357,19 @@
     const s = document.getElementById('ce-body-space');
     if (!s) return;
     if (!active) { s.textContent = ''; return; }
-    s.textContent = SPEEDGRADER
-      ? `#full_width_container { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`
-      : `body { padding-right: ${TOOLBAR_W}px !important; box-sizing: border-box !important; }`;
+    s.textContent = `body { padding-top: ${TOOLBAR_H}px !important; box-sizing: border-box !important; }`;
   }
 
   function applyToolbarState() {
-    toolbar.style.transform = _expanded ? 'none' : `translateX(${TOOLBAR_W}px)`;
+    toolbar.style.transform = _expanded ? 'none' : `translateY(-${TOOLBAR_H}px)`;
     tab.style.display = _expanded ? 'none' : 'flex';
     if (!_expanded) {
       closePanel();
-      panel.style.right = '0';
+      panel.style.right = '16px';
     } else {
-      panel.style.right = `${TOOLBAR_W}px`;
+      panel.style.right = '16px';
     }
-    collapseBtn.textContent = _expanded ? '◀' : '▶';
+    collapseBtn.textContent = _expanded ? 'Hide' : 'Show';
     setBodyPadding(_expanded);
   }
 

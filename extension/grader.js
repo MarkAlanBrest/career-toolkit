@@ -298,7 +298,7 @@
         .ce-sg-btn:hover { background:#eef2f4; }
         .ce-sg-btn-primary { border-color:#0b5f7f; background:#0b5f7f; color:#fff; }
         .ce-sg-btn-primary:hover { background:#084f6a; }
-        .ce-sg-drawer { display:none; border-top:1px solid #c7cdd1; background:#fff; padding:10px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+        .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
         .ce-sg-field label { font-size:12px; font-weight:700; color:#2d3b45; }
@@ -396,23 +396,33 @@
         drawer.innerHTML = '';
         drawer.classList.add('ce-open');
         [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        const close = ceSgToolbarButton('Close');
+        close.style.marginLeft = 'auto';
+        close.addEventListener('click', () => {
+          drawer.classList.remove('ce-open');
+          [needsBtn, aiBtn, criteriaBtn, commentsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        });
         if (mode === 'needs') {
           needsBtn.classList.add('ce-sg-btn-primary');
           const box = document.createElement('div');
           box.className = 'ce-sg-field';
           box.style.flex = '1 1 100%';
           box.append(queueStatus, refreshQueueBtn, queueList);
+          drawer.appendChild(close);
           drawer.appendChild(box);
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
+          drawer.appendChild(close);
           drawer.append(field('Suggested score', scoreInput), field('Draft feedback', draftInput), teacherBox);
         } else if (mode === 'criteria') {
           criteriaBtn.classList.add('ce-sg-btn-primary');
+          drawer.appendChild(close);
           drawer.appendChild(field('Assignment criteria', criteriaInput));
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
           const insertCommentBtn = ceSgToolbarButton('Insert Selected Comment', true);
           insertCommentBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
+          drawer.appendChild(close);
           drawer.append(field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
         }
       }
