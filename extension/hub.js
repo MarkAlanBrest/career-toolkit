@@ -552,13 +552,122 @@
     pickerWrap.appendChild(courseListToolbar);
     pickerWrap.appendChild(courseListEl);
 
-    const tabContent = el('div', `
+    // ── TAB SCAFFOLD ──────────────────────────────────────────────────────
+    const tabRow = el('div', `
+      display:flex;flex-shrink:0;
+      border-bottom:1px solid ${DS.border};
+      background:${DS.gray};
+    `);
+    function mkPaneTab(label) {
+      return el('button', `
+        flex:1;padding:9px 12px;font-size:12px;font-weight:600;
+        font-family:${DS.font};border:none;cursor:pointer;
+        border-bottom:2px solid transparent;
+        background:transparent;color:${DS.muted};
+        transition:all 0.15s;
+      `, { textContent: label, type: 'button' });
+    }
+    const tabFindings = mkPaneTab('Findings');
+    const tabSettings = mkPaneTab('Settings');
+    tabRow.appendChild(tabFindings);
+    tabRow.appendChild(tabSettings);
+
+    const findingsPane = el('div', `
       flex:1;min-height:0;overflow-y:auto;
       padding:16px;display:flex;flex-direction:column;gap:12px;
     `);
+    const settingsPane = el('div', `
+      flex:1;min-height:0;overflow-y:auto;
+      padding:16px;display:none;flex-direction:column;gap:12px;
+    `);
+
+    function activatePaneTab(active) {
+      [tabFindings, tabSettings].forEach(t => {
+        t.style.borderBottomColor = 'transparent';
+        t.style.background = 'transparent';
+        t.style.color = DS.muted;
+      });
+      active.style.borderBottomColor = DS.blue;
+      active.style.background = DS.white;
+      active.style.color = DS.blue;
+    }
+    activatePaneTab(tabFindings);
+    tabFindings.addEventListener('click', () => {
+      activatePaneTab(tabFindings);
+      findingsPane.style.display = 'flex';
+      settingsPane.style.display = 'none';
+    });
+    tabSettings.addEventListener('click', () => {
+      activatePaneTab(tabSettings);
+      findingsPane.style.display = 'none';
+      settingsPane.style.display = 'flex';
+    });
 
     panelBody.appendChild(pickerWrap);
-    panelBody.appendChild(tabContent);
+    panelBody.appendChild(tabRow);
+    panelBody.appendChild(findingsPane);
+    panelBody.appendChild(settingsPane);
+
+    // ── THRESHOLD INPUT HELPERS ────────────────────────────────────────────
+    function threshRow(label, id, def, unit) {
+      const r = el('div', 'display:flex;align-items:center;justify-content:space-between;');
+      const lbl = el('label', `font-size:12px;color:${DS.text};`, { htmlFor: id });
+      lbl.textContent = label;
+      const right = el('div', 'display:flex;align-items:center;gap:5px;');
+      const inp = el('input', `width:58px;padding:4px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};text-align:right;`, { type: 'number', id, value: def, min: 0 });
+      inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
+      inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
+      const u = el('span', `font-size:11px;color:${DS.muted};`, { textContent: unit });
+      right.appendChild(inp); right.appendChild(u);
+      r.appendChild(lbl); r.appendChild(right);
+      return { row: r, inp };
+    }
+    function settingsGroup(title) {
+      const wrap = el('div', `padding:12px 14px;border:1px solid ${DS.border};border-radius:3px;background:${DS.white};display:flex;flex-direction:column;gap:8px;`);
+      const hdr = el('div', `font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${DS.muted};margin-bottom:2px;`);
+      hdr.textContent = title;
+      wrap.appendChild(hdr);
+      return { wrap, add: row => wrap.appendChild(row) };
+    }
+
+    // ── BUILD SETTINGS PANE ────────────────────────────────────────────────
+    const { row: r1, inp: gradeInp    } = threshRow('Grade below',                  'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
+    const { row: r4, inp: daysInp     } = threshRow('Lookback window',               'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
+    const grp1 = settingsGroup('Grade & Window'); grp1.add(r1); grp1.add(divider()); grp1.add(r4);
+    settingsPane.appendChild(grp1.wrap);
+
+    const { row: r2, inp: missingInp  } = threshRow('Missing assignments ≥',         'ce-ar-missing',  savedPrefs.missingT  ?? 3,  'assignments');
+    const { row: r3, inp: lowScoreInp } = threshRow('Assignment score below',         'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
+    const grp2 = settingsGroup('Assignments (within window)'); grp2.add(r2); grp2.add(r3);
+    settingsPane.appendChild(grp2.wrap);
+
+    const { row: r5, inp: inactiveInp } = threshRow('No login for more than',         'ce-ar-inactive', savedPrefs.inactiveT ?? 7,  'days  (0 = off)');
+    const grp3 = settingsGroup('Inactivity'); grp3.add(r5);
+    settingsPane.appendChild(grp3.wrap);
+
+    const { row: r6, inp: zeroInp     } = threshRow('Zero-score assignments ≥',       'ce-ar-zeroes',   savedPrefs.zeroT     ?? 2,  'in window  (0 = off)');
+    const grp4 = settingsGroup('Zero Scores'); grp4.add(r6);
+    settingsPane.appendChild(grp4.wrap);
+
+    const { row: r7, inp: lateInp     } = threshRow('Late submissions ≥',             'ce-ar-late',     savedPrefs.lateT     ?? 0,  'in window  (0 = off)');
+    const grp5 = settingsGroup('Late Work'); grp5.add(r7);
+    settingsPane.appendChild(grp5.wrap);
+
+    const saveSettingsBtn = btn('Save Settings', `background:${DS.blue};color:#fff;margin-top:4px;`);
+    saveSettingsBtn.addEventListener('click', () => {
+      savePrefs({
+        gradeT:    parseFloat(gradeInp.value)    || 70,
+        missingT:  parseInt(missingInp.value)    || 3,
+        lowScoreT: parseFloat(lowScoreInp.value) || 60,
+        days:      parseInt(daysInp.value)       || 7,
+        inactiveT: parseInt(inactiveInp.value),
+        zeroT:     parseInt(zeroInp.value),
+        lateT:     parseInt(lateInp.value),
+      });
+      saveSettingsBtn.textContent = 'Saved ✓';
+      setTimeout(() => saveSettingsBtn.textContent = 'Save Settings', 1500);
+    });
+    settingsPane.appendChild(saveSettingsBtn);
 
     // ── SHARED HELPERS ─────────────────────────────────────────────────────
     function recItem(text, type) {
@@ -588,53 +697,14 @@
     // ── AT-RISK STUDENTS ───────────────────────────────────────────────────
     async function renderAtRiskTab() {
       const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`);
-      desc.textContent = 'Lists every at-risk student with all their assignments. Assignments inside the lookback window that triggered the flag are highlighted.';
-      tabContent.appendChild(desc);
-
-      // Threshold inputs
-      const threshCard = el('div', `padding:14px;border:1px solid ${DS.border};border-radius:3px;background:${DS.white};display:flex;flex-direction:column;gap:8px;`);
-      const threshHead = el('div', `font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${DS.muted};margin-bottom:2px;`);
-      threshHead.textContent = 'Flag student if ANY threshold is met';
-      threshCard.appendChild(threshHead);
-
-      function threshRow(label, id, def, unit) {
-        const r = el('div', 'display:flex;align-items:center;justify-content:space-between;');
-        const lbl = el('label', `font-size:12px;color:${DS.text};`, { htmlFor: id });
-        lbl.textContent = label;
-        const right = el('div', 'display:flex;align-items:center;gap:5px;');
-        const inp = el('input', `width:52px;padding:4px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:12px;font-family:${DS.font};text-align:right;`, { type: 'number', id, value: def, min: 0 });
-        inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
-        inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
-        const u = el('span', `font-size:11px;color:${DS.muted};`, { textContent: unit });
-        right.appendChild(inp); right.appendChild(u);
-        r.appendChild(lbl); r.appendChild(right);
-        return { row: r, inp };
-      }
-
-      const { row: r1, inp: gradeInp    } = threshRow('Current grade below',         'ce-ar-grade',    savedPrefs.gradeT    ?? 70, '%');
-
-      const windowHead = el('div', `
-        font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
-        color:${DS.muted};padding-top:8px;margin-top:2px;border-top:1px solid ${DS.border};
-      `);
-      windowHead.textContent = 'Within lookback window';
-      threshCard.appendChild(windowHead);
-
-      const { row: r2, inp: missingInp  } = threshRow('Missing assignments ≥',        'ce-ar-missing',  savedPrefs.missingT  ?? 3,  'assignments');
-      const { row: r3, inp: lowScoreInp } = threshRow('Any assignment score below',   'ce-ar-lowscore', savedPrefs.lowScoreT ?? 60, '%');
-      const { row: r4, inp: daysInp     } = threshRow('Days to look back',            'ce-ar-days',     savedPrefs.days      ?? 7,  'days');
-
-      threshCard.appendChild(r1);
-      threshCard.appendChild(r2); threshCard.appendChild(r3);
-      threshCard.appendChild(divider());
-      threshCard.appendChild(r4);
-      tabContent.appendChild(threshCard);
+      desc.textContent = 'Lists every at-risk student with all their assignments. Configure detection thresholds in the Settings tab.';
+      findingsPane.appendChild(desc);
 
       const runBtn = btn('▶  Find At-Risk Students', `background:${DS.blue};color:#fff;`);
-      tabContent.appendChild(runBtn);
+      findingsPane.appendChild(runBtn);
 
       const results = el('div', 'display:flex;flex-direction:column;gap:10px;');
-      tabContent.appendChild(results);
+      findingsPane.appendChild(results);
 
       runBtn.addEventListener('click', async () => {
         runBtn.disabled = true; runBtn.textContent = 'Loading…';
@@ -643,7 +713,10 @@
         const gradeT    = parseFloat(gradeInp.value)    || 70;
         const missingT  = parseInt(missingInp.value)    || 3;
         const lowScoreT = parseFloat(lowScoreInp.value) || 60;
-        const days      = parseInt(daysInp.value)        || 7;
+        const days      = parseInt(daysInp.value)       || 7;
+        const inactiveT = parseInt(inactiveInp.value)   || 0;
+        const zeroT     = parseInt(zeroInp.value)       || 0;
+        const lateT     = parseInt(lateInp.value)       || 0;
         const cutoff    = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
         if (!selectedCourseIds.size) {
@@ -651,7 +724,7 @@
           runBtn.disabled = false; runBtn.textContent = '▶  Find At-Risk Students';
           return;
         }
-        savePrefs({ gradeT, missingT, lowScoreT, days });
+        savePrefs({ gradeT, missingT, lowScoreT, days, inactiveT, zeroT, lateT });
 
         function fmtDate(iso) {
           if (!iso) return '—';
@@ -704,6 +777,19 @@
             const missCount   = windowSubs.filter(s => s.missing).length;
             const flaggedSubs = subs.filter(isFlagged);
 
+            // Inactivity
+            const lastActive   = en.last_activity_at ? new Date(en.last_activity_at) : null;
+            const inactiveDays = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / 86400000) : null;
+            const isInactive   = inactiveT > 0 && (lastActive === null || inactiveDays >= inactiveT);
+
+            // Zero scores in window
+            const zeroCount       = windowSubs.filter(s => !s.missing && s.score === 0).length;
+            const hasTooManyZeros = zeroT > 0 && zeroCount >= zeroT;
+
+            // Late submissions in window
+            const lateCount      = windowSubs.filter(s => s.late && !s.missing).length;
+            const hasTooManyLate = lateT > 0 && lateCount >= lateT;
+
             // For letters: all missing (any time) + in-window low scores
             const letterSubs = subs.filter(sub => {
               if (sub.missing) return true;
@@ -714,7 +800,10 @@
             const isAtRisk =
               (grade != null && grade < gradeT) ||
               missCount >= missingT ||
-              flaggedSubs.some(s => !s.missing); // has low score in window
+              flaggedSubs.some(s => !s.missing) ||
+              isInactive ||
+              hasTooManyZeros ||
+              hasTooManyLate;
 
             if (!isAtRisk) continue;
 
@@ -726,6 +815,12 @@
             const lowCount = flaggedSubs.filter(s => !s.missing).length;
             if (lowCount)
               flags.push(`${lowCount} low score${lowCount !== 1 ? 's' : ''} in last ${days} days`);
+            if (isInactive)
+              flags.push(lastActive ? `Inactive ${inactiveDays}d` : 'No Canvas activity');
+            if (hasTooManyZeros)
+              flags.push(`${zeroCount} zero${zeroCount !== 1 ? 's' : ''} in window`);
+            if (hasTooManyLate)
+              flags.push(`${lateCount} late in window`);
 
               atRisk.push({ name, grade, subs, flaggedSubs, letterSubs, days, flags, courseName });
             }
@@ -944,7 +1039,7 @@
 
     // ── RENDER INITIAL TAB ─────────────────────────────────────────────────
     async function renderTab() {
-      tabContent.innerHTML = '';
+      findingsPane.innerHTML = '';
       await renderAtRiskTab();
     }
 
