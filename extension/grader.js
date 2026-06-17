@@ -274,31 +274,24 @@
     async function mountSpeedGraderRail() {
       if (document.getElementById('ce-sg-rail')) return true;
       const { courseId, assignmentId } = getSpeedGraderUrlParts();
-      const leftSide = document.querySelector('#left_side, #left-side');
-      const rightSide = document.querySelector('#right_side, #right-side, #right_side_inner');
-      const embedHost = leftSide && rightSide && leftSide.parentElement === rightSide.parentElement
-        ? leftSide.parentElement
-        : null;
-      const useEmbeddedMount = !!(embedHost && leftSide);
-      const navOffset = Math.round(document.querySelector('#global_nav,#menu')?.getBoundingClientRect?.().width || 0);
+      const rightSide = document.querySelector('#right_side_inner, #right_side, #right-side');
+      if (!rightSide) return false;
 
-      const rail = document.createElement('aside');
-      rail.id = 'ce-sg-rail';
-      rail.style.cssText = useEmbeddedMount
-        ? 'position:relative;align-self:stretch;flex:0 0 320px;width:320px;max-width:320px;min-height:calc(100vh - 58px);background:#fff;border-right:1px solid #c7cdd1;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;'
-        : `position:fixed;left:${navOffset}px;top:58px;bottom:0;width:320px;background:#fff;border-right:1px solid #c7cdd1;z-index:9998;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;display:flex;flex-direction:column;box-sizing:border-box;`;
+      const panel = document.createElement('section');
+      panel.id = 'ce-sg-rail';
+      panel.style.cssText = 'margin:10px 0 12px;background:#fff;border:1px solid #c7cdd1;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2d3b45;box-sizing:border-box;';
 
       const head = document.createElement('div');
-      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
-      head.innerHTML = '<div><div style="font-size:15px;font-weight:700;line-height:1.2;">Canvas Enhancer</div><div style="font-size:12px;color:#6b7780;margin-top:2px;">SpeedGrader tools</div></div>';
-      const hide = ceSgBtn('Collapse', false);
-      hide.style.cssText += 'padding:5px 8px;';
-      head.appendChild(hide);
-      rail.appendChild(head);
+      head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:9px 10px;background:#f5f5f5;color:#2d3b45;border-bottom:1px solid #c7cdd1;';
+      head.innerHTML = '<div style="font-size:14px;font-weight:700;line-height:1.2;">Canvas Enhancer Grading</div>';
+      const collapse = ceSgBtn('Collapse', false);
+      collapse.style.cssText += 'padding:4px 7px;font-size:12px;';
+      head.appendChild(collapse);
+      panel.appendChild(head);
 
       const body = document.createElement('div');
-      body.style.cssText = 'overflow:auto;flex:1;background:#fff;display:flex;flex-direction:column;';
-      rail.appendChild(body);
+      body.style.cssText = 'background:#fff;display:flex;flex-direction:column;';
+      panel.appendChild(body);
 
       const queue = ceSgSection(body, 'Needs Grading');
       const queueStatus = document.createElement('div');
@@ -306,7 +299,7 @@
       queueStatus.textContent = courseId ? 'Load assignments with submitted work.' : 'Course not detected.';
       const queueBtn = ceSgBtn('Refresh List', false);
       const queueList = document.createElement('div');
-      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto;';
+      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;max-height:140px;overflow:auto;';
       queue.append(queueStatus, queueBtn, queueList);
 
       const criteriaBox = ceSgSection(body, 'Assignment Criteria');
@@ -314,19 +307,19 @@
       const criteriaKey = `${courseId}_${assignmentId}`;
       const criteria = document.createElement('textarea');
       criteria.value = stored.ce_criteria?.[criteriaKey] || '';
-      criteria.placeholder = 'Paste rubric, answer key, grading rules, or custom AI instructions for this assignment.';
-      criteria.style.cssText = 'width:100%;min-height:120px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
+      criteria.placeholder = 'Paste rubric, answer key, grading rules, or AI instructions for this assignment.';
+      criteria.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
       criteria.addEventListener('input', async () => {
         const latest = await ceSgStorageGet(['ce_criteria']);
         ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteria.value } });
       });
       criteriaBox.appendChild(criteria);
 
-      const comments = ceSgSection(body, 'Reusable Comments');
+      const comments = ceSgSection(body, 'Stored Comments');
       const snippets = document.createElement('textarea');
       snippets.value = stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
       snippets.placeholder = 'One reusable comment per blank line.';
-      snippets.style.cssText = 'width:100%;min-height:86px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
+      snippets.style.cssText = 'width:100%;min-height:70px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
       const select = document.createElement('select');
       select.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:7px;font-size:13px;background:#fff;color:#2d3b45;';
       const refreshSnippets = () => {
@@ -341,24 +334,24 @@
       };
       snippets.addEventListener('input', refreshSnippets);
       refreshSnippets();
-      const insertComment = ceSgBtn('Insert Comment', true);
+      const insertComment = ceSgBtn('Insert Stored Comment', true);
       insertComment.addEventListener('click', () => select.value && ceSgInsertComment(select.value, true));
       comments.append(snippets, select, insertComment);
 
       const ai = ceSgSection(body, 'AI Grader');
-      const draftScore = document.createElement('input');
-      draftScore.placeholder = 'Score';
-      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
-      const draftComment = document.createElement('textarea');
-      draftComment.placeholder = 'AI feedback or your edited comment.';
-      draftComment.style.cssText = criteria.style.cssText + 'min-height:130px;';
-      const teacherCheck = document.createElement('div');
-      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
       const aiRow = document.createElement('div');
       aiRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
       const aiDraft = ceSgBtn('AI Grade', true);
       const aiInsert = ceSgBtn('Insert Draft', false);
       aiRow.append(aiDraft, aiInsert);
+      const draftScore = document.createElement('input');
+      draftScore.placeholder = 'Score';
+      draftScore.style.cssText = 'width:100%;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;background:#fff;color:#2d3b45;';
+      const draftComment = document.createElement('textarea');
+      draftComment.placeholder = 'AI feedback or your edited comment.';
+      draftComment.style.cssText = 'width:100%;min-height:100px;box-sizing:border-box;border:1px solid #c7cdd1;border-radius:3px;padding:8px;font-size:13px;font-family:inherit;resize:vertical;background:#fff;color:#2d3b45;';
+      const teacherCheck = document.createElement('div');
+      teacherCheck.style.cssText = 'display:none;background:#fff8e1;border:1px solid #e6c45f;color:#5f4200;border-radius:3px;padding:8px;font-size:12px;line-height:1.4;';
       ai.append(aiRow, draftScore, draftComment, teacherCheck);
 
       aiDraft.addEventListener('click', async () => {
@@ -415,31 +408,20 @@
       });
 
       let collapsed = false;
-      hide.addEventListener('click', () => {
+      collapse.addEventListener('click', () => {
         collapsed = !collapsed;
         body.style.display = collapsed ? 'none' : 'flex';
-        rail.style.flexBasis = collapsed ? '44px' : '320px';
-        rail.style.width = collapsed ? '44px' : '320px';
-        rail.style.maxWidth = collapsed ? '44px' : '320px';
-        head.style.writingMode = collapsed ? 'vertical-rl' : '';
-        head.style.alignItems = collapsed ? 'center' : 'center';
-        head.style.gap = collapsed ? '10px' : '';
-        hide.textContent = collapsed ? 'Open' : 'Collapse';
+        collapse.textContent = collapsed ? 'Open' : 'Collapse';
       });
 
-      if (useEmbeddedMount) {
-        embedHost.style.display = 'flex';
-        embedHost.style.alignItems = 'stretch';
-        embedHost.style.gap = '0';
-        leftSide.style.flex = leftSide.style.flex || '1 1 auto';
-        leftSide.style.minWidth = leftSide.style.minWidth || '0';
-        embedHost.insertBefore(rail, leftSide);
+      const commentAnchor = findSpeedGraderCommentAnchor();
+      if (commentAnchor && commentAnchor !== rightSide && rightSide.contains(commentAnchor)) {
+        commentAnchor.insertAdjacentElement('beforebegin', panel);
       } else {
-        document.body.appendChild(rail);
+        rightSide.insertBefore(panel, rightSide.firstChild);
       }
       return true;
     }
-
     let _railPoll = 0;
     const _railTimer = setInterval(() => {
       mountSpeedGraderRail().then(mounted => {
@@ -1098,16 +1080,7 @@ Use 3-5 bullets. First must be TEACHER CHECK.`;
       }
       return false;
     }
-    let _aiPoll = 0;
-    const _aiTimer = setInterval(() => {
-      const attached = injectAiBtn();
-      if (++_aiPoll >= 30 || attached || document.getElementById('ce-ai-grade-btn')?.isConnected) {
-        clearInterval(_aiTimer);
-      }
-    }, 1000);
-
-    const _aiObserver = new MutationObserver(() => injectAiBtn());
-    _aiObserver.observe(document.body, { childList: true, subtree: true });
+    // Right-sidebar controls replace the old floating AI Grade button.
 
     function getCurrentCommentText() {
       const tiny = window.tinymce || window.tinyMCE;
