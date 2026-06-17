@@ -481,9 +481,10 @@
     panelBody.style.padding = '0';
     panelBody.style.overflow = 'hidden';
 
-    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_reports_prefs'], r));
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_reports_prefs', 'ces_teacher_name'], r));
     const token      = stored.ce_canvas_token;
     const savedPrefs = stored.ce_reports_prefs || {};
+    const teacherName = stored.ces_teacher_name || 'Your instructor';
     const urlCourseId = window.location.href.match(/\/courses\/(\d+)/)?.[1] || null;
     const savedIds = (savedPrefs.selectedIds || (savedPrefs.selectedId ? [savedPrefs.selectedId] : urlCourseId ? [urlCourseId] : [])).map(String);
     const selectedCourseIds = new Set(savedIds);
@@ -502,11 +503,14 @@
       });
     }
 
-    async function api(path) {
-      return new Promise(r => chrome.runtime.sendMessage({
+    async function api(path, options = {}) {
+      return new Promise((resolve, reject) => chrome.runtime.sendMessage({
         type: 'CANVAS_API',
-        payload: { url: `${origin}${path}`, token },
-      }, r));
+        payload: { url: `${origin}${path}`, token, method: options.method, body: options.body },
+      }, res => {
+        if (res?.error) reject(new Error(res.error));
+        else resolve(res);
+      }));
     }
 
     // ── COURSE PICKER ──────────────────────────────────────────────────────
@@ -755,6 +759,113 @@
       container.appendChild(d);
     }
 
+    function atRiskSubject(student) {
+      return `Progress check-in for ${student.courseName || 'class'}`;
+    }
+
+    function atRiskMessageBody(student) {
+      const assignmentLines = (student.letterSubs || student.flaggedSubs || []).slice(0, 8).map(sub => {
+        const due = sub.assignment?.due_at ? new Date(sub.assignment.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'No due date';
+        let status = 'Needs review';
+        if (sub.missing) status = 'Missing';
+        else if (sub.score != null && sub.assignment?.points_possible) {
+          const pct = Math.round((sub.score / sub.assignment.points_possible) * 100);
+          status = `${sub.score}/${sub.assignment.points_possible} (${pct}%)`;
+        } else if (sub.score == null) status = 'Not graded';
+        return `- ${sub.assignment?.name || 'Assignment'} (${due}): ${status}`;
+      });
+      const flags = student.flags?.length ? student.flags.map(flag => `- ${flag}`).join('\n') : '- Your current progress needs review.';
+      const workList = assignmentLines.length ? assignmentLines.join('\n') : '- Please review your recent Canvas grades, missing work, and feedback.';
+      return `Hi ${student.name},\n\nI am reaching out because Canvas is showing progress concerns in ${student.courseName || 'this course'}.\n\nWhat I am seeing:\n${flags}\n\nItems to review:\n${workList}\n\nPlease reply to this message with one next step you can take this week. If something is getting in the way, let me know so we can make a realistic plan.\n\nBest,\n${teacherName}`;
+    }
+
+    async function sendCanvasMessage(courseId, studentId, subject, body) {
+      return api('/api/v1/conversations', {
+        method: 'POST',
+        body: {
+          recipients: [String(studentId)],
+          subject,
+          body,
+          force_new: true,
+          group_conversation: false,
+          context_code: `course_${courseId}`,
+          mode: 'sync',
+        },
+      });
+    }
+
+    function renderMessageReview(container, students) {
+      const existing = container.querySelector('#ce-at-risk-message-review');
+      if (existing) existing.remove();
+
+      const review = el('div', `border:1px solid ${DS.border};border-radius:3px;background:${DS.white};padding:10px;display:flex;flex-direction:column;gap:10px;`, { id: 'ce-at-risk-message-review' });
+      const head = el('div', `display:flex;align-items:flex-start;justify-content:space-between;gap:8px;`);
+      const text = el('div', 'flex:1;min-width:0;');
+      const title = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
+      title.textContent = `${students.length} Canvas message${students.length !== 1 ? 's' : ''} ready for review`;
+      const sub = el('div', `font-size:12px;color:${DS.muted};line-height:1.45;margin-top:2px;`);
+      sub.textContent = 'Each student receives an individual Canvas Inbox message. No private student details are sent to the whole class.';
+      text.appendChild(title); text.appendChild(sub);
+      const close = btn('Cancel', `background:transparent;color:${DS.muted};border:1px solid ${DS.border};width:auto;padding:6px 10px;`);
+      close.addEventListener('click', () => review.remove());
+      head.appendChild(text); head.appendChild(close);
+      review.appendChild(head);
+
+      const previewStudent = students[0];
+      const preview = el('div', `background:${DS.gray};border:1px solid ${DS.border};border-radius:3px;padding:8px;font-size:12px;color:${DS.text};line-height:1.45;`);
+      const previewSubject = atRiskSubject(previewStudent);
+      const previewBody = atRiskMessageBody(previewStudent);
+      preview.textContent = `Preview for ${previewStudent.name}\nSubject: ${previewSubject}\n\n${previewBody}`;
+      review.appendChild(preview);
+
+      const list = el('div', `max-height:180px;overflow:auto;border:1px solid ${DS.border};border-radius:3px;`);
+      students.forEach((student, i) => {
+        const row = el('div', `display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 8px;border-bottom:${i === students.length - 1 ? 'none' : `1px solid ${DS.border}`};font-size:12px;`);
+        const label = el('div', 'min-width:0;');
+        label.textContent = `${student.name}${student.courseName ? ` · ${student.courseName}` : ''}`;
+        const sendOne = el('button', `border:1px solid ${DS.blue};background:${DS.white};color:${DS.blue};border-radius:3px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:${DS.font};`, { type: 'button', textContent: 'Send' });
+        sendOne.addEventListener('click', async () => {
+          sendOne.disabled = true; sendOne.textContent = 'Sending...';
+          try {
+            await sendCanvasMessage(student.courseId, student.studentId, atRiskSubject(student), atRiskMessageBody(student));
+            sendOne.textContent = 'Sent';
+            sendOne.style.background = '#ECFDF5';
+            sendOne.style.borderColor = '#86EFAC';
+            sendOne.style.color = DS.green;
+          } catch (err) {
+            sendOne.textContent = 'Failed';
+            sendOne.style.background = '#FEF2F2';
+            sendOne.style.borderColor = '#FCA5A5';
+            sendOne.style.color = '#991B1B';
+          }
+        });
+        row.appendChild(label); row.appendChild(sendOne);
+        list.appendChild(row);
+      });
+      review.appendChild(list);
+
+      const sendAll = btn('Send All Canvas Messages', `background:${DS.blue};color:#fff;`);
+      sendAll.addEventListener('click', async () => {
+        if (!confirm(`Send ${students.length} individual Canvas message${students.length !== 1 ? 's' : ''}?`)) return;
+        sendAll.disabled = true; sendAll.textContent = 'Sending...';
+        let sent = 0;
+        let failed = 0;
+        for (const student of students) {
+          try {
+            await sendCanvasMessage(student.courseId, student.studentId, atRiskSubject(student), atRiskMessageBody(student));
+            sent++;
+          } catch (_) {
+            failed++;
+          }
+        }
+        sendAll.disabled = false;
+        sendAll.textContent = failed ? `Sent ${sent}, ${failed} failed` : `Sent ${sent} message${sent !== 1 ? 's' : ''}`;
+      });
+      review.appendChild(sendAll);
+      container.appendChild(review);
+      review.scrollIntoView({ block: 'nearest' });
+    }
+
     // ── AT-RISK STUDENTS ───────────────────────────────────────────────────
     async function renderAtRiskTab() {
       const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`);
@@ -894,6 +1005,8 @@
 
               atRisk.push({
                 name, grade, subs, flaggedSubs, letterSubs, flags, courseName,
+                studentId: uid,
+                courseId: cId,
                 windows: { missingDays, lowScoreDays, zeroDays, lateDays },
               });
             }
@@ -987,15 +1100,19 @@
           }
           results.appendChild(list);
 
-          // Print buttons
-          const printRow = el('div', 'display:flex;gap:8px;');
-          const printListBtn = btn('🖨  Print Teacher Report', `background:${DS.white};color:${DS.text};border:1px solid ${DS.border};`);
-          printListBtn.style.width = '50%';
+          // Follow-up actions
+          const printRow = el('div', 'display:flex;gap:8px;flex-wrap:wrap;');
+          const messageBtn = btn('✉  Review Student Messages', `background:${DS.blue};color:#fff;flex:1 1 100%;`);
+          messageBtn.addEventListener('click', () => renderMessageReview(results, atRisk));
+          const printListBtn = btn('🖨  Print Teacher Findings', `background:${DS.white};color:${DS.text};border:1px solid ${DS.border};`);
+          printListBtn.style.flex = '1 1 0';
           printListBtn.addEventListener('click', () => printAtRisk(atRisk, false));
-          const printLetterBtn = btn('🖨  Student Letters', `background:${DS.white};color:${DS.text};border:1px solid ${DS.border};`);
-          printLetterBtn.style.width = '50%';
+          const printLetterBtn = btn('🖨  Print Batch Warning Letters', `background:${DS.white};color:${DS.text};border:1px solid ${DS.border};`);
+          printLetterBtn.style.flex = '1 1 0';
           printLetterBtn.addEventListener('click', () => printAtRisk(atRisk, true));
-          printRow.appendChild(printListBtn); printRow.appendChild(printLetterBtn);
+          printRow.appendChild(messageBtn);
+          printRow.appendChild(printListBtn);
+          printRow.appendChild(printLetterBtn);
           results.appendChild(printRow);
 
         } catch (e) {
@@ -1026,6 +1143,10 @@
         .student { margin-bottom: 28px; page-break-inside: avoid; }
         .stu-hdr { background: #394B58; color: #fff; padding: 7px 10px; display: flex; justify-content: space-between; }
         .stu-hdr span { font-size: 12pt; font-weight: bold; }
+        .findings { border: 1px solid #f3d17c; background: #fff8e1; padding: 8px 10px; margin: 0 0 8px; }
+        .findings strong { display: block; margin-bottom: 4px; }
+        .findings ul { margin: 0; padding-left: 18px; }
+        .next-steps { border: 1px solid #cbd5e1; background: #f8fafc; padding: 10px 12px; margin-top: 14px; }
         table { width: 100%; border-collapse: collapse; font-size: 10pt; }
         th { background: #f0f0f0; padding: 5px 8px; text-align: left; border-bottom: 2px solid #ccc; font-size: 9pt; }
         td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }
@@ -1051,6 +1172,7 @@
               <span>${s.name}</span>
               <span>${s.grade != null ? `Avg Grade: ${Math.round(s.grade)}%` : ''}</span>
             </div>
+            <div class="findings"><strong>Findings</strong><ul>${(s.flags || []).map(flag => `<li>${flag}</li>`).join('') || '<li>Progress needs teacher review.</li>'}</ul></div>
             <table><thead><tr><th>Assignment</th><th>Due Date</th><th>Score</th></tr></thead><tbody>`;
 
           s.subs.forEach(sub => {
@@ -1076,13 +1198,15 @@
         students.forEach((s, i) => {
           const letterSubs = s.letterSubs || s.flaggedSubs || [];
           body += `<div class="letter${i < students.length - 1 ? ' page-break' : ''}">
-            <h2>Academic Progress Notice</h2>
+            <h2>Academic Warning Notice</h2>
             <p><strong>${course}</strong> &nbsp;·&nbsp; ${date}</p>
             <p>Dear <strong>${s.name}</strong>,</p>
-            <p>This notice is to inform you of your current academic standing in this course.
+            <p>This notice is to inform you that your current progress in this course needs immediate attention.
                ${s.grade != null ? `Your current average grade is <strong>${Math.round(s.grade)}%</strong>.` : ''}
-               The following assignments require your immediate attention:</p>`;
+               Please review the findings below and take action this week.</p>
+            <div class="findings"><strong>Current concern(s)</strong><ul>${(s.flags || []).map(flag => `<li>${flag}</li>`).join('') || '<li>Progress needs review.</li>'}</ul></div>`;
           if (letterSubs.length) {
+            body += `<p>The following assignments or quiz scores require your attention:</p>`;
             body += `<table><thead><tr><th>Assignment</th><th>Due Date</th><th>Score / Status</th></tr></thead><tbody>`;
             letterSubs.forEach(sub => {
               const pp  = sub.assignment?.points_possible;
@@ -1098,7 +1222,7 @@
           } else {
             body += `<p><em>Please review all recent assignments and speak with your instructor about your current standing.</em></p>`;
           }
-          body += `<p style="margin-top:14px;">Please reach out to discuss how we can support your success in this course.</p>
+          body += `<div class="next-steps"><strong>Required next step:</strong> Please reply, submit missing work, or meet with your instructor to make a recovery plan. If something is getting in the way, communicate as soon as possible.</div>
             <div class="sig"><p>Sincerely,</p><p><em>____________________________</em><br>Instructor, ${course}</p></div>
           </div>`;
         });
