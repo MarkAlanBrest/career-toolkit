@@ -24,6 +24,16 @@
     floatBarRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
     floatBar.appendChild(floatBarRow);
 
+    function getSpeedGraderUrlParts() {
+      const params = new URLSearchParams(window.location.search);
+      const m = window.location.pathname.match(/\/courses\/(\d+)/);
+      return {
+        courseId:     m?.[1] || '',
+        assignmentId: params.get('assignment_id') || '',
+        studentId:    params.get('student_id')    || '',
+      };
+    }
+
     function findSpeedGraderToolbarAnchor() {
       const toolbarSelectors = [
         '.ic-app-header__actions',
@@ -117,17 +127,30 @@
       }
     }
 
+    const workspaceBtn = document.createElement('button');
+    workspaceBtn.id = 'ce-grader-workspace-btn';
+    workspaceBtn.textContent = 'Open Grader Workspace';
+    workspaceBtn.style.cssText = _barBtnCss;
+    workspaceBtn.addEventListener('click', () => {
+      const { courseId, assignmentId } = getSpeedGraderUrlParts();
+      const url = new URL('https://career-toolkit-ruby.vercel.app/grader');
+      url.searchParams.set('canvasBase', location.origin);
+      if (courseId) url.searchParams.set('courseId', courseId);
+      if (assignmentId) url.searchParams.set('assignmentId', assignmentId);
+      window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    });
+    floatBarRow.appendChild(workspaceBtn);
+
+    let _workspacePoll = 0;
+    const _workspaceTimer = setInterval(() => {
+      if (placeSpeedGraderFloatBar() || ++_workspacePoll >= 30) clearInterval(_workspaceTimer);
+    }, 1000);
+
     if (!token) return;
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
     function getUrlParts() {
-      const params = new URLSearchParams(window.location.search);
-      const m = window.location.pathname.match(/\/courses\/(\d+)/);
-      return {
-        courseId:     m?.[1] || '',
-        assignmentId: params.get('assignment_id') || '',
-        studentId:    params.get('student_id')    || '',
-      };
+      return getSpeedGraderUrlParts();
     }
 
     function loadSettings(courseId, assignmentId) {
