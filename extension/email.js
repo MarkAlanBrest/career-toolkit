@@ -2411,17 +2411,25 @@
         return false;
       }
 
-      const bodyInput  = getComposeBodyInput(document);
-      const subjectInput = getComposeSubjectInput(document);
-      if (!bodyInput && !subjectInput) {
+      // Use specific textarea selectors — avoid broad [contenteditable] which fires on the whole page
+      const bodyInput = document.querySelector(
+        'textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, textarea.message-body'
+      );
+      if (!bodyInput) {
         document.getElementById(PICKER_ID)?.remove();
         return false;
       }
 
+      // Find the compose form/dialog root so we insert at the right level
+      const formRoot = bodyInput.closest(
+        'form, [role="dialog"], [role="complementary"], .ReactModal__Content, [data-testid*="compose"]'
+      ) || bodyInput.parentElement;
+
       const existing = document.getElementById(PICKER_ID);
-      const anchor   = bodyInput || subjectInput;
-      if (existing && anchor.parentElement.contains(existing)) return true;
-      existing?.remove();
+      if (existing) {
+        if (formRoot.contains(existing)) return true;
+        existing.remove();
+      }
 
       const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
       const wrap = document.createElement('div');
@@ -2434,7 +2442,7 @@
 
         const hdr = document.createElement('button');
         hdr.type = 'button';
-        hdr.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#F5F5F5;border:none;border-bottom:' + (open ? '1px solid #C7CDD1' : 'none') + ';cursor:pointer;font-size:12px;font-weight:700;color:#2D3B45;font-family:inherit;';
+        hdr.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#F5F5F5;border:none;border-bottom:' + (open ? '1px solid #C7CDD1' : 'none') + ';cursor:pointer;font-size:12px;font-weight:700;color:#2D3B45;font-family:inherit;box-sizing:border-box;';
         hdr.innerHTML = '<span>Templates</span><span style="font-size:10px;color:#6B7280;">' + (open ? '▲' : '▼') + '</span>';
         hdr.addEventListener('click', () => render(!open));
         wrap.appendChild(hdr);
@@ -2478,10 +2486,15 @@
 
       render(false);
 
-      if (bodyInput) {
-        bodyInput.parentElement.insertBefore(wrap, bodyInput);
+      // Walk up from bodyInput to its direct child of formRoot, insert before that section
+      let insertBefore = bodyInput;
+      while (insertBefore.parentElement && insertBefore.parentElement !== formRoot) {
+        insertBefore = insertBefore.parentElement;
+      }
+      if (insertBefore.parentElement === formRoot) {
+        formRoot.insertBefore(wrap, insertBefore);
       } else {
-        subjectInput.parentElement.insertAdjacentElement('afterend', wrap);
+        bodyInput.parentElement.insertBefore(wrap, bodyInput);
       }
       return true;
     }
