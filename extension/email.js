@@ -54,24 +54,6 @@
     }
     .ces-close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
 
-    #ces-tabs {
-      display: flex;
-      border-bottom: 1px solid #C7CDD1;
-      flex-shrink: 0;
-      background: #F5F5F5;
-    }
-    .ces-tab {
-      padding: 8px 14px; cursor: pointer; border: none;
-      background: none; font-size: 12px; font-weight: 600;
-      color: #6B7280;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      transition: color .12s, border-color .12s;
-      font-family: inherit;
-    }
-    .ces-tab:hover { color: #0770B8; }
-    .ces-tab.active { color: #0770B8; border-bottom-color: #0770B8; }
-
     #ces-body { flex: 1; overflow-y: auto; padding: 16px; }
 
     .ces-label {
@@ -1216,12 +1198,8 @@
     box.className = 'ces-modal-box';
     box.innerHTML = `
       <div id="ces-header">
-        <h2>Messages</h2>
+        <h2 id="ces-modal-title">Messages</h2>
         <button class="ces-close-btn" id="ces-close">&times;</button>
-      </div>
-      <div id="ces-tabs">
-        <button class="ces-tab active" data-tab="send">Send</button>
-        <button class="ces-tab" data-tab="templates">Templates</button>
       </div>
       <div id="ces-body"></div>
     `;
@@ -1231,16 +1209,7 @@
 
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('ces-open'); });
     box.addEventListener('click', e => e.stopPropagation());
-
     box.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
-
-    box.querySelectorAll('.ces-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        box.querySelectorAll('.ces-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        showTab(tab.dataset.tab);
-      });
-    });
   }
 
   /* =========================================================
@@ -2678,8 +2647,15 @@
     const sendBtn = mkBtn('Bulk Message Students');
     const tplBtn  = mkBtn('Message Templates');
 
-    sendBtn.addEventListener('click', () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
-    tplBtn.addEventListener('click',  () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
+    function openModal(tab, title) {
+      if (!_overlay) return;
+      const t = document.getElementById('ces-modal-title');
+      if (t) t.textContent = title;
+      _overlay.classList.add('ces-open');
+      showTab(tab);
+    }
+    sendBtn.addEventListener('click', () => openModal('send',      'Bulk Message Students'));
+    tplBtn.addEventListener('click',  () => openModal('templates', 'Message Templates'));
 
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
@@ -2732,6 +2708,8 @@
     if (_overlay.classList.contains('ces-open')) {
       _overlay.classList.remove('ces-open');
     } else {
+      const t = document.getElementById('ces-modal-title');
+      if (t) t.textContent = 'Bulk Message Students';
       _overlay.classList.add('ces-open');
       showTab('send');
     }
