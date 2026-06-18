@@ -2587,24 +2587,33 @@
      INBOX TOOLBAR
   ========================================================= */
   function installInboxToolbar() {
-    if (!window.location.pathname.includes('/conversations')) return;
     if (document.getElementById('ces-inbox-bar')) return;
+
+    // CSS: when in inbox mode, hide the hub toolbar and compensate body padding
+    const st = document.createElement('style');
+    st.id = 'ces-inbox-style';
+    st.textContent = [
+      'body.ces-inbox-mode #ce-hub { display:none!important; }',
+      'body.ces-inbox-mode #ce-hub-panel { display:none!important; }',
+      'body.ces-inbox-mode { padding-top:56px!important; }',
+    ].join(' ');
+    (document.head || document.documentElement).appendChild(st);
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:fixed;top:56px;left:0;right:0;height:40px;z-index:2147483637;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 6px rgba(0,0,0,.2);display:flex;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:56px;z-index:2147483639;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px;gap:8px;font-family:' + font + ';box-sizing:border-box;';
 
-    const label = document.createElement('span');
-    label.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:6px;flex-shrink:0;';
-    label.textContent = 'Messages';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
+    lbl.textContent = 'Messages';
 
     function mkBtn(text) {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = text;
-      b.style.cssText = 'height:28px;padding:0 14px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;';
+      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
       b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
       b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
       return b;
@@ -2613,36 +2622,33 @@
     const sendBtn   = mkBtn('✉  Send Message');
     const tplBtn    = mkBtn('📄  Templates');
     const insertBtn = mkBtn('↪  Insert Comment');
-    insertBtn.style.display = 'none';
 
-    sendBtn.addEventListener('click', () => {
-      if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
-    });
-    tplBtn.addEventListener('click', () => {
-      if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); }
-    });
+    sendBtn.addEventListener('click', () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
+    tplBtn.addEventListener('click',  () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
     insertBtn.addEventListener('click', () => {
       document.dispatchEvent(new CustomEvent('ces-trigger-quick-panel', { detail: { anchor: insertBtn } }));
     });
 
-    bar.append(label, sendBtn, tplBtn, insertBtn);
+    bar.append(lbl, sendBtn, tplBtn, insertBtn);
     document.body.appendChild(bar);
 
     function updateBar() {
-      if (!window.location.pathname.includes('/conversations')) {
+      const onInbox = window.location.pathname.includes('/conversations');
+      if (onInbox) {
+        document.body.classList.add('ces-inbox-mode');
+        bar.style.display = 'flex';
+        const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
+        sendBtn.style.display   = hasCompose ? 'none' : '';
+        tplBtn.style.display    = hasCompose ? 'none' : '';
+        insertBtn.style.display = hasCompose ? ''     : 'none';
+      } else {
+        document.body.classList.remove('ces-inbox-mode');
         bar.style.display = 'none';
-        return;
       }
-      bar.style.display = 'flex';
-      const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
-      sendBtn.style.display   = hasCompose ? 'none' : '';
-      tplBtn.style.display    = hasCompose ? 'none' : '';
-      insertBtn.style.display = hasCompose ? '' : 'none';
     }
 
     updateBar();
-    const mo = new MutationObserver(() => setTimeout(updateBar, 150));
-    mo.observe(document.body, { childList: true, subtree: true });
+    new MutationObserver(() => setTimeout(updateBar, 200)).observe(document.body, { childList: true, subtree: false });
     setInterval(updateBar, 1500);
   }
 
