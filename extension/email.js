@@ -2459,22 +2459,10 @@
       return true;
     }
 
-    injectQuickButton();
-    let scheduled = false;
-    const scheduleInject = () => {
-      if (scheduled) return;
-      scheduled = true;
-      window.setTimeout(() => {
-        scheduled = false;
-        injectQuickButton();
-      }, 600);
-    };
-    const observer = new MutationObserver(scheduleInject);
-    observer.observe(document.body, { childList: true });
-    const interval = window.setInterval(() => {
-      if (!window.location.pathname.includes('/conversations')) return;
-      injectQuickButton();
-    }, 2000);
+    document.addEventListener('ces-trigger-quick-panel', e => {
+      const anchor = e.detail?.anchor;
+      if (anchor) toggleQuickPanel(anchor);
+    });
   }
 
   /* =========================================================
@@ -2596,6 +2584,69 @@
   }
 
   /* =========================================================
+     INBOX TOOLBAR
+  ========================================================= */
+  function installInboxToolbar() {
+    if (!window.location.pathname.includes('/conversations')) return;
+    if (document.getElementById('ces-inbox-bar')) return;
+
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
+
+    const bar = document.createElement('div');
+    bar.id = 'ces-inbox-bar';
+    bar.style.cssText = 'position:fixed;top:56px;left:0;right:0;height:40px;z-index:2147483637;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 6px rgba(0,0,0,.2);display:flex;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';';
+
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:6px;flex-shrink:0;';
+    label.textContent = 'Messages';
+
+    function mkBtn(text) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.style.cssText = 'height:28px;padding:0 14px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      return b;
+    }
+
+    const sendBtn   = mkBtn('✉  Send Message');
+    const tplBtn    = mkBtn('📄  Templates');
+    const insertBtn = mkBtn('↪  Insert Comment');
+    insertBtn.style.display = 'none';
+
+    sendBtn.addEventListener('click', () => {
+      if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); }
+    });
+    tplBtn.addEventListener('click', () => {
+      if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); }
+    });
+    insertBtn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('ces-trigger-quick-panel', { detail: { anchor: insertBtn } }));
+    });
+
+    bar.append(label, sendBtn, tplBtn, insertBtn);
+    document.body.appendChild(bar);
+
+    function updateBar() {
+      if (!window.location.pathname.includes('/conversations')) {
+        bar.style.display = 'none';
+        return;
+      }
+      bar.style.display = 'flex';
+      const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
+      sendBtn.style.display   = hasCompose ? 'none' : '';
+      tplBtn.style.display    = hasCompose ? 'none' : '';
+      insertBtn.style.display = hasCompose ? '' : 'none';
+    }
+
+    updateBar();
+    const mo = new MutationObserver(() => setTimeout(updateBar, 150));
+    mo.observe(document.body, { childList: true, subtree: true });
+    setInterval(updateBar, 1500);
+  }
+
+  /* =========================================================
      HUB INTEGRATION
   ========================================================= */
   document.addEventListener('ce-toggle-messages', () => {
@@ -2615,4 +2666,5 @@
   checkComposePageHelper();
   installQuickMessageInserter();
   installSpeedGraderInserter();
+  installInboxToolbar();
 })();
