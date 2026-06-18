@@ -15,37 +15,44 @@
   _style.textContent = `
     #ces-overlay {
       position: fixed;
-      top: 0; bottom: 0;
-      right: 52px;
-      width: 30vw; min-width: 460px; max-width: 580px;
+      inset: 0;
       z-index: 2147483638;
-      background: #fff;
-      border-left: 1px solid #C7CDD1;
-      box-shadow: -4px 0 16px rgba(0,0,0,.1);
-      display: none; flex-direction: column;
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(2px);
+      display: none; align-items: center; justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", sans-serif;
       color: #2D3B45;
     }
     #ces-overlay.ces-open { display: flex; }
 
-    #ces-header {
-      height: 44px; flex-shrink: 0;
+    .ces-modal-box {
       background: #fff;
-      border-bottom: 1px solid #C7CDD1;
-      display: flex; align-items: center; padding: 0 16px; gap: 8px;
+      width: min(680px, calc(100vw - 48px));
+      max-height: min(700px, calc(100vh - 80px));
+      border-radius: 10px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.28);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    #ces-header {
+      height: 52px; flex-shrink: 0;
+      background: #1B303D;
+      display: flex; align-items: center; padding: 0 16px; gap: 10px;
     }
     #ces-header h2 {
       flex: 1; margin: 0;
-      font-size: 14px; font-weight: 700; color: #2D3B45;
+      font-size: 15px; font-weight: 700; color: #fff;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .ces-close-btn {
-      background: none; border: none; color: #6B7280;
-      font-size: 20px; cursor: pointer; line-height: 1;
-      padding: 0 2px; flex-shrink: 0;
-      transition: color .12s;
+      width: 32px; height: 32px; flex-shrink: 0;
+      background: none; border: none; color: rgba(255,255,255,0.65);
+      font-size: 22px; cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; padding: 0;
+      transition: background .12s, color .12s;
     }
-    .ces-close-btn:hover { color: #2D3B45; }
+    .ces-close-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
 
     #ces-tabs {
       display: flex;
@@ -1204,9 +1211,12 @@
   function buildUI() {
     const overlay = document.createElement('div');
     overlay.id = 'ces-overlay';
-    overlay.innerHTML = `
+
+    const box = document.createElement('div');
+    box.className = 'ces-modal-box';
+    box.innerHTML = `
       <div id="ces-header">
-        <h2>&#9993; Messages</h2>
+        <h2>Messages</h2>
         <button class="ces-close-btn" id="ces-close">&times;</button>
       </div>
       <div id="ces-tabs">
@@ -1215,14 +1225,18 @@
       </div>
       <div id="ces-body"></div>
     `;
+    overlay.appendChild(box);
     document.body.appendChild(overlay);
     _overlay = overlay;
 
-    overlay.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('ces-open'); });
+    box.addEventListener('click', e => e.stopPropagation());
 
-    overlay.querySelectorAll('.ces-tab').forEach(tab => {
+    box.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
+
+    box.querySelectorAll('.ces-tab').forEach(tab => {
       tab.addEventListener('click', () => {
-        overlay.querySelectorAll('.ces-tab').forEach(t => t.classList.remove('active'));
+        box.querySelectorAll('.ces-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         showTab(tab.dataset.tab);
       });
