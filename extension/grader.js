@@ -566,7 +566,7 @@
         [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
-      function makeModalHeader(icon, title, subtitle) {
+      function makeModalHeader(icon, title, subtitle, subtitleId) {
         const hdr = document.createElement('div');
         hdr.className = 'ce-sg-mhdr';
         const ico = document.createElement('span');
@@ -578,10 +578,11 @@
         const ttl = document.createElement('span');
         ttl.textContent = title;
         ttlWrap.appendChild(ttl);
-        if (subtitle) {
+        if (subtitle !== undefined) {
           const sub = document.createElement('span');
           sub.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.6);font-weight:400;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
           sub.textContent = subtitle;
+          if (subtitleId) sub.id = subtitleId;
           ttlWrap.appendChild(sub);
         }
         const x = document.createElement('button');
@@ -777,7 +778,7 @@
 
           const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           closeBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || ''), body, mkFooter(closeBtn));
+          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub'), body, mkFooter(closeBtn));
 
         } else if (mode === 'criteria') {
           criteriaBtn.classList.add('ce-sg-btn-primary');
@@ -1225,7 +1226,11 @@
         ctx.assignmentName = '';
       }
       lastStudentId = studentId;
-      fetchSubmission();
+      fetchSubmission().then(newCtx => {
+        if (!newCtx) return;
+        const nameSub = document.getElementById('ce-ai-grade-name-sub');
+        if (nameSub) nameSub.textContent = newCtx.studentName || '';
+      });
       // Reset the AI Grade button for the new student
       const btn = document.getElementById('ce-ai-grade-btn');
       if (btn) { btn.textContent = '✦ AI Grade'; btn.style.background = '#fff'; btn.style.color = '#2d3b45'; btn.disabled = false; }
