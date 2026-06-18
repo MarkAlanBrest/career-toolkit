@@ -2589,21 +2589,28 @@
   function installInboxToolbar() {
     if (document.getElementById('ces-inbox-bar')) return;
 
-    // CSS: when in inbox mode, hide the hub toolbar and compensate body padding
-    const st = document.createElement('style');
-    st.id = 'ces-inbox-style';
-    st.textContent = [
-      'body.ces-inbox-mode #ce-hub { display:none!important; }',
-      'body.ces-inbox-mode #ce-hub-panel { display:none!important; }',
-      'body.ces-inbox-mode { padding-top:56px!important; }',
-    ].join(' ');
-    (document.head || document.documentElement).appendChild(st);
-
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
+    // CSS: hides hub toolbar on inbox pages (inbox bar takes its place in flow)
+    const st = document.createElement('style');
+    st.id = 'ces-inbox-style';
+    st.textContent = 'body.ces-inbox-mode #ce-hub { display:none!important; } body.ces-inbox-mode #ce-hub-panel { display:none!important; }';
+    (document.head || document.documentElement).appendChild(st);
+
+    // ── COLLAPSED TAB ────────────────────────────────────────────────────────
+    const colTab = document.createElement('button');
+    colTab.id = 'ces-inbox-tab';
+    colTab.type = 'button';
+    colTab.textContent = 'Messages  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
+    colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
+    document.body.appendChild(colTab);
+
+    // ── FULL BAR ─────────────────────────────────────────────────────────────
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:56px;z-index:2147483639;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px;gap:8px;font-family:' + font + ';box-sizing:border-box;';
+    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
 
     const lbl = document.createElement('span');
     lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
@@ -2619,32 +2626,60 @@
       return b;
     }
 
-    const sendBtn   = mkBtn('✉  Send Message');
-    const tplBtn    = mkBtn('📄  Templates');
-    const insertBtn = mkBtn('↪  Insert Comment');
+    const sendBtn   = mkBtn('Bulk Message Students');
+    const tplBtn    = mkBtn('Message Templates');
+    const insertBtn = mkBtn('Insert Template');
 
-    sendBtn.addEventListener('click', () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
-    tplBtn.addEventListener('click',  () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
+    sendBtn.addEventListener('click',   () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
+    tplBtn.addEventListener('click',    () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
     insertBtn.addEventListener('click', () => {
       document.dispatchEvent(new CustomEvent('ces-trigger-quick-panel', { detail: { anchor: insertBtn } }));
     });
 
-    bar.append(lbl, sendBtn, tplBtn, insertBtn);
-    document.body.appendChild(bar);
+    // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
+    const hideBtn = mkBtn('Hide');
+    hideBtn.style.marginLeft = 'auto';
+    hideBtn.addEventListener('click', () => {
+      bar.style.display = 'none';
+      colTab.style.display = 'block';
+      document.body.classList.add('ces-inbox-collapsed');
+    });
+    colTab.addEventListener('click', () => {
+      colTab.style.display = 'none';
+      bar.style.display = 'flex';
+      document.body.classList.remove('ces-inbox-collapsed');
+    });
+
+    bar.append(lbl, sendBtn, tplBtn, insertBtn, hideBtn);
+    // Insert before all other body children so it's first in document flow
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    let _onInbox = false;
 
     function updateBar() {
       const onInbox = window.location.pathname.includes('/conversations');
-      if (onInbox) {
+
+      if (onInbox && !_onInbox) {
+        // Just arrived at inbox — expand by default
         document.body.classList.add('ces-inbox-mode');
+        document.body.classList.remove('ces-inbox-collapsed');
         bar.style.display = 'flex';
-        const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
-        sendBtn.style.display   = hasCompose ? 'none' : '';
-        tplBtn.style.display    = hasCompose ? 'none' : '';
-        insertBtn.style.display = hasCompose ? ''     : 'none';
-      } else {
-        document.body.classList.remove('ces-inbox-mode');
+        colTab.style.display = 'none';
+      } else if (!onInbox && _onInbox) {
+        // Left inbox — restore hub toolbar
+        document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
         bar.style.display = 'none';
+        colTab.style.display = 'none';
       }
+      _onInbox = onInbox;
+
+      if (!onInbox) return;
+
+      // Switch between compose state and inbox state
+      const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
+      sendBtn.style.display   = hasCompose ? 'none' : '';
+      tplBtn.style.display    = hasCompose ? 'none' : '';
+      insertBtn.style.display = hasCompose ? ''     : 'none';
     }
 
     updateBar();
