@@ -75,9 +75,9 @@
   const toolbar = el('div', `
     position:relative;width:100%;height:${TOOLBAR_H}px;
     z-index:10;
-    background:${DS.white};
-    border-bottom:1px solid ${DS.border};
-    box-shadow:0 2px 8px rgba(0,0,0,.10);
+    background:${DS.navBg};
+    border-bottom:1px solid ${DS.navActive};
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
     display:flex;flex-direction:row;align-items:stretch;
     font-family:${DS.font};
     transition:transform .2s ease;
@@ -89,7 +89,8 @@
   const nav = el('div', `
     flex:1;height:100%;min-width:0;
     display:flex;flex-direction:row;align-items:stretch;
-    padding:0 8px;gap:2px;overflow-x:auto;overflow-y:hidden;
+    padding:0 8px;gap:0;overflow-x:auto;overflow-y:hidden;
+    justify-content:center;
   `);
 
   const btnMap     = {};
@@ -104,15 +105,15 @@
 
       const hdr = el('button', `
         width:auto;min-width:84px;height:100%;flex-shrink:0;
-        border:none;border-right:1px solid ${DS.border};
-        background:${DS.gray};cursor:pointer;
+        border:none;border-right:1px solid rgba(255,255,255,0.15);
+        background:transparent;cursor:pointer;
         display:flex;align-items:center;justify-content:center;gap:6px;
         padding:0 10px;box-sizing:border-box;
         font-family:${DS.font};
       `, { type: 'button' });
-      const hdrLabel = el('span', `font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:${DS.muted};font-weight:700;`);
+      const hdrLabel = el('span', `font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:rgba(255,255,255,0.45);font-weight:700;`);
       hdrLabel.textContent = tool.label;
-      const hdrArrow = el('span', `font-size:10px;color:${DS.muted};transition:transform .2s;`);
+      const hdrArrow = el('span', `font-size:10px;color:rgba(255,255,255,0.45);transition:transform .2s;`);
       hdrArrow.textContent = '▾';
       hdr.appendChild(hdrLabel);
       hdr.appendChild(hdrArrow);
@@ -133,34 +134,23 @@
     btnGroupBg[tool.id] = groupBg;
 
     const btn = el('button', `
-      width:78px;height:100%;
+      height:100%;padding:0 18px;flex-shrink:0;
       border:none;border-bottom:3px solid transparent;
-      background:${groupBg};cursor:pointer;
+      background:transparent;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
-      font-family:${DS.font};transition:background .12s;flex-shrink:0;
-      box-sizing:border-box;
+      font-family:${DS.font};transition:background .12s;
+      box-sizing:border-box;position:relative;
     `, { type: 'button', title: tool.label });
 
-    const inner = el('div', `
-      display:flex;flex-direction:column;align-items:center;justify-content:center;
-      gap:3px;pointer-events:none;
-    `);
-
-    const icon = el('span', 'font-size:18px;line-height:1;display:block;text-align:center;');
-    icon.textContent = tool.icon;
-
-    const label = el('span', `display:block;text-align:center;font-size:10px;color:${DS.text};opacity:.8;letter-spacing:.2px;text-transform:uppercase;font-weight:700;`);
+    const label = el('span', `display:block;text-align:center;font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:.3px;text-transform:uppercase;font-weight:700;pointer-events:none;`);
     label.textContent = tool.label;
-
-    inner.appendChild(icon);
-    inner.appendChild(label);
-    btn.appendChild(inner);
+    btn.appendChild(label);
 
     btn.addEventListener('mouseenter', () => {
-      if (_active !== tool.id) btn.style.background = '#EEF2F4';
+      if (_active !== tool.id) btn.style.background = 'rgba(255,255,255,0.12)';
     });
     btn.addEventListener('mouseleave', () => {
-      if (_active !== tool.id) btn.style.background = groupBg;
+      if (_active !== tool.id) btn.style.background = 'transparent';
     });
     btn.addEventListener('click', () => onToolClick(tool));
 
@@ -172,15 +162,15 @@
   // Collapse button
   const collapseBtn = el('button', `
     width:54px;height:100%;flex-shrink:0;
-    border:none;border-left:1px solid ${DS.border};
-    background:${DS.gray};cursor:pointer;
-    font-size:11px;color:${DS.text};opacity:.75;
+    border:none;border-left:1px solid rgba(255,255,255,0.15);
+    background:transparent;cursor:pointer;
+    font-size:14px;color:rgba(255,255,255,0.65);
     font-family:${DS.font};
     display:flex;align-items:center;justify-content:center;
-    transition:opacity .12s;
+    transition:background .12s,color .12s;
   `, { type: 'button', title: 'Collapse toolbar', textContent: '◀' });
-  collapseBtn.addEventListener('mouseenter', () => collapseBtn.style.opacity = '1');
-  collapseBtn.addEventListener('mouseleave', () => collapseBtn.style.opacity = '.6');
+  collapseBtn.addEventListener('mouseenter', () => { collapseBtn.style.background = 'rgba(255,255,255,0.12)'; collapseBtn.style.color = '#fff'; });
+  collapseBtn.addEventListener('mouseleave', () => { collapseBtn.style.background = 'transparent'; collapseBtn.style.color = 'rgba(255,255,255,0.65)'; });
   collapseBtn.addEventListener('click', toggleToolbar);
   toolbar.appendChild(collapseBtn);
 
@@ -189,13 +179,13 @@
     position:relative;margin-left:auto;
     z-index:10;
     width:118px;height:26px;
-    border:1px solid ${DS.border};border-top:none;
+    border:1px solid ${DS.navActive};border-top:none;
     border-radius:0 0 4px 4px;
-    background:${DS.white};
-    box-shadow:0 2px 8px rgba(0,0,0,.14);
+    background:${DS.navBg};
+    box-shadow:0 2px 8px rgba(0,0,0,.22);
     cursor:pointer;display:none;
     align-items:center;justify-content:center;
-    font-size:11px;color:${DS.text};font-weight:700;
+    font-size:11px;color:#fff;font-weight:700;
     font-family:${DS.font};
   `, { type: 'button', title: 'Open Canvas Enhancer', textContent: 'Canvas Enhancer' });
   tab.addEventListener('click', toggleToolbar);
@@ -2303,23 +2293,17 @@
 
   function setActive(id) {
     if (_active && btnMap[_active]) {
-      btnMap[_active].style.background = btnGroupBg[_active] || 'transparent';
+      btnMap[_active].style.background = 'transparent';
       btnMap[_active].style.borderBottomColor = 'transparent';
-      const lbl = btnMap[_active].querySelector('span:last-child');
-      if (lbl) {
-        lbl.style.opacity = '.8';
-        lbl.style.color = DS.text;
-      }
+      const lbl = btnMap[_active].querySelector('span');
+      if (lbl) lbl.style.color = 'rgba(255,255,255,0.8)';
     }
     _active = id;
     if (id && btnMap[id]) {
-      btnMap[id].style.background = DS.navActive;
-      btnMap[id].style.borderBottomColor = DS.blue;
-      const lbl = btnMap[id].querySelector('span:last-child');
-      if (lbl) {
-        lbl.style.opacity = '1';
-        lbl.style.color = DS.navText;
-      }
+      btnMap[id].style.background = 'rgba(255,255,255,0.18)';
+      btnMap[id].style.borderBottomColor = '#fff';
+      const lbl = btnMap[id].querySelector('span');
+      if (lbl) lbl.style.color = '#fff';
     }
   }
 

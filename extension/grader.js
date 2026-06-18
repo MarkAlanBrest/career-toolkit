@@ -315,11 +315,11 @@
         #ce-sg-toolbar * { box-sizing:border-box; }
         .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:0; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
         .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:#fff; display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
-        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:transparent; color:rgba(255,255,255,0.75); padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; transition:background 0.15s; }
+        .ce-sg-btn { height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:transparent; color:rgba(255,255,255,0.75); padding:0 18px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; transition:background 0.15s; }
         .ce-sg-badge { position:absolute;top:5px;right:5px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
         .ce-sg-btn-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; pointer-events:none; }
         .ce-sg-btn-icon { font-size:18px; line-height:1; display:block; text-align:center; }
-        .ce-sg-btn-label { display:block; text-align:center; font-size:10px; color:rgba(255,255,255,0.65); letter-spacing:.3px; text-transform:uppercase; font-weight:700; line-height:1.05; }
+        .ce-sg-btn-label { display:block; text-align:center; font-size:11px; color:rgba(255,255,255,0.8); letter-spacing:.3px; text-transform:uppercase; font-weight:700; line-height:1; }
         .ce-sg-btn:hover { background:rgba(255,255,255,0.12); }
         .ce-sg-btn-primary { border-bottom-color:#fff !important; background:rgba(255,255,255,0.18) !important; color:#fff !important; }
         .ce-sg-btn-primary .ce-sg-btn-label { color:#fff !important; }
@@ -374,7 +374,7 @@
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
       brand.textContent = 'Grading';
-      const queueBtn = ceSgToolbarButton('Queue', false, '📬');
+      const queueBtn = ceSgToolbarButton('Queue', false);
       const queueBadge = document.createElement('span');
       queueBadge.className = 'ce-sg-badge';
       queueBtn.appendChild(queueBadge);
@@ -382,10 +382,10 @@
         if (count > 0) { queueBadge.textContent = String(count); queueBadge.style.display = ''; }
         else { queueBadge.style.display = 'none'; }
       }
-      const aiBtn = ceSgToolbarButton('AI Grade', false, '🎓');
-      const commentsBtn = ceSgToolbarButton('Comments', false, '💬');
-      const auditBtn = ceSgToolbarButton('Audit', false, '🔍');
-      const collapseBtn = ceSgToolbarButton('Hide', false, '▴');
+      const aiBtn = ceSgToolbarButton('AI Grade', false);
+      const commentsBtn = ceSgToolbarButton('Comments', false);
+      const auditBtn = ceSgToolbarButton('Audit', false);
+      const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
       main.append(brand, queueBtn, aiBtn, commentsBtn, auditBtn, collapseBtn);
       bar.appendChild(main);
@@ -464,24 +464,14 @@
       refreshQueueBtn.className = 'ce-sg-abtn ce-sg-abtn-primary';
       refreshQueueBtn.textContent = '↻ Refresh';
 
-      function ceSgToolbarButton(label, primary, iconText) {
+      function ceSgToolbarButton(label, primary) {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = primary ? 'ce-sg-btn ce-sg-btn-primary' : 'ce-sg-btn';
-        if (iconText) {
-          const inner = document.createElement('div');
-          inner.className = 'ce-sg-btn-inner';
-          const icon = document.createElement('span');
-          icon.className = 'ce-sg-btn-icon';
-          icon.textContent = iconText;
-          const text = document.createElement('span');
-          text.className = 'ce-sg-btn-label';
-          text.textContent = label;
-          inner.append(icon, text);
-          b.appendChild(inner);
-        } else {
-          b.textContent = label;
-        }
+        const text = document.createElement('span');
+        text.className = 'ce-sg-btn-label';
+        text.textContent = label;
+        b.appendChild(text);
         return b;
       }
 
