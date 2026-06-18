@@ -217,11 +217,25 @@
       return false;
     }
 
+    function ceSgToast(msg, ok) {
+      const t = document.createElement('div');
+      t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:${ok === false ? '#C0392B' : '#127A1B'};color:#fff;padding:10px 22px;border-radius:6px;font-size:13px;font-weight:600;z-index:2147483640;box-shadow:0 4px 14px rgba(0,0,0,.3);font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;pointer-events:none;white-space:nowrap;`;
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2800);
+    }
+
     function ceSgInsertComment(value, append) {
-      const opener = document.querySelector('button[data-testid*="add-comment" i],button[aria-label*="add comment" i],button[title*="add comment" i],a[aria-label*="add comment" i],a[title*="add comment" i],.add_comment_link,#add_a_comment');
+      // Click opener to make sure the comment area is visible
+      const opener = document.querySelector([
+        'button[data-testid*="add-comment" i]', 'button[aria-label*="add comment" i]',
+        'button[title*="add comment" i]', 'a[aria-label*="add comment" i]',
+        'a[title*="add comment" i]', '.add_comment_link', '#add_a_comment',
+      ].join(','));
       try { opener?.click(); } catch (_) {}
 
       function tryInsert() {
+        // 1. TinyMCE editor
         const tiny = window.tinymce || window.tinyMCE;
         if (tiny?.get) {
           for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
@@ -235,28 +249,44 @@
             }
           }
         }
+        // 2. Specific well-known selectors
         const selectors = [
-          '#speed_grader_comment_textarea', '#speedgrader_textarea', 'textarea[name="comment[text_comment]"]',
-          '#grading_comment', '#comment_textarea', '.submission-comment-form textarea', '.grading_comment textarea',
-          'textarea[data-testid*="comment" i]', 'textarea[aria-label*="comment" i]', 'textarea[placeholder*="comment" i]',
-          '#comments_container textarea', '#submission_comment_form textarea', '.comment-input textarea',
-          '#right_side textarea', '#right_side_inner textarea', '[contenteditable="true"][aria-label*="comment" i]',
-          '[contenteditable="true"][data-testid*="comment" i]', '.tox-edit-area [contenteditable="true"]',
+          '#speed_grader_comment_textarea', '#speedgrader_textarea',
+          'textarea[name="comment[text_comment]"]', '#grading_comment', '#comment_textarea',
+          'textarea[data-testid*="comment" i]', 'textarea[aria-label*="comment" i]',
+          'textarea[placeholder*="comment" i]', '#comments_container textarea',
+          '#submission_comment_form textarea', '.submission-comment-form textarea',
+          '#right_side textarea', '#right_side_inner textarea',
+          '[contenteditable="true"][aria-label*="comment" i]',
+          '[contenteditable="true"][data-testid*="comment" i]',
+          '.tox-edit-area [contenteditable="true"]',
         ];
         for (const sel of selectors) {
           const el = document.querySelector(sel);
-          if (!el) continue;
+          if (!el || el.closest('#ce-sg-toolbar')) continue;
           const current = append ? (el.value || el.innerText || '').trim() : '';
-          const next = current ? `${current}\n\n${value}` : value;
-          if (ceSgSetValue(el, next)) return true;
+          if (ceSgSetValue(el, current ? `${current}\n\n${value}` : value)) return true;
+        }
+        // 3. Last resort: any visible textarea not inside our toolbar
+        for (const el of document.querySelectorAll('textarea')) {
+          if (el.disabled || el.readOnly || el.offsetParent === null || el.closest('#ce-sg-toolbar')) continue;
+          const current = append ? (el.value || '').trim() : '';
+          if (ceSgSetValue(el, current ? `${current}\n\n${value}` : value)) return true;
         }
         return false;
       }
 
-      if (!tryInsert()) {
+      if (tryInsert()) {
+        ceSgToast('✓ Comment inserted');
+      } else {
         setTimeout(() => {
-          if (!tryInsert()) navigator.clipboard?.writeText(value).catch(() => {});
-        }, 400);
+          if (tryInsert()) {
+            ceSgToast('✓ Comment inserted');
+          } else {
+            navigator.clipboard?.writeText(value).catch(() => {});
+            ceSgToast('Copied to clipboard — paste into the comment box', false);
+          }
+        }, 500);
       }
     }
 
