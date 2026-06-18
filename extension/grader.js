@@ -325,8 +325,6 @@
         .ce-sg-btn-primary .ce-sg-btn-label { color:#fff !important; }
         .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid rgba(255,255,255,0.15); }
         #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #394B58; border-top:none; border-radius:0 0 4px 4px; background:#394B58; box-shadow:0 2px 8px rgba(0,0,0,.22); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
-        .ce-sg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2147483637; display:none; pointer-events:none; }
-        .ce-sg-overlay.ce-open { display:block; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2147483638; border-radius:8px; background:#fff; box-shadow:0 24px 64px rgba(0,0,0,.32),0 0 0 1px rgba(0,0,0,0.08); flex-direction:column; overflow:hidden; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sz-sm { width:min(520px,calc(100vw - 48px)); max-height:min(480px,calc(100vh - 80px)); }
@@ -394,9 +392,6 @@
       drawer.className = 'ce-sg-drawer';
       bar.appendChild(drawer);
 
-      const overlay = document.createElement('div');
-      overlay.className = 'ce-sg-overlay';
-
       const tab = document.createElement('button');
       tab.id = 'ce-sg-tab';
       tab.type = 'button';
@@ -409,7 +404,6 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          overlay.classList.remove('ce-open');
           [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
@@ -483,7 +477,6 @@
 
       function closeDrawer() {
         drawer.classList.remove('ce-open');
-        overlay.classList.remove('ce-open');
         [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
@@ -536,7 +529,6 @@
         drawer.innerHTML = '';
         drawer.className = 'ce-sg-drawer';
         drawer.classList.add('ce-open');
-        overlay.classList.add('ce-open');
         [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
 
         if (mode === 'needs') {
@@ -670,26 +662,117 @@
           commentsBtn.classList.add('ce-sg-btn-primary');
           drawer.classList.add('ce-sz-md');
 
-          snippetSelect.size = 7;
-          snippetSelect.style.cssText = 'flex:1;min-height:0;height:auto;';
-          const leftCol = document.createElement('div');
-          leftCol.className = 'ce-sg-mcol';
-          leftCol.append(mkFgrp('Saved Comments', snippetSelect, true));
+          function parseSnippets() {
+            return (snippetEdit.value || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+          }
+          function saveSnippets(arr) {
+            snippetEdit.value = arr.join('\n\n');
+            ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value });
+          }
 
-          snippetEdit.style.cssText = 'flex:1;min-height:0;';
-          const rightCol = document.createElement('div');
-          rightCol.className = 'ce-sg-mcol';
-          rightCol.append(mkFgrp('Edit Saved Comments', snippetEdit, true));
+          const listBody = document.createElement('div');
+          listBody.className = 'ce-sg-mbody';
+          listBody.style.gap = '8px';
 
-          const split = document.createElement('div');
-          split.className = 'ce-sg-mbody-split';
-          split.append(leftCol, rightCol);
+          function renderComments() {
+            listBody.innerHTML = '';
+            const snippets = parseSnippets();
+            if (!snippets.length) {
+              const empty = document.createElement('div');
+              empty.className = 'ce-sg-status-text';
+              empty.style.cssText = 'text-align:center;padding:32px 0;';
+              empty.textContent = 'No saved comments yet. Click Add Comment to create one.';
+              listBody.appendChild(empty);
+              return;
+            }
+            snippets.forEach((text, idx) => {
+              const card = document.createElement('div');
+              card.style.cssText = 'border:1px solid #e8eaec;border-radius:4px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:8px;';
 
-          const cancelBtn = mkAbtn('Cancel', 'ce-sg-abtn-secondary');
-          cancelBtn.addEventListener('click', closeDrawer);
-          const insertBtn = mkAbtn('↪ Insert Selected', 'ce-sg-abtn-success');
-          insertBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
-          drawer.append(makeModalHeader('💬', 'Comment Snippets'), split, mkFooter(cancelBtn, insertBtn));
+              const preview = document.createElement('div');
+              preview.style.cssText = 'font-size:13px;color:#2D3B45;line-height:1.5;';
+              preview.textContent = text;
+
+              const actions = document.createElement('div');
+              actions.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+
+              function smBtn(label, cls) {
+                const b = mkAbtn(label, cls);
+                b.style.cssText += 'height:28px;font-size:12px;padding:0 12px;';
+                return b;
+              }
+
+              const insBtn = smBtn('↪ Insert', 'ce-sg-abtn-success');
+              insBtn.addEventListener('click', () => ceSgInsertComment(text, true));
+
+              const editBtn = smBtn('Edit', 'ce-sg-abtn-secondary');
+              editBtn.addEventListener('click', () => {
+                card.innerHTML = '';
+                const ta = document.createElement('textarea');
+                ta.className = 'ce-sg-textarea';
+                ta.style.minHeight = '80px';
+                ta.value = text;
+                const saveBtn = smBtn('Save', 'ce-sg-abtn-primary');
+                saveBtn.addEventListener('click', () => {
+                  const updated = parseSnippets();
+                  updated[idx] = ta.value.trim();
+                  saveSnippets(updated.filter(Boolean));
+                  renderComments();
+                });
+                const cancelEditBtn = smBtn('Cancel', 'ce-sg-abtn-secondary');
+                cancelEditBtn.addEventListener('click', renderComments);
+                const editActions = document.createElement('div');
+                editActions.style.cssText = 'display:flex;gap:6px;';
+                editActions.append(saveBtn, cancelEditBtn);
+                card.append(ta, editActions);
+              });
+
+              const delBtn = smBtn('Delete', 'ce-sg-abtn-secondary');
+              delBtn.style.marginLeft = 'auto';
+              delBtn.style.color = '#C0392B';
+              delBtn.style.borderColor = '#C0392B';
+              delBtn.addEventListener('click', () => {
+                const updated = parseSnippets();
+                updated.splice(idx, 1);
+                saveSnippets(updated);
+                renderComments();
+              });
+
+              actions.append(insBtn, editBtn, delBtn);
+              card.append(preview, actions);
+              listBody.appendChild(card);
+            });
+          }
+
+          renderComments();
+
+          const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          closeBtn.addEventListener('click', closeDrawer);
+          const addBtn = mkAbtn('+ Add Comment', 'ce-sg-abtn-primary');
+          addBtn.addEventListener('click', () => {
+            const newCard = document.createElement('div');
+            newCard.style.cssText = 'border:1px solid #0770B8;border-radius:4px;background:#f0f6ff;padding:12px;display:flex;flex-direction:column;gap:8px;';
+            const ta = document.createElement('textarea');
+            ta.className = 'ce-sg-textarea';
+            ta.style.minHeight = '80px';
+            ta.placeholder = 'Type your reusable comment here…';
+            function smBtn2(label, cls) { const b = mkAbtn(label, cls); b.style.cssText += 'height:28px;font-size:12px;padding:0 12px;'; return b; }
+            const saveBtn = smBtn2('Save', 'ce-sg-abtn-primary');
+            saveBtn.addEventListener('click', () => {
+              if (ta.value.trim()) saveSnippets([...parseSnippets(), ta.value.trim()]);
+              renderComments();
+            });
+            const cancelAddBtn = smBtn2('Cancel', 'ce-sg-abtn-secondary');
+            cancelAddBtn.addEventListener('click', renderComments);
+            const addActions = document.createElement('div');
+            addActions.style.cssText = 'display:flex;gap:6px;';
+            addActions.append(saveBtn, cancelAddBtn);
+            newCard.append(ta, addActions);
+            listBody.appendChild(newCard);
+            ta.focus();
+          });
+
+          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkFooter(closeBtn, addBtn));
 
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
@@ -747,7 +830,6 @@
 
       document.body.insertBefore(tab, document.body.firstChild);
       document.body.insertBefore(bar, tab);
-      document.body.appendChild(overlay);
       setTimeout(() => loadQueue(false), 2000);
       return true;
     }
