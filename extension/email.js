@@ -13,7 +13,7 @@
   // Inject styles — matches the Canvas Enhancer hub panel design system
   const _style = document.createElement('style');
   _style.textContent = `
-    #ces-overlay, #ces-tpl-overlay {
+    #ces-overlay, #ces-tpl-overlay, #ces-qm-modal {
       position: fixed;
       inset: 0;
       z-index: 2147483638;
@@ -23,7 +23,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", sans-serif;
       color: #2D3B45;
     }
-    #ces-overlay.ces-open, #ces-tpl-overlay.ces-open { display: flex; }
+    #ces-overlay.ces-open, #ces-tpl-overlay.ces-open, #ces-qm-modal.ces-open { display: flex; }
     #ces-tpl-body { flex: 1; overflow-y: auto; padding: 16px; }
 
     .ces-modal-box {
@@ -2317,191 +2317,146 @@
   }
 
   function installQuickMessageInserter() {
-    if (document.getElementById('ces-quick-message-panel')) return;
+    if (document.getElementById('ces-qm-modal')) return;
 
-    const panel = document.createElement('div');
-    panel.id = 'ces-quick-message-panel';
-    panel.style.cssText = 'position:fixed;width:360px;max-height:70vh;overflow:auto;z-index:2147483642;display:none;background:#fff;border:1px solid #C7CDD1;border-radius:3px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#2D3B45;';
-    document.body.appendChild(panel);
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
+    // ── CENTERED MODAL ──────────────────────────────────────────────────────────
+    const modal = document.createElement('div');
+    modal.id = 'ces-qm-modal';
+
+    const box = document.createElement('div');
+    box.className = 'ces-modal-box';
+    box.style.width = 'min(540px,calc(100vw - 48px))';
+
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
+    const ttl = document.createElement('h2');
+    ttl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    ttl.textContent = 'Message Templates';
+    const xBtn = document.createElement('button');
+    xBtn.type = 'button'; xBtn.textContent = '×'; xBtn.className = 'ces-close-btn';
+    xBtn.addEventListener('click', closeQmModal);
+    hdr.append(ttl, xBtn);
+
+    const qmBody = document.createElement('div');
+    qmBody.style.cssText = 'flex:1;min-height:0;overflow-y:auto;padding:16px;';
+
+    box.append(hdr, qmBody);
+    modal.appendChild(box);
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeQmModal(); });
+    box.addEventListener('click', e => e.stopPropagation());
+
+    function closeQmModal() { modal.classList.remove('ces-open'); }
+    function openQmModal()  { renderQuickPanel(); modal.classList.add('ces-open'); }
+
+    // ── FULL CRUD PANEL ─────────────────────────────────────────────────────────
     function renderQuickPanel(editId) {
       const messages = getQuickMessages();
-      const editing = editId ? messages.find(msg => msg.id === editId) : null;
-      panel.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #C7CDD1;">
-          <strong style="font-size:13px;">Stored Messages</strong>
-          <button id="ces-quick-close" style="border:none;background:none;font-size:18px;cursor:pointer;color:#6B7280;">&times;</button>
-        </div>
-        <div style="padding:10px 12px;">
-          ${messages.map(msg => `
-            <div style="border-bottom:1px solid #eef1f3;padding:8px 0;">
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <strong style="font-size:13px;">${escapeHtml(msg.name)}</strong>
-                <div style="display:flex;gap:5px;">
-                  <button class="ces-quick-insert ces-btn ces-btn-primary ces-btn-sm" data-id="${escapeAttr(msg.id)}">Insert</button>
-                  <button class="ces-quick-edit ces-btn ces-btn-secondary ces-btn-sm" data-id="${escapeAttr(msg.id)}">Edit</button>
-                  <button class="ces-quick-delete ces-btn ces-btn-danger ces-btn-sm" data-id="${escapeAttr(msg.id)}">Delete</button>
-                </div>
-              </div>
-              <div style="font-size:12px;color:#6b7280;margin-top:3px;">${escapeHtml(msg.subject || '(no subject)')}</div>
+      const editing  = editId ? messages.find(m => m.id === editId) : null;
+      qmBody.innerHTML = `
+        ${messages.length ? messages.map(msg => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #eef1f3;">
+            <div style="min-width:0;flex:1;">
+              <div style="font-size:13px;font-weight:700;color:#2D3B45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(msg.name)}</div>
+              <div style="font-size:12px;color:#6B7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(msg.subject || '(no subject)')}</div>
             </div>
-          `).join('')}
-          <div style="margin-top:12px;">
-            <label class="ces-label">${editing ? 'Edit Message' : 'Add Message'}</label>
-            <input class="ces-input" id="ces-quick-name" placeholder="Message name" value="${escapeAttr(editing?.name || '')}">
-            <input class="ces-input" id="ces-quick-subject" placeholder="Subject" value="${escapeAttr(editing?.subject || '')}" style="margin-top:7px;">
-            <textarea class="ces-textarea" id="ces-quick-body" placeholder="Message body" style="margin-top:7px;min-height:110px;">${escapeHtml(editing?.body || '')}</textarea>
-            <div style="display:flex;gap:7px;margin-top:8px;">
-              <button class="ces-btn ces-btn-primary" id="ces-quick-save">${editing ? 'Update' : 'Save'}</button>
-              ${editing ? '<button class="ces-btn ces-btn-secondary" id="ces-quick-cancel-edit">Cancel Edit</button>' : ''}
+            <div style="display:flex;gap:5px;flex-shrink:0;">
+              <button class="ces-btn ces-btn-primary ces-btn-sm ces-qm-insert" data-id="${escapeAttr(msg.id)}">Insert</button>
+              <button class="ces-btn ces-btn-secondary ces-btn-sm ces-qm-edit"   data-id="${escapeAttr(msg.id)}">Edit</button>
+              <button class="ces-btn ces-btn-danger ces-btn-sm ces-qm-delete"    data-id="${escapeAttr(msg.id)}">Delete</button>
             </div>
+          </div>
+        `).join('') : '<p style="font-size:13px;color:#6B7280;margin:0 0 16px;">No templates yet — add one below.</p>'}
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #C7CDD1;">
+          <label class="ces-label" style="margin-top:0;">${editing ? 'Edit Template' : 'Add Template'}</label>
+          <input  class="ces-input" id="ces-qm-name"    placeholder="Template name"    value="${escapeAttr(editing?.name || '')}" style="margin-top:6px;">
+          <input  class="ces-input" id="ces-qm-subject" placeholder="Subject line"     value="${escapeAttr(editing?.subject || '')}" style="margin-top:7px;">
+          <textarea class="ces-textarea" id="ces-qm-body" placeholder="Message body" style="margin-top:7px;min-height:110px;">${escapeHtml(editing?.body || '')}</textarea>
+          <div style="display:flex;gap:7px;margin-top:10px;">
+            <button class="ces-btn ces-btn-primary" id="ces-qm-save">${editing ? 'Update' : 'Save Template'}</button>
+            ${editing ? '<button class="ces-btn ces-btn-secondary" id="ces-qm-cancel">Cancel</button>' : ''}
           </div>
         </div>
       `;
-      panel.querySelector('#ces-quick-close').addEventListener('click', () => { panel.style.display = 'none'; });
-      panel.querySelectorAll('.ces-quick-insert').forEach(btn => btn.addEventListener('click', () => {
-        const msg = getQuickMessages().find(item => item.id === btn.dataset.id);
+
+      qmBody.querySelectorAll('.ces-qm-insert').forEach(btn => btn.addEventListener('click', () => {
+        const msg = getQuickMessages().find(m => m.id === btn.dataset.id);
         if (!msg) return;
-        const inserted = insertIntoCompose(msg.subject, msg.body);
-        if (!inserted.subjectInserted && !inserted.bodyInserted) alert('Open a Canvas compose message first, then insert the stored message.');
-        else if (!inserted.subjectInserted) alert('Message inserted, but I could not find the Canvas subject field.');
-        if (inserted.subjectInserted || inserted.bodyInserted) panel.style.display = 'none';
+        const result = insertIntoCompose(msg.subject, msg.body);
+        if (result.subjectInserted || result.bodyInserted) closeQmModal();
       }));
-      panel.querySelectorAll('.ces-quick-edit').forEach(btn => btn.addEventListener('click', () => renderQuickPanel(btn.dataset.id)));
-      panel.querySelectorAll('.ces-quick-delete').forEach(btn => btn.addEventListener('click', () => {
-        saveQuickMessages(getQuickMessages().filter(msg => msg.id !== btn.dataset.id));
+      qmBody.querySelectorAll('.ces-qm-edit').forEach(btn => btn.addEventListener('click', () => renderQuickPanel(btn.dataset.id)));
+      qmBody.querySelectorAll('.ces-qm-delete').forEach(btn => btn.addEventListener('click', () => {
+        saveQuickMessages(getQuickMessages().filter(m => m.id !== btn.dataset.id));
         renderQuickPanel();
       }));
-      const cancelEdit = panel.querySelector('#ces-quick-cancel-edit');
-      if (cancelEdit) cancelEdit.addEventListener('click', () => renderQuickPanel());
-      panel.querySelector('#ces-quick-save').addEventListener('click', () => {
-        const name = panel.querySelector('#ces-quick-name').value.trim();
-        const subject = panel.querySelector('#ces-quick-subject').value.trim();
-        const body = panel.querySelector('#ces-quick-body').value;
+      qmBody.querySelector('#ces-qm-cancel')?.addEventListener('click', () => renderQuickPanel());
+      qmBody.querySelector('#ces-qm-save').addEventListener('click', () => {
+        const name    = qmBody.querySelector('#ces-qm-name').value.trim();
+        const subject = qmBody.querySelector('#ces-qm-subject').value.trim();
+        const body    = qmBody.querySelector('#ces-qm-body').value;
         if (!name || !body.trim()) return;
-        const next = getQuickMessages().filter(msg => msg.id !== editId);
+        const next = getQuickMessages().filter(m => m.id !== editId);
         next.push({ id: editId || makeQuickMessageId(), name, subject, body });
         saveQuickMessages(next);
         renderQuickPanel();
       });
     }
 
-    function toggleQuickPanel(anchor) {
-      renderQuickPanel();
-      const rect = anchor.getBoundingClientRect();
-      const panelH = panel.offsetHeight || 420;
-      panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
-      panel.style.left = Math.max(12, Math.min(rect.left, window.innerWidth - 380)) + 'px';
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function findComposeAnchor() {
-      const subjectInput = getComposeSubjectInput();
-      const bodyInput = getComposeBodyInput();
-      const field = subjectInput || bodyInput;
-      if (!field) return null;
-      return field.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form') || field.parentElement;
-    }
-
-    function injectComposePicker() {
-      const PICKER_ID = 'ces-compose-tpl';
+    // ── COMPOSE BUTTON INJECTION ────────────────────────────────────────────────
+    function injectComposeButton() {
+      const BTN_ID = 'ces-compose-tpl-btn';
 
       if (!window.location.pathname.includes('/conversations')) {
-        document.getElementById(PICKER_ID)?.remove();
+        document.getElementById(BTN_ID)?.remove();
         return false;
       }
 
-      // Use specific textarea selectors — avoid broad [contenteditable] which fires on the whole page
       const bodyInput = document.querySelector(
         'textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, textarea.message-body'
       );
       if (!bodyInput) {
-        document.getElementById(PICKER_ID)?.remove();
+        document.getElementById(BTN_ID)?.remove();
         return false;
       }
 
-      // Find the compose form/dialog root so we insert at the right level
       const formRoot = bodyInput.closest(
         'form, [role="dialog"], [role="complementary"], .ReactModal__Content, [data-testid*="compose"]'
       ) || bodyInput.parentElement;
 
-      const existing = document.getElementById(PICKER_ID);
+      const existing = document.getElementById(BTN_ID);
       if (existing) {
         if (formRoot.contains(existing)) return true;
         existing.remove();
       }
 
-      const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
-      const wrap = document.createElement('div');
-      wrap.id = PICKER_ID;
-      wrap.style.cssText = 'margin-bottom:6px;border:1px solid #C7CDD1;border-radius:4px;overflow:hidden;font-family:' + font + ';';
+      const btn = document.createElement('button');
+      btn.id = BTN_ID;
+      btn.type = 'button';
+      btn.textContent = 'Templates';
+      btn.style.cssText = 'display:inline-flex;align-items:center;padding:5px 12px;border:1px solid #0770B8;border-radius:3px;background:#fff;color:#0770B8;font:600 12px ' + font + ';cursor:pointer;margin-bottom:6px;white-space:nowrap;transition:background .12s;';
+      btn.addEventListener('mouseenter', () => { btn.style.background = '#E8F1F8'; });
+      btn.addEventListener('mouseleave', () => { btn.style.background = '#fff'; });
+      btn.addEventListener('click', openQmModal);
 
-      function render(open) {
-        wrap.innerHTML = '';
-        const messages = getQuickMessages();
-
-        const hdr = document.createElement('button');
-        hdr.type = 'button';
-        hdr.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#F5F5F5;border:none;border-bottom:' + (open ? '1px solid #C7CDD1' : 'none') + ';cursor:pointer;font-size:12px;font-weight:700;color:#2D3B45;font-family:inherit;box-sizing:border-box;';
-        hdr.innerHTML = '<span>Templates</span><span style="font-size:10px;color:#6B7280;">' + (open ? '▲' : '▼') + '</span>';
-        hdr.addEventListener('click', () => render(!open));
-        wrap.appendChild(hdr);
-
-        if (!open) return;
-
-        const list = document.createElement('div');
-        list.style.cssText = 'background:#fff;max-height:180px;overflow-y:auto;';
-
-        if (!messages.length) {
-          const empty = document.createElement('div');
-          empty.style.cssText = 'padding:10px;font-size:12px;color:#6B7280;text-align:center;';
-          empty.textContent = 'No templates saved — add them in Message Templates.';
-          list.appendChild(empty);
-        } else {
-          messages.forEach(msg => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-top:1px solid #eef1f3;gap:8px;';
-
-            const name = document.createElement('span');
-            name.style.cssText = 'font-size:13px;color:#2D3B45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;';
-            name.textContent = msg.name;
-
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.textContent = 'Insert';
-            btn.style.cssText = 'flex-shrink:0;padding:4px 12px;border:1px solid #0770B8;border-radius:3px;background:#0770B8;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
-            btn.addEventListener('mouseenter', () => { btn.style.background = '#0860A8'; });
-            btn.addEventListener('mouseleave', () => { btn.style.background = '#0770B8'; });
-            btn.addEventListener('click', () => {
-              insertIntoCompose(msg.subject, msg.body);
-              render(false);
-            });
-
-            row.append(name, btn);
-            list.appendChild(row);
-          });
-        }
-        wrap.appendChild(list);
-      }
-
-      render(false);
-
-      // Walk up from bodyInput to its direct child of formRoot, insert before that section
       let insertBefore = bodyInput;
       while (insertBefore.parentElement && insertBefore.parentElement !== formRoot) {
         insertBefore = insertBefore.parentElement;
       }
       if (insertBefore.parentElement === formRoot) {
-        formRoot.insertBefore(wrap, insertBefore);
+        formRoot.insertBefore(btn, insertBefore);
       } else {
-        bodyInput.parentElement.insertBefore(wrap, bodyInput);
+        bodyInput.parentElement.insertBefore(btn, bodyInput);
       }
       return true;
     }
 
-    new MutationObserver(() => setTimeout(injectComposePicker, 300)).observe(document.body, { childList: true, subtree: true });
-    setInterval(injectComposePicker, 1500);
-    injectComposePicker();
+    document.addEventListener('ces-trigger-quick-panel', () => openQmModal());
+    new MutationObserver(() => setTimeout(injectComposeButton, 300)).observe(document.body, { childList: true, subtree: true });
+    setInterval(injectComposeButton, 1500);
+    injectComposeButton();
   }
 
   /* =========================================================
