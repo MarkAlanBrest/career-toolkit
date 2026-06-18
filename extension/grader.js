@@ -367,17 +367,14 @@
         #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #1B303D; background:#394B58; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.22); }
         #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
-        .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:0; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
-        .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:#fff; display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
-        .ce-sg-btn { height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:transparent; color:rgba(255,255,255,0.75); padding:0 18px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; transition:background 0.15s; }
-        .ce-sg-badge { position:absolute;top:5px;right:5px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
-        .ce-sg-btn-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; pointer-events:none; }
-        .ce-sg-btn-icon { font-size:18px; line-height:1; display:block; text-align:center; }
-        .ce-sg-btn-label { display:block; text-align:center; font-size:11px; color:rgba(255,255,255,0.8); letter-spacing:.3px; text-transform:uppercase; font-weight:700; line-height:1; }
-        .ce-sg-btn:hover { background:rgba(255,255,255,0.12); }
-        .ce-sg-btn-primary { border-bottom-color:#fff !important; background:rgba(255,255,255,0.18) !important; color:#fff !important; }
-        .ce-sg-btn-primary .ce-sg-btn-label { color:#fff !important; }
-        .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid rgba(255,255,255,0.15); }
+        .ce-sg-mainbar { height:100%; display:flex; align-items:center; gap:4px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
+        .ce-sg-brand { flex-shrink:0; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; margin-right:4px; }
+        .ce-sg-btn { height:32px; padding:0 16px; flex-shrink:0; border:none; border-radius:4px; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.85); cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.2px; white-space:nowrap; transition:background .12s,color .12s; position:relative; }
+        .ce-sg-badge { position:absolute;top:3px;right:3px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
+        .ce-sg-btn-label { display:block; font-size:12px; font-weight:700; letter-spacing:.2px; color:inherit; pointer-events:none; }
+        .ce-sg-btn:hover { background:rgba(255,255,255,0.22); color:#fff; }
+        .ce-sg-btn-primary { background:rgba(255,255,255,0.28) !important; color:#fff !important; }
+        .ce-sg-collapse { margin-left:auto; }
         #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #394B58; border-top:none; border-radius:0 0 4px 4px; background:#394B58; box-shadow:0 2px 8px rgba(0,0,0,.22); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2147483638; border-radius:8px; background:#fff; box-shadow:0 24px 64px rgba(0,0,0,.32),0 0 0 1px rgba(0,0,0,0.08); flex-direction:column; overflow:hidden; }
         .ce-sg-drawer.ce-open { display:flex; }

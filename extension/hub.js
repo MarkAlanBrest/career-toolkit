@@ -87,9 +87,8 @@
   // Nav
   const nav = el('div', `
     flex:1;height:100%;min-width:0;
-    display:flex;flex-direction:row;align-items:stretch;
-    padding:0 8px;gap:0;overflow-x:auto;overflow-y:hidden;
-    justify-content:center;
+    display:flex;flex-direction:row;align-items:center;
+    padding:0 8px;gap:4px;overflow-x:auto;overflow-y:hidden;
   `);
 
   const btnMap     = {};
@@ -100,19 +99,19 @@
     // Section header — creates a collapsible group
     if (tool._section) {
       const sectionOpen = { value: true };
-      const sectionWrap = el('div', `height:100%;display:flex;flex-direction:row;align-items:stretch;`);
+      const sectionWrap = el('div', `height:100%;display:flex;flex-direction:row;align-items:center;gap:4px;`);
 
       const hdr = el('button', `
-        width:auto;min-width:84px;height:100%;flex-shrink:0;
+        flex-shrink:0;height:100%;
         border:none;border-right:1px solid rgba(255,255,255,0.15);
         background:transparent;cursor:pointer;
         display:flex;align-items:center;justify-content:center;gap:6px;
-        padding:0 10px;box-sizing:border-box;
+        padding:0 12px;box-sizing:border-box;
         font-family:${DS.font};
       `, { type: 'button' });
-      const hdrLabel = el('span', `font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:rgba(255,255,255,0.45);font-weight:700;`);
+      const hdrLabel = el('span', `font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:rgba(255,255,255,0.4);font-weight:700;white-space:nowrap;`);
       hdrLabel.textContent = tool.label;
-      const hdrArrow = el('span', `font-size:10px;color:rgba(255,255,255,0.45);transition:transform .2s;`);
+      const hdrArrow = el('span', `font-size:9px;color:rgba(255,255,255,0.4);transition:transform .2s;`);
       hdrArrow.textContent = '▾';
       hdr.appendChild(hdrLabel);
       hdr.appendChild(hdrArrow);
@@ -133,23 +132,21 @@
     btnGroupBg[tool.id] = groupBg;
 
     const btn = el('button', `
-      height:100%;padding:0 18px;flex-shrink:0;
-      border:none;border-bottom:3px solid transparent;
-      background:transparent;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
-      font-family:${DS.font};transition:background .12s;
-      box-sizing:border-box;position:relative;
-    `, { type: 'button', title: tool.label });
-
-    const label = el('span', `display:block;text-align:center;font-size:11px;color:rgba(255,255,255,0.8);letter-spacing:.3px;text-transform:uppercase;font-weight:700;pointer-events:none;`);
-    label.textContent = tool.label;
-    btn.appendChild(label);
+      height:32px;padding:0 16px;flex-shrink:0;
+      border:none;border-radius:4px;
+      background:rgba(255,255,255,0.12);
+      color:rgba(255,255,255,0.85);
+      cursor:pointer;
+      font-size:12px;font-weight:700;font-family:${DS.font};
+      letter-spacing:.2px;white-space:nowrap;
+      transition:background .12s,color .12s;
+    `, { type: 'button', title: tool.label, textContent: tool.label });
 
     btn.addEventListener('mouseenter', () => {
-      if (_active !== tool.id) btn.style.background = 'rgba(255,255,255,0.12)';
+      if (_active !== tool.id) { btn.style.background = 'rgba(255,255,255,0.22)'; btn.style.color = '#fff'; }
     });
     btn.addEventListener('mouseleave', () => {
-      if (_active !== tool.id) btn.style.background = 'transparent';
+      if (_active !== tool.id) { btn.style.background = 'rgba(255,255,255,0.12)'; btn.style.color = 'rgba(255,255,255,0.85)'; }
     });
     btn.addEventListener('click', () => onToolClick(tool));
 
@@ -158,20 +155,22 @@
   }
   toolbar.appendChild(nav);
 
-  // Collapse button
+  // Collapse button — pill style matching inbox "Hide", pushed to the right edge
   const collapseBtn = el('button', `
-    width:54px;height:100%;flex-shrink:0;
-    border:none;border-left:1px solid rgba(255,255,255,0.15);
-    background:transparent;cursor:pointer;
-    font-size:14px;color:rgba(255,255,255,0.65);
-    font-family:${DS.font};
-    display:flex;align-items:center;justify-content:center;
+    height:32px;padding:0 16px;flex-shrink:0;margin-left:auto;margin-right:8px;
+    border:none;border-radius:4px;
+    background:rgba(255,255,255,0.12);
+    color:rgba(255,255,255,0.85);
+    cursor:pointer;
+    font-size:12px;font-weight:700;font-family:${DS.font};
+    letter-spacing:.2px;white-space:nowrap;
+    align-self:center;
     transition:background .12s,color .12s;
-  `, { type: 'button', title: 'Collapse toolbar', textContent: '◀' });
-  collapseBtn.addEventListener('mouseenter', () => { collapseBtn.style.background = 'rgba(255,255,255,0.12)'; collapseBtn.style.color = '#fff'; });
-  collapseBtn.addEventListener('mouseleave', () => { collapseBtn.style.background = 'transparent'; collapseBtn.style.color = 'rgba(255,255,255,0.65)'; });
+  `, { type: 'button', title: 'Collapse toolbar', textContent: 'Hide' });
+  collapseBtn.addEventListener('mouseenter', () => { collapseBtn.style.background = 'rgba(255,255,255,0.22)'; collapseBtn.style.color = '#fff'; });
+  collapseBtn.addEventListener('mouseleave', () => { collapseBtn.style.background = 'rgba(255,255,255,0.12)'; collapseBtn.style.color = 'rgba(255,255,255,0.85)'; });
   collapseBtn.addEventListener('click', toggleToolbar);
-  toolbar.appendChild(collapseBtn);
+  nav.appendChild(collapseBtn);
 
   // ── COLLAPSED TAB ──────────────────────────────────────────────────────────
   const tab = el('button', `
@@ -2528,17 +2527,13 @@
 
   function setActive(id) {
     if (_active && btnMap[_active]) {
-      btnMap[_active].style.background = 'transparent';
-      btnMap[_active].style.borderBottomColor = 'transparent';
-      const lbl = btnMap[_active].querySelector('span');
-      if (lbl) lbl.style.color = 'rgba(255,255,255,0.8)';
+      btnMap[_active].style.background = 'rgba(255,255,255,0.12)';
+      btnMap[_active].style.color = 'rgba(255,255,255,0.85)';
     }
     _active = id;
     if (id && btnMap[id]) {
-      btnMap[id].style.background = 'rgba(255,255,255,0.18)';
-      btnMap[id].style.borderBottomColor = '#fff';
-      const lbl = btnMap[id].querySelector('span');
-      if (lbl) lbl.style.color = '#fff';
+      btnMap[id].style.background = 'rgba(255,255,255,0.28)';
+      btnMap[id].style.color = '#fff';
     }
   }
 
