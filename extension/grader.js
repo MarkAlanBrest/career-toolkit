@@ -476,20 +476,58 @@
       teacherBox.className = 'ce-sg-tchnote';
 
       const snippetEdit = document.createElement('textarea');
-      snippetEdit.value = state.stored.ce_sg_comment_snippets || [
-        'Excellent work! Your response demonstrates a thorough understanding of the material. Your ideas are well-organized, clearly argued, and supported with specific evidence. This is the standard to maintain going forward.',
-        'Good effort overall. To strengthen your score, revisit the rubric and make sure every required component is addressed in full. I have noted the specific areas that need more development in the rubric feedback below.',
-        'Your writing is clear and on topic. To move to the next performance level, focus on supporting your main argument with specific evidence, examples, or data — general statements without support limit the depth of your analysis.',
-        'I can see you put time into this assignment. A few sections are underdeveloped or missing required elements. Please review my rubric comments carefully and come to office hours before the next assignment if you would like help.',
-        'This submission is missing one or more required components listed in the assignment directions. Please review the rubric, complete the missing sections, and resubmit before the late deadline to earn partial credit.',
-        'Strong analysis in the opening section. The body paragraphs and conclusion could be expanded to more fully support and close out your argument. With a little more depth this would be an excellent response.',
-        'Thank you for submitting. Your response does not fully address the assigned prompt. Please reread the directions carefully and contact me if you have any questions before you revise and resubmit.',
-        'Nice improvement from your last submission — you clearly took the previous feedback seriously. Keep building on this progress and bring that same effort to the next assignment.',
-        'Your ideas are interesting, but the response would benefit from a clearer thesis and more organized paragraph structure. Consider outlining your argument before drafting next time.',
-        'This is a well-written response. A few minor citation and formatting errors are noted below — please review the course style guide to make sure all sources are referenced correctly.',
-        'Great discussion of the topic. To earn full marks, make sure your thesis is clearly stated in the introduction and that every body paragraph directly supports it with evidence.',
-        'This submission was received after the deadline. A late penalty has been applied per course policy. If you experienced an emergency or extenuating circumstance, please reach out so we can discuss a possible accommodation.',
-      ].join('\n\n');
+      const CE_DEFAULT_SNIPPETS = [
+        // ── STRONG POSITIVE ─────────────────────────────────────────────────
+        'Excellent work on this assignment. Your response is thorough, well-organized, and demonstrates a clear command of the material. You supported your argument with strong, specific evidence and communicated your ideas with precision. This is exactly the standard of work this course aims for — keep it up.',
+
+        'Outstanding submission. You addressed every component of the prompt, your analysis goes beyond surface-level observations, and your writing is polished and focused. The connections you drew between the concepts show genuine critical thinking. Well done.',
+
+        'Your analysis in this assignment stands out. You moved past simple description and made meaningful connections between the ideas, which is exactly the kind of thinking this course is designed to develop. The evidence you chose is well-matched to your claims. Excellent work.',
+
+        'Impressive improvement since your last submission. The feedback from before is clearly reflected here — your structure is tighter, your evidence is more specific, and your argument is much easier to follow. Keep building on this momentum.',
+
+        'Great job this week. Your use of course terminology is accurate, your thesis is specific and arguable, and your body paragraphs each stay on point. A few minor notes are in the rubric below, but overall this is a very strong response.',
+
+        // ── POSITIVE WITH MINOR NOTES ────────────────────────────────────────
+        'This is a well-written response that addresses the prompt clearly. To push into the top score range, develop your conclusion more fully — rather than restating your thesis, explain what your argument ultimately means or implies. See rubric notes for specifics.',
+
+        'Strong work overall. The main area to strengthen is your use of sources — make sure every claim drawn from outside material is cited in the required format. A few instances are noted in the rubric. Otherwise, this is a solid submission.',
+
+        'Good analysis throughout. One thing to watch: a few of your paragraphs cover more than one distinct idea. One main point per paragraph, supported by evidence, makes your argument cleaner and easier to follow. Minor note — the content here is strong.',
+
+        // ── NEEDS DEVELOPMENT ────────────────────────────────────────────────
+        'Your response shows a reasonable grasp of the topic, but the argument relies too heavily on general statements. After each main point, ask yourself: what specific example, quote, or data supports this? Grounding every claim in evidence will significantly strengthen your grade.',
+
+        'The introduction sets up an interesting topic, but the response does not develop a clear, arguable thesis. A strong thesis takes a specific position — not just a topic statement. Revise your introduction to state exactly what you are arguing, then make sure every body paragraph supports that claim.',
+
+        'Your ideas are interesting and the effort is clear. The main issue is structure: the argument loses focus in the middle, and some paragraphs cover multiple unrelated points. Try outlining before you draft — one main idea per paragraph, each one tied directly back to your thesis.',
+
+        'I can see you understand the general topic, but this response stays at the surface level. Push further by asking "why does this matter?" and "what does this imply?" after each main point. Strong analysis explains the significance of the evidence, not just what it says.',
+
+        'Your vocabulary and sentence-level writing are solid. The area that needs work is explanation — several concepts are introduced but not fully explained before you move on. When you bring in a new idea, define it, explain it in your own words, and then connect it to your argument before proceeding.',
+
+        // ── OFF-PROMPT / INCOMPLETE ──────────────────────────────────────────
+        'Thank you for submitting. After reviewing your response, it appears that you addressed a related but different topic than what was assigned. Please reread the prompt carefully, note the specific question being asked, and revise your response to answer it directly. Reach out if anything in the prompt is unclear.',
+
+        'This submission is missing one or more required components listed in the assignment directions. Please review the rubric, complete the missing sections, and resubmit before the late deadline to earn partial credit. I have indicated what is missing in the rubric notes below.',
+
+        'This submission is shorter than the minimum requirement. A response this brief cannot address the expected depth for this assignment. Please expand your analysis — particularly the body paragraphs — and resubmit.',
+
+        'This appears to be an incomplete or draft version of the assignment. Please finish your revisions, review for clarity and errors, and resubmit the final version. If you are having trouble completing the work, please contact me before the deadline.',
+
+        'The file submitted did not open correctly on my end. Please resubmit your assignment as a PDF or .docx file so I can access and grade your work. If you continue to have trouble, email the file directly and I will work from that version.',
+
+        // ── LATE / ADMINISTRATIVE ────────────────────────────────────────────
+        'This assignment was submitted after the deadline. A late penalty has been applied in accordance with the course policy. If you experienced an emergency or an extenuating circumstance that affected your ability to submit on time, please email me so we can discuss whether an accommodation is appropriate.',
+
+        'I see the resubmission — thank you for following up on the feedback. I will regrade your updated response and update your score within the normal grading window. Let me know if you have any questions about the revised rubric.',
+
+        // ── ENCOURAGEMENT / OUTREACH ─────────────────────────────────────────
+        'You are clearly putting effort into this course and I want you to know that it is recognized. This submission shows real progress, even where it falls short of the top mark. Come to office hours and we can work through the specific areas together — you have the foundation to do well here.',
+
+        'This was a challenging assignment and you gave it a solid attempt. The areas where your score fell short are very fixable — they are about technique, not understanding. Review the rubric notes, and reach out if you would like help applying the feedback before the next assignment.',
+      ];
+      snippetEdit.value = state.stored.ce_sg_comment_snippets || CE_DEFAULT_SNIPPETS.join('\n\n');
 
       const queueStatus = document.createElement('div');
       queueStatus.className = 'ce-sg-status-text';
@@ -907,8 +945,16 @@
             listBody.appendChild(newCard);
             ta.focus();
           });
+          const resetBtn = mkAbtn('Reset to Defaults', 'ce-sg-abtn-secondary');
+          resetBtn.style.marginRight = 'auto';
+          resetBtn.addEventListener('click', () => {
+            if (confirm('Replace all current snippets with the default set? This cannot be undone.')) {
+              saveSnippets(CE_DEFAULT_SNIPPETS);
+              renderComments();
+            }
+          });
 
-          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkFooter(closeBtn, addBtn));
+          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkFooter(resetBtn, closeBtn, addBtn));
 
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
