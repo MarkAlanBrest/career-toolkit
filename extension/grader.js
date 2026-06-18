@@ -310,33 +310,59 @@
       style.id = 'ce-sg-toolbar-style';
       style.textContent = `
         body.ce-sg-toolbar-open { padding-top:0 !important; box-sizing:border-box !important; }
-        #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #c7cdd1; background:#fff; color:#2d3b45; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.10); }
+        #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #1B303D; background:#394B58; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.22); }
         #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
-        .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:2px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
-        .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid #c7cdd1; background:#f5f5f5; color:#6b7280; display:flex; align-items:center; justify-content:center; padding:0 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
-        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:rgba(60,190,120,0.11); color:#2d3b45; padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; }
+        .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:0; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
+        .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:#fff; display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; }
+        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:transparent; color:rgba(255,255,255,0.75); padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; transition:background 0.15s; }
         .ce-sg-badge { position:absolute;top:5px;right:5px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
         .ce-sg-btn-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; pointer-events:none; }
         .ce-sg-btn-icon { font-size:18px; line-height:1; display:block; text-align:center; }
-        .ce-sg-btn-label { display:block; text-align:center; font-size:10px; color:#2d3b45; opacity:.8; letter-spacing:.2px; text-transform:uppercase; font-weight:700; line-height:1.05; }
-        .ce-sg-btn:hover { background:#eef2f4; }
-        .ce-sg-btn-primary { border-bottom-color:#0770b8; background:#1b303d; color:#fff; }
-        .ce-sg-btn-primary:hover { background:#1b303d; }
-        .ce-sg-btn-primary .ce-sg-btn-label { color:#fff; opacity:1; }
-        .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid #c7cdd1; background:#f5f5f5; color:#2d3b45; }
-        #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #c7cdd1; border-top:none; border-radius:0 0 4px 4px; background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.14); color:#2d3b45; font:700 11px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:none; align-items:center; justify-content:center; }
-        .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:min(760px,calc(100vw - 56px)); max-height:min(620px,calc(100vh - 96px)); overflow:auto; z-index:2147483638; border:1px solid #c7cdd1; border-radius:4px; background:#fff; box-shadow:0 12px 36px rgba(0,0,0,.22); padding:12px; gap:10px; align-items:flex-start; flex-wrap:wrap; }
+        .ce-sg-btn-label { display:block; text-align:center; font-size:10px; color:rgba(255,255,255,0.65); letter-spacing:.3px; text-transform:uppercase; font-weight:700; line-height:1.05; }
+        .ce-sg-btn:hover { background:rgba(255,255,255,0.12); }
+        .ce-sg-btn-primary { border-bottom-color:#fff !important; background:rgba(255,255,255,0.18) !important; color:#fff !important; }
+        .ce-sg-btn-primary .ce-sg-btn-label { color:#fff !important; }
+        .ce-sg-collapse { margin-left:auto; width:54px; border-left:1px solid rgba(255,255,255,0.15); }
+        #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #394B58; border-top:none; border-radius:0 0 4px 4px; background:#394B58; box-shadow:0 2px 8px rgba(0,0,0,.22); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
+        .ce-sg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.35); z-index:2147483637; display:none; pointer-events:none; }
+        .ce-sg-overlay.ce-open { display:block; }
+        .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2147483638; border-radius:8px; background:#fff; box-shadow:0 24px 64px rgba(0,0,0,.32),0 0 0 1px rgba(0,0,0,0.08); flex-direction:column; overflow:hidden; }
         .ce-sg-drawer.ce-open { display:flex; }
-        .ce-sg-drawer .ce-sg-btn { width:auto; height:auto; min-width:auto; min-height:34px; border:1px solid #c7cdd1; border-radius:3px; background:#fff; color:#2d3b45; padding:7px 10px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; line-height:1.2; }
-        .ce-sg-drawer .ce-sg-btn-primary { border-color:#0b5f7f; background:#0b5f7f; color:#fff; }
-        .ce-sg-field { display:flex; flex-direction:column; gap:5px; min-width:220px; flex:1 1 260px; }
-        .ce-sg-field label { font-size:12px; font-weight:700; color:#2d3b45; }
-        .ce-sg-input, .ce-sg-textarea, .ce-sg-select { width:100%; border:1px solid #c7cdd1; border-radius:3px; padding:8px; font:13px/1.35 inherit; color:#2d3b45; background:#fff; }
-        .ce-sg-textarea { min-height:92px; resize:vertical; }
-        .ce-sg-small { font-size:12px; color:#6b7780; line-height:1.35; }
-        .ce-sg-list { display:flex; flex-direction:column; gap:6px; max-height:190px; overflow:auto; min-width:260px; flex:1 1 320px; }
-        .ce-sg-teacher { display:none; background:#fff8e1; border:1px solid #e6c45f; color:#5f4200; border-radius:3px; padding:8px; font-size:12px; line-height:1.35; flex:1 1 100%; }
+        .ce-sz-sm { width:min(520px,calc(100vw - 48px)); max-height:min(480px,calc(100vh - 80px)); }
+        .ce-sz-md { width:min(720px,calc(100vw - 48px)); max-height:min(560px,calc(100vh - 80px)); }
+        .ce-sz-lg { width:min(900px,calc(100vw - 48px)); max-height:min(640px,calc(100vh - 80px)); }
+        .ce-sz-xl { width:min(980px,calc(100vw - 48px)); max-height:min(740px,calc(100vh - 60px)); }
+        .ce-sg-mhdr { flex-shrink:0; height:48px; background:#1B303D; display:flex; align-items:center; padding:0 16px; gap:10px; }
+        .ce-sg-mhdr-icon { font-size:18px; line-height:1; }
+        .ce-sg-mhdr-title { font-size:14px; font-weight:700; color:#fff; letter-spacing:0.2px; flex:1; }
+        .ce-sg-mhdr-close { width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:none; border:none; color:rgba(255,255,255,0.65); font-size:22px; cursor:pointer; border-radius:4px; line-height:1; padding:0; transition:background 0.15s,color 0.15s; font-family:inherit; }
+        .ce-sg-mhdr-close:hover { background:rgba(255,255,255,0.15); color:#fff; }
+        .ce-sg-mbody { flex:1; min-height:0; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:14px; }
+        .ce-sg-mbody-split { flex:1; min-height:0; overflow:hidden; display:flex; }
+        .ce-sg-mcol { flex:1; min-width:0; overflow:auto; padding:20px; display:flex; flex-direction:column; gap:14px; }
+        .ce-sg-mcol+.ce-sg-mcol { border-left:1px solid #e8eaec; }
+        .ce-sg-mfooter { flex-shrink:0; height:56px; background:#f8f9fa; border-top:1px solid #e8eaec; display:flex; align-items:center; justify-content:flex-end; padding:0 16px; gap:8px; }
+        .ce-sg-flabel { font-size:11px; font-weight:700; color:#6B7280; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px; display:block; }
+        .ce-sg-input,.ce-sg-textarea,.ce-sg-select { width:100%; border:1px solid #C7CDD1; border-radius:4px; padding:8px 10px; font:13px/1.4 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; color:#2D3B45; background:#fff; box-sizing:border-box; transition:border-color 0.15s,box-shadow 0.15s; }
+        .ce-sg-input:focus,.ce-sg-textarea:focus,.ce-sg-select:focus { outline:none; border-color:#0770B8; box-shadow:0 0 0 2px rgba(7,112,184,0.12); }
+        .ce-sg-textarea { min-height:100px; resize:vertical; }
+        .ce-sg-fgrp { display:flex; flex-direction:column; }
+        .ce-sg-fgrp-grow { display:flex; flex-direction:column; flex:1; min-height:0; }
+        .ce-sg-fgrp-grow .ce-sg-textarea { flex:1; min-height:80px; }
+        .ce-sg-abtn { height:36px; padding:0 16px; border-radius:4px; font:600 13px/1 -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; border:1px solid transparent; transition:background 0.15s,border-color 0.15s; }
+        .ce-sg-abtn:disabled { opacity:0.55; cursor:not-allowed; }
+        .ce-sg-abtn-primary { background:#0770B8; color:#fff; border-color:#0770B8; }
+        .ce-sg-abtn-primary:hover:not(:disabled) { background:#0660A0; border-color:#0660A0; }
+        .ce-sg-abtn-secondary { background:#fff; color:#2D3B45; border-color:#C7CDD1; }
+        .ce-sg-abtn-secondary:hover:not(:disabled) { background:#F5F5F5; }
+        .ce-sg-abtn-success { background:#127A1B; color:#fff; border-color:#127A1B; }
+        .ce-sg-abtn-success:hover:not(:disabled) { background:#0f6617; }
+        .ce-sg-status-text { font-size:12px; color:#6B7280; line-height:1.4; min-height:16px; }
+        .ce-sg-tchnote { display:none; background:#fff8e1; border:1px solid #f3d27a; border-radius:4px; padding:10px 12px; font-size:12px; color:#5f4200; line-height:1.4; }
+        .ce-sg-qitem { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:4px; border:1px solid #e8eaec; background:#fff; cursor:pointer; font-size:13px; color:#2D3B45; text-align:left; width:100%; transition:background 0.1s,border-color 0.1s; font-family:inherit; }
+        .ce-sg-qitem:hover { background:#f0f6ff; border-color:#0770B8; }
+        .ce-sg-qbadge { flex-shrink:0; background:#e53e3e; color:#fff; border-radius:10px; font-size:11px; font-weight:700; padding:2px 7px; margin-left:auto; }
       `;
       document.head.appendChild(style);
 
@@ -368,6 +394,9 @@
       drawer.className = 'ce-sg-drawer';
       bar.appendChild(drawer);
 
+      const overlay = document.createElement('div');
+      overlay.className = 'ce-sg-overlay';
+
       const tab = document.createElement('button');
       tab.id = 'ce-sg-tab';
       tab.type = 'button';
@@ -380,6 +409,7 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
+          overlay.classList.remove('ce-open');
           [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
@@ -394,7 +424,7 @@
       draftInput.className = 'ce-sg-textarea';
       draftInput.placeholder = 'AI feedback draft appears here. Edit before inserting.';
       const teacherBox = document.createElement('div');
-      teacherBox.className = 'ce-sg-teacher';
+      teacherBox.className = 'ce-sg-tchnote';
 
       const criteriaInput = document.createElement('textarea');
       criteriaInput.className = 'ce-sg-textarea';
@@ -425,11 +455,14 @@
       refreshSnippets();
 
       const queueStatus = document.createElement('div');
-      queueStatus.className = 'ce-sg-small';
-      queueStatus.textContent = courseId ? 'Click Refresh to load assignments with submitted work.' : 'Course not detected.';
+      queueStatus.className = 'ce-sg-status-text';
+      queueStatus.textContent = courseId ? 'Click Refresh to load assignments needing grades.' : 'Course not detected.';
       const queueList = document.createElement('div');
-      queueList.className = 'ce-sg-list';
-      const refreshQueueBtn = ceSgToolbarButton('Refresh');
+      queueList.style.cssText = 'display:flex;flex-direction:column;gap:6px;overflow:auto;flex:1;min-height:0;';
+      const refreshQueueBtn = document.createElement('button');
+      refreshQueueBtn.type = 'button';
+      refreshQueueBtn.className = 'ce-sg-abtn ce-sg-abtn-primary';
+      refreshQueueBtn.textContent = '↻ Refresh';
 
       function ceSgToolbarButton(label, primary, iconText) {
         const b = document.createElement('button');
@@ -458,54 +491,82 @@
         else button.textContent = label;
       }
 
-      function field(label, control) {
-        const wrap = document.createElement('div');
-        wrap.className = 'ce-sg-field';
-        const l = document.createElement('label');
-        l.textContent = label;
-        wrap.append(l, control);
-        return wrap;
+      function closeDrawer() {
+        drawer.classList.remove('ce-open');
+        overlay.classList.remove('ce-open');
+        [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
-      function makeDrawerHeader(title) {
+      function makeModalHeader(icon, title) {
         const hdr = document.createElement('div');
-        hdr.style.cssText = 'flex:1 1 100%;display:flex;align-items:center;border-bottom:1px solid #e8eaec;margin-bottom:8px;padding-bottom:10px;';
+        hdr.className = 'ce-sg-mhdr';
+        const ico = document.createElement('span');
+        ico.className = 'ce-sg-mhdr-icon';
+        ico.textContent = icon;
         const ttl = document.createElement('span');
-        ttl.style.cssText = 'font-size:14px;font-weight:700;color:#2d3b45;';
+        ttl.className = 'ce-sg-mhdr-title';
         ttl.textContent = title;
         const x = document.createElement('button');
         x.type = 'button';
+        x.className = 'ce-sg-mhdr-close';
         x.textContent = '×';
         x.title = 'Close';
-        x.style.cssText = 'background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:#6b7280;padding:0 2px;margin-left:auto;';
-        x.addEventListener('click', () => {
-          drawer.classList.remove('ce-open');
-          [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
-        });
-        hdr.append(ttl, x);
+        x.addEventListener('click', closeDrawer);
+        hdr.append(ico, ttl, x);
         return hdr;
+      }
+
+      function mkAbtn(text, cls) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = `ce-sg-abtn ${cls}`;
+        b.textContent = text;
+        return b;
+      }
+
+      function mkFgrp(labelText, control, grow) {
+        const g = document.createElement('div');
+        g.className = grow ? 'ce-sg-fgrp-grow' : 'ce-sg-fgrp';
+        const l = document.createElement('label');
+        l.className = 'ce-sg-flabel';
+        l.textContent = labelText;
+        g.append(l, control);
+        return g;
+      }
+
+      function mkFooter(...btns) {
+        const f = document.createElement('div');
+        f.className = 'ce-sg-mfooter';
+        btns.forEach(b => f.appendChild(b));
+        return f;
       }
 
       function showDrawer(mode) {
         drawer.dataset.mode = mode;
         drawer.innerHTML = '';
+        drawer.className = 'ce-sg-drawer';
         drawer.classList.add('ce-open');
+        overlay.classList.add('ce-open');
         [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+
         if (mode === 'needs') {
           queueBtn.classList.add('ce-sg-btn-primary');
-          const box = document.createElement('div');
-          box.className = 'ce-sg-field';
-          box.style.flex = '1 1 100%';
-          box.append(queueStatus, refreshQueueBtn, queueList);
-          drawer.append(makeDrawerHeader('Grading Queue'), box);
+          drawer.classList.add('ce-sz-sm');
+          const body = document.createElement('div');
+          body.className = 'ce-sg-mbody';
+          body.append(queueStatus, queueList);
+          const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          cancelBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('📬', 'Grading Queue'), body, mkFooter(cancelBtn, refreshQueueBtn));
+
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
-          const runBtn = ceSgBtn('▶ Run AI Grade', true);
-          const insertBtn = ceSgBtn('↪ Insert Grade & Comment', false);
-          insertBtn.style.cssText += ';margin-left:auto;';
+          drawer.classList.add('ce-sz-lg');
+
           const statusEl = document.createElement('div');
-          statusEl.className = 'ce-sg-small';
-          statusEl.style.cssText = 'flex:1;min-height:18px;';
+          statusEl.className = 'ce-sg-status-text';
+
+          const runBtn = mkAbtn('▶ Run AI Grade', 'ce-sg-abtn-primary');
           runBtn.addEventListener('click', async () => {
             if (runBtn.disabled) return;
             runBtn.disabled = true;
@@ -515,10 +576,7 @@
             statusEl.textContent = 'Loading submission…';
             try {
               let c = null;
-              try {
-                const freshCtx = await fetchSubmission();
-                c = freshCtx || ctx;
-              } catch (_) {}
+              try { const freshCtx = await fetchSubmission(); c = freshCtx || ctx; } catch (_) {}
               if (!c) {
                 const vis = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
                 if (!vis) throw new Error('No submission found — check Canvas token in Settings');
@@ -574,7 +632,7 @@
               const p = ceSgParseAi(text);
               scoreInput.value = p.score;
               draftInput.value = p.comments;
-              if (p.teacherCheck) { teacherBox.textContent = `Teacher check: ${p.teacherCheck}`; teacherBox.style.display = 'block'; }
+              if (p.teacherCheck) { teacherBox.textContent = `⚠ Teacher check: ${p.teacherCheck}`; teacherBox.style.display = 'block'; }
               statusEl.textContent = p.score ? `✓ Score: ${p.score} — review and insert below` : '✓ Done — review and insert below';
             } catch(e) {
               statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
@@ -582,33 +640,75 @@
               runBtn.disabled = false;
             }
           });
+
+          const leftCol = document.createElement('div');
+          leftCol.className = 'ce-sg-mcol';
+          const runRow = document.createElement('div');
+          runRow.style.cssText = 'display:flex;gap:10px;align-items:center;';
+          runRow.append(runBtn, statusEl);
+          leftCol.append(mkFgrp('Grading Criteria', criteriaInput, true), runRow);
+
+          const rightCol = document.createElement('div');
+          rightCol.className = 'ce-sg-mcol';
+          scoreInput.style.cssText = '';
+          const scoreRow = document.createElement('div');
+          scoreRow.style.cssText = 'display:flex;gap:12px;align-items:flex-end;';
+          const scoreFgrp = document.createElement('div');
+          scoreFgrp.className = 'ce-sg-fgrp';
+          scoreFgrp.style.cssText = 'width:110px;flex-shrink:0;';
+          const scoreLbl = document.createElement('label');
+          scoreLbl.className = 'ce-sg-flabel';
+          scoreLbl.textContent = 'Score';
+          scoreFgrp.append(scoreLbl, scoreInput);
+          scoreRow.appendChild(scoreFgrp);
+          rightCol.append(scoreRow, mkFgrp('Draft Feedback', draftInput, true), teacherBox);
+
+          const split = document.createElement('div');
+          split.className = 'ce-sg-mbody-split';
+          split.append(leftCol, rightCol);
+
+          const cancelBtn = mkAbtn('Cancel', 'ce-sg-abtn-secondary');
+          cancelBtn.addEventListener('click', closeDrawer);
+          const insertBtn = mkAbtn('↪ Insert Grade & Comment', 'ce-sg-abtn-success');
           insertBtn.addEventListener('click', () => {
             if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
             if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
           });
-          const scoreField = field('Score', scoreInput);
-          scoreField.style.cssText = 'flex:0 0 130px;';
-          const feedbackField = field('Draft Feedback', draftInput);
-          feedbackField.style.cssText = 'flex:1 1 280px;';
-          const criteriaField = field('Grading Criteria', criteriaInput);
-          criteriaField.style.cssText = 'flex:1 1 100%;';
-          const btnRow = document.createElement('div');
-          btnRow.style.cssText = 'display:flex;gap:8px;flex:1 1 100%;align-items:center;';
-          btnRow.append(runBtn, statusEl);
-          const resultsRow = document.createElement('div');
-          resultsRow.style.cssText = 'display:flex;gap:10px;flex:1 1 100%;flex-wrap:wrap;align-items:flex-start;';
-          resultsRow.append(scoreField, feedbackField);
-          drawer.append(makeDrawerHeader('AI Grade'), criteriaField, btnRow, resultsRow, teacherBox, insertBtn);
+          drawer.append(makeModalHeader('🎓', 'AI Grade'), split, mkFooter(cancelBtn, insertBtn));
+
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
-          const insertCommentBtn = ceSgBtn('Insert Selected', true);
-          insertCommentBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
-          drawer.append(makeDrawerHeader('Comment Snippets'), field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
+          drawer.classList.add('ce-sz-md');
+
+          snippetSelect.size = 7;
+          snippetSelect.style.cssText = 'flex:1;min-height:0;height:auto;';
+          const leftCol = document.createElement('div');
+          leftCol.className = 'ce-sg-mcol';
+          leftCol.append(mkFgrp('Saved Comments', snippetSelect, true));
+
+          snippetEdit.style.cssText = 'flex:1;min-height:0;';
+          const rightCol = document.createElement('div');
+          rightCol.className = 'ce-sg-mcol';
+          rightCol.append(mkFgrp('Edit Saved Comments', snippetEdit, true));
+
+          const split = document.createElement('div');
+          split.className = 'ce-sg-mbody-split';
+          split.append(leftCol, rightCol);
+
+          const cancelBtn = mkAbtn('Cancel', 'ce-sg-abtn-secondary');
+          cancelBtn.addEventListener('click', closeDrawer);
+          const insertBtn = mkAbtn('↪ Insert Selected', 'ce-sg-abtn-success');
+          insertBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
+          drawer.append(makeModalHeader('💬', 'Comment Snippets'), split, mkFooter(cancelBtn, insertBtn));
+
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
+          drawer.classList.add('ce-sz-xl');
           const auditContainer = document.createElement('div');
-          auditContainer.style.cssText = 'flex:1 1 100%;min-height:300px;overflow:auto;';
-          drawer.append(makeDrawerHeader('Audit'), auditContainer);
+          auditContainer.style.cssText = 'flex:1;min-height:0;overflow:auto;';
+          const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          cancelBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('🔍', 'Cheating Detection'), auditContainer, mkFooter(cancelBtn));
           setTimeout(() => document.dispatchEvent(new CustomEvent('ce-render-audit', { detail: { container: auditContainer } })), 0);
         }
       }
@@ -632,8 +732,16 @@
           if (showInDrawer) {
             queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'All caught up — no submissions awaiting grades.';
             needing.slice(0, 40).forEach(a => {
-              const b = ceSgToolbarButton(`${a.name} (${a.needs_grading_count})`);
-              b.style.textAlign = 'left';
+              const b = document.createElement('button');
+              b.type = 'button';
+              b.className = 'ce-sg-qitem';
+              const name = document.createElement('span');
+              name.style.cssText = 'flex:1;text-align:left;';
+              name.textContent = a.name;
+              const badge = document.createElement('span');
+              badge.className = 'ce-sg-qbadge';
+              badge.textContent = a.needs_grading_count;
+              b.append(name, badge);
               b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
               queueList.appendChild(b);
             });
@@ -649,6 +757,7 @@
 
       document.body.insertBefore(tab, document.body.firstChild);
       document.body.insertBefore(bar, tab);
+      document.body.appendChild(overlay);
       setTimeout(() => loadQueue(false), 2000);
       return true;
     }
