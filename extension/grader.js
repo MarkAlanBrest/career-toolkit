@@ -220,33 +220,44 @@
     function ceSgInsertComment(value, append) {
       const opener = document.querySelector('button[data-testid*="add-comment" i],button[aria-label*="add comment" i],button[title*="add comment" i],a[aria-label*="add comment" i],a[title*="add comment" i],.add_comment_link,#add_a_comment');
       try { opener?.click(); } catch (_) {}
-      const currentEl = document.querySelector('#speed_grader_comment_textarea,#speedgrader_textarea,textarea[name="comment[text_comment]"],#grading_comment,#submission_comment_form textarea,#right_side_inner textarea,.tox-edit-area [contenteditable="true"],[contenteditable="true"][aria-label*="comment" i]');
-      const current = append ? (currentEl?.value || currentEl?.innerText || '').trim() : '';
-      const next = current ? `${current}\n\n${value}` : value;
-      const tiny = window.tinymce || window.tinyMCE;
-      if (tiny?.get) {
-        for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
-          const ed = tiny.get(id);
-          if (ed) {
-            ed.setContent(ceSgHtml(next));
-            ed.fire?.('input');
-            ed.fire?.('change');
-            ed.save?.();
-            return true;
+
+      function tryInsert() {
+        const tiny = window.tinymce || window.tinyMCE;
+        if (tiny?.get) {
+          for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
+            const ed = tiny.get(id);
+            if (ed) {
+              const current = append ? (ed.getContent({ format: 'text' }) || '').trim() : '';
+              const next = current ? `${current}\n\n${value}` : value;
+              ed.setContent(ceSgHtml(next));
+              ed.fire?.('input'); ed.fire?.('change'); ed.save?.();
+              return true;
+            }
           }
         }
+        const selectors = [
+          '#speed_grader_comment_textarea', '#speedgrader_textarea', 'textarea[name="comment[text_comment]"]',
+          '#grading_comment', '#comment_textarea', '.submission-comment-form textarea', '.grading_comment textarea',
+          'textarea[data-testid*="comment" i]', 'textarea[aria-label*="comment" i]', 'textarea[placeholder*="comment" i]',
+          '#comments_container textarea', '#submission_comment_form textarea', '.comment-input textarea',
+          '#right_side textarea', '#right_side_inner textarea', '[contenteditable="true"][aria-label*="comment" i]',
+          '[contenteditable="true"][data-testid*="comment" i]', '.tox-edit-area [contenteditable="true"]',
+        ];
+        for (const sel of selectors) {
+          const el = document.querySelector(sel);
+          if (!el) continue;
+          const current = append ? (el.value || el.innerText || '').trim() : '';
+          const next = current ? `${current}\n\n${value}` : value;
+          if (ceSgSetValue(el, next)) return true;
+        }
+        return false;
       }
-      const selectors = [
-        '#speed_grader_comment_textarea', '#speedgrader_textarea', 'textarea[name="comment[text_comment]"]',
-        '#grading_comment', '#comment_textarea', '.submission-comment-form textarea', '.grading_comment textarea',
-        'textarea[data-testid*="comment" i]', 'textarea[aria-label*="comment" i]', 'textarea[placeholder*="comment" i]',
-        '#comments_container textarea', '#submission_comment_form textarea', '.comment-input textarea',
-        '#right_side textarea', '#right_side_inner textarea', '[contenteditable="true"][aria-label*="comment" i]',
-        '[contenteditable="true"][data-testid*="comment" i]', '.tox-edit-area [contenteditable="true"]',
-      ];
-      for (const selector of selectors) if (ceSgSetValue(document.querySelector(selector), next)) return true;
-      navigator.clipboard?.writeText(value).catch(() => {});
-      return false;
+
+      if (!tryInsert()) {
+        setTimeout(() => {
+          if (!tryInsert()) navigator.clipboard?.writeText(value).catch(() => {});
+        }, 400);
+      }
     }
 
     function ceSgInsertGrade(value) {
@@ -381,11 +392,12 @@
         else { queueBadge.style.display = 'none'; }
       }
       const aiBtn = ceSgToolbarButton('AI Grade', false);
+      const criteriaBtn = ceSgToolbarButton('Criteria', false);
       const commentsBtn = ceSgToolbarButton('Comments', false);
       const auditBtn = ceSgToolbarButton('Audit', false);
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, commentsBtn, auditBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -404,7 +416,7 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
 
@@ -420,33 +432,18 @@
       const teacherBox = document.createElement('div');
       teacherBox.className = 'ce-sg-tchnote';
 
-      const criteriaInput = document.createElement('textarea');
-      criteriaInput.className = 'ce-sg-textarea';
-      criteriaInput.placeholder = 'Paste rubric, answer key, grading rules, or AI instructions for this assignment.';
-      criteriaInput.value = state.stored.ce_criteria?.[criteriaKey] || '';
-      criteriaInput.addEventListener('input', async () => {
-        const latest = await ceSgStorageGet(['ce_criteria']);
-        ceSgStorageSet({ ce_criteria: { ...(latest.ce_criteria || {}), [criteriaKey]: criteriaInput.value } });
-      });
-
       const snippetEdit = document.createElement('textarea');
-      snippetEdit.className = 'ce-sg-textarea';
-      snippetEdit.placeholder = 'One reusable comment per blank line.';
-      snippetEdit.value = state.stored.ce_sg_comment_snippets || 'Strong work overall.\n\nPlease review the assignment directions and resubmit.\n\nGood start. Add more specific evidence and examples.';
-      const snippetSelect = document.createElement('select');
-      snippetSelect.className = 'ce-sg-select';
-      function refreshSnippets() {
-        ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value });
-        snippetSelect.innerHTML = '';
-        snippetEdit.value.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean).forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s;
-          opt.textContent = s.slice(0, 90);
-          snippetSelect.appendChild(opt);
-        });
-      }
-      snippetEdit.addEventListener('input', refreshSnippets);
-      refreshSnippets();
+      snippetEdit.value = state.stored.ce_sg_comment_snippets || [
+        'Strong work overall! Your ideas are well-organized and clearly communicated.',
+        'Thank you for submitting. Please review the assignment directions carefully and resubmit to earn full credit.',
+        'Good start! To strengthen your response, add more specific evidence and examples to support your main points.',
+        'Excellent effort — your analysis shows a strong understanding of the material.',
+        'This submission is missing one or more required components. Please revise and resubmit by the deadline.',
+        'Your writing is clear and on-topic. Focus on developing your argument with more supporting detail in the body paragraphs.',
+        'I can see the effort you put into this. Let\'s connect during office hours to discuss how to improve your score next time.',
+        'Nice job meeting the length and format requirements. Continue to work on deepening your analysis.',
+        'You have a solid grasp of the concept — well done! A few minor errors are noted in the rubric feedback below.',
+      ].join('\n\n');
 
       const queueStatus = document.createElement('div');
       queueStatus.className = 'ce-sg-status-text';
@@ -477,7 +474,7 @@
 
       function closeDrawer() {
         drawer.classList.remove('ce-open');
-        [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
       function makeModalHeader(icon, title) {
@@ -524,12 +521,32 @@
         return f;
       }
 
+      function composeCriteriaText(c) {
+        if (!c) return '';
+        if (typeof c === 'string') return c;
+        const parts = [];
+        if (c.pointsPossible) parts.push(`Points Possible: ${c.pointsPossible}`);
+        if (c.difficulty) parts.push(`Difficulty: ${c.difficulty}`);
+        if (c.rubric?.trim()) parts.push(`Rubric:\n${c.rubric.trim()}`);
+        if (c.answerKey?.trim()) parts.push(`Answer Key:\n${c.answerKey.trim()}`);
+        if (c.suggestedComments?.trim()) parts.push(`Suggested Comments:\n${c.suggestedComments.trim()}`);
+        if (c.aiNotes?.trim()) parts.push(`Additional Instructions:\n${c.aiNotes.trim()}`);
+        return parts.join('\n\n');
+      }
+
+      async function saveCriteriaField(update) {
+        const latest = await ceSgStorageGet(['ce_criteria']);
+        const all = latest.ce_criteria || {};
+        const current = (all[criteriaKey] && typeof all[criteriaKey] === 'object') ? all[criteriaKey] : {};
+        ceSgStorageSet({ ce_criteria: { ...all, [criteriaKey]: { ...current, ...update } } });
+      }
+
       function showDrawer(mode) {
         drawer.dataset.mode = mode;
         drawer.innerHTML = '';
         drawer.className = 'ce-sg-drawer';
         drawer.classList.add('ce-open');
-        [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
 
         if (mode === 'needs') {
           queueBtn.classList.add('ce-sg-btn-primary');
@@ -543,12 +560,19 @@
 
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
-          drawer.classList.add('ce-sz-lg');
+          drawer.classList.add('ce-sz-md');
+
+          const body = document.createElement('div');
+          body.className = 'ce-sg-mbody';
 
           const statusEl = document.createElement('div');
           statusEl.className = 'ce-sg-status-text';
 
-          const runBtn = mkAbtn('▶ Run AI Grade', 'ce-sg-abtn-primary');
+          const runBtn = mkAbtn('▶ Grade This Assignment', 'ce-sg-abtn-primary');
+          const runRow = document.createElement('div');
+          runRow.style.cssText = 'display:flex;gap:12px;align-items:center;';
+          runRow.append(runBtn, statusEl);
+
           runBtn.addEventListener('click', async () => {
             if (runBtn.disabled) return;
             runBtn.disabled = true;
@@ -557,6 +581,8 @@
             teacherBox.style.display = 'none';
             statusEl.textContent = 'Loading submission…';
             try {
+              const latestCrit = await ceSgStorageGet(['ce_criteria']);
+              const criteriaText = composeCriteriaText(latestCrit.ce_criteria?.[criteriaKey]);
               let c = null;
               try { const freshCtx = await fetchSubmission(); c = freshCtx || ctx; } catch (_) {}
               if (!c) {
@@ -605,7 +631,7 @@
               }
               statusEl.textContent = 'AI is grading…';
               const response = await new Promise(resolve => chrome.runtime.sendMessage(
-                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaInput.value) }], max_tokens: 1500, model: gradingModel } },
+                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel } },
                 resolve
               ));
               if (response?.error) throw new Error(response.error);
@@ -615,7 +641,7 @@
               scoreInput.value = p.score;
               draftInput.value = p.comments;
               if (p.teacherCheck) { teacherBox.textContent = `⚠ Teacher check: ${p.teacherCheck}`; teacherBox.style.display = 'block'; }
-              statusEl.textContent = p.score ? `✓ Score: ${p.score} — review and insert below` : '✓ Done — review and insert below';
+              statusEl.textContent = p.score ? `✓ Suggested score: ${p.score}` : '✓ Done — review and insert';
             } catch(e) {
               statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
             } finally {
@@ -623,40 +649,104 @@
             }
           });
 
+          // Score row with its own insert button
+          const scoreFgrp = document.createElement('div');
+          scoreFgrp.className = 'ce-sg-fgrp';
+          const scoreLbl = document.createElement('label');
+          scoreLbl.className = 'ce-sg-flabel';
+          scoreLbl.textContent = 'Suggested Score';
+          const scoreRow = document.createElement('div');
+          scoreRow.style.cssText = 'display:flex;gap:8px;align-items:center;';
+          scoreInput.style.cssText = 'width:110px;flex-shrink:0;';
+          const insertScoreBtn = mkAbtn('↪ Insert Score', 'ce-sg-abtn-success');
+          insertScoreBtn.addEventListener('click', () => { if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim()); });
+          scoreRow.append(scoreInput, insertScoreBtn);
+          scoreFgrp.append(scoreLbl, scoreRow);
+
+          // Feedback with its own insert button below
+          const feedFgrp = document.createElement('div');
+          feedFgrp.className = 'ce-sg-fgrp-grow';
+          const feedLbl = document.createElement('label');
+          feedLbl.className = 'ce-sg-flabel';
+          feedLbl.textContent = 'Draft Feedback';
+          draftInput.style.cssText = 'flex:1;min-height:120px;';
+          const insertCommentBtn = mkAbtn('↪ Insert Comment', 'ce-sg-abtn-success');
+          insertCommentBtn.style.alignSelf = 'flex-start';
+          insertCommentBtn.addEventListener('click', () => { if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false); });
+          feedFgrp.append(feedLbl, draftInput, insertCommentBtn);
+
+          body.append(runRow, scoreFgrp, feedFgrp, teacherBox);
+
+          const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          closeBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('🎓', 'AI Grade'), body, mkFooter(closeBtn));
+
+        } else if (mode === 'criteria') {
+          criteriaBtn.classList.add('ce-sg-btn-primary');
+          drawer.classList.add('ce-sz-lg');
+
+          const savedRaw = state.stored.ce_criteria?.[criteriaKey];
+          const saved = (savedRaw && typeof savedRaw === 'object') ? savedRaw : {};
+
+          // Left column: assignment setup
+          const pointsInput = document.createElement('input');
+          pointsInput.className = 'ce-sg-input';
+          pointsInput.type = 'number';
+          pointsInput.min = '0';
+          pointsInput.placeholder = 'e.g. 100';
+          pointsInput.value = saved.pointsPossible || '';
+          pointsInput.addEventListener('change', () => saveCriteriaField({ pointsPossible: pointsInput.value }));
+
+          const diffSelect = document.createElement('select');
+          diffSelect.className = 'ce-sg-select';
+          [['standard','Standard'],['easy','Easy'],['challenging','Challenging'],['advanced','Advanced']].forEach(([val, lbl]) => {
+            const o = document.createElement('option');
+            o.value = val; o.textContent = lbl;
+            o.selected = (saved.difficulty || 'standard') === val;
+            diffSelect.appendChild(o);
+          });
+          diffSelect.addEventListener('change', () => saveCriteriaField({ difficulty: diffSelect.value }));
+
+          const sugInput = document.createElement('textarea');
+          sugInput.className = 'ce-sg-textarea';
+          sugInput.placeholder = 'Phrases and comments the AI should work into feedback (e.g. "Great thesis", "Cite your sources")…';
+          sugInput.value = saved.suggestedComments || '';
+          sugInput.addEventListener('input', () => saveCriteriaField({ suggestedComments: sugInput.value }));
+
           const leftCol = document.createElement('div');
           leftCol.className = 'ce-sg-mcol';
-          const runRow = document.createElement('div');
-          runRow.style.cssText = 'display:flex;gap:10px;align-items:center;';
-          runRow.append(runBtn, statusEl);
-          leftCol.append(mkFgrp('Grading Criteria', criteriaInput, true), runRow);
+          leftCol.append(mkFgrp('Points Possible', pointsInput, false), mkFgrp('Difficulty', diffSelect, false), mkFgrp('Suggested Comments', sugInput, true));
+
+          // Right column: AI content
+          const rubricInput = document.createElement('textarea');
+          rubricInput.className = 'ce-sg-textarea';
+          rubricInput.placeholder = 'Paste the assignment rubric or grading criteria here…';
+          rubricInput.value = saved.rubric || '';
+          rubricInput.addEventListener('input', () => saveCriteriaField({ rubric: rubricInput.value }));
+
+          const answerKeyInput = document.createElement('textarea');
+          answerKeyInput.className = 'ce-sg-textarea';
+          answerKeyInput.placeholder = 'Paste an answer key or model response for the AI to compare against…';
+          answerKeyInput.value = saved.answerKey || '';
+          answerKeyInput.addEventListener('input', () => saveCriteriaField({ answerKey: answerKeyInput.value }));
+
+          const aiNotesInput = document.createElement('textarea');
+          aiNotesInput.className = 'ce-sg-textarea';
+          aiNotesInput.placeholder = 'Special instructions for the AI: tone, what to focus on, partial credit rules, what to ignore…';
+          aiNotesInput.value = saved.aiNotes || '';
+          aiNotesInput.addEventListener('input', () => saveCriteriaField({ aiNotes: aiNotesInput.value }));
 
           const rightCol = document.createElement('div');
           rightCol.className = 'ce-sg-mcol';
-          scoreInput.style.cssText = '';
-          const scoreRow = document.createElement('div');
-          scoreRow.style.cssText = 'display:flex;gap:12px;align-items:flex-end;';
-          const scoreFgrp = document.createElement('div');
-          scoreFgrp.className = 'ce-sg-fgrp';
-          scoreFgrp.style.cssText = 'width:110px;flex-shrink:0;';
-          const scoreLbl = document.createElement('label');
-          scoreLbl.className = 'ce-sg-flabel';
-          scoreLbl.textContent = 'Score';
-          scoreFgrp.append(scoreLbl, scoreInput);
-          scoreRow.appendChild(scoreFgrp);
-          rightCol.append(scoreRow, mkFgrp('Draft Feedback', draftInput, true), teacherBox);
+          rightCol.append(mkFgrp('Rubric', rubricInput, true), mkFgrp('Answer Key', answerKeyInput, true), mkFgrp('Notes for AI', aiNotesInput, true));
 
           const split = document.createElement('div');
           split.className = 'ce-sg-mbody-split';
           split.append(leftCol, rightCol);
 
-          const cancelBtn = mkAbtn('Cancel', 'ce-sg-abtn-secondary');
-          cancelBtn.addEventListener('click', closeDrawer);
-          const insertBtn = mkAbtn('↪ Insert Grade & Comment', 'ce-sg-abtn-success');
-          insertBtn.addEventListener('click', () => {
-            if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
-            if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
-          });
-          drawer.append(makeModalHeader('🎓', 'AI Grade'), split, mkFooter(cancelBtn, insertBtn));
+          const doneBtn = mkAbtn('Done', 'ce-sg-abtn-primary');
+          doneBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('📋', 'Grading Criteria'), split, mkFooter(doneBtn));
 
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
@@ -787,9 +877,10 @@
       }
 
       queueBtn.addEventListener('click', () => showDrawer('needs'));
+      aiBtn.addEventListener('click', () => showDrawer('ai'));
+      criteriaBtn.addEventListener('click', () => showDrawer('criteria'));
       commentsBtn.addEventListener('click', () => showDrawer('comments'));
       auditBtn.addEventListener('click', () => showDrawer('audit'));
-      aiBtn.addEventListener('click', () => showDrawer('ai'));
 
       async function loadQueue(showInDrawer) {
         if (!courseId) return;
