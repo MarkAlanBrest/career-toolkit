@@ -46,7 +46,7 @@
     { id: 'settings',  group: 'cd', icon: '⚙️', label: 'Settings' },
     // ── Teaching & Grading Toolbar ───────────────────────────────────────────
     { _section: 'tg', label: 'Teaching' },
-    { id: 'ai-grader',    group: 'tg', icon: '🎓', label: 'Grader',        desc: 'AI-powered grading in SpeedGrader. Reads the rubric and student submission, then suggests a score and written feedback.' },
+    { id: 'ai-grader',    group: 'tg', icon: '🎓', label: 'Needs Graded',  desc: 'Shows all submitted, ungraded work across your courses. Click an assignment to open it in SpeedGrader.' },
     { id: 'scheduler',    group: 'tg', icon: '📅', label: 'Scheduler',     desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
     { id: 'message',      group: 'tg', icon: '✉️',  label: 'Message',      noPanel: true, desc: 'Automated student messaging. Send reminders, missing-work alerts, and progress updates directly via the Canvas inbox.' },
     { id: 'cheater',      group: 'tg', icon: '🔍', label: 'Audit',         desc: 'Canvas-based audit. Flags submission, quiz, timing, and answer-pattern conditions for teacher review.' },
@@ -237,6 +237,13 @@
 
   panel.appendChild(panelHeader);
   panel.appendChild(panelBody);
+
+  // ── NEEDS GRADED MODAL ─────────────────────────────────────────────────────
+  const ngModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  ngModal.id = 'ce-ng-modal';
+  const ngBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(600px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  ngModal.appendChild(ngBox);
+  ngModal.addEventListener('click', e => { if (e.target === ngModal) closeNgModal(); });
 
   // ── PANEL CONTENT ──────────────────────────────────────────────────────────
   function placeholder(icon, title, sub) {
@@ -2383,7 +2390,108 @@
     document.dispatchEvent(new CustomEvent('ce-close-scheduler'));
   }
 
+  function closeNgModal() {
+    ngModal.style.display = 'none';
+    if (_active === 'ai-grader') setActive(null);
+  }
+
+  async function showNgModal() {
+    if (ngModal.style.display !== 'none') { closeNgModal(); return; }
+    setActive('ai-grader');
+    ngBox.innerHTML = '';
+
+    const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+    const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '🎓';
+    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Needs Graded';
+    const xBtn = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;line-height:1;padding:0;font-family:${DS.font};`, { type:'button', textContent:'×', title:'Close' });
+    xBtn.addEventListener('mouseenter', () => { xBtn.style.background = 'rgba(255,255,255,0.15)'; xBtn.style.color = '#fff'; });
+    xBtn.addEventListener('mouseleave', () => { xBtn.style.background = ''; xBtn.style.color = 'rgba(255,255,255,0.65)'; });
+    xBtn.addEventListener('click', closeNgModal);
+    hdr.append(ico, ttl, xBtn);
+    ngBox.appendChild(hdr);
+
+    const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
+    ngBox.appendChild(body);
+
+    const ftr = el('div', `flex-shrink:0;padding:10px 16px;border-top:1px solid ${DS.border};display:flex;justify-content:flex-end;background:#fff;`);
+    const closeBtn = el('button', `padding:8px 18px;border:1px solid ${DS.border};border-radius:5px;background:#fff;color:${DS.text};font-size:13px;font-weight:600;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'Close' });
+    closeBtn.addEventListener('click', closeNgModal);
+    ftr.appendChild(closeBtn);
+    ngBox.appendChild(ftr);
+
+    ngModal.style.display = 'flex';
+    await loadNeedsGrading(body);
+  }
+
+  async function loadNeedsGrading(body) {
+    function msg(text, color) {
+      body.innerHTML = '';
+      const m = el('div', `padding:48px 20px;text-align:center;font-size:13px;color:${color || DS.muted};line-height:1.6;`);
+      m.textContent = text; body.appendChild(m);
+    }
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token'], r));
+    const tok = stored.ce_canvas_token;
+    const origin = window.location.origin;
+    if (!tok) { msg('Add your Canvas API token in Settings first.'); return; }
+    msg('Loading…');
+    function apiCall(path) {
+      return new Promise(r => chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } }, r));
+    }
+    try {
+      const [todoItems, courses] = await Promise.all([
+        apiCall('/api/v1/users/self/todo?per_page=100'),
+        apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100'),
+      ]);
+      const courseNames = {};
+      for (const c of (courses || [])) courseNames[c.id] = c.course_code || c.name;
+      const pending = (todoItems || [])
+        .filter(item => item.type === 'grading' && item.assignment)
+        .sort((a, b) => {
+          const da = a.assignment.due_at ? new Date(a.assignment.due_at) : new Date('9999-01-01');
+          const db = b.assignment.due_at ? new Date(b.assignment.due_at) : new Date('9999-01-01');
+          return da - db;
+        });
+      body.innerHTML = '';
+      if (!pending.length) { msg('✅  All caught up — nothing left to grade.'); return; }
+      const subHdr = el('div', `padding:12px 16px 10px;font-size:12px;color:${DS.muted};border-bottom:1px solid ${DS.border};`);
+      subHdr.textContent = `${pending.length} assignment${pending.length !== 1 ? 's' : ''} waiting to be graded`;
+      body.appendChild(subHdr);
+      for (const item of pending) {
+        const a = item.assignment;
+        const cid = a.course_id;
+        const sgUrl = `${origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}`;
+        const row = document.createElement('a');
+        row.href = sgUrl;
+        row.style.cssText = `display:flex;align-items:center;gap:12px;padding:13px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+        const left = el('div', `min-width:0;flex:1;`);
+        const courseLbl = el('div', `font-size:10px;color:${DS.muted};text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+        courseLbl.textContent = courseNames[cid] || 'Course ' + cid;
+        const name = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+        name.textContent = a.name;
+        const due = el('div', `font-size:11px;color:${DS.muted};margin-top:3px;`);
+        due.textContent = a.due_at
+          ? 'Due ' + new Date(a.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          : 'No due date';
+        left.append(courseLbl, name, due);
+        const badge = el('div', `flex-shrink:0;background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
+        badge.textContent = (item.needs_grading_count ?? a.needs_grading_count ?? '?') + ' to grade';
+        row.append(left, badge);
+        row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        body.appendChild(row);
+      }
+    } catch (e) {
+      msg('Error: ' + e.message, '#991B1B');
+    }
+  }
+
   function onToolClick(tool) {
+    if (tool.id === 'ai-grader') {
+      closePanel();
+      closeAllExternal();
+      showNgModal();
+      return;
+    }
     if (tool.id === 'message') {
       closePanel();
       closeAllExternal();
@@ -2556,13 +2664,14 @@
     document.body.insertBefore(tab, document.body.firstChild);
     document.body.insertBefore(toolbar, tab);
     document.body.appendChild(panel);
+    document.body.appendChild(ngModal);
     applyToolbarState();
     chrome.storage.local.get('ce_features', ({ ce_features }) => {
       if (ce_features) applyFeatures(ce_features);
     });
   }
 
-  document.addEventListener('ce-open-ai-grader', () => openPanel({ id: 'ai-grader', label: 'AI Grader' }));
+  document.addEventListener('ce-open-ai-grader', () => showNgModal());
   document.addEventListener('ce-render-audit', e => {
     const c = e.detail?.container;
     if (!c) return;
