@@ -264,11 +264,30 @@
     }
 
     function ceSgParseAi(text) {
-      return {
-        score: text.match(/SCORE:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '',
-        comments: (text.match(/COMMENTS?:\s*([\s\S]*?)(?:TEACHER CHECK:|$)/i)?.[1] || text).trim(),
-        teacherCheck: (text.match(/TEACHER CHECK:\s*([\s\S]*)/i)?.[1] || '').trim(),
-      };
+      const score = text.match(/SCORE:\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1] || '';
+      let comments = '';
+      let teacherCheck = '';
+      const feedbackMatch = text.match(/FEEDBACK:\s*([\s\S]*)/i);
+      const commentsMatch = text.match(/COMMENTS?:\s*([\s\S]*?)(?:TEACHER CHECK:|$)/i);
+      if (feedbackMatch) {
+        const lines = feedbackMatch[1].split('\n');
+        const pub = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:/i.test(trimmed)) {
+            if (!teacherCheck) teacherCheck = trimmed.replace(/^[-*•]?\s*(TEACHER CHECK|REVIEW)\s*:\s*/i, '').trim();
+          } else if (trimmed) {
+            pub.push(trimmed.replace(/^[-*•]\s*/, ''));
+          }
+        }
+        comments = pub.join('\n').trim();
+      } else if (commentsMatch) {
+        comments = commentsMatch[1].trim();
+        teacherCheck = (text.match(/TEACHER CHECK:\s*([\s\S]*)/i)?.[1] || '').trim();
+      } else {
+        comments = text.replace(/SCORE:[^\n]*/i, '').replace(/TEACHER CHECK:[\s\S]*/i, '').trim();
+      }
+      return { score, comments, teacherCheck };
     }
 
     async function mountSpeedGraderToolbar() {
@@ -296,7 +315,8 @@
         #ce-sg-toolbar * { box-sizing:border-box; }
         .ce-sg-mainbar { height:100%; display:flex; align-items:stretch; gap:2px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
         .ce-sg-brand { min-width:84px; height:100%; border-right:1px solid #c7cdd1; background:#f5f5f5; color:#6b7280; display:flex; align-items:center; justify-content:center; padding:0 10px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
-        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:rgba(60,190,120,0.11); color:#2d3b45; padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; }
+        .ce-sg-btn { width:78px; height:100%; flex-shrink:0; border:none; border-bottom:3px solid transparent; background:rgba(60,190,120,0.11); color:#2d3b45; padding:0 6px; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; position:relative; }
+        .ce-sg-badge { position:absolute;top:5px;right:5px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
         .ce-sg-btn-inner { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; pointer-events:none; }
         .ce-sg-btn-icon { font-size:18px; line-height:1; display:block; text-align:center; }
         .ce-sg-btn-label { display:block; text-align:center; font-size:10px; color:#2d3b45; opacity:.8; letter-spacing:.2px; text-transform:uppercase; font-weight:700; line-height:1.05; }
@@ -328,13 +348,20 @@
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
       brand.textContent = 'Grading';
-      const needsBtn = ceSgToolbarButton('Needs', false, '📋');
+      const queueBtn = ceSgToolbarButton('Queue', false, '📬');
+      const queueBadge = document.createElement('span');
+      queueBadge.className = 'ce-sg-badge';
+      queueBtn.appendChild(queueBadge);
+      function setQueueBadge(count) {
+        if (count > 0) { queueBadge.textContent = String(count); queueBadge.style.display = ''; }
+        else { queueBadge.style.display = 'none'; }
+      }
       const aiBtn = ceSgToolbarButton('AI Grade', false, '🎓');
       const commentsBtn = ceSgToolbarButton('Comments', false, '💬');
-      const auditBtn = ceSgToolbarButton('Audit', false, '🩺');
+      const auditBtn = ceSgToolbarButton('Audit', false, '🔍');
       const collapseBtn = ceSgToolbarButton('Hide', false, '▴');
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, needsBtn, aiBtn, commentsBtn, auditBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, commentsBtn, auditBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -353,7 +380,7 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
 
@@ -440,32 +467,45 @@
         return wrap;
       }
 
+      function makeDrawerHeader(title) {
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'flex:1 1 100%;display:flex;align-items:center;border-bottom:1px solid #e8eaec;margin-bottom:8px;padding-bottom:10px;';
+        const ttl = document.createElement('span');
+        ttl.style.cssText = 'font-size:14px;font-weight:700;color:#2d3b45;';
+        ttl.textContent = title;
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.textContent = '×';
+        x.title = 'Close';
+        x.style.cssText = 'background:none;border:none;font-size:24px;line-height:1;cursor:pointer;color:#6b7280;padding:0 2px;margin-left:auto;';
+        x.addEventListener('click', () => {
+          drawer.classList.remove('ce-open');
+          [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        });
+        hdr.append(ttl, x);
+        return hdr;
+      }
+
       function showDrawer(mode) {
         drawer.dataset.mode = mode;
         drawer.innerHTML = '';
         drawer.classList.add('ce-open');
-        [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
-        const close = ceSgToolbarButton('Close');
-        close.style.marginLeft = 'auto';
-        close.addEventListener('click', () => {
-          drawer.classList.remove('ce-open');
-          [needsBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
-        });
+        [queueBtn, aiBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         if (mode === 'needs') {
-          needsBtn.classList.add('ce-sg-btn-primary');
+          queueBtn.classList.add('ce-sg-btn-primary');
           const box = document.createElement('div');
           box.className = 'ce-sg-field';
           box.style.flex = '1 1 100%';
           box.append(queueStatus, refreshQueueBtn, queueList);
-          drawer.appendChild(close);
-          drawer.appendChild(box);
+          drawer.append(makeDrawerHeader('Grading Queue'), box);
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
           const runBtn = ceSgBtn('▶ Run AI Grade', true);
           const insertBtn = ceSgBtn('↪ Insert Grade & Comment', false);
+          insertBtn.style.cssText += ';margin-left:auto;';
           const statusEl = document.createElement('div');
           statusEl.className = 'ce-sg-small';
-          statusEl.style.cssText = 'flex:1 1 100%;min-height:18px;';
+          statusEl.style.cssText = 'flex:1;min-height:18px;';
           runBtn.addEventListener('click', async () => {
             if (runBtn.disabled) return;
             runBtn.disabled = true;
@@ -546,56 +586,70 @@
             if (scoreInput.value.trim()) ceSgInsertGrade(scoreInput.value.trim());
             if (draftInput.value.trim()) ceSgInsertComment(draftInput.value.trim(), false);
           });
+          const scoreField = field('Score', scoreInput);
+          scoreField.style.cssText = 'flex:0 0 130px;';
+          const feedbackField = field('Draft Feedback', draftInput);
+          feedbackField.style.cssText = 'flex:1 1 280px;';
+          const criteriaField = field('Grading Criteria', criteriaInput);
+          criteriaField.style.cssText = 'flex:1 1 100%;';
           const btnRow = document.createElement('div');
-          btnRow.style.cssText = 'display:flex;gap:8px;flex:1 1 100%;align-items:center;flex-wrap:wrap;';
+          btnRow.style.cssText = 'display:flex;gap:8px;flex:1 1 100%;align-items:center;';
           btnRow.append(runBtn, statusEl);
-          drawer.appendChild(close);
-          drawer.append(field('Grading Criteria', criteriaInput), btnRow, field('Score', scoreInput), field('Draft Feedback', draftInput), teacherBox, insertBtn);
+          const resultsRow = document.createElement('div');
+          resultsRow.style.cssText = 'display:flex;gap:10px;flex:1 1 100%;flex-wrap:wrap;align-items:flex-start;';
+          resultsRow.append(scoreField, feedbackField);
+          drawer.append(makeDrawerHeader('AI Grade'), criteriaField, btnRow, resultsRow, teacherBox, insertBtn);
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
           const insertCommentBtn = ceSgBtn('Insert Selected', true);
           insertCommentBtn.addEventListener('click', () => snippetSelect.value && ceSgInsertComment(snippetSelect.value, true));
-          drawer.appendChild(close);
-          drawer.append(field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
+          drawer.append(makeDrawerHeader('Comment Snippets'), field('Saved comments', snippetSelect), field('Edit saved comments', snippetEdit), insertCommentBtn);
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
           const auditContainer = document.createElement('div');
-          auditContainer.style.cssText = 'flex:1 1 100%;min-height:280px;overflow:auto;';
-          drawer.appendChild(close);
-          drawer.appendChild(auditContainer);
-          setTimeout(() => document.dispatchEvent(new CustomEvent('ce-render-eval', { detail: { container: auditContainer } })), 0);
+          auditContainer.style.cssText = 'flex:1 1 100%;min-height:300px;overflow:auto;';
+          drawer.append(makeDrawerHeader('Audit'), auditContainer);
+          setTimeout(() => document.dispatchEvent(new CustomEvent('ce-render-audit', { detail: { container: auditContainer } })), 0);
         }
       }
 
-      needsBtn.addEventListener('click', () => showDrawer('needs'));
+      queueBtn.addEventListener('click', () => showDrawer('needs'));
       commentsBtn.addEventListener('click', () => showDrawer('comments'));
       auditBtn.addEventListener('click', () => showDrawer('audit'));
       aiBtn.addEventListener('click', () => showDrawer('ai'));
 
-      refreshQueueBtn.addEventListener('click', async () => {
+      async function loadQueue(showInDrawer) {
         if (!courseId) return;
-        refreshQueueBtn.disabled = true;
-        queueStatus.textContent = 'Loading assignments...';
-        queueList.innerHTML = '';
+        if (showInDrawer) {
+          refreshQueueBtn.disabled = true;
+          queueStatus.textContent = 'Loading assignments...';
+          queueList.innerHTML = '';
+        }
         try {
           const assignments = await ceSgCanvasGet(`/api/v1/courses/${courseId}/assignments?order_by=due_at&per_page=100`);
           const needing = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
-          queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'No assignments with Canvas needs_grading_count.';
-          needing.slice(0, 40).forEach(a => {
-            const b = ceSgToolbarButton(`${a.name} (${a.needs_grading_count})`);
-            b.style.textAlign = 'left';
-            b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
-            queueList.appendChild(b);
-          });
+          setQueueBadge(needing.length);
+          if (showInDrawer) {
+            queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'All caught up — no submissions awaiting grades.';
+            needing.slice(0, 40).forEach(a => {
+              const b = ceSgToolbarButton(`${a.name} (${a.needs_grading_count})`);
+              b.style.textAlign = 'left';
+              b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
+              queueList.appendChild(b);
+            });
+          }
         } catch (e) {
-          queueStatus.textContent = e.message || 'Could not load list.';
+          if (showInDrawer) queueStatus.textContent = e.message || 'Could not load list.';
         } finally {
-          refreshQueueBtn.disabled = false;
+          if (showInDrawer) refreshQueueBtn.disabled = false;
         }
-      });
+      }
+
+      refreshQueueBtn.addEventListener('click', () => loadQueue(true));
 
       document.body.insertBefore(tab, document.body.firstChild);
       document.body.insertBefore(bar, tab);
+      setTimeout(() => loadQueue(false), 2000);
       return true;
     }
 

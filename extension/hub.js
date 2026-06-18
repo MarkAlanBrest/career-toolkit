@@ -1044,11 +1044,11 @@
   }
 
   // ── TOOL CLICK ─────────────────────────────────────────────────────────────
-  async function renderAudit() {
-    panelBody.innerHTML = '';
+  async function renderAudit(container = panelBody) {
+    container.innerHTML = '';
 
-    panelBody.style.padding = '0';
-    panelBody.style.overflow = 'hidden';
+    container.style.padding = '0';
+    container.style.overflow = 'hidden';
 
     const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_audit_prefs'], r));
     const token = stored.ce_canvas_token || '';
@@ -1061,7 +1061,7 @@
     let lastReport = null;
 
     const outer = el('div', 'display:flex;flex-direction:column;height:100%;');
-    panelBody.appendChild(outer);
+    container.appendChild(outer);
 
     // ── PICKER HEADER ───────────────────────────────────────────────────────
     const pickerHdr = el('div', `flex-shrink:0;padding:8px 10px;background:${DS.gray};border-bottom:1px solid ${DS.border};display:flex;flex-direction:column;gap:6px;`);
@@ -2446,6 +2446,11 @@
   }
 
   document.addEventListener('ce-open-ai-grader', () => openPanel({ id: 'ai-grader', label: 'AI Grader' }));
+  document.addEventListener('ce-render-audit', e => {
+    const c = e.detail?.container;
+    if (!c) return;
+    renderAudit(c);
+  });
 
   if (document.body) mount();
   else document.addEventListener('DOMContentLoaded', mount);
