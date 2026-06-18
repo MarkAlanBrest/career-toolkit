@@ -13,7 +13,7 @@
   // Inject styles — matches the Canvas Enhancer hub panel design system
   const _style = document.createElement('style');
   _style.textContent = `
-    #ces-overlay {
+    #ces-overlay, #ces-tpl-overlay {
       position: fixed;
       inset: 0;
       z-index: 2147483638;
@@ -23,7 +23,8 @@
       font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", sans-serif;
       color: #2D3B45;
     }
-    #ces-overlay.ces-open { display: flex; }
+    #ces-overlay.ces-open, #ces-tpl-overlay.ces-open { display: flex; }
+    #ces-tpl-body { flex: 1; overflow-y: auto; padding: 16px; }
 
     .ces-modal-box {
       background: #fff;
@@ -34,17 +35,7 @@
       display: flex; flex-direction: column; overflow: hidden;
     }
 
-    #ces-header {
-      height: 52px; flex-shrink: 0;
-      background: #1B303D;
-      display: flex; align-items: center; padding: 0 16px; gap: 10px;
-    }
-    #ces-header h2 {
-      flex: 1; margin: 0;
-      font-size: 15px; font-weight: 700; color: #fff;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .ces-close-btn {
+.ces-close-btn {
       width: 32px; height: 32px; flex-shrink: 0;
       background: none; border: none; color: rgba(255,255,255,0.65);
       font-size: 22px; cursor: pointer; line-height: 1;
@@ -1188,38 +1179,55 @@
   let cachedDashboardCourseIds = null;
   let generatedMessages = [];
   let currentCourseId = null;
-  let _overlay = null;
+  let _overlay    = null;
+  let _tplOverlay = null;
 
-  function buildUI() {
+  function makeModal(id, title, bodyId) {
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
     const overlay = document.createElement('div');
-    overlay.id = 'ces-overlay';
+    overlay.id = id;
 
     const box = document.createElement('div');
     box.className = 'ces-modal-box';
-    box.innerHTML = `
-      <div id="ces-header">
-        <h2 id="ces-modal-title">Messages</h2>
-        <button class="ces-close-btn" id="ces-close">&times;</button>
-      </div>
-      <div id="ces-body"></div>
-    `;
+
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
+    const ttl = document.createElement('h2');
+    ttl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:' + font + ';';
+    ttl.textContent = title;
+    const xBtn = document.createElement('button');
+    xBtn.type = 'button';
+    xBtn.textContent = '×';
+    xBtn.className = 'ces-close-btn';
+    xBtn.addEventListener('click', () => overlay.classList.remove('ces-open'));
+    hdr.append(ttl, xBtn);
+
+    const body = document.createElement('div');
+    if (bodyId) body.id = bodyId;
+
+    box.append(hdr, body);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
-    _overlay = overlay;
 
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('ces-open'); });
     box.addEventListener('click', e => e.stopPropagation());
-    box.querySelector('#ces-close').addEventListener('click', () => overlay.classList.remove('ces-open'));
+
+    return { overlay, body };
+  }
+
+  function buildUI() {
+    const send = makeModal('ces-overlay',     'Bulk Message Students', 'ces-body');
+    _overlay = send.overlay;
+
+    const tpl  = makeModal('ces-tpl-overlay', 'Message Templates',     'ces-tpl-body');
+    _tplOverlay = tpl.overlay;
   }
 
   /* =========================================================
      TAB: SEND MESSAGES
   ========================================================= */
-  async function showTab(tabName) {
-    const body = document.getElementById('ces-body');
-    if (tabName === 'send') renderSendTab(body);
-    else if (tabName === 'templates') renderTemplatesTab(body);
-  }
+  function openSendModal()      { if (_overlay)    { _overlay.classList.add('ces-open');    renderSendTab(document.getElementById('ces-body')); } }
+  function openTemplatesModal() { if (_tplOverlay) { _tplOverlay.classList.add('ces-open'); renderTemplatesTab(document.getElementById('ces-tpl-body')); } }
 
   async function renderSendTab(container) {
     const sendSettings = getSendSettings();
@@ -2647,15 +2655,16 @@
     const sendBtn = mkBtn('Bulk Message Students');
     const tplBtn  = mkBtn('Message Templates');
 
-    function openModal(tab, title) {
+    sendBtn.addEventListener('click', () => {
       if (!_overlay) return;
-      const t = document.getElementById('ces-modal-title');
-      if (t) t.textContent = title;
       _overlay.classList.add('ces-open');
-      showTab(tab);
-    }
-    sendBtn.addEventListener('click', () => openModal('send',      'Bulk Message Students'));
-    tplBtn.addEventListener('click',  () => openModal('templates', 'Message Templates'));
+      renderSendTab(document.getElementById('ces-body'));
+    });
+    tplBtn.addEventListener('click', () => {
+      if (!_tplOverlay) return;
+      _tplOverlay.classList.add('ces-open');
+      renderTemplatesTab(document.getElementById('ces-tpl-body'));
+    });
 
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
@@ -2705,14 +2714,8 @@
   ========================================================= */
   document.addEventListener('ce-toggle-messages', () => {
     if (!_overlay) return;
-    if (_overlay.classList.contains('ces-open')) {
-      _overlay.classList.remove('ces-open');
-    } else {
-      const t = document.getElementById('ces-modal-title');
-      if (t) t.textContent = 'Bulk Message Students';
-      _overlay.classList.add('ces-open');
-      showTab('send');
-    }
+    if (_overlay.classList.contains('ces-open')) _overlay.classList.remove('ces-open');
+    else openSendModal();
   });
 
   /* =========================================================
