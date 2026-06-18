@@ -1039,6 +1039,8 @@
 
     container.style.padding = '0';
     container.style.overflow = 'hidden';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
 
     const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_audit_prefs'], r));
     const token = stored.ce_canvas_token || '';
@@ -1053,7 +1055,7 @@
     const _locked = !!(opts.courseId && opts.assignmentId);
     let lastReport = null;
 
-    const outer = el('div', 'display:flex;flex-direction:column;height:100%;');
+    const outer = el('div', 'display:flex;flex-direction:column;flex:1;min-height:0;');
     container.appendChild(outer);
 
     if (!_locked) {
@@ -1548,89 +1550,93 @@
       if (checkId === 'read') {
         return {
           title: 'Canvas Submission Reading',
-          help: 'Shows which Canvas submissions were readable enough to include in the audit.',
+          help: 'This shows which student submissions were successfully read and included in the similarity and pattern checks. Submissions with very short text (fewer than 40 meaningful words) are excluded because they are too brief for reliable comparison. If a student you expected to see is missing, check whether they submitted text, a URL, or a file — only text-based submissions can be read. Image-only or unsupported file formats are skipped.',
           head: '<tr><th>Student</th><th>Readable Words</th><th>What to Check</th></tr>',
           body: tableOrEmpty((report.docs || []).map(doc => `
-            <tr><td>${escapeReportHtml(doc.name)}</td><td>${doc.tokens}</td><td>Submission text was readable and included in the audit.</td></tr>
-          `).join(''), 3, 'No readable submissions were available.'),
+            <tr><td>${escapeReportHtml(doc.name)}</td><td>${doc.tokens}</td><td>Submission was read and included in all applicable checks. If the word count seems unexpectedly low, open the submission in SpeedGrader and verify the text content.</td></tr>
+          `).join(''), 3, 'No readable submissions were available. All submissions may be image files, blank, or in an unsupported format.'),
         };
       }
       if (checkId === 'similarity') {
         return {
           title: 'Canvas Submission Similarity',
-          help: 'Review the listed student pairs and shared phrase examples. This does not determine misconduct.',
-          head: '<tr><th>Student A</th><th>Student B</th><th>Similarity</th><th>What to Check</th><th>Shared Phrase Examples</th></tr>',
-          body: tableOrEmpty(report.flags.map(flag => `
+          help: 'This check compares every student\'s submission text against every other student\'s submission using overlapping phrase matching (shingles). A pair is flagged when 22% or more of their phrase patterns overlap, or when they share 18 or more identical five-word sequences. High similarity does NOT mean cheating — it can result from shared templates, quoted source material, a common prompt structure, or authorized group work. Your job is to open each flagged pair in SpeedGrader, read both submissions, and decide whether the overlap is expected or warrants further inquiry under your course policy.',
+          head: '<tr><th>Student A</th><th>Student B</th><th>Overlap Score</th><th>Shared Phrases Found</th><th>What to Do</th></tr>',
+          body: tableOrEmpty((report.flags || []).map(flag => `
             <tr>
               <td>${escapeReportHtml(flag.aName)}</td>
               <td>${escapeReportHtml(flag.bName)}</td>
-              <td>${Math.round(flag.similarity * 100)}%</td>
-              <td>Compare the submissions side-by-side and decide whether the shared wording is expected, cited, collaborative, template-based, or concerning.</td>
-              <td>${flag.samples.map(escapeReportHtml).join('<br>')}</td>
+              <td style="font-weight:700">${Math.round(flag.similarity * 100)}% overlap (${flag.sharedCount} shared phrases)</td>
+              <td style="font-size:11px">${flag.samples.map(escapeReportHtml).join('<br>')}</td>
+              <td>Open both submissions in SpeedGrader and read them side by side. Check whether: (1) the shared phrases come from the prompt or a provided template, (2) both students cited the same source, (3) collaboration was explicitly permitted, or (4) the overlap is unexplained. If unexplained, follow your institution\'s academic integrity policy before taking any action.</td>
             </tr>
-          `).join(''), 5, 'No student-to-student similarity flags were found.'),
+          `).join(''), 5, 'No submission pairs met the similarity threshold. All student submissions appear sufficiently distinct from one another.'),
         };
       }
       if (checkId === 'timing') {
         return {
           title: 'Canvas Timing Signals',
-          help: 'Review Canvas timestamp clusters and repeated uploaded filenames. These can be normal, but they are useful places to look first.',
-          head: '<tr><th>Signal</th><th>Students</th><th>What Canvas Showed</th><th>What to Check</th></tr>',
+          help: 'This check looks for two Canvas-recorded patterns that can (but do not always) indicate shared work: (1) Three or more students submitting within the same two-minute window — possible if students coordinated submission times, though it also happens when a class deadline approaches and everyone submits at once; and (2) Two or more students uploading a file with the exact same filename — possible if students shared a file, though common generic names like "essay.docx" are excluded. Neither pattern is proof of misconduct. They are starting points for your own review.',
+          head: '<tr><th>Signal Type</th><th>Students Involved</th><th>Canvas Detail</th><th>What to Do</th></tr>',
           body: tableOrEmpty((report.timingFlags || []).map(item => `
             <tr>
-              <td>${escapeReportHtml(item.type === 'sameFilename' ? 'Repeated file name' : 'Submission time cluster')}</td>
+              <td style="font-weight:700">${escapeReportHtml(item.type === 'sameFilename' ? 'Identical filename uploaded by multiple students' : 'Multiple students submitted within the same 2-minute window')}</td>
               <td>${escapeReportHtml(item.names.join(', '))}</td>
-              <td>${escapeReportHtml(item.filename || item.submittedAt || '')}<br>${escapeReportHtml(item.detail)}</td>
-              <td>Open the listed Canvas submissions, compare the uploaded files or timestamps, and decide whether the pattern is expected, template-based, collaborative, or concerning.</td>
+              <td style="font-size:11px">${escapeReportHtml(item.filename ? `File: "${item.filename}"` : item.submittedAt ? `Around: ${item.submittedAt}` : '')} — ${escapeReportHtml(item.detail)}</td>
+              <td>${item.type === 'sameFilename'
+                ? 'Open each listed submission in SpeedGrader and compare the file contents, not just the filename. Different students sometimes name files identically without any coordination. If the file contents also match closely, that is a stronger signal — combine with the Similarity check results.'
+                : 'Review the listed submissions in SpeedGrader. A shared submission window is common near deadlines and is rarely significant on its own. It becomes more meaningful if it also appears alongside a high similarity score for the same pair of students.'
+              }</td>
             </tr>
-          `).join(''), 4, 'No Canvas timing or filename flags were found.'),
+          `).join(''), 4, 'No Canvas timing clusters or repeated filenames were found across submissions.'),
         };
       }
       if (checkId === 'quizBlur') {
         return {
-          title: 'Quiz Tab-Switching',
-          help: 'Students who left the quiz tab/window 3 or more times during their attempt. A small number of focus events can be accidental; frequent switching is a stronger signal.',
-          head: '<tr><th>Student</th><th>Tab Switches</th><th>What to Check</th></tr>',
+          title: 'Quiz Tab-Switching (Focus Loss Events)',
+          help: 'Canvas logs a "page_blurred" event every time a student\'s browser focus leaves the quiz tab during an attempt. This check flags students who had 3 or more focus-loss events. A few events are common and usually benign — a notification, accidentally switching windows, or using accessibility tools. A high count (10+) during a short timed quiz is more unusual. This data is only available if Canvas logged session events for the quiz, which is not guaranteed for all quiz types or institution settings.',
+          head: '<tr><th>Student</th><th>Tab-Switch Events</th><th>What This Means</th><th>What to Do</th></tr>',
           body: tableOrEmpty((report.quizBlurFlags || []).map(item => `
             <tr>
               <td>${escapeReportHtml(item.name)}</td>
-              <td style="font-weight:700">${escapeReportHtml(String(item.blurCount))}</td>
-              <td>Ask the student what they were doing during the exam. Check if technical issues (screen reader, accessibility tools, notifications) could explain the switching. Apply course policy.</td>
+              <td style="font-weight:700;font-size:16px">${escapeReportHtml(String(item.blurCount))}</td>
+              <td>Canvas recorded ${escapeReportHtml(String(item.blurCount))} focus-loss event${item.blurCount === 1 ? '' : 's'} during this student\'s quiz attempt. Each event means the quiz tab lost browser focus — the student switched to another window, tab, or application.</td>
+              <td>Before drawing any conclusions: (1) Check whether the student uses a screen reader, accessibility overlay, or secondary display — these can trigger focus events innocently. (2) Consider the quiz length and time limit — more events over a longer quiz are less significant than the same count on a 10-minute quiz. (3) If the count is high and the student also scored well in a short time, cross-reference with the Quiz Speed check. (4) If you decide to follow up, ask the student to explain their environment during the exam before referencing this data.</td>
             </tr>
-          `).join(''), 3, 'No tab-switching flags found, or session logging was unavailable.'),
+          `).join(''), 4, 'No tab-switching flags found. Either no students met the threshold, or Canvas did not log session events for this quiz type.'),
         };
       }
       if (checkId === 'quizSpeed') {
         return {
           title: 'Quiz Completion Speed',
-          help: 'Students who completed the quiz in less than 25% of the allotted time and still scored above 65%. Indicates they may have had answers available before starting.',
-          head: '<tr><th>Student</th><th>Time Used</th><th>% of Limit</th><th>Score</th><th>What to Check</th></tr>',
+          help: 'This check flags students who (1) completed the quiz in less than 25% of the allotted time AND (2) scored above 65%. Together these two conditions suggest the student may have had access to answers before the attempt. Either condition alone is not significant — fast completion could mean strong preparation, and a low score at fast speed is not concerning. Only the combination of very fast AND high-scoring is flagged. This check requires the quiz to have a time limit set in Canvas.',
+          head: '<tr><th>Student</th><th>Time Spent</th><th>% of Time Limit Used</th><th>Score</th><th>What to Do</th></tr>',
           body: tableOrEmpty((report.quizSpeedFlags || []).map(item => {
             const mins = Math.floor(item.timeSpent / 60);
             const secs = item.timeSpent % 60;
             return `<tr>
               <td>${escapeReportHtml(item.name)}</td>
               <td>${escapeReportHtml(`${mins}m ${secs}s`)}</td>
-              <td style="font-weight:700">${escapeReportHtml(String(item.pct))}%</td>
+              <td style="font-weight:700">${escapeReportHtml(String(item.pct))}% of the time limit</td>
               <td>${escapeReportHtml(String(item.score))} / ${escapeReportHtml(String(item.possible))} (${escapeReportHtml(String(item.scorePct))}%)</td>
-              <td>Compare with other attempts, check if the student previously had access to the questions, and review whether the quiz allows retakes that could explain fast completion.</td>
+              <td>Before drawing conclusions: (1) Check if the quiz allows multiple attempts — the student may have reviewed the questions on a prior attempt. (2) Check if the questions were previously available (practice quiz, preview, etc.). (3) A student who is very well-prepared can legitimately complete a quiz quickly. (4) If the combination is unexplained and the margin is extreme (under 10% of time, over 90% score), consider comparing their responses with the class median and reviewing any essay-style answers for signs of pre-preparation.</td>
             </tr>`;
-          }).join(''), 5, 'No unusually fast high-scoring submissions found, or quiz has no time limit.'),
+          }).join(''), 5, 'No unusually fast high-scoring submissions found, or this quiz does not have a time limit configured in Canvas.'),
         };
       }
       if (checkId === 'quizAnswers') {
         return {
-          title: 'Quiz Answer Matching',
-          help: 'Student pairs who chose the same wrong answer on 2 or more questions. Matching wrong answers (not correct ones) is statistically unlikely by chance and a strong collusion signal.',
-          head: '<tr><th>Student A</th><th>Student B</th><th>Matching Wrong Answers</th><th>What to Check</th></tr>',
+          title: 'Quiz Wrong-Answer Matching',
+          help: 'This check identifies student pairs who selected the same wrong answer on 2 or more quiz questions. Correct answers are excluded — if two students both get a question right, that tells you nothing. But choosing the same specific wrong answer on multiple questions is statistically improbable by chance, especially on multiple-choice quizzes with several options per question. This is one of the strongest signals in this audit tool because it suggests the students may have coordinated their responses or shared answers during the quiz.',
+          head: '<tr><th>Student A</th><th>Student B</th><th>Matching Wrong Answers</th><th>What to Do</th></tr>',
           body: tableOrEmpty((report.quizAnswerPairs || []).map(item => `
             <tr>
               <td>${escapeReportHtml(item.aName)}</td>
               <td>${escapeReportHtml(item.bName)}</td>
-              <td style="font-weight:700">${escapeReportHtml(String(item.matchCount))}</td>
-              <td>Compare the full submissions side-by-side. Ask each student separately to explain their reasoning on the flagged questions. Apply course policy on collaboration.</td>
+              <td style="font-weight:700;font-size:16px">${escapeReportHtml(String(item.matchCount))} question${item.matchCount === 1 ? '' : 's'}</td>
+              <td>These two students chose the same incorrect answer on ${escapeReportHtml(String(item.matchCount))} question${item.matchCount === 1 ? '' : 's'}. Steps to take: (1) Open both Canvas quiz submissions and identify which questions have matching wrong answers. (2) Consider how many answer options each of those questions had — matching on a 5-option question is more significant than on a true/false. (3) Check whether the students sit near each other, share a study group, or have a pattern of submitting at the same time (see the Timing check). (4) If the evidence builds across multiple checks, follow your institution\'s academic integrity reporting process before speaking with the students.</td>
             </tr>
-          `).join(''), 4, 'No matching wrong-answer patterns found, or answer data was unavailable.'),
+          `).join(''), 4, 'No matching wrong-answer patterns found. Either students answered differently on incorrect questions, or answer-level submission data was unavailable for this quiz type.'),
         };
       }
       return {

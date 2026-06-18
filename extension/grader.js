@@ -477,15 +477,18 @@
 
       const snippetEdit = document.createElement('textarea');
       snippetEdit.value = state.stored.ce_sg_comment_snippets || [
-        'Strong work overall! Your ideas are well-organized and clearly communicated.',
-        'Thank you for submitting. Please review the assignment directions carefully and resubmit to earn full credit.',
-        'Good start! To strengthen your response, add more specific evidence and examples to support your main points.',
-        'Excellent effort — your analysis shows a strong understanding of the material.',
-        'This submission is missing one or more required components. Please revise and resubmit by the deadline.',
-        'Your writing is clear and on-topic. Focus on developing your argument with more supporting detail in the body paragraphs.',
-        'I can see the effort you put into this. Let\'s connect during office hours to discuss how to improve your score next time.',
-        'Nice job meeting the length and format requirements. Continue to work on deepening your analysis.',
-        'You have a solid grasp of the concept — well done! A few minor errors are noted in the rubric feedback below.',
+        'Excellent work! Your response demonstrates a thorough understanding of the material. Your ideas are well-organized, clearly argued, and supported with specific evidence. This is the standard to maintain going forward.',
+        'Good effort overall. To strengthen your score, revisit the rubric and make sure every required component is addressed in full. I have noted the specific areas that need more development in the rubric feedback below.',
+        'Your writing is clear and on topic. To move to the next performance level, focus on supporting your main argument with specific evidence, examples, or data — general statements without support limit the depth of your analysis.',
+        'I can see you put time into this assignment. A few sections are underdeveloped or missing required elements. Please review my rubric comments carefully and come to office hours before the next assignment if you would like help.',
+        'This submission is missing one or more required components listed in the assignment directions. Please review the rubric, complete the missing sections, and resubmit before the late deadline to earn partial credit.',
+        'Strong analysis in the opening section. The body paragraphs and conclusion could be expanded to more fully support and close out your argument. With a little more depth this would be an excellent response.',
+        'Thank you for submitting. Your response does not fully address the assigned prompt. Please reread the directions carefully and contact me if you have any questions before you revise and resubmit.',
+        'Nice improvement from your last submission — you clearly took the previous feedback seriously. Keep building on this progress and bring that same effort to the next assignment.',
+        'Your ideas are interesting, but the response would benefit from a clearer thesis and more organized paragraph structure. Consider outlining your argument before drafting next time.',
+        'This is a well-written response. A few minor citation and formatting errors are noted below — please review the course style guide to make sure all sources are referenced correctly.',
+        'Great discussion of the topic. To earn full marks, make sure your thesis is clearly stated in the introduction and that every body paragraph directly supports it with evidence.',
+        'This submission was received after the deadline. A late penalty has been applied per course policy. If you experienced an emergency or extenuating circumstance, please reach out so we can discuss a possible accommodation.',
       ].join('\n\n');
 
       const queueStatus = document.createElement('div');
