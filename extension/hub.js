@@ -1034,7 +1034,7 @@
   }
 
   // ── TOOL CLICK ─────────────────────────────────────────────────────────────
-  async function renderAudit(container = panelBody) {
+  async function renderAudit(container = panelBody, opts = {}) {
     container.innerHTML = '';
 
     container.style.padding = '0';
