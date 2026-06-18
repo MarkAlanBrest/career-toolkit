@@ -226,7 +226,6 @@
     }
 
     function ceSgInsertComment(value, append) {
-      // Click opener to make sure the comment area is visible
       const opener = document.querySelector([
         'button[data-testid*="add-comment" i]', 'button[aria-label*="add comment" i]',
         'button[title*="add comment" i]', 'a[aria-label*="add comment" i]',
@@ -235,21 +234,36 @@
       try { opener?.click(); } catch (_) {}
 
       function tryInsert() {
-        // 1. TinyMCE editor
+        // 1. TinyMCE via global — activeEditor first, then by ID, then editors array
         const tiny = window.tinymce || window.tinyMCE;
-        if (tiny?.get) {
-          for (const id of ['speed_grader_comment_textarea', 'speedgrader_textarea', 'grading_comment', 'comment_textarea']) {
-            const ed = tiny.get(id);
-            if (ed) {
-              const current = append ? (ed.getContent({ format: 'text' }) || '').trim() : '';
-              const next = current ? `${current}\n\n${value}` : value;
-              ed.setContent(ceSgHtml(next));
-              ed.fire?.('input'); ed.fire?.('change'); ed.save?.();
-              return true;
-            }
+        if (tiny) {
+          const ed = tiny.activeEditor ||
+            tiny.get?.('speed_grader_comment_textarea') || tiny.get?.('speedgrader_textarea') ||
+            tiny.get?.('grading_comment') || tiny.get?.('comment_textarea') ||
+            (tiny.editors?.length ? tiny.editors[tiny.editors.length - 1] : null);
+          if (ed) {
+            const current = append ? (ed.getContent({ format: 'text' }) || '').trim() : '';
+            const next = current ? `${current}\n\n${value}` : value;
+            ed.setContent(ceSgHtml(next));
+            ed.fire?.('input'); ed.fire?.('change'); ed.save?.();
+            return true;
           }
         }
-        // 2. Specific well-known selectors
+        // 2. TinyMCE iframe direct body access (works even when global is unavailable)
+        for (const frame of document.querySelectorAll('iframe[id$="_ifr"], iframe.tox-edit-area__iframe')) {
+          try {
+            const body = frame.contentDocument?.body || frame.contentWindow?.document?.body;
+            if (body?.isContentEditable) {
+              const current = append ? (body.innerText || '').trim() : '';
+              const next = current ? `${current}\n\n${value}` : value;
+              body.innerHTML = ceSgHtml(next);
+              body.dispatchEvent(new InputEvent('input', { bubbles: true }));
+              body.focus();
+              return true;
+            }
+          } catch (_) {}
+        }
+        // 3. Specific well-known selectors (visible only)
         const selectors = [
           '#speed_grader_comment_textarea', '#speedgrader_textarea',
           'textarea[name="comment[text_comment]"]', '#grading_comment', '#comment_textarea',
@@ -263,11 +277,11 @@
         ];
         for (const sel of selectors) {
           const el = document.querySelector(sel);
-          if (!el || el.closest('#ce-sg-toolbar')) continue;
+          if (!el || el.closest('#ce-sg-toolbar') || el.offsetParent === null) continue;
           const current = append ? (el.value || el.innerText || '').trim() : '';
           if (ceSgSetValue(el, current ? `${current}\n\n${value}` : value)) return true;
         }
-        // 3. Last resort: any visible textarea not inside our toolbar
+        // 4. Last resort: any visible textarea not inside our toolbar
         for (const el of document.querySelectorAll('textarea')) {
           if (el.disabled || el.readOnly || el.offsetParent === null || el.closest('#ce-sg-toolbar')) continue;
           const current = append ? (el.value || '').trim() : '';
@@ -276,18 +290,17 @@
         return false;
       }
 
-      if (tryInsert()) {
-        ceSgToast('✓ Comment inserted');
-      } else {
-        setTimeout(() => {
-          if (tryInsert()) {
-            ceSgToast('✓ Comment inserted');
-          } else {
-            navigator.clipboard?.writeText(value).catch(() => {});
-            ceSgToast('Copied to clipboard — paste into the comment box', false);
-          }
-        }, 500);
+      let attempts = 0;
+      function attempt() {
+        if (tryInsert()) { ceSgToast('✓ Comment inserted'); return; }
+        attempts++;
+        if (attempts < 4) {
+          setTimeout(attempt, attempts * 400);
+        } else {
+          ceSgToast('Could not find comment box — click inside it first', false);
+        }
       }
+      attempt();
     }
 
     function ceSgInsertGrade(value) {
@@ -902,7 +915,11 @@
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
           drawer.append(makeModalHeader('🔍', 'Cheating Detection'), auditContainer, mkFooter(cancelBtn));
-          setTimeout(() => document.dispatchEvent(new CustomEvent('ce-render-audit', { detail: { container: auditContainer } })), 0);
+          setTimeout(() => {
+            const { courseId: aCid, assignmentId: aAid } = getSpeedGraderUrlParts();
+            const assignName = document.querySelector('#assignment_title a, .assignment-title, [data-testid="assignment-title"]')?.textContent?.trim() || '';
+            document.dispatchEvent(new CustomEvent('ce-render-audit', { detail: { container: auditContainer, courseId: aCid, assignmentId: aAid, assignmentName: assignName } }));
+          }, 0);
         }
       }
 
