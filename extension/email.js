@@ -2426,57 +2426,92 @@
       return field.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form') || field.parentElement;
     }
 
-    function injectQuickButton() {
-      const existing = document.getElementById('ces-quick-message-btn');
+    function injectComposePicker() {
+      const PICKER_ID = 'ces-compose-tpl';
 
       if (!window.location.pathname.includes('/conversations')) {
-        if (existing) existing.remove();
-        document.getElementById('ces-insert-btn-wrap')?.remove();
+        document.getElementById(PICKER_ID)?.remove();
         return false;
       }
 
-      const bodyInput = getComposeBodyInput(document);
+      const bodyInput  = getComposeBodyInput(document);
       const subjectInput = getComposeSubjectInput(document);
-
       if (!bodyInput && !subjectInput) {
-        if (existing) existing.remove();
-        document.getElementById('ces-insert-btn-wrap')?.remove();
+        document.getElementById(PICKER_ID)?.remove();
         return false;
       }
 
-      const composeRoot = findComposeAnchor();
-      if (existing && composeRoot && composeRoot !== document && composeRoot.contains(existing)) return true;
-      if (existing) existing.remove();
-      document.getElementById('ces-insert-btn-wrap')?.remove();
+      const existing = document.getElementById(PICKER_ID);
+      const anchor   = bodyInput || subjectInput;
+      if (existing && anchor.parentElement.contains(existing)) return true;
+      existing?.remove();
 
-      const button = document.createElement('button');
-      button.id = 'ces-quick-message-btn';
-      button.type = 'button';
-      button.textContent = '✉ Insert Message';
-      button.title = 'Insert a stored message';
-      button.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #C7CDD1;border-radius:3px;background:#fff;color:#2D3B45;font:600 12px -apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;line-height:1.2;cursor:pointer;white-space:nowrap;';
-      button.addEventListener('mouseenter', () => { button.style.background = '#F5F5F5'; button.style.borderColor = '#8B969E'; });
-      button.addEventListener('mouseleave', () => { button.style.background = '#fff'; button.style.borderColor = '#C7CDD1'; });
-      button.addEventListener('click', () => toggleQuickPanel(button));
-
+      const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
       const wrap = document.createElement('div');
-      wrap.id = 'ces-insert-btn-wrap';
-      wrap.style.cssText = 'display:flex;align-items:center;padding:4px 0 2px;';
-      wrap.appendChild(button);
+      wrap.id = PICKER_ID;
+      wrap.style.cssText = 'margin-bottom:6px;border:1px solid #C7CDD1;border-radius:4px;overflow:hidden;font-family:' + font + ';';
+
+      function render(open) {
+        wrap.innerHTML = '';
+        const messages = getQuickMessages();
+
+        const hdr = document.createElement('button');
+        hdr.type = 'button';
+        hdr.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#F5F5F5;border:none;border-bottom:' + (open ? '1px solid #C7CDD1' : 'none') + ';cursor:pointer;font-size:12px;font-weight:700;color:#2D3B45;font-family:inherit;';
+        hdr.innerHTML = '<span>Templates</span><span style="font-size:10px;color:#6B7280;">' + (open ? '▲' : '▼') + '</span>';
+        hdr.addEventListener('click', () => render(!open));
+        wrap.appendChild(hdr);
+
+        if (!open) return;
+
+        const list = document.createElement('div');
+        list.style.cssText = 'background:#fff;max-height:180px;overflow-y:auto;';
+
+        if (!messages.length) {
+          const empty = document.createElement('div');
+          empty.style.cssText = 'padding:10px;font-size:12px;color:#6B7280;text-align:center;';
+          empty.textContent = 'No templates saved — add them in Message Templates.';
+          list.appendChild(empty);
+        } else {
+          messages.forEach(msg => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:7px 10px;border-top:1px solid #eef1f3;gap:8px;';
+
+            const name = document.createElement('span');
+            name.style.cssText = 'font-size:13px;color:#2D3B45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;';
+            name.textContent = msg.name;
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.textContent = 'Insert';
+            btn.style.cssText = 'flex-shrink:0;padding:4px 12px;border:1px solid #0770B8;border-radius:3px;background:#0770B8;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;';
+            btn.addEventListener('mouseenter', () => { btn.style.background = '#0860A8'; });
+            btn.addEventListener('mouseleave', () => { btn.style.background = '#0770B8'; });
+            btn.addEventListener('click', () => {
+              insertIntoCompose(msg.subject, msg.body);
+              render(false);
+            });
+
+            row.append(name, btn);
+            list.appendChild(row);
+          });
+        }
+        wrap.appendChild(list);
+      }
+
+      render(false);
 
       if (bodyInput) {
         bodyInput.parentElement.insertBefore(wrap, bodyInput);
       } else {
         subjectInput.parentElement.insertAdjacentElement('afterend', wrap);
       }
-
       return true;
     }
 
-    document.addEventListener('ces-trigger-quick-panel', e => {
-      const anchor = e.detail?.anchor;
-      if (anchor) toggleQuickPanel(anchor);
-    });
+    new MutationObserver(() => setTimeout(injectComposePicker, 300)).observe(document.body, { childList: true, subtree: true });
+    setInterval(injectComposePicker, 1500);
+    injectComposePicker();
   }
 
   /* =========================================================
@@ -2640,15 +2675,11 @@
       return b;
     }
 
-    const sendBtn   = mkBtn('Bulk Message Students');
-    const tplBtn    = mkBtn('Message Templates');
-    const insertBtn = mkBtn('Insert Template');
+    const sendBtn = mkBtn('Bulk Message Students');
+    const tplBtn  = mkBtn('Message Templates');
 
-    sendBtn.addEventListener('click',   () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
-    tplBtn.addEventListener('click',    () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
-    insertBtn.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('ces-trigger-quick-panel', { detail: { anchor: insertBtn } }));
-    });
+    sendBtn.addEventListener('click', () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('send'); } });
+    tplBtn.addEventListener('click',  () => { if (_overlay) { _overlay.classList.add('ces-open'); showTab('templates'); } });
 
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
@@ -2686,14 +2717,6 @@
         colTab.style.display = 'none';
       }
       _onInbox = onInbox;
-
-      if (!onInbox) return;
-
-      // Switch between compose state and inbox state
-      const hasCompose = !!(getComposeBodyInput() || getComposeSubjectInput());
-      sendBtn.style.display   = hasCompose ? 'none' : '';
-      tplBtn.style.display    = hasCompose ? 'none' : '';
-      insertBtn.style.display = hasCompose ? ''     : 'none';
     }
 
     updateBar();
