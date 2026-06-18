@@ -1053,7 +1053,6 @@
     if (opts.courseId) courseId = opts.courseId;
     if (opts.assignmentId) assignmentId = opts.assignmentId;
     const _locked = !!(opts.courseId && opts.assignmentId);
-    let lastReport = null;
 
     const outer = el('div', 'display:flex;flex-direction:column;flex:1;min-height:0;');
     container.appendChild(outer);
@@ -1216,97 +1215,248 @@
     }
 
     // ── SCROLL AREA ─────────────────────────────────────────────────────────
-    const auditScrollArea = el('div', 'flex:1;min-height:0;overflow-y:auto;padding:16px;');
-    outer.appendChild(auditScrollArea);
+    const auditScroll = el('div', 'flex:1;min-height:0;overflow-y:auto;');
+    outer.appendChild(auditScroll);
 
-    const stack = el('div', 'display:flex;flex-direction:column;gap:14px;min-height:100%;');
-    auditScrollArea.appendChild(stack);
-    const head = el('div', '');
-    const sub = el('div', `font-size:12px;color:${DS.muted};line-height:1.55;`);
-    sub.textContent = 'Runs Canvas-based audit checks for instructor review. This tool does not decide whether a student cheated or violated course rules.';
-    head.appendChild(sub);
-
-    const badge = el('button', `
-      border:1px solid ${DS.border};border-radius:4px;background:${DS.gray};
-      color:${DS.text};font-size:13px;font-weight:700;padding:10px 12px;
-      text-align:left;cursor:pointer;font-family:${DS.font};
-    `, { type: 'button', textContent: 'Not checked yet' });
-    const disclaimer = el('div', `
-      font-size:11px;line-height:1.5;color:#7C2D12;background:#FFF7ED;
-      border:1px solid #FDBA74;border-radius:4px;padding:8px 10px;
-    `);
-    disclaimer.textContent = 'Review flag only: this app does not determine cheating or misconduct. It flags Canvas conditions a teacher should review with course policy.';
-    const status = el('div', `font-size:12px;color:${DS.muted};line-height:1.55;min-height:34px;`);
-    const runBtn = btn('Run Audit', `background:${DS.blue};color:#fff;`);
-    const checksBox = el('div', `display:flex;flex-direction:column;gap:6px;border:1px solid ${DS.border};border-radius:4px;padding:10px;background:#fff;`);
-    const results = el('div', `display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;flex:1;`);
+    let runState = 'idle';
+    let lastReport = null;
+    let runError = null;
     const checkState = {
-      read: { label: 'Canvas Submission Reading', status: 'pending', detail: 'Waiting to read Canvas submissions.' },
-      similarity: { label: 'Canvas Submission Similarity', status: 'pending', detail: 'Waiting to compare students in this assignment.' },
-      timing: { label: 'Canvas Timing Signals', status: 'pending', detail: 'Waiting to review Canvas submission timestamps and files.' },
-      quizBlur: { label: 'Canvas Quiz Tab Switching', status: 'pending', detail: 'Waiting to see if this assignment has quiz event data.' },
-      quizSpeed: { label: 'Canvas Quiz Speed', status: 'pending', detail: 'Waiting to see if this assignment has timed quiz data.' },
-      quizAnswers: { label: 'Canvas Quiz Answer Patterns', status: 'pending', detail: 'Waiting to see if this assignment has answer-level quiz data.' },
+      read:        { label: 'Submission Reading',     status: 'pending', detail: '' },
+      similarity:  { label: 'Submission Similarity',  status: 'pending', detail: '' },
+      timing:      { label: 'Timing & File Patterns', status: 'pending', detail: '' },
+      quizBlur:    { label: 'Quiz Tab Switching',      status: 'pending', detail: '' },
+      quizSpeed:   { label: 'Quiz Completion Speed',   status: 'pending', detail: '' },
+      quizAnswers: { label: 'Quiz Answer Matching',    status: 'pending', detail: '' },
     };
 
     function escapeReportHtml(value) {
       return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function setBadge(flagCount) {
-      const ok = flagCount === 0;
-      badge.textContent = ok ? 'Green: no review flags found' : `Red: ${flagCount} review flag${flagCount === 1 ? '' : 's'}`;
-      badge.style.background = ok ? '#ECFDF3' : '#FEF2F2';
-      badge.style.borderColor = ok ? '#86EFAC' : '#FCA5A5';
-      badge.style.color = ok ? '#166534' : '#991B1B';
+    function checkColors(s) {
+      if (s === 'flagged')     return { bg:'#FEF2F2', border:'#FCA5A5', color:'#991B1B', dot:'#EF4444', label:'Flagged'       };
+      if (s === 'complete')    return { bg:'#ECFDF3', border:'#86EFAC', color:'#166534', dot:'#22C55E', label:'Clear'         };
+      if (s === 'running')     return { bg:'#EFF6FF', border:'#93C5FD', color:'#1D4ED8', dot:'#3B82F6', label:'Checking…'    };
+      if (s === 'unavailable') return { bg:'#F9FAFB', border:'#D1D5DB', color:'#6B7280', dot:'#9CA3AF', label:'Not available' };
+      if (s === 'skipped')     return { bg:'#FFFBEB', border:'#FCD34D', color:'#92400E', dot:'#F59E0B', label:'Skipped'       };
+      return                          { bg:'#F9FAFB', border:'#E5E7EB', color:'#9CA3AF', dot:'#D1D5DB', label:'Waiting'       };
     }
 
     function updateCheck(id, statusValue, detail) {
       if (!checkState[id]) return;
       checkState[id].status = statusValue;
       if (detail) checkState[id].detail = detail;
-      renderChecks();
+      if (runState === 'running') renderUI();
     }
 
-    function checkColors(statusValue) {
-      if (statusValue === 'flagged') return { bg: '#FEF2F2', border: '#FCA5A5', color: '#991B1B', label: 'Flagged' };
-      if (statusValue === 'complete') return { bg: '#ECFDF3', border: '#86EFAC', color: '#166534', label: 'Checked' };
-      if (statusValue === 'running') return { bg: '#EFF6FF', border: '#93C5FD', color: '#1D4ED8', label: 'Running' };
-      if (statusValue === 'unavailable') return { bg: '#F9FAFB', border: '#D1D5DB', color: '#6B7280', label: 'Not available' };
-      if (statusValue === 'skipped') return { bg: '#FFFBEB', border: '#FCD34D', color: '#92400E', label: 'Skipped' };
-      return { bg: '#F9FAFB', border: '#D1D5DB', color: '#6B7280', label: 'Pending' };
+    function getInlineRows(checkId) {
+      if (!lastReport) return [];
+      if (checkId === 'similarity')
+        return (lastReport.flags || []).slice(0, 8).map(f => ({
+          a: `${f.aName}  ↔  ${f.bName}`,
+          b: `${Math.round(f.similarity * 100)}% overlap · ${f.sharedCount} shared phrases`,
+        }));
+      if (checkId === 'timing')
+        return (lastReport.timingFlags || []).slice(0, 8).map(f => ({
+          a: f.type === 'sameFilename' ? `Same filename: "${f.filename}"` : 'Submitted in same 2-minute window',
+          b: f.names.slice(0, 3).join(', ') + (f.names.length > 3 ? ` +${f.names.length - 3} more` : ''),
+        }));
+      if (checkId === 'quizBlur')
+        return (lastReport.quizBlurFlags || []).slice(0, 8).map(f => ({
+          a: f.name,
+          b: `${f.blurCount} tab switch${f.blurCount === 1 ? '' : 'es'} recorded`,
+        }));
+      if (checkId === 'quizSpeed')
+        return (lastReport.quizSpeedFlags || []).slice(0, 8).map(f => ({
+          a: f.name,
+          b: `${f.pct}% of time used · ${f.scorePct}% score`,
+        }));
+      if (checkId === 'quizAnswers')
+        return (lastReport.quizAnswerPairs || []).slice(0, 8).map(p => ({
+          a: `${p.aName}  ↔  ${p.bName}`,
+          b: `${p.matchCount} matching wrong answer${p.matchCount === 1 ? '' : 's'}`,
+        }));
+      return [];
     }
 
-    function renderChecks() {
-      checksBox.innerHTML = '';
-      const heading = el('div', `font-size:12px;font-weight:700;color:${DS.text};`);
-      heading.textContent = 'Checks Run';
-      checksBox.appendChild(heading);
+    function renderUI() {
+      auditScroll.innerHTML = '';
+      const wrap = el('div', 'padding:20px;display:flex;flex-direction:column;gap:16px;');
+      auditScroll.appendChild(wrap);
+      if (runState === 'idle')         renderIdleView(wrap);
+      else if (runState === 'running') renderRunningView(wrap);
+      else                             renderDoneView(wrap);
+    }
+
+    function mkRunBtn(label) {
+      const b = el('button', `height:46px;width:100%;background:${DS.blue};color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:${DS.font};letter-spacing:.02em;`, { type:'button', textContent: label });
+      b.addEventListener('mouseenter', () => b.style.opacity = '.88');
+      b.addEventListener('mouseleave', () => b.style.opacity = '1');
+      return b;
+    }
+
+    function renderIdleView(wrap) {
+      if (opts.assignmentName) {
+        const info = el('div', `font-size:12px;color:${DS.muted};`);
+        info.textContent = `Assignment: ${opts.assignmentName}`;
+        wrap.appendChild(info);
+      }
+
+      const title = el('div', `font-size:17px;font-weight:700;color:${DS.text};`);
+      title.textContent = 'Academic Integrity Review';
+      const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;margin-top:4px;`);
+      desc.textContent = 'Analyzes Canvas submission data for patterns that may be worth reviewing. Results are for instructor use only — this tool does not determine misconduct.';
+      wrap.append(title, desc);
+
+      if (runError) {
+        const errEl = el('div', `font-size:12px;color:#991B1B;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:10px 12px;`);
+        errEl.textContent = runError;
+        wrap.appendChild(errEl);
+      }
+
+      const rb = mkRunBtn('Run Audit');
+      rb.addEventListener('click', () => runCheck());
+      wrap.appendChild(rb);
+
+      const checksCard = el('div', `background:${DS.gray};border:1px solid ${DS.border};border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;`);
+      const checksLabel = el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;`);
+      checksLabel.textContent = 'What this checks';
+      checksCard.appendChild(checksLabel);
+      const checkDescs = {
+        read:        'Reads student submission text to prepare for comparison',
+        similarity:  'Compares every submission pair for overlapping phrases',
+        timing:      'Looks for submission time clusters and repeated filenames',
+        quizBlur:    'Counts how many times each student left the quiz tab',
+        quizSpeed:   'Flags unusually fast completions with high scores',
+        quizAnswers: 'Finds student pairs who chose the same wrong answers',
+      };
       for (const [id, item] of Object.entries(checkState)) {
-        const colors = checkColors(item.status);
-        const canOpen = Boolean(lastReport) && item.status !== 'pending' && item.status !== 'running';
-        const rowEl = el('button', `
-          width:100%;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;
-          border:none;border-top:1px solid #EEF2F7;padding:7px 0 0;background:transparent;
-          text-align:left;font-family:${DS.font};cursor:${canOpen ? 'pointer' : 'default'};
-        `, { type: 'button', title: canOpen ? 'Open check details' : '' });
-        const left = el('div', '');
-        const name = el('div', `font-size:12px;font-weight:600;color:${DS.text};`);
-        name.textContent = item.label;
-        const detail = el('div', `font-size:11px;color:${DS.muted};line-height:1.45;margin-top:2px;`);
-        detail.textContent = item.detail;
-        const pill = el('div', `font-size:10px;font-weight:700;border-radius:999px;padding:3px 8px;white-space:nowrap;background:${colors.bg};border:1px solid ${colors.border};color:${colors.color};`);
-        pill.textContent = colors.label;
-        left.appendChild(name);
-        left.appendChild(detail);
-        rowEl.appendChild(left);
-        rowEl.appendChild(pill);
-        if (canOpen) rowEl.addEventListener('click', () => openCheckReport(id));
-        checksBox.appendChild(rowEl);
+        const row = el('div', `display:flex;align-items:flex-start;gap:10px;`);
+        const dot = el('span', `margin-top:5px;width:6px;height:6px;border-radius:50%;background:${DS.border};flex-shrink:0;display:inline-block;`);
+        const text = el('div', `font-size:12px;color:${DS.text};line-height:1.4;`);
+        const strong = el('span', `font-weight:700;`); strong.textContent = item.label + ' — ';
+        const sub2 = document.createTextNode(checkDescs[id] || '');
+        text.append(strong, sub2);
+        row.append(dot, text);
+        checksCard.appendChild(row);
+      }
+      wrap.appendChild(checksCard);
+
+      const disc = el('div', `font-size:11px;color:#92400E;background:#FFF7ED;border:1px solid #FDBA74;border-radius:6px;padding:10px 12px;line-height:1.6;`);
+      disc.textContent = 'All results are for instructor review with professional judgment. Canvas Enhancer does not determine whether academic misconduct occurred.';
+      wrap.appendChild(disc);
+    }
+
+    function renderRunningView(wrap) {
+      const hdr = el('div', `display:flex;flex-direction:column;gap:4px;padding-bottom:4px;`);
+      const htitle = el('div', `font-size:14px;font-weight:700;color:${DS.text};`);
+      htitle.textContent = 'Checking…';
+      const hsub = el('div', `font-size:12px;color:${DS.muted};`);
+      hsub.textContent = 'Please keep this panel open until all checks finish.';
+      hdr.append(htitle, hsub);
+      wrap.appendChild(hdr);
+
+      for (const [, item] of Object.entries(checkState)) {
+        const c = checkColors(item.status);
+        const row = el('div', `display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid ${DS.border};border-left:4px solid ${c.dot};border-radius:6px;`);
+        const dot = el('span', `width:8px;height:8px;border-radius:50%;background:${c.dot};flex-shrink:0;`);
+        const nameWrap = el('div', `flex:1;min-width:0;`);
+        const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.text};`);
+        nameEl.textContent = item.label;
+        nameWrap.appendChild(nameEl);
+        if (item.detail) {
+          const detailEl = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          detailEl.textContent = item.detail;
+          nameWrap.appendChild(detailEl);
+        }
+        const pill = el('div', `font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${c.bg};color:${c.color};border:1px solid ${c.border};white-space:nowrap;flex-shrink:0;`);
+        pill.textContent = c.label;
+        row.append(dot, nameWrap, pill);
+        wrap.appendChild(row);
+      }
+    }
+
+    function renderDoneView(wrap) {
+      if (!lastReport) return;
+      const totalFlags = (lastReport.flags?.length || 0) + (lastReport.timingFlags?.length || 0) +
+        (lastReport.quizBlurFlags?.length || 0) + (lastReport.quizSpeedFlags?.length || 0) +
+        (lastReport.quizAnswerPairs?.length || 0);
+      const allClear = totalFlags === 0;
+
+      // Summary banner
+      const banner = el('div', `border-radius:10px;padding:18px;background:${allClear ? '#ECFDF3' : '#FEF2F2'};border:2px solid ${allClear ? '#86EFAC' : '#FCA5A5'};`);
+      const bannerTitle = el('div', `font-size:17px;font-weight:800;color:${allClear ? '#166534' : '#991B1B'};margin-bottom:4px;`);
+      bannerTitle.textContent = allClear ? '✓  All clear — nothing flagged' : `⚠  ${totalFlags} item${totalFlags === 1 ? '' : 's'} flagged for review`;
+      const bannerSub = el('div', `font-size:11px;color:${allClear ? '#166534' : '#7F1D1D'};opacity:.75;`);
+      bannerSub.textContent = `${lastReport.assignmentName} · ${new Date(lastReport.createdAt).toLocaleString()} · ${lastReport.checked} of ${lastReport.total} submissions read`;
+      banner.append(bannerTitle, bannerSub);
+      wrap.appendChild(banner);
+
+      // Run again
+      const ra = mkRunBtn('Run Again');
+      ra.style.cssText += 'background:#fff;color:' + DS.text + ';border:1px solid ' + DS.border + ';height:36px;font-size:13px;';
+      ra.addEventListener('click', () => {
+        runState = 'idle';
+        lastReport = null;
+        Object.values(checkState).forEach(c => { c.status = 'pending'; c.detail = ''; });
+        renderUI();
+      });
+      wrap.appendChild(ra);
+
+      wrap.appendChild(el('div', `height:1px;background:${DS.border};`));
+
+      // One card per check
+      for (const [id, item] of Object.entries(checkState)) {
+        const c = checkColors(item.status);
+        const isFlagged = item.status === 'flagged';
+        const rows = isFlagged ? getInlineRows(id) : [];
+
+        const card = el('div', `border-radius:8px;overflow:hidden;border:1px solid ${c.border};`);
+
+        // Card header row
+        const cardHdr = el('div', `display:flex;align-items:center;gap:10px;padding:12px 14px;background:${c.bg};`);
+        const hDot = el('span', `width:9px;height:9px;border-radius:50%;background:${c.dot};flex-shrink:0;`);
+        const hName = el('div', `flex:1;font-size:13px;font-weight:700;color:${DS.text};`);
+        hName.textContent = item.label;
+        const hPill = el('div', `font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#fff;color:${c.color};border:1px solid ${c.border};white-space:nowrap;`);
+        hPill.textContent = c.label;
+        cardHdr.append(hDot, hName, hPill);
+        card.appendChild(cardHdr);
+
+        // Card body
+        if (item.detail || rows.length) {
+          const body = el('div', `padding:12px 14px;background:#fff;border-top:1px solid ${c.border};display:flex;flex-direction:column;gap:8px;`);
+
+          if (rows.length) {
+            const tbl = el('div', `display:flex;flex-direction:column;`);
+            rows.forEach((row, i) => {
+              const r = el('div', `display:flex;align-items:baseline;gap:10px;padding:6px 0;${i > 0 ? 'border-top:1px solid #F3F4F6;' : ''}`);
+              const a = el('div', `flex:1;font-size:12px;font-weight:600;color:${DS.text};`); a.textContent = row.a;
+              const b = el('div', `font-size:11px;color:${DS.muted};white-space:nowrap;`); b.textContent = row.b;
+              r.append(a, b); tbl.appendChild(r);
+            });
+            body.appendChild(tbl);
+          }
+
+          if (item.detail) {
+            const dEl = el('div', `font-size:12px;color:${DS.muted};line-height:1.5;`);
+            dEl.textContent = item.detail;
+            body.appendChild(dEl);
+          }
+
+          const canReport = item.status !== 'pending' && item.status !== 'running' && item.status !== 'skipped';
+          if (canReport) {
+            const reportBtn = el('button', `align-self:flex-start;height:28px;padding:0 12px;background:transparent;color:${DS.blue};border:1px solid ${DS.blue};border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent: 'Open full report →' });
+            reportBtn.addEventListener('click', () => openCheckReport(id));
+            body.appendChild(reportBtn);
+          }
+
+          card.appendChild(body);
+        }
+
+        wrap.appendChild(card);
       }
     }
 
@@ -1535,13 +1685,6 @@
       return '';
     }
 
-    function renderSummary(report) {
-      results.innerHTML = '';
-      const prompt = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;background:${DS.gray};border:1px solid ${DS.border};border-radius:4px;padding:10px;`);
-      prompt.textContent = 'Audit complete. Click a check above to open a focused report with who and what to review.';
-      results.appendChild(prompt);
-    }
-
     function tableOrEmpty(rows, cols, message) {
       return rows || `<tr><td colspan="${cols}">${escapeReportHtml(message)}</td></tr>`;
     }
@@ -1678,155 +1821,129 @@
     }
 
     async function runCheck() {
-      if (!token) throw new Error('Add a Canvas API token in Settings first.');
-      if (!courseId || !assignmentId) throw new Error('Select a course and assignment above first.');
+      if (!token) { runError = 'Add a Canvas API token in Settings first.'; runState = 'idle'; renderUI(); return; }
+      if (!courseId || !assignmentId) { runError = 'Unable to determine assignment from this page.'; runState = 'idle'; renderUI(); return; }
 
-      runBtn.disabled = true;
-      runBtn.textContent = 'Checking...';
-      status.textContent = 'Loading assignment and submissions...';
-      results.innerHTML = '';
-      updateCheck('read', 'running', 'Loading Canvas submissions and reading available text.');
-      updateCheck('similarity', 'pending', 'Waiting for readable Canvas submissions.');
-      updateCheck('timing', 'pending', 'Waiting for Canvas submission timestamps and uploaded files.');
-      updateCheck('quizBlur', 'pending', 'Waiting to see if this assignment has quiz event data.');
-      updateCheck('quizSpeed', 'pending', 'Waiting to see if this assignment has timed quiz data.');
-      updateCheck('quizAnswers', 'pending', 'Waiting to see if this assignment has answer-level quiz data.');
+      runError = null;
+      checkState.read.status = 'running'; checkState.read.detail = 'Loading Canvas submissions and reading available text.';
+      checkState.similarity.status = 'pending'; checkState.similarity.detail = 'Waiting for readable Canvas submissions.';
+      checkState.timing.status = 'pending'; checkState.timing.detail = 'Waiting for Canvas submission timestamps and uploaded files.';
+      checkState.quizBlur.status = 'pending'; checkState.quizBlur.detail = 'Waiting to see if this assignment has quiz event data.';
+      checkState.quizSpeed.status = 'pending'; checkState.quizSpeed.detail = 'Waiting to see if this assignment has timed quiz data.';
+      checkState.quizAnswers.status = 'pending'; checkState.quizAnswers.detail = 'Waiting to see if this assignment has answer-level quiz data.';
+      runState = 'running';
+      renderUI();
 
-      const assignment = await canvasFetch(`/api/v1/courses/${courseId}/assignments/${assignmentId}`);
-      const quizId = assignment.data?.quiz_id;
-      const submissions = await canvasFetchAll(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions?include[]=user&include[]=attachments&per_page=100`);
-      const submittedSubmissions = submissions.filter(s => s.workflow_state !== 'unsubmitted');
-      const candidates = submittedSubmissions.filter(s => s.body || s.url || s.attachments?.length);
-      const docs = [];
+      try {
+        const assignment = await canvasFetch(`/api/v1/courses/${courseId}/assignments/${assignmentId}`);
+        const quizId = assignment.data?.quiz_id;
+        const submissions = await canvasFetchAll(`/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions?include[]=user&include[]=attachments&per_page=100`);
+        const submittedSubmissions = submissions.filter(s => s.workflow_state !== 'unsubmitted');
+        const candidates = submittedSubmissions.filter(s => s.body || s.url || s.attachments?.length);
+        const docs = [];
 
-      for (let i = 0; i < candidates.length; i++) {
-        const subm = candidates[i];
-        const name = subm.user?.sortable_name || subm.user?.name || `Student ${subm.user_id}`;
-        status.textContent = `Reading ${i + 1} of ${candidates.length}: ${name}`;
-        const text = await submissionText(subm);
-        const toks = tokensFor(text);
-        if (toks.length >= 40) docs.push({ id: subm.user_id, name, text, shingles: shingles(toks), tokens: toks.length });
-      }
-
-      updateCheck('read', docs.length ? 'complete' : 'skipped', `Read ${docs.length} usable submissions from ${submittedSubmissions.length} Canvas submissions.`);
-      updateCheck('similarity', docs.length >= 2 ? 'running' : 'skipped', docs.length >= 2 ? `Comparing ${docs.length} readable submissions.` : 'At least two readable submissions are needed for comparison.');
-      status.textContent = `Comparing ${docs.length} readable submissions...`;
-      const flags = [];
-      for (let i = 0; i < docs.length; i++) {
-        for (let j = i + 1; j < docs.length; j++) {
-          const cmp = compareDocs(docs[i], docs[j]);
-          if (cmp.similarity >= 0.22 || cmp.sharedCount >= 18) flags.push({ aName: docs[i].name, bName: docs[j].name, ...cmp });
+        for (let i = 0; i < candidates.length; i++) {
+          const subm = candidates[i];
+          const name = subm.user?.sortable_name || subm.user?.name || `Student ${subm.user_id}`;
+          const text = await submissionText(subm);
+          const toks = tokensFor(text);
+          if (toks.length >= 40) docs.push({ id: subm.user_id, name, text, shingles: shingles(toks), tokens: toks.length });
         }
-      }
-      flags.sort((a, b) => b.similarity - a.similarity || b.sharedCount - a.sharedCount);
-      updateCheck('similarity', flags.length ? 'flagged' : 'complete', flags.length ? `${flags.length} pair${flags.length === 1 ? '' : 's'} flagged for instructor review.` : 'No strong student-to-student similarity matches found.');
 
-      updateCheck('timing', submittedSubmissions.length ? 'running' : 'skipped', submittedSubmissions.length ? 'Reviewing Canvas submission times and uploaded filenames.' : 'No Canvas submissions were available.');
-      const timingFlags = runSubmissionTimingCheck(submittedSubmissions);
-      updateCheck('timing', timingFlags.length ? 'flagged' : 'complete', timingFlags.length ? `${timingFlags.length} Canvas timing/file signal${timingFlags.length === 1 ? '' : 's'} flagged for review.` : 'No Canvas timing or filename flags found.');
-
-      let quizBlurFlags = [], quizSpeedFlags = [], quizAnswerPairs = [];
-      if (quizId) {
-        try {
-          updateCheck('quizBlur',    'running', 'Fetching session events for each quiz submission...');
-          updateCheck('quizSpeed',   'running', 'Checking completion times against the time limit...');
-          updateCheck('quizAnswers', 'running', 'Comparing wrong answers across all students...');
-          status.textContent = 'Running quiz integrity checks...';
-
-          const [quizInfo, quizSubs] = await Promise.all([
-            canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}`),
-            canvasFetchQuizSubmissions(courseId, quizId),
-          ]);
-          const timeLimitMinutes = quizInfo.data?.time_limit || 0;
-
-          // Speed check
-          quizSpeedFlags = runQuizSpeedCheck(quizSubs, timeLimitMinutes);
-          updateCheck('quizSpeed',
-            !timeLimitMinutes ? 'skipped' : quizSpeedFlags.length ? 'flagged' : 'complete',
-            !timeLimitMinutes ? 'Quiz has no time limit — speed check skipped.' :
-            quizSpeedFlags.length ? `${quizSpeedFlags.length} submission${quizSpeedFlags.length === 1 ? '' : 's'} completed unusually fast with a high score.` :
-            'No unusually fast high-scoring submissions found.'
-          );
-
-          // Answer matching check
-          const hasAnswerData = quizSubs.some(s => Array.isArray(s.submission_data) && s.submission_data.length);
-          if (hasAnswerData) {
-            quizAnswerPairs = runQuizAnswerCheck(quizSubs);
-            updateCheck('quizAnswers',
-              quizAnswerPairs.length ? 'flagged' : 'complete',
-              quizAnswerPairs.length ? `${quizAnswerPairs.length} student pair${quizAnswerPairs.length === 1 ? '' : 's'} shared 2 or more identical wrong answers.` :
-              'No matching wrong-answer patterns found.'
-            );
-          } else {
-            updateCheck('quizAnswers', 'unavailable', 'Answer-level data is not available for this quiz type.');
+        updateCheck('read', docs.length ? 'complete' : 'skipped', `Read ${docs.length} usable submissions from ${submittedSubmissions.length} Canvas submissions.`);
+        updateCheck('similarity', docs.length >= 2 ? 'running' : 'skipped', docs.length >= 2 ? `Comparing ${docs.length} readable submissions.` : 'At least two readable submissions are needed for comparison.');
+        const flags = [];
+        for (let i = 0; i < docs.length; i++) {
+          for (let j = i + 1; j < docs.length; j++) {
+            const cmp = compareDocs(docs[i], docs[j]);
+            if (cmp.similarity >= 0.22 || cmp.sharedCount >= 18) flags.push({ aName: docs[i].name, bName: docs[j].name, ...cmp });
           }
-
-          // Tab-switching check (one API call per submission — runs last)
-          const blurResult = await runQuizBlurCheck(courseId, quizId, quizSubs);
-          if (blurResult.unavailable) {
-            updateCheck('quizBlur', 'unavailable', 'Session event logging is not available for this quiz. It may need to be enabled in quiz settings.');
-          } else {
-            quizBlurFlags = blurResult.flags;
-            updateCheck('quizBlur',
-              quizBlurFlags.length ? 'flagged' : 'complete',
-              quizBlurFlags.length ? `${quizBlurFlags.length} student${quizBlurFlags.length === 1 ? '' : 's'} left the quiz tab 3 or more times.` :
-              'No students left the quiz tab 3 or more times.'
-            );
-          }
-        } catch (e) {
-          updateCheck('quizBlur',    'unavailable', `Quiz check error: ${e.message}`);
-          updateCheck('quizSpeed',   'unavailable', `Quiz check error: ${e.message}`);
-          updateCheck('quizAnswers', 'unavailable', `Quiz check error: ${e.message}`);
         }
-      } else {
-        updateCheck('quizBlur', 'skipped', 'This Canvas assignment is not linked to a quiz.');
-        updateCheck('quizSpeed', 'skipped', 'This Canvas assignment is not linked to a timed quiz.');
-        updateCheck('quizAnswers', 'skipped', 'This Canvas assignment is not linked to answer-level quiz data.');
-      }
+        flags.sort((a, b) => b.similarity - a.similarity || b.sharedCount - a.sharedCount);
+        updateCheck('similarity', flags.length ? 'flagged' : 'complete', flags.length ? `${flags.length} pair${flags.length === 1 ? '' : 's'} flagged for instructor review.` : 'No strong student-to-student similarity matches found.');
 
-      const totalFlags = flags.length + timingFlags.length + quizBlurFlags.length + quizSpeedFlags.length + quizAnswerPairs.length;
-      lastReport = {
-        assignmentName: assignment.data?.name || `Assignment ${assignmentId}`,
-        createdAt: Date.now(),
-        checked: docs.length,
-        total: submittedSubmissions.length,
-        docs: docs.map(doc => ({ name: doc.name, tokens: doc.tokens })),
-        flags,
-        timingFlags,
-        quizBlurFlags,
-        quizSpeedFlags,
-        quizAnswerPairs,
-        checks: JSON.parse(JSON.stringify(checkState)),
-      };
-      setBadge(totalFlags);
-      status.textContent = `Checked ${docs.length} readable submissions from ${submittedSubmissions.length} Canvas submissions.`;
-      renderSummary(lastReport);
-      renderChecks();
+        updateCheck('timing', submittedSubmissions.length ? 'running' : 'skipped', submittedSubmissions.length ? 'Reviewing Canvas submission times and uploaded filenames.' : 'No Canvas submissions were available.');
+        const timingFlags = runSubmissionTimingCheck(submittedSubmissions);
+        updateCheck('timing', timingFlags.length ? 'flagged' : 'complete', timingFlags.length ? `${timingFlags.length} Canvas timing/file signal${timingFlags.length === 1 ? '' : 's'} flagged for review.` : 'No Canvas timing or filename flags found.');
+
+        let quizBlurFlags = [], quizSpeedFlags = [], quizAnswerPairs = [];
+        if (quizId) {
+          try {
+            updateCheck('quizBlur',    'running', 'Fetching session events for each quiz submission...');
+            updateCheck('quizSpeed',   'running', 'Checking completion times against the time limit...');
+            updateCheck('quizAnswers', 'running', 'Comparing wrong answers across all students...');
+
+            const [quizInfo, quizSubs] = await Promise.all([
+              canvasFetch(`/api/v1/courses/${courseId}/quizzes/${quizId}`),
+              canvasFetchQuizSubmissions(courseId, quizId),
+            ]);
+            const timeLimitMinutes = quizInfo.data?.time_limit || 0;
+
+            quizSpeedFlags = runQuizSpeedCheck(quizSubs, timeLimitMinutes);
+            updateCheck('quizSpeed',
+              !timeLimitMinutes ? 'skipped' : quizSpeedFlags.length ? 'flagged' : 'complete',
+              !timeLimitMinutes ? 'Quiz has no time limit — speed check skipped.' :
+              quizSpeedFlags.length ? `${quizSpeedFlags.length} submission${quizSpeedFlags.length === 1 ? '' : 's'} completed unusually fast with a high score.` :
+              'No unusually fast high-scoring submissions found.'
+            );
+
+            const hasAnswerData = quizSubs.some(s => Array.isArray(s.submission_data) && s.submission_data.length);
+            if (hasAnswerData) {
+              quizAnswerPairs = runQuizAnswerCheck(quizSubs);
+              updateCheck('quizAnswers',
+                quizAnswerPairs.length ? 'flagged' : 'complete',
+                quizAnswerPairs.length ? `${quizAnswerPairs.length} student pair${quizAnswerPairs.length === 1 ? '' : 's'} shared 2 or more identical wrong answers.` :
+                'No matching wrong-answer patterns found.'
+              );
+            } else {
+              updateCheck('quizAnswers', 'unavailable', 'Answer-level data is not available for this quiz type.');
+            }
+
+            const blurResult = await runQuizBlurCheck(courseId, quizId, quizSubs);
+            if (blurResult.unavailable) {
+              updateCheck('quizBlur', 'unavailable', 'Session event logging is not available for this quiz. It may need to be enabled in quiz settings.');
+            } else {
+              quizBlurFlags = blurResult.flags;
+              updateCheck('quizBlur',
+                quizBlurFlags.length ? 'flagged' : 'complete',
+                quizBlurFlags.length ? `${quizBlurFlags.length} student${quizBlurFlags.length === 1 ? '' : 's'} left the quiz tab 3 or more times.` :
+                'No students left the quiz tab 3 or more times.'
+              );
+            }
+          } catch (e) {
+            updateCheck('quizBlur',    'unavailable', `Quiz check error: ${e.message}`);
+            updateCheck('quizSpeed',   'unavailable', `Quiz check error: ${e.message}`);
+            updateCheck('quizAnswers', 'unavailable', `Quiz check error: ${e.message}`);
+          }
+        } else {
+          updateCheck('quizBlur', 'skipped', 'This Canvas assignment is not linked to a quiz.');
+          updateCheck('quizSpeed', 'skipped', 'This Canvas assignment is not linked to a timed quiz.');
+          updateCheck('quizAnswers', 'skipped', 'This Canvas assignment is not linked to answer-level quiz data.');
+        }
+
+        lastReport = {
+          assignmentName: assignment.data?.name || `Assignment ${assignmentId}`,
+          createdAt: Date.now(),
+          checked: docs.length,
+          total: submittedSubmissions.length,
+          docs: docs.map(doc => ({ name: doc.name, tokens: doc.tokens })),
+          flags,
+          timingFlags,
+          quizBlurFlags,
+          quizSpeedFlags,
+          quizAnswerPairs,
+          checks: JSON.parse(JSON.stringify(checkState)),
+        };
+        runState = 'done';
+        renderUI();
+      } catch (e) {
+        runError = e.message;
+        runState = 'idle';
+        renderUI();
+      }
     }
 
-    runBtn.addEventListener('click', async () => {
-      try {
-        await runCheck();
-      } catch (e) {
-        status.textContent = e.message;
-        badge.textContent = 'Unable to complete check';
-        badge.style.background = '#FEF2F2';
-        badge.style.borderColor = '#FCA5A5';
-        badge.style.color = '#991B1B';
-      } finally {
-        runBtn.disabled = false;
-        runBtn.textContent = 'Run Audit';
-      }
-    });
-
-    stack.appendChild(head);
-    stack.appendChild(badge);
-    stack.appendChild(disclaimer);
-    renderChecks();
-    stack.appendChild(checksBox);
-    stack.appendChild(runBtn);
-    stack.appendChild(status);
-    stack.appendChild(results);
+    renderUI();
 
   }
 

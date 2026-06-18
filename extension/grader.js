@@ -385,7 +385,7 @@
         .ce-sz-md { width:min(720px,calc(100vw - 48px)); max-height:min(560px,calc(100vh - 80px)); }
         .ce-sz-lg { width:min(900px,calc(100vw - 48px)); max-height:min(640px,calc(100vh - 80px)); }
         .ce-sz-xl { width:min(980px,calc(100vw - 48px)); max-height:min(740px,calc(100vh - 60px)); }
-        .ce-sg-mhdr { flex-shrink:0; height:48px; background:#1B303D; display:flex; align-items:center; padding:0 16px; gap:10px; }
+        .ce-sg-mhdr { flex-shrink:0; min-height:48px; background:#1B303D; display:flex; align-items:center; padding:0 16px; gap:10px; }
         .ce-sg-mhdr-icon { font-size:18px; line-height:1; }
         .ce-sg-mhdr-title { font-size:14px; font-weight:700; color:#fff; letter-spacing:0.2px; flex:1; }
         .ce-sg-mhdr-close { width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:none; border:none; color:rgba(255,255,255,0.65); font-size:22px; cursor:pointer; border-radius:4px; line-height:1; padding:0; transition:background 0.15s,color 0.15s; font-family:inherit; }
@@ -566,22 +566,31 @@
         [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
-      function makeModalHeader(icon, title) {
+      function makeModalHeader(icon, title, subtitle) {
         const hdr = document.createElement('div');
         hdr.className = 'ce-sg-mhdr';
         const ico = document.createElement('span');
         ico.className = 'ce-sg-mhdr-icon';
         ico.textContent = icon;
+        const ttlWrap = document.createElement('span');
+        ttlWrap.className = 'ce-sg-mhdr-title';
+        ttlWrap.style.cssText = 'display:flex;flex-direction:column;justify-content:center;min-width:0;';
         const ttl = document.createElement('span');
-        ttl.className = 'ce-sg-mhdr-title';
         ttl.textContent = title;
+        ttlWrap.appendChild(ttl);
+        if (subtitle) {
+          const sub = document.createElement('span');
+          sub.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.6);font-weight:400;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          sub.textContent = subtitle;
+          ttlWrap.appendChild(sub);
+        }
         const x = document.createElement('button');
         x.type = 'button';
         x.className = 'ce-sg-mhdr-close';
         x.textContent = '×';
         x.title = 'Close';
         x.addEventListener('click', closeDrawer);
-        hdr.append(ico, ttl, x);
+        hdr.append(ico, ttlWrap, x);
         return hdr;
       }
 
@@ -768,7 +777,7 @@
 
           const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           closeBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🎓', 'AI Grade'), body, mkFooter(closeBtn));
+          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || ''), body, mkFooter(closeBtn));
 
         } else if (mode === 'criteria') {
           criteriaBtn.classList.add('ce-sg-btn-primary');
@@ -835,7 +844,7 @@
 
           const doneBtn = mkAbtn('Done', 'ce-sg-abtn-primary');
           doneBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📋', 'Grading Criteria'), split, mkFooter(doneBtn));
+          drawer.append(makeModalHeader('📋', 'Grading Criteria', ctx.assignmentName || ''), split, mkFooter(doneBtn));
 
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
