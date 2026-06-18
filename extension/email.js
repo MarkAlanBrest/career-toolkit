@@ -2695,7 +2695,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(lbl, sendBtn, tplBtn, insertBtn, hideBtn);
+    bar.append(lbl, sendBtn, tplBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
