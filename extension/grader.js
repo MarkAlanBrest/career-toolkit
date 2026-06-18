@@ -353,7 +353,7 @@
       const state = {
         courseId,
         assignmentId,
-        stored: await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets']),
+        stored: await ceSgStorageGet(['ce_criteria', 'ce_sg_comment_snippets', 'ce_sg_snippet_ver']),
         draftScore: '',
         draftComment: '',
         teacherCheck: '',
@@ -527,7 +527,12 @@
 
         'This was a challenging assignment and you gave it a solid attempt. The areas where your score fell short are very fixable — they are about technique, not understanding. Review the rubric notes, and reach out if you would like help applying the feedback before the next assignment.',
       ];
-      snippetEdit.value = state.stored.ce_sg_comment_snippets || CE_DEFAULT_SNIPPETS.join('\n\n');
+      const SNIPPET_VER = '3';
+      const useDefaults = !state.stored.ce_sg_snippet_ver || state.stored.ce_sg_snippet_ver !== SNIPPET_VER;
+      snippetEdit.value = (!useDefaults && state.stored.ce_sg_comment_snippets)
+        ? state.stored.ce_sg_comment_snippets
+        : CE_DEFAULT_SNIPPETS.join('\n\n');
+      if (useDefaults) ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value, ce_sg_snippet_ver: SNIPPET_VER });
 
       const queueStatus = document.createElement('div');
       queueStatus.className = 'ce-sg-status-text';
@@ -841,7 +846,7 @@
           }
           function saveSnippets(arr) {
             snippetEdit.value = arr.join('\n\n');
-            ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value });
+            ceSgStorageSet({ ce_sg_comment_snippets: snippetEdit.value, ce_sg_snippet_ver: SNIPPET_VER });
           }
 
           const listBody = document.createElement('div');
