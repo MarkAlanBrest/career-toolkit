@@ -436,16 +436,12 @@
       const commentsBtn = ceSgToolbarButton('Comments', false);
       const auditBtn = ceSgToolbarButton('Audit', false);
       const settingsBtn = ceSgToolbarButton('Settings', false);
-      const chatBtn = ceSgToolbarButton('Chat', false);
-      chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
-      const notesBtn = ceSgToolbarButton('Notes', false);
-      notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
       const helpBtn = ceSgToolbarButton('Help', false);
       helpBtn.title = 'Help';
       helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'grader' })));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, chatBtn, notesBtn, helpBtn, settingsBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, helpBtn, settingsBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -1374,9 +1370,9 @@
     // Appended to document.body so it never touches Canvas's React tree
     const TOOLBAR_W = 52;
     const TOP_OFF   = 60;
-    const PROMPT_SUBMISSION_CHARS = 150000;
-    const PROMPT_HEAD_CHARS = 105000;
-    const PROMPT_TAIL_CHARS = 40000;
+    const PROMPT_SUBMISSION_CHARS = 80000;   // ~60 pages (product cap)
+    const PROMPT_HEAD_CHARS = 56000;
+    const PROMPT_TAIL_CHARS = 22000;
 
     function submissionForPrompt(text) {
       const value = String(text || '(no submission)');
@@ -1385,7 +1381,7 @@
       const tail = value.slice(-PROMPT_TAIL_CHARS).trimStart();
       const omitted = value.length - head.length - tail.length;
       return [
-        `[Long submission excerpt: ${omitted.toLocaleString()} characters omitted from the middle]`,
+        `[Submission exceeds 60-page limit — ${omitted.toLocaleString()} characters omitted from the middle]`,
         '',
         '[Beginning]',
         head,
