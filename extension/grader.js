@@ -5,7 +5,7 @@
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
     const _store = await new Promise(resolve =>
-      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model', 'ce_grader_filter_published', 'ce_grader_filter_dashboard'], resolve)
+      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model', 'ce_grader_filter_published', 'ce_grader_filter_dashboard', 'ce_teacher_name'], resolve)
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
@@ -655,14 +655,22 @@
           const filterRow = document.createElement('div');
           filterRow.style.cssText = 'display:flex;gap:16px;padding:8px 4px 6px;border-bottom:1px solid #eee;margin-bottom:4px;flex-shrink:0;';
 
+          if (!document.getElementById('ce-filter-check-style')) {
+            const s = document.createElement('style');
+            s.id = 'ce-filter-check-style';
+            s.textContent = '.ce-filter-check-label { font-size:12px !important; color:#333 !important; display:inline !important; visibility:visible !important; opacity:1 !important; margin-left:4px !important; }';
+            document.head.appendChild(s);
+          }
+
           const mkFilterCheck = (label, key) => {
             const wrap = document.createElement('label');
-            wrap.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;';
+            wrap.style.cssText = 'display:inline-flex;align-items:center;cursor:pointer;user-select:none;white-space:nowrap;';
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = _store[key] !== false;
             cb.addEventListener('change', () => { GM_setValue(key, cb.checked); loadQueue(true); });
             const txt = document.createElement('span');
+            txt.className = 'ce-filter-check-label';
             txt.textContent = label;
             wrap.append(cb, txt);
             return wrap;
@@ -753,6 +761,7 @@
                 }
               }
               statusEl.textContent = 'AI is grading…';
+              const noCriteria = !criteriaText?.trim();
               const response = await new Promise(resolve => chrome.runtime.sendMessage(
                 { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel } },
                 resolve
@@ -764,7 +773,13 @@
               scoreInput.value = p.score;
               draftInput.value = p.comments;
               if (p.teacherCheck) { teacherBox.textContent = `⚠ Teacher check: ${p.teacherCheck}`; teacherBox.style.display = 'block'; }
-              statusEl.textContent = p.score ? `✓ Suggested score: ${p.score}` : '✓ Done — review and insert';
+              if (noCriteria) {
+                statusEl.textContent = '⚠ No grading criteria set — AI used its own judgment. Add a rubric in the Criteria tab for consistent results.';
+                statusEl.style.color = '#b45309';
+              } else {
+                statusEl.textContent = p.score ? `✓ Suggested score: ${p.score}` : '✓ Done — review and insert';
+                statusEl.style.color = '';
+              }
             } catch(e) {
               statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
             } finally {
@@ -1128,26 +1143,56 @@
       auditBtn.addEventListener('click', () => showDrawer('audit'));
       settingsBtn.addEventListener('click', () => showDrawer('settings'));
 
-      function renderQueueSection(label, items, cid) {
-        if (!items.length) return;
-        const header = document.createElement('div');
-        header.style.cssText = 'font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:8px 4px 4px;';
-        header.textContent = label;
-        queueList.appendChild(header);
-        items.slice(0, 40).forEach(a => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'ce-sg-qitem';
-          const name = document.createElement('span');
-          name.style.cssText = 'flex:1;text-align:left;';
-          name.textContent = a.name;
-          const badge = document.createElement('span');
-          badge.className = 'ce-sg-qbadge';
-          badge.textContent = a.needs_grading_count;
-          b.append(name, badge);
-          b.addEventListener('click', () => { location.href = `${location.origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}`; });
-          queueList.appendChild(b);
+      function renderCourseSection(courseLabel, submissions, assignmentMap, cid) {
+        const grouped = {};
+        submissions.forEach(s => {
+          const aid = String(s.assignment_id);
+          if (assignmentMap[aid]) {
+            if (!grouped[aid]) grouped[aid] = [];
+            grouped[aid].push(s);
+          }
         });
+        if (!Object.keys(grouped).length) return;
+
+        const courseHeader = document.createElement('div');
+        courseHeader.style.cssText = 'font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:10px 4px 2px;';
+        courseHeader.textContent = courseLabel;
+        queueList.appendChild(courseHeader);
+
+        Object.values(assignmentMap)
+          .filter(a => grouped[String(a.id)])
+          .forEach(a => {
+            const aid = String(a.id);
+            const aHeader = document.createElement('div');
+            aHeader.style.cssText = 'font-size:12px;font-weight:600;color:#555;padding:4px 4px 2px 8px;';
+            aHeader.textContent = a.name;
+            queueList.appendChild(aHeader);
+
+            grouped[aid].forEach(sub => {
+              const studentName = sub.user?.sortable_name || sub.user?.name || `Student ${sub.user_id}`;
+              const row = document.createElement('button');
+              row.type = 'button';
+              row.className = 'ce-sg-qitem';
+              row.style.paddingLeft = '20px';
+              row.textContent = studentName;
+              row.addEventListener('click', () => {
+                location.href = `${location.origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${aid}&student_id=${sub.user_id}`;
+              });
+              queueList.appendChild(row);
+            });
+          });
+      }
+
+      async function fetchCourseQueue(cid) {
+        const [assignments, submissions] = await Promise.all([
+          ceSgCanvasGet(`/api/v1/courses/${cid}/assignments?order_by=due_at&per_page=100`),
+          ceSgCanvasGet(`/api/v1/courses/${cid}/students/submissions?student_ids[]=all&per_page=100&include[]=user`),
+        ]);
+        const needingAssignments = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
+        const needingIds = new Set(needingAssignments.map(a => String(a.id)));
+        const assignmentMap = Object.fromEntries(needingAssignments.map(a => [String(a.id), a]));
+        const subs = (submissions || []).filter(s => needingIds.has(String(s.assignment_id)) && s.workflow_state === 'submitted' && !/^test student$/i.test(s.user?.name || ''));
+        return { assignmentMap, subs };
       }
 
       async function loadQueue(showInDrawer) {
@@ -1158,12 +1203,11 @@
           queueList.innerHTML = '';
         }
         try {
-          const assignments = await ceSgCanvasGet(`/api/v1/courses/${courseId}/assignments?order_by=due_at&per_page=100`);
-          const currentNeeding = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
-          setQueueBadge(currentNeeding.length);
+          const { assignmentMap: currentMap, subs: currentSubs } = await fetchCourseQueue(courseId);
+          setQueueBadge(currentSubs.length);
 
           if (showInDrawer) {
-            renderQueueSection('This Course', currentNeeding, courseId);
+            renderCourseSection('This Course', currentSubs, currentMap, courseId);
 
             const allCourses = await ceSgCanvasGet(`/api/v1/courses?enrollment_type=teacher&per_page=100`);
             let otherCourses = (allCourses || []).filter(c => String(c.id) !== String(courseId));
@@ -1178,24 +1222,25 @@
             }
 
             const otherResults = await Promise.all(
-              otherCourses.slice(0, 15).map(async c => {
+              otherCourses.slice(0, 10).map(async c => {
                 try {
-                  const a = await ceSgCanvasGet(`/api/v1/courses/${c.id}/assignments?order_by=due_at&per_page=100`);
-                  const needing = (a || []).filter(x => Number(x.needs_grading_count || 0) > 0);
-                  return { course: c, needing };
-                } catch { return { course: c, needing: [] }; }
+                  const { assignmentMap, subs } = await fetchCourseQueue(c.id);
+                  return { course: c, assignmentMap, subs };
+                } catch { return { course: c, assignmentMap: {}, subs: [] }; }
               })
             );
 
             let otherTotal = 0;
-            otherResults.forEach(({ course, needing }) => {
-              otherTotal += needing.length;
-              renderQueueSection(course.name, needing, course.id);
+            otherResults.forEach(({ course, assignmentMap, subs }) => {
+              otherTotal += subs.length;
+              renderCourseSection(course.name, subs, assignmentMap, course.id);
             });
 
-            const total = currentNeeding.length + otherTotal;
+            const total = currentSubs.length + otherTotal;
             setQueueBadge(total);
-            queueStatus.textContent = total ? `${total} assignment${total !== 1 ? 's' : ''} need grading across all courses.` : 'All caught up — nothing needs grading.';
+            queueStatus.textContent = total
+              ? `${total} student${total !== 1 ? 's' : ''} need grading across all courses.`
+              : 'All caught up — nothing needs grading.';
           }
         } catch (e) {
           if (showInDrawer) queueStatus.textContent = e.message || 'Could not load list.';
@@ -1391,6 +1436,7 @@
     // ── NAVIGATION TRACKING ───────────────────────────────────────────────────
     let lastStudentId    = getUrlParts().studentId;
     let lastAssignmentId = getUrlParts().assignmentId;
+    let _grading         = false;
 
     function onNavChange() {
       const { courseId, assignmentId, studentId } = getUrlParts();
@@ -1456,8 +1502,10 @@
     }
 
     function buildPrompt(c, criteria) {
-      const tot = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
-      const fn  = c?.studentName?.split(' ')[0] || 'the student';
+      const tot         = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
+      const fn          = c?.studentName?.split(' ')[0] || 'the student';
+      const teacherName = GM_getValue('ce_teacher_name', '').trim();
+      const closing     = teacherName ? `\n${teacherName}` : '';
       let p = 'Grade this student assignment.\n';
       if (c?.assignmentName) p += `Assignment: ${c.assignmentName}\n`;
       p += '\n';
@@ -1471,11 +1519,12 @@
 SCORE: [number]/${tot}
 FEEDBACK:
 - TEACHER CHECK: [private note to the teacher only; items to verify manually]
-- [Address ${fn} by name, overall]
+- [Begin with "${fn}," and give an overall summary]
 - [Specific finding]
 - [Another finding]
+- [End the final bullet with a closing line: "${closing || 'Your Teacher'}"]
 
-Use 3-5 bullets. First must be TEACHER CHECK.`;
+Use 3-5 bullets. First must be TEACHER CHECK. Last bullet must end with the closing.`;
       return p;
     }
 

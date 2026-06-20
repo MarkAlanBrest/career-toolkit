@@ -1374,192 +1374,37 @@
   }
 
   // ── TOOL CLICK ─────────────────────────────────────────────────────────────
+  let _auditCache = null;
+
   async function renderAudit(container = panelBody, opts = {}) {
     container.innerHTML = '';
+    container.style.cssText = 'padding:0;overflow:hidden;display:flex;flex-direction:column;';
 
-    container.style.padding = '0';
-    container.style.overflow = 'hidden';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-
-    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token', 'ce_audit_prefs'], r));
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token'], r));
     const token = stored.ce_canvas_token || '';
-    const savedAuditPrefs = stored.ce_audit_prefs || {};
+    const courseId = opts.courseId || window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
+    const assignmentId = opts.assignmentId || (new URLSearchParams(window.location.search)).get('assignment_id') || '';
 
-    const urlCourseId = window.location.pathname.match(/\/courses\/(\d+)/)?.[1] || '';
-    const urlAssignmentId = SPEEDGRADER ? (new URLSearchParams(window.location.search).get('assignment_id') || '') : '';
-    let courseId = urlCourseId || savedAuditPrefs.courseId || '';
-    let assignmentId = urlAssignmentId || savedAuditPrefs.assignmentId || '';
-    if (opts.courseId) courseId = opts.courseId;
-    if (opts.assignmentId) assignmentId = opts.assignmentId;
-    const _locked = !!(opts.courseId && opts.assignmentId);
+    // ── HEADER ────────────────────────────────────────────────────────────────
+    const hdrEl = el('div', `flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid ${DS.border};display:flex;align-items:center;gap:8px;`);
+    const titleEl = el('div', `flex:1;font-size:13px;font-weight:700;color:${DS.text};`);
+    titleEl.textContent = 'Academic Integrity Audit';
+    const rerunBtn = el('button', `padding:3px 10px;font-size:11px;font-weight:600;color:${DS.blue};background:transparent;border:1px solid ${DS.blue};border-radius:4px;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'Re-run' });
+    hdrEl.append(titleEl, rerunBtn);
+    container.appendChild(hdrEl);
 
-    const outer = el('div', 'display:flex;flex-direction:column;flex:1;min-height:0;');
-    container.appendChild(outer);
+    const subLine = el('div', `flex-shrink:0;padding:4px 14px 8px;font-size:11px;color:${DS.muted};border-bottom:1px solid ${DS.border};min-height:24px;`);
+    subLine.textContent = courseId ? 'Loading…' : 'Open a Canvas assignment in SpeedGrader to run the audit.';
+    container.appendChild(subLine);
 
-    if (!_locked) {
-      // ── PICKER HEADER ─────────────────────────────────────────────────────
-      const pickerHdr = el('div', `flex-shrink:0;padding:8px 10px;background:${DS.gray};border-bottom:1px solid ${DS.border};display:flex;flex-direction:column;gap:6px;`);
-      outer.appendChild(pickerHdr);
+    const scroll = el('div', 'flex:1;min-height:0;overflow-y:auto;');
+    container.appendChild(scroll);
+    const listWrap = el('div', 'display:flex;flex-direction:column;padding:8px 0;');
+    scroll.appendChild(listWrap);
 
-      const auditFilterRow = el('div', `display:flex;align-items:center;gap:14px;`);
-      const auditFilterLabel = el('div', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.04em;flex:1;`);
-      auditFilterLabel.textContent = 'Assignment';
-      auditFilterRow.appendChild(auditFilterLabel);
-      function mkAuditCb(labelText, defaultVal) {
-        const lbl = el('label', `display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:${DS.muted};user-select:none;`);
-        const box = document.createElement('input');
-        box.type = 'checkbox'; box.checked = defaultVal;
-        box.style.cssText = 'margin:0;cursor:pointer;';
-        const txt = document.createElement('span'); txt.textContent = labelText;
-        lbl.appendChild(box); lbl.appendChild(txt);
-        auditFilterRow.appendChild(lbl);
-        return box;
-      }
-      const cbPublishedAudit = mkAuditCb('Published only', savedAuditPrefs.publishedOnly !== false);
-      const cbDashboardAudit = mkAuditCb('Dashboard only', savedAuditPrefs.dashOnly !== false);
-      pickerHdr.appendChild(auditFilterRow);
-
-      const auditSelRow = el('div', `display:flex;gap:6px;`);
-      const auditCourseSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
-      const auditAssignSel = el('select', `flex:1;min-width:0;padding:6px 8px;border:1px solid ${DS.border};border-radius:3px;font-size:11px;font-family:${DS.font};color:${DS.text};background:${DS.white};outline:none;cursor:pointer;`);
-      const auditCourseLoadOpt = document.createElement('option');
-      auditCourseLoadOpt.value = ''; auditCourseLoadOpt.textContent = 'Loading courses…'; auditCourseLoadOpt.disabled = true; auditCourseLoadOpt.selected = true;
-      auditCourseSel.appendChild(auditCourseLoadOpt);
-      const auditAssignPlaceholderOpt = document.createElement('option');
-      auditAssignPlaceholderOpt.value = ''; auditAssignPlaceholderOpt.textContent = '— pick assignment —';
-      auditAssignSel.appendChild(auditAssignPlaceholderOpt);
-      auditAssignSel.disabled = true;
-      auditSelRow.appendChild(auditCourseSel);
-      auditSelRow.appendChild(auditAssignSel);
-      pickerHdr.appendChild(auditSelRow);
-
-      const auditPickerStatus = el('div', `font-size:11px;min-height:14px;font-style:italic;color:${DS.muted};`);
-      pickerHdr.appendChild(auditPickerStatus);
-
-      function updateAuditPickerStatus() {
-        if (courseId && assignmentId) {
-          const aText = auditAssignSel.options[auditAssignSel.selectedIndex]?.text || '';
-          const cText = auditCourseSel.options[auditCourseSel.selectedIndex]?.text || '';
-          auditPickerStatus.textContent = (aText && cText) ? `${aText} — ${cText}` : 'Assignment selected.';
-          auditPickerStatus.style.color = DS.text;
-        } else if (courseId) {
-          auditPickerStatus.textContent = 'Select an assignment above.';
-          auditPickerStatus.style.color = DS.muted;
-        } else {
-          auditPickerStatus.textContent = 'Select a course and assignment above.';
-          auditPickerStatus.style.color = DS.muted;
-        }
-      }
-
-      // ── COURSE LOADER IIFE ────────────────────────────────────────────────
-      (async () => {
-        let allAuditCourses = [];
-
-        function visibleAuditCourses() {
-          return allAuditCourses.filter(c => {
-            if (cbPublishedAudit.checked && !['available', 'published'].includes(c.workflow_state)) return false;
-            if (cbDashboardAudit.checked && !c.enrollments?.some(e => e.enrollment_state === 'active')) return false;
-            return c.course_code || c.name;
-          });
-        }
-
-        function renderAuditCourseOptions() {
-          const list = visibleAuditCourses();
-          auditCourseSel.innerHTML = '';
-          const ph = document.createElement('option');
-          ph.value = ''; ph.textContent = list.length ? '— pick a course —' : 'No courses found'; ph.disabled = true;
-          auditCourseSel.appendChild(ph);
-          list.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = String(c.id);
-            opt.textContent = c.course_code ? `${c.course_code} — ${c.name}` : c.name;
-            auditCourseSel.appendChild(opt);
-          });
-          if (courseId && list.some(c => String(c.id) === courseId)) auditCourseSel.value = courseId;
-          else auditCourseSel.value = '';
-        }
-
-        async function loadAuditAssignments(cId) {
-          auditAssignSel.disabled = true;
-          auditAssignSel.innerHTML = '<option value="" disabled selected>Loading…</option>';
-          try {
-            const resp = await fetch(`${location.origin}/api/v1/courses/${cId}/assignments?per_page=100&order_by=name`, {
-              headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-            });
-            const data = await resp.json().catch(() => []);
-            auditAssignSel.innerHTML = '';
-            const ph = document.createElement('option');
-            ph.value = ''; ph.textContent = '— pick an assignment —'; ph.disabled = true; ph.selected = true;
-            auditAssignSel.appendChild(ph);
-            (Array.isArray(data) ? data : []).forEach(a => {
-              const opt = document.createElement('option');
-              opt.value = String(a.id);
-              opt.textContent = a.name;
-              auditAssignSel.appendChild(opt);
-            });
-            if (assignmentId && Array.isArray(data) && data.some(a => String(a.id) === assignmentId)) {
-              auditAssignSel.value = assignmentId;
-            }
-            auditAssignSel.disabled = false;
-            updateAuditPickerStatus();
-          } catch (e) {
-            auditAssignSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
-            auditPickerStatus.textContent = `Could not load assignments: ${e.message}`;
-          }
-        }
-
-        auditCourseSel.addEventListener('change', async () => {
-          courseId = auditCourseSel.value;
-          assignmentId = '';
-          chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
-          updateAuditPickerStatus();
-          if (courseId) await loadAuditAssignments(courseId);
-        });
-
-        auditAssignSel.addEventListener('change', () => {
-          assignmentId = auditAssignSel.value;
-          chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
-          updateAuditPickerStatus();
-        });
-
-        [cbPublishedAudit, cbDashboardAudit].forEach(cb => {
-          cb.addEventListener('change', () => {
-            chrome.storage.local.set({ ce_audit_prefs: { courseId, assignmentId, publishedOnly: cbPublishedAudit.checked, dashOnly: cbDashboardAudit.checked } });
-            renderAuditCourseOptions();
-          });
-        });
-
-        try {
-          auditPickerStatus.textContent = 'Loading your courses…';
-          const resp = await fetch(`${location.origin}/api/v1/courses?per_page=100&include[]=enrollments`, {
-            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-          });
-          const data = await resp.json().catch(() => []);
-          allAuditCourses = Array.isArray(data) ? data : [];
-          renderAuditCourseOptions();
-          if (courseId) {
-            await loadAuditAssignments(courseId);
-          } else {
-            updateAuditPickerStatus();
-          }
-        } catch (e) {
-          auditPickerStatus.textContent = `Failed to load courses: ${e.message}`;
-          auditCourseSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
-        }
-      })();
-    } else {
-      const lockedInfo = el('div', `flex-shrink:0;padding:10px 14px;background:${DS.gray};border-bottom:1px solid ${DS.border};font-size:12px;color:${DS.muted};`);
-      lockedInfo.textContent = opts.assignmentName ? `Auditing: ${opts.assignmentName}` : 'Auditing current assignment';
-      outer.appendChild(lockedInfo);
-    }
-
-    // ── SCROLL AREA ─────────────────────────────────────────────────────────
-    const auditScroll = el('div', 'flex:1;min-height:0;overflow-y:auto;');
-    outer.appendChild(auditScroll);
-
-    let runState = 'idle';
-    let lastReport = null;
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    let isRunning = false;
+    let lastReport = _auditCache || null;
     let runError = null;
     const checkState = {
       read:        { label: 'Submission Reading',     status: 'pending', detail: '' },
@@ -1570,25 +1415,38 @@
       quizAnswers: { label: 'Quiz Answer Matching',    status: 'pending', detail: '' },
     };
 
+    if (lastReport) {
+      Object.entries(lastReport.checks || {}).forEach(([id, s]) => { if (checkState[id]) Object.assign(checkState[id], s); });
+      subLine.textContent = `${lastReport.assignmentName} · ${lastReport.checked} of ${lastReport.total} submissions · ${new Date(lastReport.createdAt).toLocaleTimeString()}`;
+    }
+
+    rerunBtn.addEventListener('click', () => {
+      _auditCache = null;
+      lastReport = null;
+      runError = null;
+      Object.values(checkState).forEach(c => { c.status = 'pending'; c.detail = ''; });
+      runCheck();
+    });
+
     function escapeReportHtml(value) {
       return String(value == null ? '' : value)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function checkColors(s) {
-      if (s === 'flagged')     return { bg:'#FEF2F2', border:'#FCA5A5', color:'#991B1B', dot:'#EF4444', label:'Flagged'       };
-      if (s === 'complete')    return { bg:'#ECFDF3', border:'#86EFAC', color:'#166534', dot:'#22C55E', label:'Clear'         };
-      if (s === 'running')     return { bg:'#EFF6FF', border:'#93C5FD', color:'#1D4ED8', dot:'#3B82F6', label:'Checking…'    };
-      if (s === 'unavailable') return { bg:'#F9FAFB', border:'#D1D5DB', color:'#6B7280', dot:'#9CA3AF', label:'Not available' };
-      if (s === 'skipped')     return { bg:'#FFFBEB', border:'#FCD34D', color:'#92400E', dot:'#F59E0B', label:'Skipped'       };
-      return                          { bg:'#F9FAFB', border:'#E5E7EB', color:'#9CA3AF', dot:'#D1D5DB', label:'Waiting'       };
+      if (s === 'flagged')     return { dot:'#EF4444', label:'Flagged',        color:'#991B1B', accent:'#EF4444' };
+      if (s === 'complete')    return { dot:'#22C55E', label:'Clear',           color:'#166534', accent:'#22C55E' };
+      if (s === 'running')     return { dot:'#3B82F6', label:'Checking…',      color:'#1D4ED8', accent:'#93C5FD' };
+      if (s === 'unavailable') return { dot:'#9CA3AF', label:'Not available',  color:'#6B7280', accent:'#D1D5DB' };
+      if (s === 'skipped')     return { dot:'#D1D5DB', label:'N/A',             color:'#9CA3AF', accent:'#E5E7EB' };
+      return                          { dot:'#D1D5DB', label:'Waiting',         color:'#9CA3AF', accent:'#E5E7EB' };
     }
 
     function updateCheck(id, statusValue, detail) {
       if (!checkState[id]) return;
       checkState[id].status = statusValue;
-      if (detail) checkState[id].detail = detail;
-      if (runState === 'running') renderUI();
+      if (detail !== undefined) checkState[id].detail = detail;
+      if (isRunning) renderList();
     }
 
     function getInlineRows(checkId) {
@@ -1621,182 +1479,76 @@
       return [];
     }
 
-    function renderUI() {
-      auditScroll.innerHTML = '';
-      const wrap = el('div', 'padding:20px;display:flex;flex-direction:column;gap:16px;');
-      auditScroll.appendChild(wrap);
-      if (runState === 'idle')         renderIdleView(wrap);
-      else if (runState === 'running') renderRunningView(wrap);
-      else                             renderDoneView(wrap);
-    }
-
-    function mkRunBtn(label) {
-      const b = el('button', `height:46px;width:100%;background:${DS.blue};color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:${DS.font};letter-spacing:.02em;`, { type:'button', textContent: label });
-      b.addEventListener('mouseenter', () => b.style.opacity = '.88');
-      b.addEventListener('mouseleave', () => b.style.opacity = '1');
-      return b;
-    }
-
-    function renderIdleView(wrap) {
-      if (opts.assignmentName) {
-        const info = el('div', `font-size:12px;color:${DS.muted};`);
-        info.textContent = `Assignment: ${opts.assignmentName}`;
-        wrap.appendChild(info);
-      }
-
-      const title = el('div', `font-size:17px;font-weight:700;color:${DS.text};`);
-      title.textContent = 'Academic Integrity Review';
-      const desc = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;margin-top:4px;`);
-      desc.textContent = 'Analyzes Canvas submission data for patterns that may be worth reviewing. Results are for instructor use only — this tool does not determine misconduct.';
-      wrap.append(title, desc);
+    function renderList() {
+      listWrap.innerHTML = '';
 
       if (runError) {
-        const errEl = el('div', `font-size:12px;color:#991B1B;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;padding:10px 12px;`);
-        errEl.textContent = runError;
-        wrap.appendChild(errEl);
+        const err = el('div', `margin:12px 14px;padding:10px 12px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:12px;color:#991B1B;`);
+        err.textContent = runError;
+        listWrap.appendChild(err);
+        return;
       }
 
-      const rb = mkRunBtn('Run Audit');
-      rb.addEventListener('click', () => runCheck());
-      wrap.appendChild(rb);
-
-      const checksCard = el('div', `background:${DS.gray};border:1px solid ${DS.border};border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;`);
-      const checksLabel = el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;`);
-      checksLabel.textContent = 'What this checks';
-      checksCard.appendChild(checksLabel);
-      const checkDescs = {
-        read:        'Reads student submission text to prepare for comparison',
-        similarity:  'Compares every submission pair for overlapping phrases',
-        timing:      'Looks for submission time clusters and repeated filenames',
-        quizBlur:    'Counts how many times each student left the quiz tab',
-        quizSpeed:   'Flags unusually fast completions with high scores',
-        quizAnswers: 'Finds student pairs who chose the same wrong answers',
-      };
-      for (const [id, item] of Object.entries(checkState)) {
-        const row = el('div', `display:flex;align-items:flex-start;gap:10px;`);
-        const dot = el('span', `margin-top:5px;width:6px;height:6px;border-radius:50%;background:${DS.border};flex-shrink:0;display:inline-block;`);
-        const text = el('div', `font-size:12px;color:${DS.text};line-height:1.4;`);
-        const strong = el('span', `font-weight:700;`); strong.textContent = item.label + ' — ';
-        const sub2 = document.createTextNode(checkDescs[id] || '');
-        text.append(strong, sub2);
-        row.append(dot, text);
-        checksCard.appendChild(row);
+      if (isRunning) {
+        const running = el('div', `padding:10px 14px;font-size:12px;color:${DS.muted};`);
+        running.textContent = 'Keep this panel open while checks run…';
+        listWrap.appendChild(running);
       }
-      wrap.appendChild(checksCard);
 
-      const disc = el('div', `font-size:11px;color:#92400E;background:#FFF7ED;border:1px solid #FDBA74;border-radius:6px;padding:10px 12px;line-height:1.6;`);
-      disc.textContent = 'All results are for instructor review with professional judgment. Canvas Enhancer does not determine whether academic misconduct occurred.';
-      wrap.appendChild(disc);
-    }
-
-    function renderRunningView(wrap) {
-      const hdr = el('div', `display:flex;flex-direction:column;gap:4px;padding-bottom:4px;`);
-      const htitle = el('div', `font-size:14px;font-weight:700;color:${DS.text};`);
-      htitle.textContent = 'Checking…';
-      const hsub = el('div', `font-size:12px;color:${DS.muted};`);
-      hsub.textContent = 'Please keep this panel open until all checks finish.';
-      hdr.append(htitle, hsub);
-      wrap.appendChild(hdr);
-
-      for (const [, item] of Object.entries(checkState)) {
-        const c = checkColors(item.status);
-        const row = el('div', `display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border:1px solid ${DS.border};border-left:4px solid ${c.dot};border-radius:6px;`);
-        const dot = el('span', `width:8px;height:8px;border-radius:50%;background:${c.dot};flex-shrink:0;`);
-        const nameWrap = el('div', `flex:1;min-width:0;`);
-        const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.text};`);
-        nameEl.textContent = item.label;
-        nameWrap.appendChild(nameEl);
-        if (item.detail) {
-          const detailEl = el('div', `font-size:11px;color:${DS.muted};margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
-          detailEl.textContent = item.detail;
-          nameWrap.appendChild(detailEl);
-        }
-        const pill = el('div', `font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:${c.bg};color:${c.color};border:1px solid ${c.border};white-space:nowrap;flex-shrink:0;`);
-        pill.textContent = c.label;
-        row.append(dot, nameWrap, pill);
-        wrap.appendChild(row);
+      if (lastReport && !isRunning) {
+        const totalFlags = (lastReport.flags?.length || 0) + (lastReport.timingFlags?.length || 0) +
+          (lastReport.quizBlurFlags?.length || 0) + (lastReport.quizSpeedFlags?.length || 0) +
+          (lastReport.quizAnswerPairs?.length || 0);
+        const summaryRow = el('div', `display:flex;align-items:center;gap:8px;padding:10px 14px;`);
+        const summaryDot = el('span', `width:9px;height:9px;border-radius:50%;background:${totalFlags ? '#EF4444' : '#22C55E'};flex-shrink:0;`);
+        const summaryText = el('div', `font-size:13px;font-weight:700;color:${totalFlags ? '#991B1B' : '#166534'};`);
+        summaryText.textContent = totalFlags ? `${totalFlags} item${totalFlags !== 1 ? 's' : ''} flagged for review` : '✓ All clear — nothing flagged';
+        summaryRow.append(summaryDot, summaryText);
+        listWrap.appendChild(summaryRow);
+        listWrap.appendChild(el('div', `height:1px;background:${DS.border};margin:0 14px 6px;`));
       }
-    }
 
-    function renderDoneView(wrap) {
-      if (!lastReport) return;
-      const totalFlags = (lastReport.flags?.length || 0) + (lastReport.timingFlags?.length || 0) +
-        (lastReport.quizBlurFlags?.length || 0) + (lastReport.quizSpeedFlags?.length || 0) +
-        (lastReport.quizAnswerPairs?.length || 0);
-      const allClear = totalFlags === 0;
-
-      // Summary banner
-      const banner = el('div', `border-radius:10px;padding:18px;background:${allClear ? '#ECFDF3' : '#FEF2F2'};border:2px solid ${allClear ? '#86EFAC' : '#FCA5A5'};`);
-      const bannerTitle = el('div', `font-size:17px;font-weight:800;color:${allClear ? '#166534' : '#991B1B'};margin-bottom:4px;`);
-      bannerTitle.textContent = allClear ? '✓  All clear — nothing flagged' : `⚠  ${totalFlags} item${totalFlags === 1 ? '' : 's'} flagged for review`;
-      const bannerSub = el('div', `font-size:11px;color:${allClear ? '#166534' : '#7F1D1D'};opacity:.75;`);
-      bannerSub.textContent = `${lastReport.assignmentName} · ${new Date(lastReport.createdAt).toLocaleString()} · ${lastReport.checked} of ${lastReport.total} submissions read`;
-      banner.append(bannerTitle, bannerSub);
-      wrap.appendChild(banner);
-
-      // Run again
-      const ra = mkRunBtn('Run Again');
-      ra.style.cssText += 'background:#fff;color:' + DS.text + ';border:1px solid ' + DS.border + ';height:36px;font-size:13px;';
-      ra.addEventListener('click', () => {
-        runState = 'idle';
-        lastReport = null;
-        Object.values(checkState).forEach(c => { c.status = 'pending'; c.detail = ''; });
-        renderUI();
-      });
-      wrap.appendChild(ra);
-
-      wrap.appendChild(el('div', `height:1px;background:${DS.border};`));
-
-      // One card per check
       for (const [id, item] of Object.entries(checkState)) {
         const c = checkColors(item.status);
         const isFlagged = item.status === 'flagged';
-        const rows = isFlagged ? getInlineRows(id) : [];
+        const rows = (isFlagged && lastReport) ? getInlineRows(id) : [];
 
-        const card = el('div', `border-radius:8px;overflow:hidden;border:1px solid ${c.border};`);
+        const row = el('div', `display:flex;align-items:center;gap:10px;padding:7px 14px;border-left:3px solid ${c.accent};`);
+        const dot = el('span', `width:7px;height:7px;border-radius:50%;background:${c.dot};flex-shrink:0;`);
+        const name = el('div', `flex:1;font-size:12px;font-weight:600;color:${DS.text};`);
+        name.textContent = item.label;
+        const statusLbl = el('div', `font-size:11px;font-weight:600;color:${c.color};white-space:nowrap;`);
+        statusLbl.textContent = c.label;
+        row.append(dot, name, statusLbl);
+        listWrap.appendChild(row);
 
-        // Card header row
-        const cardHdr = el('div', `display:flex;align-items:center;gap:10px;padding:12px 14px;background:${c.bg};`);
-        const hDot = el('span', `width:9px;height:9px;border-radius:50%;background:${c.dot};flex-shrink:0;`);
-        const hName = el('div', `flex:1;font-size:13px;font-weight:700;color:${DS.text};`);
-        hName.textContent = item.label;
-        const hPill = el('div', `font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#fff;color:${c.color};border:1px solid ${c.border};white-space:nowrap;`);
-        hPill.textContent = c.label;
-        cardHdr.append(hDot, hName, hPill);
-        card.appendChild(cardHdr);
-
-        // Card body
-        if (item.detail || rows.length) {
-          const body = el('div', `padding:12px 14px;background:#fff;border-top:1px solid ${c.border};display:flex;flex-direction:column;gap:8px;`);
-
-          if (rows.length) {
-            const tbl = el('div', `display:flex;flex-direction:column;`);
-            rows.forEach((row, i) => {
-              const r = el('div', `display:flex;align-items:baseline;gap:10px;padding:6px 0;${i > 0 ? 'border-top:1px solid #F3F4F6;' : ''}`);
-              const a = el('div', `flex:1;font-size:12px;font-weight:600;color:${DS.text};`); a.textContent = row.a;
-              const b = el('div', `font-size:11px;color:${DS.muted};white-space:nowrap;`); b.textContent = row.b;
-              r.append(a, b); tbl.appendChild(r);
-            });
-            body.appendChild(tbl);
-          }
-
-          if (item.detail) {
-            const dEl = el('div', `font-size:12px;color:${DS.muted};line-height:1.5;`);
-            dEl.textContent = item.detail;
-            body.appendChild(dEl);
-          }
-
-          const canReport = item.status !== 'pending' && item.status !== 'running' && item.status !== 'skipped';
-          if (canReport) {
-            const reportBtn = el('button', `align-self:flex-start;height:28px;padding:0 12px;background:transparent;color:${DS.blue};border:1px solid ${DS.blue};border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent: 'Open full report →' });
-            reportBtn.addEventListener('click', () => openCheckReport(id));
-            body.appendChild(reportBtn);
-          }
-
-          card.appendChild(body);
+        if (item.detail) {
+          const detail = el('div', `font-size:11px;color:${DS.muted};padding:1px 14px 5px 34px;line-height:1.4;`);
+          detail.textContent = item.detail;
+          listWrap.appendChild(detail);
         }
 
-        wrap.appendChild(card);
+        if (rows.length) {
+          const sub = el('div', `padding:2px 14px 4px 34px;display:flex;flex-direction:column;`);
+          rows.forEach((r, i) => {
+            const rEl = el('div', `display:flex;gap:8px;padding:4px 0;${i > 0 ? `border-top:1px solid ${DS.border};` : ''}`);
+            const a = el('div', `flex:1;font-size:11px;font-weight:600;color:${DS.text};`); a.textContent = r.a;
+            const b = el('div', `font-size:11px;color:${DS.muted};white-space:nowrap;`); b.textContent = r.b;
+            rEl.append(a, b); sub.appendChild(rEl);
+          });
+          listWrap.appendChild(sub);
+          const rbtn = el('button', `margin:2px 14px 8px 34px;padding:3px 10px;font-size:11px;color:${DS.blue};border:1px solid ${DS.blue};border-radius:4px;background:transparent;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'Open full report →' });
+          rbtn.addEventListener('click', () => openCheckReport(id));
+          listWrap.appendChild(rbtn);
+        }
+
+        listWrap.appendChild(el('div', `height:1px;background:${DS.border};margin:0 14px;opacity:.4;`));
+      }
+
+      if (lastReport && !isRunning) {
+        const disc = el('div', `margin:10px 14px 4px;font-size:10px;color:${DS.muted};line-height:1.5;`);
+        disc.textContent = 'Results are for instructor review only. Canvas Enhancer does not determine whether academic misconduct occurred. Use professional judgment before taking any action.';
+        listWrap.appendChild(disc);
       }
     }
 
@@ -2134,24 +1886,89 @@
       if (!lastReport) return;
       const report = lastReport;
       const item = (report.checks || checkState)[checkId] || checkState[checkId];
-      const colors = checkColors(item?.status || 'pending');
+      const statusLabel = checkColors(item?.status || 'pending').label;
+      const statusColor = { flagged:'#991B1B', complete:'#166534', unavailable:'#6B7280', skipped:'#9CA3AF' }[item?.status] || '#9CA3AF';
+      const statusBg    = { flagged:'#FEF2F2', complete:'#ECFDF3', unavailable:'#F9FAFB', skipped:'#FFFBEB' }[item?.status] || '#F9FAFB';
+      const statusBorder = { flagged:'#FCA5A5', complete:'#86EFAC', unavailable:'#D1D5DB', skipped:'#FCD34D' }[item?.status] || '#E5E7EB';
       const detail = checkReportRows(checkId, report);
-      const html = `<!doctype html><html><head><title>Audit - ${escapeReportHtml(detail.title)}</title>
+      const generated = new Date(report.createdAt).toLocaleString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const isFlagged = item?.status === 'flagged';
+
+      const checkExplain = {
+        read:        'Reads the text content of each student submission to prepare for analysis.',
+        similarity:  'Compares every pair of submissions using shingling — a technique that detects shared 5-word phrases. A flag means two submissions share an unusually high percentage of text or a large number of identical phrases.',
+        timing:      'Checks Canvas submission timestamps and uploaded filenames. A flag means two or more students submitted within the same 2-minute window, or uploaded files with identical names.',
+        quizBlur:    'Uses Canvas quiz session logs to count how many times each student navigated away from the quiz tab. A flag means a student left the tab 3 or more times.',
+        quizSpeed:   'Compares each student\'s completion time to the quiz time limit. A flag means a student finished in under 20% of allowed time while scoring 80% or higher.',
+        quizAnswers: 'Looks for pairs of students who selected the same incorrect answer on 2 or more questions — a pattern that may indicate coordination.',
+      };
+
+      const html = `<!doctype html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Academic Integrity Report — ${escapeReportHtml(report.assignmentName)}</title>
         <style>
-          body{font-family:Arial,sans-serif;color:#1f2937;margin:32px;line-height:1.45}
-          h1{font-size:22px;margin:0 0 6px}.muted{color:#6b7280;font-size:12px}
-          .badge{display:inline-block;margin:18px 0;padding:8px 12px;border-radius:4px;font-weight:700;background:${colors.bg};color:${colors.color};border:1px solid ${colors.border}}
-          table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px}
-          th,td{border:1px solid #d1d5db;padding:8px;vertical-align:top;text-align:left}th{background:#f3f4f6}
-          @media print{button{display:none}}
+          *{box-sizing:border-box;margin:0;padding:0}
+          body{font-family:Arial,sans-serif;color:#1f2937;background:#f3f4f6;line-height:1.5}
+          .header{background:#1a2332;color:#fff;padding:28px 40px 24px;}
+          .header-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;}
+          .header h1{font-size:22px;font-weight:800;margin-bottom:4px;}
+          .header-sub{font-size:13px;color:#cbd5e1;margin-top:6px;}
+          .header-meta{font-size:11px;color:#94a3b8;margin-top:10px;display:flex;gap:24px;flex-wrap:wrap;}
+          .print-btn{position:fixed;top:18px;right:18px;padding:8px 18px;background:#fff;color:#1a2332;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+          .print-btn:hover{background:#f1f5f9}
+          .body{padding:28px 40px;max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:22px;}
+          .disclaimer{background:#FFF7ED;border:1px solid #FED7AA;border-left:5px solid #F97316;border-radius:6px;padding:16px 20px;}
+          .disclaimer h2{font-size:13px;font-weight:800;color:#9a3412;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+          .disclaimer p{font-size:12px;color:#7c3504;line-height:1.65;}
+          .section{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}
+          .section-header{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:12px;}
+          .section-title{font-size:14px;font-weight:700;color:#1f2937;flex:1;}
+          .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:${statusBg};color:${statusColor};border:1px solid ${statusBorder};}
+          .section-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;}
+          .explain{font-size:12px;color:#4b5563;line-height:1.6;}
+          .finding{font-size:12px;color:#6b7280;font-style:italic;line-height:1.5;}
+          table{width:100%;border-collapse:collapse;font-size:12px;}
+          th{background:#f8fafc;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;padding:9px 10px;text-align:left;border-bottom:2px solid #e5e7eb;}
+          td{padding:9px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#374151;}
+          tr:last-child td{border-bottom:none}
+          tr:nth-child(even) td{background:#f9fafb}
+          .footer{font-size:11px;color:#9ca3af;text-align:center;padding:12px;}
+          @media print{
+            .print-btn{display:none}
+            body{background:#fff}
+            .section{break-inside:avoid}
+          }
         </style></head><body>
-        <button onclick="window.print()">Print / Save as PDF</button>
-        <h1>Audit: ${escapeReportHtml(detail.title)}</h1>
-        <div class="muted">${escapeReportHtml(report.assignmentName)} - ${new Date(report.createdAt).toLocaleString()}</div>
-        <div class="badge">${escapeReportHtml(colors.label)}: ${escapeReportHtml(item?.detail || '')}</div>
-        <p class="muted"><strong>Instructor review required:</strong> Canvas Enhancer does not decide whether a student cheated or violated a course policy. This check only flags Canvas conditions a teacher may choose to review with professional judgment.</p>
-        <p>${escapeReportHtml(detail.help)}</p>
-        <table><thead>${detail.head}</thead><tbody>${detail.body}</tbody></table>
+        <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+        <div class="header">
+          <div class="header-eyebrow">Canvas Enhancer — Academic Integrity Report</div>
+          <h1>${escapeReportHtml(detail.title)}</h1>
+          <div class="header-sub">${escapeReportHtml(report.assignmentName)}</div>
+          <div class="header-meta">
+            <span>Generated: ${escapeReportHtml(generated)}</span>
+            <span>Submissions analyzed: ${escapeReportHtml(String(report.checked))} of ${escapeReportHtml(String(report.total))}</span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="disclaimer">
+            <h2>⚠ Important — Teacher Verification Required</h2>
+            <p>This report identifies patterns in Canvas data that <strong>may warrant a closer look</strong>. It does <strong>not</strong> determine whether academic misconduct occurred, and it is <strong>not</strong> evidence of cheating. Every item flagged here is a signal, not a conclusion.</p>
+            <p style="margin-top:8px"><strong>Only the instructor</strong> can determine whether a policy violation took place. No action should be taken against any student based on this report alone. Professional judgment, conversation with students, and review of all available context are essential before drawing any conclusions.</p>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <div class="section-title">${escapeReportHtml(detail.title)}</div>
+              <div class="badge">${escapeReportHtml(statusLabel)}</div>
+            </div>
+            <div class="section-body">
+              <div class="explain"><strong>What this check does:</strong> ${escapeReportHtml(checkExplain[checkId] || '')}</div>
+              ${item?.detail ? `<div class="finding">${escapeReportHtml(item.detail)}</div>` : ''}
+              ${isFlagged ? `<table><thead>${detail.head}</thead><tbody>${detail.body}</tbody></table>` : ''}
+              ${!isFlagged && item?.status !== 'pending' ? `<div class="finding">No items were flagged by this check.</div>` : ''}
+            </div>
+          </div>
+          <div class="footer">Report generated by Canvas Enhancer · ${escapeReportHtml(generated)} · For instructor use only</div>
+        </div>
         </body></html>`;
       const w = window.open('', '_blank');
       if (!w) return;
@@ -2161,8 +1978,8 @@
     }
 
     async function runCheck() {
-      if (!token) { runError = 'Add a Canvas API token in Settings first.'; runState = 'idle'; renderUI(); return; }
-      if (!courseId || !assignmentId) { runError = 'Unable to determine assignment from this page.'; runState = 'idle'; renderUI(); return; }
+      if (!token) { runError = 'Add a Canvas API token in Settings first.'; renderList(); return; }
+      if (!courseId || !assignmentId) { runError = 'Unable to determine assignment from this page. Open this audit from a SpeedGrader assignment page.'; renderList(); return; }
 
       runError = null;
       checkState.read.status = 'running'; checkState.read.detail = 'Loading Canvas submissions and reading available text.';
@@ -2171,8 +1988,10 @@
       checkState.quizBlur.status = 'pending'; checkState.quizBlur.detail = 'Waiting to see if this assignment has quiz event data.';
       checkState.quizSpeed.status = 'pending'; checkState.quizSpeed.detail = 'Waiting to see if this assignment has timed quiz data.';
       checkState.quizAnswers.status = 'pending'; checkState.quizAnswers.detail = 'Waiting to see if this assignment has answer-level quiz data.';
-      runState = 'running';
-      renderUI();
+      isRunning = true;
+      rerunBtn.disabled = true;
+      rerunBtn.textContent = 'Running…';
+      renderList();
 
       try {
         const assignment = await canvasFetch(`/api/v1/courses/${courseId}/assignments/${assignmentId}`);
@@ -2274,16 +2093,26 @@
           quizAnswerPairs,
           checks: JSON.parse(JSON.stringify(checkState)),
         };
-        runState = 'done';
-        renderUI();
+        _auditCache = lastReport;
+        isRunning = false;
+        rerunBtn.disabled = false;
+        rerunBtn.textContent = 'Re-run';
+        subLine.textContent = `${lastReport.assignmentName} · ${lastReport.checked} of ${lastReport.total} submissions · ${new Date(lastReport.createdAt).toLocaleTimeString()}`;
+        renderList();
       } catch (e) {
         runError = e.message;
-        runState = 'idle';
-        renderUI();
+        isRunning = false;
+        rerunBtn.disabled = false;
+        rerunBtn.textContent = 'Re-run';
+        renderList();
       }
     }
 
-    renderUI();
+    if (_auditCache) {
+      renderList();
+    } else {
+      runCheck();
+    }
 
   }
 
