@@ -1062,17 +1062,15 @@
     const needsGradedBtn = mkBtn('Needs Graded');
     needsGradedBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-ai-grader')));
 
-    const chatBtn = mkBtn('Chat');
-    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
-    const notesBtn = mkBtn('Notes');
-    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+    const atRiskBtn = mkBtn('At Risk');
+    atRiskBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-at-risk')));
 
     const hideBtn = mkBtn('Hide');
     hideBtn.style.marginLeft = 'auto';
     hideBtn.addEventListener('click', () => { bar.style.display = 'none'; colTab.style.display = 'block'; });
     colTab.addEventListener('click', () => { colTab.style.display = 'none'; bar.style.display = 'flex'; });
 
-    bar.append(lbl, vitalsBtn, needsGradedBtn, chatBtn, notesBtn, hideBtn);
+    bar.append(lbl, vitalsBtn, needsGradedBtn, atRiskBtn, hideBtn);
     document.body.insertBefore(bar, document.body.firstChild);
 
     // ── PAGE DETECTION ────────────────────────────────────────────────────────

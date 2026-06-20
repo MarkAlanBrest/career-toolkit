@@ -272,7 +272,7 @@
   let _active      = null;          // tool id with open panel
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
-  let _onDashboard = window.location.pathname === '/';
+  let _onDashboard = false; // toolbar lives on course home pages via eval.js
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -3298,21 +3298,11 @@
     });
   }
 
-  // ── DASHBOARD PAGE DETECTION ───────────────────────────────────────────────
-  function updateDashboardMode() {
-    const p = window.location.pathname;
-    const onDash = p === '/';
-    if (onDash !== _onDashboard) {
-      _onDashboard = onDash;
-      applyToolbarState();
-      if (onDash) setTimeout(updateGraderBadge, 600);
-    }
-  }
-  updateDashboardMode();
-  new MutationObserver(() => setTimeout(updateDashboardMode, 200)).observe(document.body, { childList: true, subtree: false });
-  setInterval(updateDashboardMode, 1500);
+  // ── DASHBOARD PAGE DETECTION (disabled — toolbar on course home via eval.js) ─
+  function updateDashboardMode() { /* toolbar hidden; hub.js runs for modals/events only */ }
 
   document.addEventListener('ce-open-ai-grader', () => showNgModal());
+  document.addEventListener('ce-open-at-risk',   () => showAtRiskModal());
   document.addEventListener('ce-open-chat',  () => openQuickAI());
   document.addEventListener('ce-open-notes', () => openNotesModal());
   document.addEventListener('ce-open-help',  e => openHelp(e.detail));
