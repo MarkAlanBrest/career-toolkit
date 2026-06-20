@@ -1389,8 +1389,9 @@
     const hdrEl = el('div', `flex-shrink:0;padding:10px 14px 8px;border-bottom:1px solid ${DS.border};display:flex;align-items:center;gap:8px;`);
     const titleEl = el('div', `flex:1;font-size:13px;font-weight:700;color:${DS.text};`);
     titleEl.textContent = 'Academic Integrity Audit';
+    const printBtn = el('button', `padding:3px 10px;font-size:11px;font-weight:600;color:${DS.muted};background:transparent;border:1px solid ${DS.border};border-radius:4px;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'🖨 Print' });
     const rerunBtn = el('button', `padding:3px 10px;font-size:11px;font-weight:600;color:${DS.blue};background:transparent;border:1px solid ${DS.blue};border-radius:4px;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'Re-run' });
-    hdrEl.append(titleEl, rerunBtn);
+    hdrEl.append(titleEl, printBtn, rerunBtn);
     container.appendChild(hdrEl);
 
     const subLine = el('div', `flex-shrink:0;padding:4px 14px 8px;font-size:11px;color:${DS.muted};border-bottom:1px solid ${DS.border};min-height:24px;`);
@@ -1415,10 +1416,22 @@
       quizAnswers: { label: 'Quiz Answer Matching',    status: 'pending', detail: '' },
     };
 
+    printBtn.style.display = 'none';
+
     if (lastReport) {
       Object.entries(lastReport.checks || {}).forEach(([id, s]) => { if (checkState[id]) Object.assign(checkState[id], s); });
       subLine.textContent = `${lastReport.assignmentName} · ${lastReport.checked} of ${lastReport.total} submissions · ${new Date(lastReport.createdAt).toLocaleTimeString()}`;
+      printBtn.style.display = '';
     }
+
+    printBtn.addEventListener('click', () => {
+      if (!lastReport) return;
+      const activeIds = Object.entries(checkState)
+        .filter(([, item]) => item.status !== 'skipped' && item.status !== 'unavailable' && item.status !== 'pending')
+        .map(([id]) => id);
+      if (!activeIds.length) return;
+      openFullAuditReport(activeIds);
+    });
 
     rerunBtn.addEventListener('click', () => {
       _auditCache = null;
@@ -1509,6 +1522,9 @@
       }
 
       for (const [id, item] of Object.entries(checkState)) {
+        // Hide checks that don't apply to this assignment type once the run is done
+        if (!isRunning && lastReport && (item.status === 'skipped' || item.status === 'unavailable')) continue;
+
         const c = checkColors(item.status);
         const isFlagged = item.status === 'flagged';
         const rows = (isFlagged && lastReport) ? getInlineRows(id) : [];
@@ -1882,6 +1898,106 @@
       };
     }
 
+    function openFullAuditReport(checkIds) {
+      if (!lastReport) return;
+      const report = lastReport;
+      const generated = new Date(report.createdAt).toLocaleString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      const checkExplain = {
+        read:        'Reads the text of each student submission to prepare for comparison.',
+        similarity:  'Compares every pair of submissions for shared 5-word phrases. High overlap may indicate copied work.',
+        timing:      'Checks submission timestamps and uploaded filenames for clusters or identical file names.',
+        quizBlur:    'Counts how many times each student left the quiz tab (3+ times is flagged).',
+        quizSpeed:   'Flags students who finished in under 20% of the time limit while scoring 80%+.',
+        quizAnswers: 'Finds student pairs who chose the same incorrect answer on 2 or more questions.',
+      };
+      const statusColor = s => ({ flagged:'#991B1B', complete:'#166534', unavailable:'#6B7280' }[s] || '#6B7280');
+      const statusBg    = s => ({ flagged:'#FEF2F2', complete:'#ECFDF3', unavailable:'#F9FAFB' }[s] || '#F9FAFB');
+      const statusBorder = s => ({ flagged:'#FCA5A5', complete:'#86EFAC', unavailable:'#D1D5DB' }[s] || '#E5E7EB');
+      const statusLabel  = s => ({ flagged:'Flagged', complete:'Clear', unavailable:'Not available' }[s] || s);
+
+      const sections = checkIds.map(id => {
+        const item = checkState[id];
+        const detail = checkReportRows(id, report);
+        const isFlagged = item.status === 'flagged';
+        return `
+          <div class="section">
+            <div class="section-header">
+              <div class="section-title">${escapeReportHtml(detail.title)}</div>
+              <div class="badge" style="background:${statusBg(item.status)};color:${statusColor(item.status)};border-color:${statusBorder(item.status)}">${escapeReportHtml(statusLabel(item.status))}</div>
+            </div>
+            <div class="section-body">
+              <div class="explain"><strong>What this check does:</strong> ${escapeReportHtml(checkExplain[id] || '')}</div>
+              ${item.detail ? `<div class="finding">${escapeReportHtml(item.detail)}</div>` : ''}
+              ${isFlagged ? `<table><thead>${detail.head}</thead><tbody>${detail.body}</tbody></table>` : '<div class="finding">No items flagged by this check.</div>'}
+            </div>
+          </div>`;
+      }).join('');
+
+      const totalFlags = (report.flags?.length || 0) + (report.timingFlags?.length || 0) +
+        (report.quizBlurFlags?.length || 0) + (report.quizSpeedFlags?.length || 0) +
+        (report.quizAnswerPairs?.length || 0);
+
+      const html = `<!doctype html><html lang="en"><head>
+        <meta charset="utf-8">
+        <title>Academic Integrity Report — ${escapeReportHtml(report.assignmentName)}</title>
+        <style>
+          *{box-sizing:border-box;margin:0;padding:0}
+          body{font-family:Arial,sans-serif;color:#1f2937;background:#f3f4f6;line-height:1.5}
+          .header{background:#1a2332;color:#fff;padding:28px 40px 24px;}
+          .header-eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;}
+          .header h1{font-size:22px;font-weight:800;margin-bottom:4px;}
+          .header-sub{font-size:13px;color:#cbd5e1;margin-top:6px;}
+          .header-meta{font-size:11px;color:#94a3b8;margin-top:10px;display:flex;gap:24px;flex-wrap:wrap;}
+          .header-summary{display:inline-block;margin-top:14px;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:700;background:${totalFlags ? '#7f1d1d' : '#14532d'};color:#fff;}
+          .print-btn{position:fixed;top:18px;right:18px;padding:8px 18px;background:#fff;color:#1a2332;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+          .print-btn:hover{background:#f1f5f9}
+          .body{padding:28px 40px;max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:22px;}
+          .disclaimer{background:#FFF7ED;border:1px solid #FED7AA;border-left:5px solid #F97316;border-radius:6px;padding:16px 20px;}
+          .disclaimer h2{font-size:13px;font-weight:800;color:#9a3412;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+          .disclaimer p{font-size:12px;color:#7c3504;line-height:1.65;}
+          .section{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}
+          .section-header{padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:12px;}
+          .section-title{font-size:14px;font-weight:700;color:#1f2937;flex:1;}
+          .badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid;}
+          .section-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px;}
+          .explain{font-size:12px;color:#4b5563;line-height:1.6;}
+          .finding{font-size:12px;color:#6b7280;font-style:italic;}
+          table{width:100%;border-collapse:collapse;font-size:12px;}
+          th{background:#f8fafc;font-size:11px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;padding:9px 10px;text-align:left;border-bottom:2px solid #e5e7eb;}
+          td{padding:9px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;color:#374151;}
+          tr:last-child td{border-bottom:none}
+          tr:nth-child(even) td{background:#f9fafb}
+          .footer{font-size:11px;color:#9ca3af;text-align:center;padding:12px;}
+          @media print{.print-btn{display:none}body{background:#fff}.section{break-inside:avoid}}
+        </style></head><body>
+        <button class="print-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+        <div class="header">
+          <div class="header-eyebrow">Canvas Enhancer — Academic Integrity Report</div>
+          <h1>${escapeReportHtml(report.assignmentName)}</h1>
+          <div class="header-sub">Academic Integrity Audit</div>
+          <div class="header-meta">
+            <span>Generated: ${escapeReportHtml(generated)}</span>
+            <span>Submissions analyzed: ${escapeReportHtml(String(report.checked))} of ${escapeReportHtml(String(report.total))}</span>
+          </div>
+          <div class="header-summary">${totalFlags ? `⚠ ${totalFlags} item${totalFlags !== 1 ? 's' : ''} flagged for review` : '✓ All clear — nothing flagged'}</div>
+        </div>
+        <div class="body">
+          <div class="disclaimer">
+            <h2>⚠ Important — Teacher Verification Required</h2>
+            <p>This report identifies patterns in Canvas data that <strong>may warrant a closer look</strong>. It does <strong>not</strong> determine whether academic misconduct occurred, and it is <strong>not</strong> evidence of cheating. Every item flagged here is a signal, not a conclusion.</p>
+            <p style="margin-top:8px"><strong>Only the instructor</strong> can determine whether a policy violation took place. No action should be taken against any student based on this report alone. Professional judgment, conversation with students, and review of all available context are essential before drawing any conclusions.</p>
+          </div>
+          ${sections}
+          <div class="footer">Report generated by Canvas Enhancer · ${escapeReportHtml(generated)} · For instructor use only</div>
+        </div>
+        </body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+
     function openCheckReport(checkId) {
       if (!lastReport) return;
       const report = lastReport;
@@ -2097,6 +2213,7 @@
         isRunning = false;
         rerunBtn.disabled = false;
         rerunBtn.textContent = 'Re-run';
+        printBtn.style.display = '';
         subLine.textContent = `${lastReport.assignmentName} · ${lastReport.checked} of ${lastReport.total} submissions · ${new Date(lastReport.createdAt).toLocaleTimeString()}`;
         renderList();
       } catch (e) {
