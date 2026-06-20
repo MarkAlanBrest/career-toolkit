@@ -2994,7 +2994,7 @@
     if (atRiskModal.style.display !== 'none') { atRiskModal.style.display = 'none'; setActive(null); return; }
     setActive('at-risk');
     atRiskBox.innerHTML = '';
-    const desc = makeHelpDescPanel('This report flags students who may need your attention before they fall too far behind. Canvas Enhancer checks every student in your dashboard courses for three warning signs: missing assignments (past due and never submitted), a low current grade (below 70%), and recent inactivity (no Canvas login in 14+ days). Use the course checkboxes to focus on specific classes. Students with more than one flag are sorted to the top. Click any student row to open their grade page in Canvas.');
+    const desc = makeHelpDescPanel('This report flags students who may need your attention before they fall too far behind. Canvas Enhancer checks every student in your dashboard courses for three warning signs: missing assignments (past due and never submitted), a low current grade (below 70%), and recent inactivity (no Canvas login in 14+ days). Click an active course row to include or exclude it. Students with more than one flag are sorted to the top. Click any student row to open their grade page in Canvas.');
     const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
     const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '⚠️';
     const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'At Risk Students';
@@ -3086,54 +3086,66 @@
       const enabled = {};
       for (const c of courses) enabled[c.id] = true;
 
-      // Course filter bar
-      const filterBar = el('div', `flex-shrink:0;padding:8px 14px;background:#F8FAFC;border-bottom:1px solid ${DS.border};display:flex;flex-wrap:wrap;gap:6px;align-items:center;`);
-      const filterLbl = el('span', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;margin-right:2px;flex-shrink:0;`);
-      filterLbl.textContent = 'Courses:';
-      filterBar.appendChild(filterLbl);
-      for (const c of courses) {
-        const pill = el('label', `display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;background:#EFF6FF;border:1.5px solid #2563EB;border-radius:16px;padding:3px 10px 3px 7px;transition:all .12s;user-select:none;`);
-        const cb = document.createElement('input');
-        cb.type = 'checkbox'; cb.checked = true;
-        cb.style.cssText = 'width:12px;height:12px;accent-color:#2563EB;cursor:pointer;flex-shrink:0;';
-        const nm = el('span', `font-size:11px;color:#1D4ED8;font-weight:600;`);
-        nm.textContent = c.course_code || c.name;
-        pill.append(cb, nm);
-        cb.addEventListener('change', () => {
-          enabled[c.id] = cb.checked;
-          pill.style.background  = cb.checked ? '#EFF6FF' : '#fff';
-          pill.style.borderColor = cb.checked ? '#2563EB' : DS.border;
-          nm.style.color         = cb.checked ? '#1D4ED8' : DS.muted;
-          nm.style.fontWeight    = cb.checked ? '600' : '400';
-          rerender();
-        });
-        filterBar.appendChild(pill);
-      }
-      body.appendChild(filterBar);
-
       // Tiles row
       const tilesRow = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
       body.appendChild(tilesRow);
+
+      // Course breakdown / filter
+      const coursesEl = el('div', ``);
+      body.appendChild(coursesEl);
 
       // Student list
       const listEl = el('div', ``);
       body.appendChild(listEl);
 
+      function courseRiskCount(courseId) {
+        return rows.filter(r => r.courseId === courseId).length;
+      }
+
+      function renderCourses() {
+        coursesEl.innerHTML = '';
+        coursesEl.appendChild(makeSecHdr('Active Courses'));
+        for (const c of courses) {
+          const selected = enabled[c.id];
+          const count = courseRiskCount(c.id);
+          const row = el('button', `width:100%;display:flex;align-items:center;gap:12px;padding:11px 16px;border:0;border-bottom:1px solid ${DS.border};background:${selected ? '#fff' : DS.gray};text-align:left;cursor:pointer;font-family:${DS.font};transition:background .12s,opacity .12s;opacity:${selected ? '1' : '.62'};`, { type:'button' });
+          const left = el('div', `flex:1;min-width:0;`);
+          const name = el('div', `font-size:13px;font-weight:600;color:${selected ? DS.blue : DS.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          name.textContent = c.name || c.course_code || `Course ${c.id}`;
+          const code = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;`);
+          code.textContent = c.course_code || '';
+          left.append(name, code);
+          const right = count > 0
+            ? makeBadge(`${count} at risk`, '#FEE2E2', '#991B1B')
+            : el('div', `font-size:11px;color:${DS.green};font-weight:600;`);
+          if (!count) right.textContent = '✓ No flags';
+          const check = el('span', `width:18px;flex-shrink:0;text-align:center;font-size:14px;font-weight:700;color:${selected ? DS.blue : DS.muted};`);
+          check.textContent = selected ? '✓' : '–';
+          row.append(left, right, check);
+          row.title = selected ? 'Click to exclude this course' : 'Click to include this course';
+          row.addEventListener('mouseenter', () => { row.style.background = selected ? DS.gray : '#EEF2F7'; });
+          row.addEventListener('mouseleave', () => { row.style.background = selected ? '#fff' : DS.gray; });
+          row.addEventListener('click', () => {
+            enabled[c.id] = !enabled[c.id];
+            renderCourses();
+            rerender();
+          });
+          coursesEl.appendChild(row);
+        }
+      }
+
       function rerender() {
         const visIds = new Set(courses.filter(c => enabled[c.id]).map(c => c.id));
         const vis    = rows.filter(r => visIds.has(r.courseId));
 
-        const nMissing  = vis.filter(r => r.hasMissing).length;
-        const nLowGrade = vis.filter(r => r.isLowGrade).length;
-        const nInactive = vis.filter(r => r.isInactive).length;
-        const nMulti    = vis.filter(r => r.flagCount >= 2).length;
+        const nMulti = vis.filter(r => r.flagCount >= 2).length;
+        const nCourses = visIds.size;
 
         tilesRow.innerHTML = '';
         tilesRow.append(
-          makeStatTile('📭', nMissing,  'Missing Work',     'past-due, not submitted', nMissing  > 0 ? '#DC2626' : DS.muted),
-          makeStatTile('📉', nLowGrade, 'Low Grade',        'current grade below 70%', nLowGrade > 0 ? '#B45309' : DS.muted),
-          makeStatTile('💤', nInactive, 'Inactive',         'no login in 14+ days',    nInactive > 0 ? '#6B7280' : DS.muted),
-          makeStatTile('🚨', nMulti,    'Needs Attention',  '2 or more red flags',     nMulti    > 0 ? '#9D174D' : DS.muted),
+          makeStatTile('⚠️', vis.length, 'At Risk',         'students with 1+ flags', vis.length > 0 ? '#DC2626' : DS.green),
+          makeStatTile('🚨', nMulti,     'High Priority',   'students with 2+ flags', nMulti > 0 ? '#9D174D' : DS.green),
+          makeStatTile('📚', nCourses,   'Courses',         'currently included',    DS.text),
         );
 
         listEl.innerHTML = '';
@@ -3174,6 +3186,7 @@
         }
       }
 
+      renderCourses();
       rerender();
 
     } catch(e) {
