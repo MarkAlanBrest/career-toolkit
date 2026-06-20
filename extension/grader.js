@@ -435,6 +435,7 @@
       const criteriaBtn = ceSgToolbarButton('Criteria', false);
       const commentsBtn = ceSgToolbarButton('Comments', false);
       const auditBtn = ceSgToolbarButton('Audit', false);
+      const settingsBtn = ceSgToolbarButton('Settings', false);
       const chatBtn = ceSgToolbarButton('Chat', false);
       chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
       const notesBtn = ceSgToolbarButton('Notes', false);
@@ -444,7 +445,7 @@
       helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'grader' })));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, chatBtn, notesBtn, helpBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn, chatBtn, notesBtn, helpBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -463,7 +464,7 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
 
@@ -567,7 +568,7 @@
 
       function closeDrawer() {
         drawer.classList.remove('ce-open');
-        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
       function makeModalHeader(icon, title, subtitle, subtitleId) {
@@ -649,7 +650,7 @@
         drawer.innerHTML = '';
         drawer.className = 'ce-sg-drawer';
         drawer.classList.add('ce-open');
-        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
 
         if (mode === 'needs') {
           queueBtn.classList.add('ce-sg-btn-primary');
@@ -994,6 +995,87 @@
               }
             }, 4000);
           }, 0);
+
+        } else if (mode === 'settings') {
+          settingsBtn.classList.add('ce-sg-btn-primary');
+          drawer.classList.add('ce-sz-sm');
+
+          const body = document.createElement('div');
+          body.className = 'ce-sg-mbody';
+
+          const saveBtn = mkAbtn('Save Settings', 'ce-sg-abtn-primary');
+          const saveMsg = document.createElement('div');
+          saveMsg.className = 'ce-sg-status-text';
+          saveMsg.style.cssText += ';text-align:center;color:#127A1B;';
+          const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          cancelBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('⚙️', 'Settings'), body, mkFooter(cancelBtn, saveBtn));
+
+          (async () => {
+            const stored = await ceSgStorageGet(['ce_canvas_token', 'ce_grading_model', 'ce_teacher_name', 'ce_license_key']);
+
+            function mkSettingsInput(type, value, placeholder) {
+              const inp = document.createElement('input');
+              inp.type = type;
+              inp.className = 'ce-sg-input';
+              inp.value = value || '';
+              inp.placeholder = placeholder || '';
+              return inp;
+            }
+            function mkSettingsHint(text) {
+              const h = document.createElement('div');
+              h.style.cssText = 'font-size:11px;color:#6B7280;margin-top:3px;';
+              h.textContent = text;
+              return h;
+            }
+            function mkSettingsFgrp(labelText, control, hint) {
+              const wrap = document.createElement('div');
+              wrap.className = 'ce-sg-fgrp';
+              const lbl = document.createElement('label');
+              lbl.className = 'ce-sg-flabel';
+              lbl.textContent = labelText;
+              wrap.append(lbl, control);
+              if (hint) wrap.appendChild(mkSettingsHint(hint));
+              return wrap;
+            }
+
+            const tokenInp   = mkSettingsInput('password', stored.ce_canvas_token,  'Paste your Canvas token');
+            const nameInp    = mkSettingsInput('text',     stored.ce_teacher_name,   'Your display name');
+            const licenseInp = mkSettingsInput('text',     stored.ce_license_key,    'Enter your license key');
+
+            const modelSel = document.createElement('select');
+            modelSel.className = 'ce-sg-select';
+            for (const [val, lbl] of [
+              ['claude-haiku-4-5-20251001', 'Standard — faster, lower cost'],
+              ['claude-sonnet-4-6',         'High Quality — slower, higher cost'],
+            ]) {
+              const opt = document.createElement('option');
+              opt.value = val; opt.textContent = lbl;
+              if (val === (stored.ce_grading_model || 'claude-haiku-4-5-20251001')) opt.selected = true;
+              modelSel.appendChild(opt);
+            }
+
+            body.append(
+              mkSettingsFgrp('Canvas API Token', tokenInp, 'Canvas → Account → Settings → New Access Token'),
+              mkSettingsFgrp('Grading Quality',  modelSel, 'Standard is recommended for rubric grading'),
+              mkSettingsFgrp('Teacher Name',     nameInp),
+              mkSettingsFgrp('License Key',      licenseInp),
+              saveMsg,
+            );
+
+            saveBtn.addEventListener('click', () => {
+              const values = {
+                ce_canvas_token:  tokenInp.value.trim(),
+                ce_grading_model: modelSel.value,
+                ce_teacher_name:  nameInp.value.trim(),
+                ce_license_key:   licenseInp.value.trim(),
+              };
+              ceSgStorageSet(values);
+              Object.assign(_store, values);
+              saveMsg.textContent = '✓ Saved';
+              setTimeout(() => { saveMsg.textContent = ''; }, 2500);
+            });
+          })();
         }
       }
 
@@ -1002,6 +1084,7 @@
       criteriaBtn.addEventListener('click', () => showDrawer('criteria'));
       commentsBtn.addEventListener('click', () => showDrawer('comments'));
       auditBtn.addEventListener('click', () => showDrawer('audit'));
+      settingsBtn.addEventListener('click', () => showDrawer('settings'));
 
       async function loadQueue(showInDrawer) {
         if (!courseId) return;
