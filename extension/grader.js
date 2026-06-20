@@ -423,7 +423,7 @@
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
       brand.textContent = 'Canvas Enhancer — Grader Toolbar';
-      const queueBtn = ceSgToolbarButton('Queue', false);
+      const queueBtn = ceSgToolbarButton('Needs Graded', false);
       const queueBadge = document.createElement('span');
       queueBadge.className = 'ce-sg-badge';
       queueBtn.appendChild(queueBadge);
@@ -656,7 +656,8 @@
           body.append(queueStatus, queueList);
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📬', 'Grading Queue'), body, mkFooter(cancelBtn, refreshQueueBtn));
+          drawer.append(makeModalHeader('📬', 'Needs Graded'), body, mkFooter(cancelBtn, refreshQueueBtn));
+          loadQueue(true);
 
         } else if (mode === 'ai') {
           aiBtn.classList.add('ce-sg-btn-primary');
@@ -1105,33 +1106,65 @@
       auditBtn.addEventListener('click', () => showDrawer('audit'));
       settingsBtn.addEventListener('click', () => showDrawer('settings'));
 
+      function renderQueueSection(label, items, cid) {
+        if (!items.length) return;
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;padding:8px 4px 4px;';
+        header.textContent = label;
+        queueList.appendChild(header);
+        items.slice(0, 40).forEach(a => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'ce-sg-qitem';
+          const name = document.createElement('span');
+          name.style.cssText = 'flex:1;text-align:left;';
+          name.textContent = a.name;
+          const badge = document.createElement('span');
+          badge.className = 'ce-sg-qbadge';
+          badge.textContent = a.needs_grading_count;
+          b.append(name, badge);
+          b.addEventListener('click', () => { location.href = `${location.origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}`; });
+          queueList.appendChild(b);
+        });
+      }
+
       async function loadQueue(showInDrawer) {
         if (!courseId) return;
         if (showInDrawer) {
           refreshQueueBtn.disabled = true;
-          queueStatus.textContent = 'Loading assignments...';
+          queueStatus.textContent = 'Loading...';
           queueList.innerHTML = '';
         }
         try {
           const assignments = await ceSgCanvasGet(`/api/v1/courses/${courseId}/assignments?order_by=due_at&per_page=100`);
-          const needing = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
-          setQueueBadge(needing.length);
+          const currentNeeding = (assignments || []).filter(a => Number(a.needs_grading_count || 0) > 0);
+          setQueueBadge(currentNeeding.length);
+
           if (showInDrawer) {
-            queueStatus.textContent = needing.length ? `${needing.length} assignments need grading.` : 'All caught up — no submissions awaiting grades.';
-            needing.slice(0, 40).forEach(a => {
-              const b = document.createElement('button');
-              b.type = 'button';
-              b.className = 'ce-sg-qitem';
-              const name = document.createElement('span');
-              name.style.cssText = 'flex:1;text-align:left;';
-              name.textContent = a.name;
-              const badge = document.createElement('span');
-              badge.className = 'ce-sg-qbadge';
-              badge.textContent = a.needs_grading_count;
-              b.append(name, badge);
-              b.addEventListener('click', () => { location.href = `${location.origin}/courses/${courseId}/gradebook/speed_grader?assignment_id=${a.id}`; });
-              queueList.appendChild(b);
+            renderQueueSection('This Course', currentNeeding, courseId);
+
+            const allCourses = await ceSgCanvasGet(`/api/v1/courses?enrollment_type=teacher&per_page=100`);
+            const otherCourses = (allCourses || []).filter(c => String(c.id) !== String(courseId));
+
+            const otherResults = await Promise.all(
+              otherCourses.slice(0, 15).map(async c => {
+                try {
+                  const a = await ceSgCanvasGet(`/api/v1/courses/${c.id}/assignments?order_by=due_at&per_page=100`);
+                  const needing = (a || []).filter(x => Number(x.needs_grading_count || 0) > 0);
+                  return { course: c, needing };
+                } catch { return { course: c, needing: [] }; }
+              })
+            );
+
+            let otherTotal = 0;
+            otherResults.forEach(({ course, needing }) => {
+              otherTotal += needing.length;
+              renderQueueSection(course.name, needing, course.id);
             });
+
+            const total = currentNeeding.length + otherTotal;
+            setQueueBadge(total);
+            queueStatus.textContent = total ? `${total} assignment${total !== 1 ? 's' : ''} need grading across all courses.` : 'All caught up — nothing needs grading.';
           }
         } catch (e) {
           if (showInDrawer) queueStatus.textContent = e.message || 'Could not load list.';
