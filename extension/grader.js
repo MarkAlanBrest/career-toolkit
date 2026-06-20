@@ -1012,7 +1012,7 @@
           drawer.append(makeModalHeader('⚙️', 'Settings'), body, mkFooter(cancelBtn, saveBtn));
 
           (async () => {
-            const stored = await ceSgStorageGet(['ce_canvas_token', 'ce_grading_model', 'ce_teacher_name', 'ce_license_key']);
+            const stored = await ceSgStorageGet(['ce_canvas_token', 'ce_teacher_name', 'ce_license_key']);
 
             function mkSettingsInput(type, value, placeholder) {
               const inp = document.createElement('input');
@@ -1039,36 +1039,59 @@
               return wrap;
             }
 
-            const tokenInp   = mkSettingsInput('password', stored.ce_canvas_token,  'Paste your Canvas token');
-            const nameInp    = mkSettingsInput('text',     stored.ce_teacher_name,   'Your display name');
-            const licenseInp = mkSettingsInput('text',     stored.ce_license_key,    'Enter your license key');
+            const tokenInp   = mkSettingsInput('password', stored.ce_canvas_token, 'Paste your Canvas token');
+            const nameInp    = mkSettingsInput('text',     stored.ce_teacher_name,  'Your display name');
+            const licenseInp = mkSettingsInput('text',     stored.ce_license_key,   'Enter your license key');
 
-            const modelSel = document.createElement('select');
-            modelSel.className = 'ce-sg-select';
-            for (const [val, lbl] of [
-              ['claude-haiku-4-5-20251001', 'Standard — faster, lower cost'],
-              ['claude-sonnet-4-6',         'High Quality — slower, higher cost'],
-            ]) {
-              const opt = document.createElement('option');
-              opt.value = val; opt.textContent = lbl;
-              if (val === (stored.ce_grading_model || 'claude-haiku-4-5-20251001')) opt.selected = true;
-              modelSel.appendChild(opt);
-            }
+            const divider = document.createElement('hr');
+            divider.style.cssText = 'border:none;border-top:1px solid #e8eaec;margin:4px 0;';
+
+            const updateBtn = mkAbtn('Check for Updates', 'ce-sg-abtn-secondary');
+            updateBtn.style.cssText += ';width:100%;justify-content:center;';
+            updateBtn.addEventListener('click', async () => {
+              updateBtn.disabled = true;
+              updateBtn.textContent = 'Checking…';
+              try {
+                const { status } = await chrome.runtime.requestUpdateCheck();
+                if (status === 'update_available') {
+                  updateBtn.textContent = 'Update available — click to apply';
+                  updateBtn.disabled = false;
+                  updateBtn.addEventListener('click', () => chrome.runtime.reload(), { once: true });
+                } else {
+                  updateBtn.textContent = status === 'no_update' ? '✓ Already up to date' : 'Try again later';
+                  setTimeout(() => { updateBtn.textContent = 'Check for Updates'; updateBtn.disabled = false; }, 2500);
+                }
+              } catch (_) {
+                updateBtn.textContent = 'Check for Updates';
+                updateBtn.disabled = false;
+              }
+            });
+
+            const uninstallBtn = mkAbtn('Uninstall Canvas Enhancer Grader…', 'ce-sg-abtn-secondary');
+            uninstallBtn.style.cssText += ';width:100%;justify-content:center;color:#DC2626;border-color:#DC2626;';
+            uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
+            uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = ''; });
+            uninstallBtn.addEventListener('click', () => {
+              if (confirm('Remove Canvas Enhancer Grader from your browser? This will delete all saved settings and criteria.')) {
+                chrome.runtime.sendMessage({ type: 'UNINSTALL_SELF' });
+              }
+            });
 
             body.append(
               mkSettingsFgrp('Canvas API Token', tokenInp, 'Canvas → Account → Settings → New Access Token'),
-              mkSettingsFgrp('Grading Quality',  modelSel, 'Standard is recommended for rubric grading'),
               mkSettingsFgrp('Teacher Name',     nameInp),
               mkSettingsFgrp('License Key',      licenseInp),
               saveMsg,
+              divider,
+              updateBtn,
+              uninstallBtn,
             );
 
             saveBtn.addEventListener('click', () => {
               const values = {
-                ce_canvas_token:  tokenInp.value.trim(),
-                ce_grading_model: modelSel.value,
-                ce_teacher_name:  nameInp.value.trim(),
-                ce_license_key:   licenseInp.value.trim(),
+                ce_canvas_token: tokenInp.value.trim(),
+                ce_teacher_name: nameInp.value.trim(),
+                ce_license_key:  licenseInp.value.trim(),
               };
               ceSgStorageSet(values);
               Object.assign(_store, values);
