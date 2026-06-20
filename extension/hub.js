@@ -550,7 +550,7 @@
   // ── AT RISK MODAL ──────────────────────────────────────────────────────────
   const atRiskModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   atRiskModal.id = 'ce-atrisk-modal';
-  const atRiskBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const atRiskBox = el('div', `background:#fff;width:min(720px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 64px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   atRiskModal.appendChild(atRiskBox);
   atRiskModal.addEventListener('click', e => { if (e.target === atRiskModal) { atRiskModal.style.display = 'none'; setActive(null); } });
 
@@ -2982,7 +2982,7 @@
     if (atRiskModal.style.display !== 'none') { atRiskModal.style.display = 'none'; setActive(null); return; }
     setActive('at-risk');
     atRiskBox.innerHTML = '';
-    const desc = makeHelpDescPanel('This report flags students who may need your help before they fall too far behind. Canvas Enhancer looks at every student across your active courses and identifies anyone whose current grade is below 70%, or who has not logged into Canvas in more than 14 days. It does not tell you who is in trouble — that is always your call as the teacher. It just surfaces the names worth a second look so you can reach out early, before a small problem becomes a big one. Click a student name to open their Canvas grade page.');
+    const desc = makeHelpDescPanel('This report flags students who may need your attention before they fall too far behind. Canvas Enhancer checks every student in your dashboard courses for three warning signs: missing assignments (past due and never submitted), a low current grade (below 70%), and recent inactivity (no Canvas login in 14+ days). Use the course checkboxes to focus on specific classes. Students with more than one flag are sorted to the top. Click any student row to open their grade page in Canvas.');
     const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
     const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '⚠️';
     const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'At Risk Students';
@@ -3003,88 +3003,202 @@
     const tok = stored.ce_canvas_token;
     const origin = window.location.origin;
     if (!tok) { msg('Add your Canvas API token in Settings to see At Risk Students.'); return; }
-    msg('Scanning your courses for at-risk students…');
+    msg('Loading dashboard courses…');
     function apiCall(path) {
       return ceSendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } })
         .catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
     }
     try {
-      const courses = await apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100');
-      if (!courses?.length) { msg('No active courses found.'); return; }
-      const courseSubset = courses.slice(0, 8);
-      const courseNames  = {};
-      for (const c of courses) courseNames[c.id] = c.course_code || c.name;
-      const enrollmentResults = await Promise.all(
-        courseSubset.map(c => apiCall(`/api/v1/courses/${c.id}/enrollments?type[]=StudentEnrollment&per_page=100`))
-      );
+      // Get dashboard cards (courses visible on the Canvas dashboard) + full course list
+      const [dashCards, allCourses] = await Promise.all([
+        apiCall('/api/v1/dashboard/dashboard_cards'),
+        apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100'),
+      ]);
+      const dashIds = new Set((dashCards || []).map(d => String(d.id)));
+      // Fall back to all published courses if dashboard cards API fails or returns nothing
+      const courses = (allCourses || []).filter(c => !dashIds.size || dashIds.has(String(c.id)));
+      if (!courses.length) { msg('No published courses found on your Canvas dashboard.'); return; }
+
+      msg('Scanning for missing work, low grades, and inactive students…');
+
+      // Parallel fetch: enrollments + missing submissions per course
+      const [enrollResults, missingResults] = await Promise.all([
+        Promise.all(courses.map(c =>
+          apiCall(`/api/v1/courses/${c.id}/enrollments?type[]=StudentEnrollment&per_page=100`)
+        )),
+        Promise.all(courses.map(c =>
+          apiCall(`/api/v1/courses/${c.id}/students/submissions?student_ids[]=all&late_policy_status[]=missing&per_page=100`)
+        )),
+      ]);
+
       const now = new Date();
-      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-      const atRiskList = [];
-      for (let i = 0; i < courseSubset.length; i++) {
-        const c = courseSubset[i];
-        for (const e of (enrollmentResults[i] || [])) {
+      const cutoff = new Date(now - 14 * 86400000);
+
+      // Build flat student list: one row per (student × course)
+      const rows = [];
+      for (let i = 0; i < courses.length; i++) {
+        const c = courses[i];
+        const enrollments = enrollResults[i] || [];
+        const subs        = missingResults[i] || [];
+        const missingByUid = {};
+        for (const s of subs) missingByUid[s.user_id] = (missingByUid[s.user_id] || 0) + 1;
+
+        for (const e of enrollments) {
           const grade      = e.grades?.current_score;
           const lastActive = e.last_activity_at ? new Date(e.last_activity_at) : null;
+          const missing    = missingByUid[e.user_id] || 0;
           const isLowGrade = typeof grade === 'number' && grade < 70;
-          const isInactive = !lastActive || lastActive < fourteenDaysAgo;
-          if (!isLowGrade && !isInactive) continue;
-          const reasons = [];
-          if (isLowGrade) reasons.push(`${Math.round(grade)}% current grade`);
-          if (isInactive) reasons.push(!lastActive ? 'never logged in' : `inactive ${Math.round((now - lastActive) / 86400000)}d`);
-          atRiskList.push({
-            name: e.user?.sortable_name || e.user?.name || 'Student',
-            courseName: courseNames[c.id],
-            grade, isLowGrade, isInactive, reasons,
+          const isInactive = !lastActive || lastActive < cutoff;
+          const hasMissing = missing > 0;
+          if (!hasMissing && !isLowGrade && !isInactive) continue;
+          const flags = [];
+          if (hasMissing) flags.push('missing');
+          if (isLowGrade) flags.push('low-grade');
+          if (isInactive) flags.push('inactive');
+          rows.push({
+            name:       e.user?.sortable_name || e.user?.name || 'Student',
+            courseId:   c.id,
+            courseName: c.course_code || c.name,
+            userId:     e.user_id,
+            grade, isLowGrade, isInactive, hasMissing, missing,
+            flags, flagCount: flags.length,
             gradesUrl: `${origin}/courses/${c.id}/grades/${e.user_id}`,
           });
         }
       }
+
+      // ── RENDER ─────────────────────────────────────────────────────────────
       body.innerHTML = '';
-      if (!atRiskList.length) {
-        msg('✅  No at-risk students found across your active courses. Everyone is active and passing.');
-        return;
+
+      // Track which courses are toggled on
+      const enabled = {};
+      for (const c of courses) enabled[c.id] = true;
+
+      // Course filter bar
+      const filterBar = el('div', `flex-shrink:0;padding:8px 14px;background:#F8FAFC;border-bottom:1px solid ${DS.border};display:flex;flex-wrap:wrap;gap:6px;align-items:center;`);
+      const filterLbl = el('span', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;margin-right:2px;flex-shrink:0;`);
+      filterLbl.textContent = 'Courses:';
+      filterBar.appendChild(filterLbl);
+      for (const c of courses) {
+        const pill = el('label', `display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:11px;background:#EFF6FF;border:1.5px solid #2563EB;border-radius:16px;padding:3px 10px 3px 7px;transition:all .12s;user-select:none;`);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.style.cssText = 'width:12px;height:12px;accent-color:#2563EB;cursor:pointer;flex-shrink:0;';
+        const nm = el('span', `font-size:11px;color:#1D4ED8;font-weight:600;`);
+        nm.textContent = c.course_code || c.name;
+        pill.append(cb, nm);
+        cb.addEventListener('change', () => {
+          enabled[c.id] = cb.checked;
+          pill.style.background   = cb.checked ? '#EFF6FF' : '#fff';
+          pill.style.borderColor  = cb.checked ? '#2563EB' : DS.border;
+          nm.style.color          = cb.checked ? '#1D4ED8' : DS.muted;
+          nm.style.fontWeight     = cb.checked ? '600' : '400';
+          rerender();
+        });
+        filterBar.appendChild(pill);
       }
-      atRiskList.sort((a, b) => {
-        if (a.isLowGrade && !b.isLowGrade) return -1;
-        if (!a.isLowGrade && b.isLowGrade) return 1;
-        if (typeof a.grade === 'number' && typeof b.grade === 'number') return a.grade - b.grade;
-        return 0;
-      });
-      const subHdr = el('div', `padding:12px 16px 10px;font-size:12px;color:${DS.muted};border-bottom:1px solid ${DS.border};`);
-      subHdr.textContent = `${atRiskList.length} student${atRiskList.length !== 1 ? 's' : ''} flagged across ${courseSubset.length} course${courseSubset.length !== 1 ? 's' : ''}`;
-      body.appendChild(subHdr);
-      if (courses.length > 8) {
-        const notice = el('div', `padding:8px 16px;font-size:11px;color:#92400E;background:#FEF3C7;border-bottom:1px solid ${DS.border};`);
-        notice.textContent = `Showing first 8 of ${courses.length} courses.`;
-        body.appendChild(notice);
+      body.appendChild(filterBar);
+
+      // Tiles row
+      const tilesRow = el('div', `flex-shrink:0;display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
+      body.appendChild(tilesRow);
+
+      // Student list
+      const listEl = el('div', ``);
+      body.appendChild(listEl);
+
+      function makeTile(icon, value, label, sublabel, valColor) {
+        const card = el('div', `flex:1;padding:16px 6px 14px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;`);
+        const icoEl = el('div', `font-size:20px;line-height:1;margin-bottom:3px;`); icoEl.textContent = icon;
+        const valEl = el('div', `font-size:28px;font-weight:700;color:${valColor};line-height:1;`);
+        valEl.textContent = String(value);
+        const lblEl = el('div', `font-size:10px;color:${DS.text};text-transform:uppercase;letter-spacing:.4px;text-align:center;font-weight:600;margin-top:3px;`);
+        lblEl.textContent = label;
+        const subEl = el('div', `font-size:9px;color:${DS.muted};text-align:center;`);
+        subEl.textContent = sublabel;
+        card.append(icoEl, valEl, lblEl, subEl);
+        return card;
       }
-      for (const s of atRiskList) {
-        const row = document.createElement('a');
-        row.href = s.gradesUrl;
-        row.style.cssText = `display:flex;align-items:center;gap:12px;padding:12px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
-        const left = el('div', `flex:1;min-width:0;`);
-        const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
-        nameEl.textContent = s.name;
-        const courseEl = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;text-transform:uppercase;letter-spacing:.3px;`);
-        courseEl.textContent = s.courseName;
-        const whyEl = el('div', `font-size:11px;color:${DS.muted};margin-top:3px;`);
-        whyEl.textContent = s.reasons.join(' · ');
-        left.append(nameEl, courseEl, whyEl);
-        let badge;
-        if (s.isLowGrade) {
-          badge = el('div', `background:#FEE2E2;color:#991B1B;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
-          badge.textContent = Math.round(s.grade) + '%';
-        } else {
-          badge = el('div', `background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
-          badge.textContent = 'Inactive';
+
+      function rerender() {
+        const visIds = new Set(courses.filter(c => enabled[c.id]).map(c => c.id));
+        const vis    = rows.filter(r => visIds.has(r.courseId));
+
+        const nMissing  = vis.filter(r => r.hasMissing).length;
+        const nLowGrade = vis.filter(r => r.isLowGrade).length;
+        const nInactive = vis.filter(r => r.isInactive).length;
+        const nMulti    = vis.filter(r => r.flagCount >= 2).length;
+
+        tilesRow.innerHTML = '';
+        tilesRow.append(
+          makeTile('📭', nMissing,  'Missing Work', 'past-due, not submitted', nMissing  > 0 ? '#DC2626' : DS.muted),
+          makeTile('📉', nLowGrade, 'Low Grade',    'current grade below 70%', nLowGrade > 0 ? '#B45309' : DS.muted),
+          makeTile('💤', nInactive, 'Inactive',     'no login in 14+ days',    nInactive > 0 ? '#6B7280' : DS.muted),
+          makeTile('🚨', nMulti,    'Needs Attention', '2 or more red flags',  nMulti    > 0 ? '#9D174D' : DS.muted),
+        );
+
+        listEl.innerHTML = '';
+        if (!vis.length) {
+          const none = el('div', `padding:40px 20px;text-align:center;font-size:13px;color:${DS.muted};`);
+          none.textContent = visIds.size === 0
+            ? 'Select at least one course above to see students.'
+            : '✅ No at-risk students in the selected courses.';
+          listEl.appendChild(none);
+          return;
         }
-        row.append(left, badge);
-        row.addEventListener('mouseenter', () => row.style.background = DS.gray);
-        row.addEventListener('mouseleave', () => row.style.background = '');
-        body.appendChild(row);
+
+        // Sort: most flags first → worst grade first
+        vis.sort((a, b) => {
+          if (b.flagCount !== a.flagCount) return b.flagCount - a.flagCount;
+          if (a.isLowGrade && b.isLowGrade) return (a.grade ?? 100) - (b.grade ?? 100);
+          if (a.isLowGrade) return -1;
+          if (b.isLowGrade) return  1;
+          return 0;
+        });
+
+        const secHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
+        secHdr.textContent = `${vis.length} student${vis.length !== 1 ? 's' : ''} need attention`;
+        listEl.appendChild(secHdr);
+
+        for (const s of vis) {
+          const row = document.createElement('a');
+          row.href = s.gradesUrl;
+          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+
+          const left = el('div', `flex:1;min-width:0;`);
+          const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          nameEl.textContent = s.name;
+          const crsEl = el('div', `font-size:10px;color:${DS.muted};margin-top:1px;text-transform:uppercase;letter-spacing:.3px;`);
+          crsEl.textContent = s.courseName;
+          left.append(nameEl, crsEl);
+
+          const badges = el('div', `display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:220px;`);
+          if (s.hasMissing) {
+            const b = el('div', `background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
+            b.textContent = `${s.missing} missing`;
+            badges.appendChild(b);
+          }
+          if (s.isLowGrade) {
+            const b = el('div', `background:#FEF3C7;color:#92400E;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
+            b.textContent = `${Math.round(s.grade)}%`;
+            badges.appendChild(b);
+          }
+          if (s.isInactive) {
+            const b = el('div', `background:#F3F4F6;color:#374151;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
+            b.textContent = 'inactive';
+            badges.appendChild(b);
+          }
+          row.append(left, badges);
+          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+          row.addEventListener('mouseleave', () => row.style.background = '');
+          listEl.appendChild(row);
+        }
       }
+
+      rerender();
+
     } catch(e) {
-      msg('Error loading at-risk students: ' + e.message, '#991B1B');
+      msg('Error loading at-risk data: ' + e.message, '#991B1B');
     }
   }
 
