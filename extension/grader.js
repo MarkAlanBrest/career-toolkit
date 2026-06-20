@@ -660,9 +660,11 @@
             wrap.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;';
             const cb = document.createElement('input');
             cb.type = 'checkbox';
-            cb.checked = !!_store[key];
+            cb.checked = _store[key] !== false;
             cb.addEventListener('change', () => { GM_setValue(key, cb.checked); loadQueue(true); });
-            wrap.append(cb, document.createTextNode(label));
+            const txt = document.createElement('span');
+            txt.textContent = label;
+            wrap.append(cb, txt);
             return wrap;
           };
 
@@ -1166,10 +1168,10 @@
             const allCourses = await ceSgCanvasGet(`/api/v1/courses?enrollment_type=teacher&per_page=100`);
             let otherCourses = (allCourses || []).filter(c => String(c.id) !== String(courseId));
 
-            if (_store.ce_grader_filter_published) {
+            if (_store.ce_grader_filter_published !== false) {
               otherCourses = otherCourses.filter(c => c.workflow_state === 'available');
             }
-            if (_store.ce_grader_filter_dashboard) {
+            if (_store.ce_grader_filter_dashboard !== false) {
               const favCourses = await ceSgCanvasGet('/api/v1/users/self/favorites/courses?per_page=100');
               const favIds = new Set((favCourses || []).map(c => String(c.id)));
               otherCourses = otherCourses.filter(c => favIds.has(String(c.id)));
