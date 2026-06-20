@@ -62,6 +62,37 @@
 
   const GROUP_BG = {};
 
+  // ── CONTEXT GUARD ──────────────────────────────────────────────────────────
+  function ceContextAlive() {
+    try { return !!chrome.runtime?.id; } catch(_) { return false; }
+  }
+  function ceSendMessage(payload) {
+    return new Promise((resolve, reject) => {
+      if (!ceContextAlive()) { reject(new Error('reload-needed')); return; }
+      try {
+        chrome.runtime.sendMessage(payload, response => {
+          if (chrome.runtime.lastError) { reject(new Error('reload-needed')); }
+          else { resolve(response); }
+        });
+      } catch(_) { reject(new Error('reload-needed')); }
+    });
+  }
+  function ceShowReloadBanner() {
+    if (document.getElementById('ce-reload-banner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'ce-reload-banner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#B45309;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;font-weight:600;padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);';
+    const msg = document.createElement('span');
+    msg.style.flex = '1';
+    msg.textContent = '⚠ Canvas Enhancer was updated or reloaded. Refresh the page to continue.';
+    const btn = document.createElement('button');
+    btn.textContent = 'Reload Page';
+    btn.style.cssText = 'padding:5px 14px;background:#fff;color:#B45309;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;';
+    btn.addEventListener('click', () => location.reload());
+    banner.append(msg, btn);
+    document.body.prepend(banner);
+  }
+
   // ── HELP CONTENT ───────────────────────────────────────────────────────────
   const HELP_CONTENT = {
     dashboard: {
@@ -793,7 +824,7 @@
     uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = '#fff'; });
     uninstallBtn.addEventListener('click', () => {
       if (confirm('Remove Canvas Enhancer from your browser? This will delete all your saved settings and templates.')) {
-        chrome.runtime.sendMessage({ type: 'UNINSTALL_SELF' });
+        ceSendMessage({ type: 'UNINSTALL_SELF' }).catch(() => {});
       }
     });
     about.appendChild(uninstallBtn);
@@ -828,9 +859,8 @@
       const origin = window.location.origin;
       function apiCall(path) {
         if (!tok) return Promise.resolve(null);
-        return new Promise(r => chrome.runtime.sendMessage({
-          type: 'CANVAS_API', payload: { url: origin + path, token: tok },
-        }, r));
+        return ceSendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } })
+          .catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
       }
 
       const outer = el('div', `display:flex;flex-direction:column;height:100%;`);
@@ -1762,7 +1792,7 @@
           if (info.data?.url) url = info.data.url;
         } catch (_) {}
       }
-      const parsed = await new Promise(r => chrome.runtime.sendMessage({
+      const parsed = await ceSendMessage({
         type: 'PARSE_FILE',
         payload: {
           fileUrl: url,
@@ -1770,7 +1800,7 @@
           filename: att.filename || att.display_name || 'file',
           mimeType: att['content-type'] || att.content_type || '',
         },
-      }, r));
+      }).catch(e => { if (e.message === 'reload-needed') { ceShowReloadBanner(); throw e; } throw e; });
       if (parsed?.error) throw new Error(parsed.error);
       return parsed?.text || '';
     }
@@ -2715,7 +2745,8 @@
     if (!tok) { msg('Add your Canvas API token in Settings first.'); return; }
     msg('Loading…');
     function apiCall(path) {
-      return new Promise(r => chrome.runtime.sendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } }, r));
+      return ceSendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } })
+        .catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
     }
     try {
       const [todoItems, courses] = await Promise.all([
@@ -2814,7 +2845,7 @@
   function openQuickAI() {
     chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
       const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
-      chrome.runtime.sendMessage({
+      ceSendMessage({
         type: 'OPEN_CLAUDE_SPLIT',
         payload: {
           url:         provider.url,
@@ -2823,7 +2854,7 @@
           screenTop:    window.screen.availTop  || 0,
           screenLeft:   window.screen.availLeft || 0,
         },
-      });
+      }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); });
     });
   }
 
@@ -2912,10 +2943,10 @@
     const tok = s.ce_canvas_token;
     if (!tok) return;
     try {
-      const data = await new Promise(r => chrome.runtime.sendMessage({
+      const data = await ceSendMessage({
         type: 'CANVAS_API',
         payload: { url: window.location.origin + '/api/v1/users/self/todo_item_count', token: tok },
-      }, r));
+      }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
       const count = data?.needs_grading_count || 0;
       const btn = btnMap['ai-grader'];
       if (!btn) return;

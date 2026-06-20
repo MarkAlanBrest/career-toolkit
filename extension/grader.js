@@ -135,6 +135,43 @@
       chrome.storage.local.set(values);
     }
 
+    function ceContextAlive() {
+      try { return !!chrome.runtime?.id; } catch(_) { return false; }
+    }
+
+    function ceSendMessage(payload) {
+      return new Promise((resolve, reject) => {
+        if (!ceContextAlive()) { reject(new Error('reload-needed')); return; }
+        try {
+          chrome.runtime.sendMessage(payload, response => {
+            if (chrome.runtime.lastError) {
+              reject(new Error('reload-needed'));
+            } else {
+              resolve(response);
+            }
+          });
+        } catch(_) {
+          reject(new Error('reload-needed'));
+        }
+      });
+    }
+
+    function ceShowReloadBanner() {
+      if (document.getElementById('ce-reload-banner')) return;
+      const banner = document.createElement('div');
+      banner.id = 'ce-reload-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#B45309;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;font-weight:600;padding:10px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);';
+      const msg = document.createElement('span');
+      msg.style.flex = '1';
+      msg.textContent = '⚠ Canvas Enhancer was updated or reloaded. Refresh the page to continue grading.';
+      const btn = document.createElement('button');
+      btn.textContent = 'Reload Page';
+      btn.style.cssText = 'padding:5px 14px;background:#fff;color:#B45309;border:none;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;';
+      btn.addEventListener('click', () => location.reload());
+      banner.append(msg, btn);
+      document.body.prepend(banner);
+    }
+
     async function ceSgCanvasGet(path) {
       const res = await fetch(location.origin + path, {
         credentials: 'same-origin',
@@ -436,12 +473,9 @@
       const commentsBtn = ceSgToolbarButton('Comments', false);
       const auditBtn = ceSgToolbarButton('Audit', false);
       const settingsBtn = ceSgToolbarButton('Settings', false);
-      const helpBtn = ceSgToolbarButton('Help', false);
-      helpBtn.title = 'Help';
-      helpBtn.addEventListener('click', () => showDrawer('help'));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, helpBtn, settingsBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -567,7 +601,10 @@
         [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
-      function makeModalHeader(icon, title, subtitle, subtitleId) {
+      function makeModalHeader(icon, title, subtitle, subtitleId, description) {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'flex-shrink:0;display:flex;flex-direction:column;';
+
         const hdr = document.createElement('div');
         hdr.className = 'ce-sg-mhdr';
         const ico = document.createElement('span');
@@ -586,14 +623,41 @@
           if (subtitleId) sub.id = subtitleId;
           ttlWrap.appendChild(sub);
         }
+
+        if (description) {
+          const descPanel = document.createElement('div');
+          descPanel.style.cssText = 'display:none;padding:10px 14px 11px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.6;';
+          descPanel.textContent = description;
+
+          const helpBtn = document.createElement('button');
+          helpBtn.type = 'button';
+          helpBtn.textContent = '?';
+          helpBtn.title = 'What does this do?';
+          helpBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;margin-right:2px;transition:background .12s,color .12s;';
+          let helpOpen = false;
+          helpBtn.addEventListener('click', () => {
+            helpOpen = !helpOpen;
+            descPanel.style.display = helpOpen ? 'block' : 'none';
+            helpBtn.style.background = helpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
+            helpBtn.style.color = helpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
+          });
+          hdr.append(ico, ttlWrap, helpBtn);
+          wrap.appendChild(descPanel); // prepend so it shows below hdr when inserted before hdr
+          // reorder: hdr first, descPanel second
+          wrap.insertBefore(hdr, wrap.firstChild);
+        } else {
+          hdr.append(ico, ttlWrap);
+          wrap.appendChild(hdr);
+        }
+
         const x = document.createElement('button');
         x.type = 'button';
         x.className = 'ce-sg-mhdr-close';
         x.textContent = '×';
         x.title = 'Close';
         x.addEventListener('click', closeDrawer);
-        hdr.append(ico, ttlWrap, x);
-        return hdr;
+        hdr.appendChild(x);
+        return wrap;
       }
 
       function mkAbtn(text, cls) {
@@ -621,22 +685,6 @@
         return f;
       }
 
-      function mkHelpCard(tips) {
-        const card = document.createElement('div');
-        card.style.cssText = 'flex-shrink:0;padding:8px 14px 10px;background:#F0F6FF;border-top:1px solid #D0E3F4;font-size:11px;color:#2D3B45;line-height:1.65;';
-        const lbl = document.createElement('div');
-        lbl.style.cssText = 'font-weight:700;margin-bottom:5px;font-size:10px;color:#0770B8;text-transform:uppercase;letter-spacing:.06em;';
-        lbl.textContent = 'ⓘ How to use';
-        const list = document.createElement('ul');
-        list.style.cssText = 'margin:0;padding-left:15px;display:flex;flex-direction:column;gap:2px;';
-        tips.forEach(tip => {
-          const li = document.createElement('li');
-          li.textContent = tip;
-          list.appendChild(li);
-        });
-        card.append(lbl, list);
-        return card;
-      }
 
       function composeCriteriaText(c) {
         if (!c) return '';
@@ -703,12 +751,7 @@
           body.append(filterRow, queueStatus, queueList);
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📬', 'Needs Graded'), body, mkHelpCard([
-            'Shows every student submission waiting to be graded across all your active courses.',
-            'Click a student\'s name to jump directly to their submission in SpeedGrader.',
-            'Published Only hides courses not yet visible to students. Dashboard Only shows only the courses pinned to your Canvas home.',
-            'The list refreshes automatically each time you open this panel.',
-          ]), mkFooter(cancelBtn, refreshQueueBtn));
+          drawer.append(makeModalHeader('📬', 'Needs Graded', undefined, undefined, 'This is your grading to-do list. It pulls every ungraded student submission from all your active Canvas courses and puts them in one place — no more clicking through course after course trying to remember who still needs feedback. Each entry shows the student\'s name and assignment. Click any name and you land directly on that student\'s submission in SpeedGrader, ready to grade. The "Published Only" filter hides courses that are still in draft. "Dashboard Only" limits the list to courses pinned on your Canvas home screen — useful if you teach many courses but only want to see the active ones.'), body, mkFooter(cancelBtn, refreshQueueBtn));
           loadQueue(true);
 
         } else if (mode === 'ai') {
@@ -756,15 +799,15 @@
                     let url = att.url;
                     if (att.id && c.token) {
                       try {
-                        const info = await new Promise(r => chrome.runtime.sendMessage(
-                          { type: 'CANVAS_API', payload: { url: `${c.canvasOrigin}/api/v1/files/${att.id}`, token: c.token } }, r
-                        ));
+                        const info = await ceSendMessage(
+                          { type: 'CANVAS_API', payload: { url: `${c.canvasOrigin}/api/v1/files/${att.id}`, token: c.token } }
+                        );
                         if (info?.url) url = info.url;
                       } catch(_) {}
                     }
-                    const res = await new Promise(r => chrome.runtime.sendMessage(
-                      { type: 'PARSE_FILE', payload: { fileUrl: url, token: c.token, filename: att.filename, mimeType: att.mimeType } }, r
-                    ));
+                    const res = await ceSendMessage(
+                      { type: 'PARSE_FILE', payload: { fileUrl: url, token: c.token, filename: att.filename, mimeType: att.mimeType } }
+                    );
                     if (res?.error) {
                       const fb = ceSgVisibleSubmissionText() || getVisibleSubmissionText();
                       if (fb.length > 200) { parts.push(`[${att.filename}]\n${fb}`); continue; }
@@ -784,10 +827,9 @@
               }
               statusEl.textContent = 'AI is grading…';
               const noCriteria = !criteriaText?.trim();
-              const response = await new Promise(resolve => chrome.runtime.sendMessage(
-                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel } },
-                resolve
-              ));
+              const response = await ceSendMessage(
+                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel } }
+              );
               if (response?.error) throw new Error(response.error);
               const text = response?.content?.[0]?.text || '';
               if (!text) throw new Error('Empty response — check API key in Settings');
@@ -803,7 +845,12 @@
                 statusEl.style.color = '';
               }
             } catch(e) {
-              statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
+              if (e.message === 'reload-needed') {
+                ceShowReloadBanner();
+                statusEl.textContent = '⚠ Extension was reloaded — please refresh the page.';
+              } else {
+                statusEl.textContent = '⚠ ' + (e.message || 'Grading failed');
+              }
             } finally {
               runBtn.disabled = false;
             }
@@ -839,12 +886,7 @@
 
           const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           closeBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub'), body, mkHelpCard([
-            'Click "Grade This Assignment" to have the AI read the student\'s submission and draft a score and feedback.',
-            'Set up your rubric in the Criteria tab before grading — the more detail you give, the better the AI performs.',
-            'Always review the AI\'s suggestions. Insert Score and Insert Comment push them into Canvas when you\'re ready.',
-            'If no criteria are set, the AI will still grade but will use its own judgment — a warning will appear.',
-          ]), mkFooter(closeBtn));
+          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub', 'This is the core of the Grader Toolbar. Click "Grade This Assignment" and the AI reads the student\'s full submission, applies the rubric and grading rules you set up in the Criteria tab, and drafts a score and a personalized feedback comment — in seconds. You are always in control: review what the AI suggests, edit anything you want to change, then click "Insert Score" and "Insert Comment" to push the results into Canvas SpeedGrader. The AI is a first draft, not a final grade. It handles the repetitive work — reading through long submissions, checking rubric points, writing structured feedback — so you can focus on the judgment calls that only a teacher can make. For best results, fill in the Grading Criteria tab before you start grading.'), body, mkFooter(closeBtn));
 
         } else if (mode === 'criteria') {
           criteriaBtn.classList.add('ce-sg-btn-primary');
@@ -911,13 +953,7 @@
 
           const doneBtn = mkAbtn('Done', 'ce-sg-abtn-primary');
           doneBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📋', 'Grading Criteria', ctx.assignmentName || ''), split, mkHelpCard([
-            'Everything here tells the AI how to grade. The more detail you add, the more consistent and accurate the results.',
-            'Rubric: paste your grading breakdown or point categories. The AI will score against each one.',
-            'Answer Key: paste a model answer for the AI to compare student work against.',
-            'Notes for AI: add special instructions — tone, partial credit rules, what to focus on or ignore.',
-            'Criteria are saved per assignment. Set it once and it applies every time you grade that assignment.',
-          ]), mkFooter(doneBtn));
+          drawer.append(makeModalHeader('📋', 'Grading Criteria', ctx.assignmentName || '', undefined, 'This is where you teach the AI how to grade your assignment. Without this, the AI makes its best guess — but with it, it grades exactly the way you would. Paste your rubric in the Rubric field and the AI will evaluate every student against each criterion. Add an Answer Key if there is a correct response to compare against. Use "Notes for AI" for anything special: partial credit rules, tone of feedback, what to overlook, or what to focus on. The Points Possible field helps the AI suggest a score on the right scale. Everything you enter here is saved for this specific assignment — set it up once before your first grading session and it is ready every time you come back to this assignment all semester long.'), split, mkFooter(doneBtn));
 
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
@@ -1041,12 +1077,7 @@
             }
           });
 
-          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkHelpCard([
-            'Save feedback phrases you write repeatedly — insert them into Canvas with one click.',
-            'Pairs well with AI grading: use AI for the first draft, then add a saved snippet for your personal touch.',
-            'Click "+ Add Comment" to save a new phrase. Use Edit to refine it any time.',
-            'Reset to Defaults restores the built-in starter comments without deleting your custom ones first.',
-          ]), mkFooter(resetBtn, closeBtn, addBtn));
+          drawer.append(makeModalHeader('💬', 'Comment Snippets', undefined, undefined, 'Every teacher has feedback they write over and over — "Great thesis statement," "Cite your sources," "See me for extra help." This panel lets you save those phrases once and insert them into Canvas with a single click, right inside SpeedGrader. Use it alongside AI grading to add your personal touch to the AI\'s draft, or use it on its own to speed up manual grading. Click "+ Add Comment" to save a new phrase. Click "Insert" next to any snippet to paste it into the Canvas comment box. Click "Edit" to update the wording at any time. If you want to start fresh, "Reset to Defaults" restores the built-in starter set of common teacher feedback phrases.'), listBody, mkFooter(resetBtn, closeBtn, addBtn));
 
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
@@ -1055,13 +1086,7 @@
           auditContainer.style.cssText = 'flex:1;min-height:0;overflow:auto;';
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🔍', 'Cheating Detection'), auditContainer, mkHelpCard([
-            'Automatically scans this assignment\'s submissions for patterns that may warrant a closer look.',
-            'Checks include: text similarity between students, submission timing clusters, quiz tab-switching, unusually fast completions, and matching wrong answers.',
-            'Only checks that apply to this assignment type are shown — quiz checks are hidden for regular essay assignments.',
-            'Click "Open full report →" under a flagged item for a detailed printable report. Use the Print button for a full summary.',
-            'Results are for instructor review only. This tool identifies signals — you determine what, if anything, happened.',
-          ]), mkFooter(cancelBtn));
+          drawer.append(makeModalHeader('🔍', 'Cheating Detection', undefined, undefined, 'This tool does not accuse anyone of cheating — that is your job. What it does is analyze the Canvas data for this assignment and flag patterns that a teacher would want to know about. It checks whether two students\' written submissions share an unusually high amount of identical phrasing. It looks at whether multiple students submitted at almost exactly the same time or uploaded files with the same filename. For quizzes, it checks whether a student left the browser tab repeatedly during the test, finished suspiciously fast while scoring high, or whether two students picked the same wrong answers on multiple questions. Any check that does not apply to this type of assignment is hidden automatically — you only see what is relevant. If something is flagged, click "Open full report" for the details, or use the Print button to generate a formal timestamped report you can save as a PDF. Every finding requires your professional judgment before any action is taken.'), auditContainer, mkFooter(cancelBtn));
           setTimeout(() => {
             const { courseId: aCid, assignmentId: aAid } = getSpeedGraderUrlParts();
             const assignName = document.querySelector('#assignment_title a, .assignment-title, [data-testid="assignment-title"]')?.textContent?.trim() || '';
@@ -1087,12 +1112,7 @@
           saveMsg.style.cssText += ';text-align:center;color:#127A1B;';
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('⚙️', 'Settings'), body, mkHelpCard([
-            'Canvas API Token is required for AI grading and the Needs Graded list. Get one from Canvas → Account → Settings → + New Access Token.',
-            'Teacher Name appears at the end of every AI-generated comment as a personal closing.',
-            'AI Model: Standard (Haiku) is fast and works great for most assignments. High Quality (Sonnet) is better for complex essays.',
-            'Click Save Settings after making any changes.',
-          ]), mkFooter(cancelBtn, saveBtn));
+          drawer.append(makeModalHeader('⚙️', 'Settings', undefined, undefined, 'Three things to set up before you start grading. First, your Canvas API Token — this is a private key that lets the Grader Toolbar read your students\' submissions and assignment data directly from Canvas. Without it, AI grading and the Needs Graded list will not work. To get one, go to Canvas → your account name → Settings → scroll to "Approved Integrations" → click "+ New Access Token." Copy it and paste it here. Second, your Teacher Name — this appears as a personal closing at the end of every AI-generated comment, so feedback reads like it came from you, not a machine. Third, the AI Model — Standard is fast and accurate for most assignments. High Quality takes a few seconds longer but produces noticeably better feedback for complex essays or detailed rubrics. Click "Save Settings" when you are done.'), body, mkFooter(cancelBtn, saveBtn));
 
           (async () => {
             const stored = await ceSgStorageGet(['ce_canvas_token', 'ce_teacher_name', 'ce_license_key']);
@@ -1183,78 +1203,6 @@
             });
           })();
 
-        } else if (mode === 'help') {
-          drawer.classList.add('ce-sz-sm');
-
-          const body = document.createElement('div');
-          body.className = 'ce-sg-mbody';
-          body.style.cssText += ';gap:0;padding:0;';
-
-          const intro = document.createElement('div');
-          intro.style.cssText = 'padding:16px 18px 12px;border-bottom:1px solid #eee;';
-          const introTitle = document.createElement('div');
-          introTitle.style.cssText = 'font-size:15px;font-weight:800;color:#2D3B45;margin-bottom:6px;';
-          introTitle.textContent = 'Canvas Enhancer — Grader Toolbar';
-          const introSub = document.createElement('div');
-          introSub.style.cssText = 'font-size:12px;color:#556066;line-height:1.6;';
-          introSub.textContent = 'A complete grading assistant built into SpeedGrader. The tools below work together to save you hours every week — and help you give students more consistent, detailed feedback.';
-          intro.append(introTitle, introSub);
-          body.appendChild(intro);
-
-          const tools = [
-            {
-              icon: '📬',
-              name: 'Needs Graded',
-              desc: 'One-click view of every ungraded student submission across all your active courses. Click a name to jump directly to their work in SpeedGrader — no more hunting through courses.',
-            },
-            {
-              icon: '🎓',
-              name: 'AI Grade',
-              desc: 'The AI reads each student\'s submission, applies your rubric, and drafts a score and personalized feedback. You review, adjust, and insert with one click. Grades faster, comments better, never misses a rubric point.',
-            },
-            {
-              icon: '📋',
-              name: 'Grading Criteria',
-              desc: 'Tell the AI exactly how to grade: paste your rubric, answer key, and any special instructions. Set it once per assignment and the AI applies your rules to every student, every time.',
-            },
-            {
-              icon: '💬',
-              name: 'Comment Snippets',
-              desc: 'Save feedback phrases you write over and over. Insert any saved comment into Canvas with a single click — works alongside AI feedback or on its own.',
-            },
-            {
-              icon: '🔍',
-              name: 'Cheating Detection',
-              desc: 'Automatically checks submissions for similarity, unusual timing, quiz tab-switching, fast completions, and matching wrong answers. Flags patterns for your review — you decide what to do with them.',
-            },
-          ];
-
-          tools.forEach((tool, i) => {
-            const row = document.createElement('div');
-            row.style.cssText = `display:flex;gap:12px;padding:13px 18px;${i > 0 ? 'border-top:1px solid #f0f2f4;' : ''}`;
-            const ico = document.createElement('div');
-            ico.style.cssText = 'font-size:20px;flex-shrink:0;width:28px;text-align:center;padding-top:1px;';
-            ico.textContent = tool.icon;
-            const text = document.createElement('div');
-            const nm = document.createElement('div');
-            nm.style.cssText = 'font-size:13px;font-weight:700;color:#2D3B45;margin-bottom:3px;';
-            nm.textContent = tool.name;
-            const ds = document.createElement('div');
-            ds.style.cssText = 'font-size:12px;color:#556066;line-height:1.55;';
-            ds.textContent = tool.desc;
-            text.append(nm, ds);
-            row.append(ico, text);
-            body.appendChild(row);
-          });
-
-          const tip = document.createElement('div');
-          tip.style.cssText = 'padding:10px 18px 14px;border-top:1px solid #eee;font-size:11px;color:#8A9299;line-height:1.5;';
-          tip.textContent = '💡 Start with Settings to add your Canvas API Token, then open Grading Criteria to set up your rubric before grading. Each tool shows its own tips in the "How to use" bar at the bottom.';
-          body.appendChild(tip);
-
-          const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
-          closeBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('❓', 'How to Use Canvas Enhancer Grader'), body, mkFooter(closeBtn));
         }
       }
 

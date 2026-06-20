@@ -1182,7 +1182,7 @@
   let _overlay    = null;
   let _tplOverlay = null;
 
-  function makeModal(id, title, bodyId) {
+  function makeModal(id, title, bodyId, description) {
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
     const overlay = document.createElement('div');
     overlay.id = id;
@@ -1200,12 +1200,36 @@
     xBtn.textContent = '×';
     xBtn.className = 'ces-close-btn';
     xBtn.addEventListener('click', () => overlay.classList.remove('ces-open'));
-    hdr.append(ttl, xBtn);
+
+    if (description) {
+      const descPanel = document.createElement('div');
+      descPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
+      descPanel.textContent = description;
+
+      const qBtn = document.createElement('button');
+      qBtn.type = 'button';
+      qBtn.textContent = '?';
+      qBtn.title = 'What does this do?';
+      qBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
+      let helpOpen = false;
+      qBtn.addEventListener('click', () => {
+        helpOpen = !helpOpen;
+        descPanel.style.display = helpOpen ? 'block' : 'none';
+        qBtn.style.background = helpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
+        qBtn.style.color = helpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
+      });
+      hdr.append(ttl, qBtn, xBtn);
+      box.appendChild(hdr);
+      box.appendChild(descPanel);
+    } else {
+      hdr.append(ttl, xBtn);
+      box.appendChild(hdr);
+    }
 
     const body = document.createElement('div');
     if (bodyId) body.id = bodyId;
 
-    box.append(hdr, body);
+    box.appendChild(body);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
@@ -1216,10 +1240,14 @@
   }
 
   function buildUI() {
-    const send = makeModal('ces-overlay',     'Bulk Message Students', 'ces-body');
+    const send = makeModal('ces-overlay', 'Bulk Message Students', 'ces-body',
+      'This tool sends a personalized Canvas message to multiple students at once — but each student receives their own individual message, not a group thread. Nobody sees who else was included. Select a course, choose which students to include (everyone, a specific section, or individuals you pick), write your subject and message, then click Send. Use {{firstName}} anywhere in the subject or body to automatically insert each student\'s first name. Use {{courseName}} to insert the course name. You can also load a saved template to fill in the subject and body instantly. Great for missing work notices, grade updates, reminders, and anything else you send to multiple students at once.'
+    );
     _overlay = send.overlay;
 
-    const tpl  = makeModal('ces-tpl-overlay', 'Message Templates',     'ces-tpl-body');
+    const tpl = makeModal('ces-tpl-overlay', 'Message Templates', 'ces-tpl-body',
+      'A library of saved subject lines and message bodies you use repeatedly — missing work reminders, office hours announcements, grade update notices, and anything else you find yourself writing over and over. When you open Bulk Message Students, click "Load Template" to fill in the subject and body automatically from any saved template. Click "New Template" here to save a new one, the pencil icon to edit the wording, and the trash icon to delete one you no longer need. The built-in default templates are just a starting point — edit them to match your voice and the way you normally communicate with your students.'
+    );
     _tplOverlay = tpl.overlay;
   }
 
@@ -2645,15 +2673,6 @@
       renderTemplatesTab(document.getElementById('ces-tpl-body'));
     });
 
-    const chatBtn = mkBtn('Chat');
-    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
-    const notesBtn = mkBtn('Notes');
-    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
-
-    const helpBtn = mkBtn('Help');
-    helpBtn.title = 'Help';
-    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'inbox' })));
-
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
     hideBtn.style.marginLeft = 'auto';
@@ -2668,7 +2687,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(lbl, sendBtn, tplBtn, chatBtn, notesBtn, helpBtn, hideBtn);
+    bar.append(lbl, sendBtn, tplBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
