@@ -2923,28 +2923,17 @@
       }
       body.innerHTML = '';
 
-      // Stat summary row
-      const summary = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
-      function statCard(value, label, color) {
-        const card = el('div', `flex:1;padding:18px 8px 16px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;`);
-        const val = el('div', `font-size:26px;font-weight:700;color:${color};line-height:1;`);
-        val.textContent = String(value);
-        const lbl = el('div', `font-size:10px;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;text-align:center;margin-top:2px;`);
-        lbl.textContent = label;
-        card.append(val, lbl);
-        return card;
-      }
-      summary.append(
-        statCard(totalUngraded,          'Ungraded',      totalUngraded > 0 ? '#B45309' : DS.green),
-        statCard(dueThisWeek.length,     'Due This Week', dueThisWeek.length > 3 ? '#B45309' : DS.blue),
-        statCard((courses || []).length, 'Courses',       DS.text),
+      // Stat tiles
+      const tilesRow = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
+      tilesRow.append(
+        makeStatTile('✏️', totalUngraded,          'Ungraded',      'waiting to be graded',  totalUngraded > 0 ? '#B45309' : DS.green),
+        makeStatTile('📅', dueThisWeek.length,     'Due This Week', 'assignments closing soon', dueThisWeek.length > 3 ? '#B45309' : DS.blue),
+        makeStatTile('📚', (courses || []).length, 'Courses',       'active & published',    DS.text),
       );
-      body.appendChild(summary);
+      body.appendChild(tilesRow);
 
       // Course breakdown
-      const secHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;`);
-      secHdr.textContent = 'Active Courses';
-      body.appendChild(secHdr);
+      body.appendChild(makeSecHdr('Active Courses'));
       if (!(courses || []).length) {
         const none = el('div', `padding:24px 16px;text-align:center;font-size:12px;color:${DS.muted};`);
         none.textContent = 'No active courses found.';
@@ -2952,9 +2941,7 @@
       } else {
         for (const c of (courses || [])) {
           const ungraded = courseUngraded[c.id] || 0;
-          const row = document.createElement('a');
-          row.href = courseUrls[c.id];
-          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:11px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+          const row = makeRowLink(courseUrls[c.id]);
           const left = el('div', `flex:1;min-width:0;`);
           const name = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
           name.textContent = c.name || c.course_code || `Course ${c.id}`;
@@ -2963,47 +2950,37 @@
           left.append(name, code);
           let right;
           if (ungraded > 0) {
-            right = el('div', `background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
-            right.textContent = ungraded + ' to grade';
+            right = makeBadge(ungraded + ' to grade', '#FEF3C7', '#92400E');
           } else {
             right = el('div', `font-size:11px;color:${DS.green};font-weight:600;`);
             right.textContent = '✓ All graded';
           }
           row.append(left, right);
-          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
-          row.addEventListener('mouseleave', () => row.style.background = '');
           body.appendChild(row);
         }
       }
 
-      // Due this week section
+      // Due this week
       if (dueThisWeek.length > 0) {
-        const dueSecHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;border-top:2px solid ${DS.border};margin-top:4px;`);
-        dueSecHdr.textContent = 'Due This Week';
-        body.appendChild(dueSecHdr);
+        body.appendChild(makeSecHdr('Due This Week', 'border-top:2px solid ' + DS.border + ';margin-top:4px;'));
         const tomorrow = new Date(now.getTime() + 86400000);
         for (const event of dueThisWeek.slice(0, 15)) {
           const a = event.assignment || event;
           const dueDate = new Date(a.due_at || event.start_at || 0);
           const cid = a.course_id;
           const href = cid ? `${origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}` : '#';
-          const row = document.createElement('a');
-          row.href = href;
-          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+          const row = makeRowLink(href);
           const left = el('div', `flex:1;min-width:0;`);
           const cLbl = el('div', `font-size:10px;color:${DS.muted};margin-bottom:2px;`);
           cLbl.textContent = courseNames[cid] || '';
-          const aName = el('div', `font-size:12px;font-weight:600;color:${DS.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          const aName = el('div', `font-size:13px;font-weight:600;color:${DS.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
           aName.textContent = a.name || event.title || 'Assignment';
           left.append(cLbl, aName);
-          const dateEl = el('div', `flex-shrink:0;font-size:11px;font-weight:600;`);
           const isToday    = dueDate.toDateString() === now.toDateString();
           const isTomorrow = dueDate.toDateString() === tomorrow.toDateString();
+          const dateEl = el('div', `flex-shrink:0;font-size:11px;font-weight:700;color:${isToday ? '#DC2626' : DS.blue};`);
           dateEl.textContent = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dueDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
-          dateEl.style.color = isToday ? '#DC2626' : DS.blue;
           row.append(left, dateEl);
-          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
-          row.addEventListener('mouseleave', () => row.style.background = '');
           body.appendChild(row);
         }
       }
@@ -3111,7 +3088,7 @@
 
       // Course filter bar
       const filterBar = el('div', `flex-shrink:0;padding:8px 14px;background:#F8FAFC;border-bottom:1px solid ${DS.border};display:flex;flex-wrap:wrap;gap:6px;align-items:center;`);
-      const filterLbl = el('span', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;margin-right:2px;flex-shrink:0;`);
+      const filterLbl = el('span', `font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;margin-right:2px;flex-shrink:0;`);
       filterLbl.textContent = 'Courses:';
       filterBar.appendChild(filterLbl);
       for (const c of courses) {
@@ -3124,10 +3101,10 @@
         pill.append(cb, nm);
         cb.addEventListener('change', () => {
           enabled[c.id] = cb.checked;
-          pill.style.background   = cb.checked ? '#EFF6FF' : '#fff';
-          pill.style.borderColor  = cb.checked ? '#2563EB' : DS.border;
-          nm.style.color          = cb.checked ? '#1D4ED8' : DS.muted;
-          nm.style.fontWeight     = cb.checked ? '600' : '400';
+          pill.style.background  = cb.checked ? '#EFF6FF' : '#fff';
+          pill.style.borderColor = cb.checked ? '#2563EB' : DS.border;
+          nm.style.color         = cb.checked ? '#1D4ED8' : DS.muted;
+          nm.style.fontWeight    = cb.checked ? '600' : '400';
           rerender();
         });
         filterBar.appendChild(pill);
@@ -3135,25 +3112,12 @@
       body.appendChild(filterBar);
 
       // Tiles row
-      const tilesRow = el('div', `flex-shrink:0;display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
+      const tilesRow = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
       body.appendChild(tilesRow);
 
       // Student list
       const listEl = el('div', ``);
       body.appendChild(listEl);
-
-      function makeTile(icon, value, label, sublabel, valColor) {
-        const card = el('div', `flex:1;padding:16px 6px 14px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;`);
-        const icoEl = el('div', `font-size:20px;line-height:1;margin-bottom:3px;`); icoEl.textContent = icon;
-        const valEl = el('div', `font-size:28px;font-weight:700;color:${valColor};line-height:1;`);
-        valEl.textContent = String(value);
-        const lblEl = el('div', `font-size:10px;color:${DS.text};text-transform:uppercase;letter-spacing:.4px;text-align:center;font-weight:600;margin-top:3px;`);
-        lblEl.textContent = label;
-        const subEl = el('div', `font-size:9px;color:${DS.muted};text-align:center;`);
-        subEl.textContent = sublabel;
-        card.append(icoEl, valEl, lblEl, subEl);
-        return card;
-      }
 
       function rerender() {
         const visIds = new Set(courses.filter(c => enabled[c.id]).map(c => c.id));
@@ -3166,10 +3130,10 @@
 
         tilesRow.innerHTML = '';
         tilesRow.append(
-          makeTile('📭', nMissing,  'Missing Work', 'past-due, not submitted', nMissing  > 0 ? '#DC2626' : DS.muted),
-          makeTile('📉', nLowGrade, 'Low Grade',    'current grade below 70%', nLowGrade > 0 ? '#B45309' : DS.muted),
-          makeTile('💤', nInactive, 'Inactive',     'no login in 14+ days',    nInactive > 0 ? '#6B7280' : DS.muted),
-          makeTile('🚨', nMulti,    'Needs Attention', '2 or more red flags',  nMulti    > 0 ? '#9D174D' : DS.muted),
+          makeStatTile('📭', nMissing,  'Missing Work',     'past-due, not submitted', nMissing  > 0 ? '#DC2626' : DS.muted),
+          makeStatTile('📉', nLowGrade, 'Low Grade',        'current grade below 70%', nLowGrade > 0 ? '#B45309' : DS.muted),
+          makeStatTile('💤', nInactive, 'Inactive',         'no login in 14+ days',    nInactive > 0 ? '#6B7280' : DS.muted),
+          makeStatTile('🚨', nMulti,    'Needs Attention',  '2 or more red flags',     nMulti    > 0 ? '#9D174D' : DS.muted),
         );
 
         listEl.innerHTML = '';
@@ -3191,41 +3155,21 @@
           return 0;
         });
 
-        const secHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;`);
-        secHdr.textContent = `${vis.length} student${vis.length !== 1 ? 's' : ''} need attention`;
-        listEl.appendChild(secHdr);
+        listEl.appendChild(makeSecHdr(`${vis.length} student${vis.length !== 1 ? 's' : ''} need attention`));
 
         for (const s of vis) {
-          const row = document.createElement('a');
-          row.href = s.gradesUrl;
-          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
-
+          const row = makeRowLink(s.gradesUrl);
           const left = el('div', `flex:1;min-width:0;`);
           const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
           nameEl.textContent = s.name;
-          const crsEl = el('div', `font-size:10px;color:${DS.muted};margin-top:1px;text-transform:uppercase;letter-spacing:.3px;`);
+          const crsEl = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;text-transform:uppercase;letter-spacing:.3px;`);
           crsEl.textContent = s.courseName;
           left.append(nameEl, crsEl);
-
-          const badges = el('div', `display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:220px;`);
-          if (s.hasMissing) {
-            const b = el('div', `background:#FEE2E2;color:#991B1B;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
-            b.textContent = `${s.missing} missing`;
-            badges.appendChild(b);
-          }
-          if (s.isLowGrade) {
-            const b = el('div', `background:#FEF3C7;color:#92400E;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
-            b.textContent = `${Math.round(s.grade)}%`;
-            badges.appendChild(b);
-          }
-          if (s.isInactive) {
-            const b = el('div', `background:#F3F4F6;color:#374151;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;`);
-            b.textContent = 'inactive';
-            badges.appendChild(b);
-          }
+          const badges = el('div', `display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;`);
+          if (s.hasMissing) badges.appendChild(makeBadge(`${s.missing} missing`, '#FEE2E2', '#991B1B'));
+          if (s.isLowGrade) badges.appendChild(makeBadge(`${Math.round(s.grade)}%`, '#FEF3C7', '#92400E'));
+          if (s.isInactive) badges.appendChild(makeBadge('inactive', '#F3F4F6', '#374151'));
           row.append(left, badges);
-          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
-          row.addEventListener('mouseleave', () => row.style.background = '');
           listEl.appendChild(row);
         }
       }
