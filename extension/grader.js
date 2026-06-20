@@ -5,7 +5,7 @@
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
     const _store = await new Promise(resolve =>
-      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model'], resolve)
+      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model', 'ce_grader_filter_published', 'ce_grader_filter_dashboard'], resolve)
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
@@ -651,9 +651,29 @@
         if (mode === 'needs') {
           queueBtn.classList.add('ce-sg-btn-primary');
           drawer.classList.add('ce-sz-sm');
+
+          const filterRow = document.createElement('div');
+          filterRow.style.cssText = 'display:flex;gap:16px;padding:8px 4px 6px;border-bottom:1px solid #eee;margin-bottom:4px;flex-shrink:0;';
+
+          const mkFilterCheck = (label, key) => {
+            const wrap = document.createElement('label');
+            wrap.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;user-select:none;';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !!_store[key];
+            cb.addEventListener('change', () => { GM_setValue(key, cb.checked); loadQueue(true); });
+            wrap.append(cb, document.createTextNode(label));
+            return wrap;
+          };
+
+          filterRow.append(
+            mkFilterCheck('Published only', 'ce_grader_filter_published'),
+            mkFilterCheck('Dashboard only', 'ce_grader_filter_dashboard')
+          );
+
           const body = document.createElement('div');
           body.className = 'ce-sg-mbody';
-          body.append(queueStatus, queueList);
+          body.append(filterRow, queueStatus, queueList);
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
           drawer.append(makeModalHeader('📬', 'Needs Graded'), body, mkFooter(cancelBtn, refreshQueueBtn));
@@ -1144,7 +1164,16 @@
             renderQueueSection('This Course', currentNeeding, courseId);
 
             const allCourses = await ceSgCanvasGet(`/api/v1/courses?enrollment_type=teacher&per_page=100`);
-            const otherCourses = (allCourses || []).filter(c => String(c.id) !== String(courseId));
+            let otherCourses = (allCourses || []).filter(c => String(c.id) !== String(courseId));
+
+            if (_store.ce_grader_filter_published) {
+              otherCourses = otherCourses.filter(c => c.workflow_state === 'available');
+            }
+            if (_store.ce_grader_filter_dashboard) {
+              const favCourses = await ceSgCanvasGet('/api/v1/users/self/favorites/courses?per_page=100');
+              const favIds = new Set((favCourses || []).map(c => String(c.id)));
+              otherCourses = otherCourses.filter(c => favIds.has(String(c.id)));
+            }
 
             const otherResults = await Promise.all(
               otherCourses.slice(0, 15).map(async c => {
