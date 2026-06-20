@@ -422,7 +422,7 @@
       main.className = 'ce-sg-mainbar';
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
-      brand.textContent = 'Grading';
+      brand.textContent = 'Canvas Enhancer — Grader Toolbar';
       const queueBtn = ceSgToolbarButton('Queue', false);
       const queueBadge = document.createElement('span');
       queueBadge.className = 'ce-sg-badge';
@@ -445,7 +445,7 @@
       helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'grader' })));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn, chatBtn, notesBtn, helpBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, chatBtn, notesBtn, helpBtn, settingsBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
