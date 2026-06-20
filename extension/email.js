@@ -2432,23 +2432,33 @@
         existing.remove();
       }
 
-      const btn = document.createElement('button');
-      btn.id = BTN_ID;
-      btn.type = 'button';
-      btn.textContent = 'Templates';
-      btn.style.cssText = 'display:inline-flex;align-items:center;padding:5px 12px;border:1px solid #0770B8;border-radius:3px;background:#fff;color:#0770B8;font:600 12px ' + font + ';cursor:pointer;margin-bottom:6px;white-space:nowrap;transition:background .12s;';
-      btn.addEventListener('mouseenter', () => { btn.style.background = '#E8F1F8'; });
-      btn.addEventListener('mouseleave', () => { btn.style.background = '#fff'; });
-      btn.addEventListener('click', openQmModal);
+      // Mini toolbar bar — same look as the inbox toolbar
+      const bar = document.createElement('div');
+      bar.id = BTN_ID;
+      bar.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;padding:0 10px;height:44px;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 6px rgba(0,0,0,.2);box-sizing:border-box;flex-shrink:0;font-family:' + font + ';';
+
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;';
+      lbl.textContent = 'Compose';
+
+      const fastBtn = document.createElement('button');
+      fastBtn.type = 'button';
+      fastBtn.textContent = 'Fast Message';
+      fastBtn.style.cssText = 'height:32px;padding:0 16px;border:none;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
+      fastBtn.addEventListener('mouseenter', () => { fastBtn.style.background = 'rgba(255,255,255,0.22)'; fastBtn.style.color = '#fff'; });
+      fastBtn.addEventListener('mouseleave', () => { fastBtn.style.background = 'rgba(255,255,255,0.12)'; fastBtn.style.color = 'rgba(255,255,255,0.85)'; });
+      fastBtn.addEventListener('click', openQmModal);
+
+      bar.append(lbl, fastBtn);
 
       let insertBefore = bodyInput;
       while (insertBefore.parentElement && insertBefore.parentElement !== formRoot) {
         insertBefore = insertBefore.parentElement;
       }
       if (insertBefore.parentElement === formRoot) {
-        formRoot.insertBefore(btn, insertBefore);
+        formRoot.insertBefore(bar, insertBefore);
       } else {
-        bodyInput.parentElement.insertBefore(btn, bodyInput);
+        bodyInput.parentElement.insertBefore(bar, bodyInput);
       }
       return true;
     }
