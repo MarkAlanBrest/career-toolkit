@@ -367,7 +367,7 @@
         #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #1B303D; background:#394B58; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.22); }
         #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
-        .ce-sg-mainbar { height:100%; display:flex; align-items:center; gap:4px; padding:0 8px; overflow-x:auto; overflow-y:hidden; }
+        .ce-sg-mainbar { height:100%; display:flex; align-items:center; gap:4px; padding:0 8px 0 88px; overflow-x:auto; overflow-y:hidden; }
         .ce-sg-brand { flex-shrink:0; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; margin-right:4px; }
         .ce-sg-btn { height:32px; padding:0 16px; flex-shrink:0; border:none; border-radius:4px; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.85); cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.2px; white-space:nowrap; transition:background .12s,color .12s; position:relative; }
         .ce-sg-badge { position:absolute;top:3px;right:3px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
@@ -435,9 +435,16 @@
       const criteriaBtn = ceSgToolbarButton('Criteria', false);
       const commentsBtn = ceSgToolbarButton('Comments', false);
       const auditBtn = ceSgToolbarButton('Audit', false);
+      const chatBtn = ceSgToolbarButton('Chat', false);
+      chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
+      const notesBtn = ceSgToolbarButton('Notes', false);
+      notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+      const helpBtn = ceSgToolbarButton('Help', false);
+      helpBtn.title = 'Help';
+      helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'grader' })));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, collapseBtn);
+      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, chatBtn, notesBtn, helpBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -980,6 +987,12 @@
             const { courseId: aCid, assignmentId: aAid } = getSpeedGraderUrlParts();
             const assignName = document.querySelector('#assignment_title a, .assignment-title, [data-testid="assignment-title"]')?.textContent?.trim() || '';
             document.dispatchEvent(new CustomEvent('ce-render-audit', { detail: { container: auditContainer, courseId: aCid, assignmentId: aAid, assignmentName: assignName } }));
+            // If hub.js never responds (e.g. Canvas guard blocked it), show an error after 4 s
+            setTimeout(() => {
+              if (!auditContainer.children.length) {
+                auditContainer.innerHTML = '<div style="padding:24px;font-size:13px;color:#B91C1C;">Audit could not connect to the Canvas Enhancer hub. Try reloading the page — if the problem persists, reload the extension at edge://extensions.</div>';
+              }
+            }, 4000);
           }, 0);
         }
       }

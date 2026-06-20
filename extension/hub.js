@@ -2,6 +2,10 @@
   'use strict';
   if (document.getElementById('ce-hub')) return;
 
+  // Only activate on Canvas pages (always run on SpeedGrader so audit events work)
+  if (!document.querySelector('#global_nav_logo, meta[name="canvas-csrf-token"], .ic-app') &&
+      !/speed_grader/.test(window.location.href)) return;
+
   // ── DESIGN TOKENS ──────────────────────────────────────────────────────────
   const DS = {
     // Toolbar (mirrors Canvas global nav)
@@ -37,29 +41,208 @@
   ];
 
   const TOOLS = [
-    // ── Course Design Toolbar ────────────────────────────────────────────────
-    { _section: 'cd', label: 'Course Design' },
-    { id: 'quick-ai',  group: 'cd', icon: '⚡', label: 'AI Chat',   noPanel: true, desc: 'Opens a floating AI window alongside Canvas. Ask questions, draft responses, or brainstorm — without leaving your course.' },
-    { id: 'notes',     group: 'cd', icon: '📝', label: 'Notes',                   desc: 'Private teacher notes. Save, edit, and delete quick notes while working in Canvas.' },
-    { id: 'designer',  group: 'cd', icon: '🎨', label: 'Designer',                desc: 'Build beautiful Canvas pages and assignments with a drag-and-drop editor. No HTML required.' },
-    { id: 'quiz',      group: 'cd', icon: '✅', label: 'Quiz',      noPanel: true, desc: 'AI quiz builder. Generate multiple-choice, true/false, and short-answer questions from any topic or pasted content.' },
-    { id: 'settings',  group: 'cd', icon: '⚙️', label: 'Settings' },
-    // ── Teaching & Grading Toolbar ───────────────────────────────────────────
-    { _section: 'tg', label: 'Teaching' },
-    { id: 'ai-grader',    group: 'tg', icon: '🎓', label: 'Needs Graded',  desc: 'Shows all submitted, ungraded work across your courses. Click an assignment to open it in SpeedGrader.' },
-    { id: 'scheduler',    group: 'tg', icon: '📅', label: 'Scheduler',     desc: 'Drag-and-drop assignment scheduler. Set due dates and availability windows, then push them to Canvas in bulk.' },
-    { id: 'eval',         group: 'tg', icon: '🩺', label: 'Vitals',        desc: 'Data-driven course health dashboard. Scores the course across 6 categories: assignment structure, student engagement, grading efficiency, communication, course quality, and student performance.' },
-    { id: 'settings-tg',  group: 'tg', icon: '⚙️', label: 'Settings' },
+    // ── Dashboard Toolbar ─────────────────────────────────────────────────────
+    { _section: 'db', label: 'Dashboard' },
+    { id: 'chat-db',     group: 'db', icon: '💬', label: 'Chat' },
+    { id: 'notes-db',    group: 'db', icon: '📝', label: 'Notes' },
+    { id: 'settings-tg', group: 'db', icon: '⚙️', label: 'Settings' },
   ];
 
-  const GROUP_BG = {
-    cd: 'rgba(100,160,230,0.11)',
-    tg: 'rgba(60,190,120,0.11)',
+  // Features shown in Settings — separate from toolbar TOOLS so they don't render as buttons
+  const FEATURES = [
+    { id: 'chat-db',       icon: '💬', label: 'Chat Assistant',    desc: 'Opens an AI chat window (Claude, ChatGPT, Gemini, etc.) in a side panel.' },
+    { id: 'notes-db',      icon: '📝', label: 'Notes',             desc: 'Personal notes panel — stays saved between sessions for quick reference.' },
+    { id: 'quiz-builder',  icon: '✅', label: 'Quiz Builder',      desc: 'AI-powered quiz generator — appears in the toolbar on the Quizzes page.' },
+    { id: 'inbox-toolbar', icon: '📨', label: 'Inbox Toolbar',     desc: 'Bulk Message and Templates on the Canvas Inbox and Announcements pages.' },
+    { id: 'announce-bar',  icon: '📢', label: 'Announcement Bar',  desc: 'Quick Post button on the announcement compose form with saved templates.' },
+    { id: 'ai-grader',     icon: '🎓', label: 'AI Grader',         desc: 'AI-assisted grading panel available in SpeedGrader.' },
+    { id: 'scheduler',     icon: '📅', label: 'Scheduler',         desc: 'Drag-and-drop assignment scheduler available in SpeedGrader.' },
+    { id: 'date-autofill', icon: '📆', label: 'Date Autofill',     desc: 'Automatically fills due dates when creating or editing assignments.' },
+  ];
+
+  const GROUP_BG = {};
+
+  // ── HELP CONTENT ───────────────────────────────────────────────────────────
+  const HELP_CONTENT = {
+    dashboard: {
+      title: 'Teaching Toolkit — Dashboard',
+      html: `
+        <p class="ce-help-desc">Your always-on toolbar, available on every Canvas page. Quick access to AI chat, personal notes, and settings without leaving what you're doing.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">💬 Chat</div>
+          <ol>
+            <li>Click <strong>Chat</strong> to open your preferred AI assistant in a side window alongside Canvas.</li>
+            <li>Reference your course content while chatting — the Canvas page stays fully visible.</li>
+            <li>Use it to draft feedback, brainstorm rubric language, or answer student questions.</li>
+            <li>Change your AI provider (Claude, ChatGPT, Gemini, Copilot, Perplexity) under <strong>Settings</strong>.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">📝 Notes</div>
+          <ol>
+            <li>Click <strong>Notes</strong> to open a private notepad that saves automatically.</li>
+            <li>Use it for to-do lists, reminders, copy-paste snippets, or student notes.</li>
+            <li>Notes persist between sessions and are only visible to you.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">⚙️ Settings</div>
+          <ol>
+            <li><strong>Teacher Name</strong> — sets the welcome greeting shown in the toolbar.</li>
+            <li><strong>Canvas API Token</strong> — required for AI Grader and bulk messaging. Get it from Canvas → Account → Settings → + New Access Token.</li>
+            <li><strong>AI Provider</strong> — choose which assistant opens when you click Chat.</li>
+            <li><strong>Grading Quality</strong> — Standard is faster and cheaper; High Quality is better for complex writing.</li>
+            <li><strong>License Key</strong> — enter your Canvas Enhancer license to unlock all features.</li>
+            <li><strong>Features</strong> — toggle individual tools on or off.</li>
+          </ol>
+        </div>
+        <div class="ce-help-tip">💡 Click <strong>Hide</strong> to collapse the toolbar. A small tab remains so you can bring it back any time.</div>
+      `,
+    },
+    inbox: {
+      title: 'Inbox Toolbar',
+      html: `
+        <p class="ce-help-desc">Two tools added to your Canvas Inbox: send personalized messages to multiple students at once, and save templates for messages you write repeatedly.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">📨 Bulk Message</div>
+          <ol>
+            <li>Click <strong>Bulk Message</strong> to open the batch sender.</li>
+            <li>Select a course, then choose which students to message — all students, specific groups, or individuals.</li>
+            <li>Write your subject and message. Use <code>{{firstName}}</code> and <code>{{courseName}}</code> as placeholders.</li>
+            <li>Click <strong>Send</strong> — every student receives a separate, individual message (not a group thread).</li>
+          </ol>
+          <div class="ce-help-tip">💡 Placeholders work in both the subject and body. Example: <em>"Hi {{firstName}}, your grade for {{courseName}} has been updated."</em></div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">📋 Templates</div>
+          <ol>
+            <li>Click <strong>Templates</strong> to open your saved message library.</li>
+            <li>Click <strong>Insert</strong> next to any template to paste it into the current Compose window.</li>
+            <li>Click <strong>New Template</strong> to save a message you write often.</li>
+            <li>Use the ✎ icon to edit a template, or ✕ to delete it.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Default templates are pre-loaded (Missing Work, Office Hours, etc.). Edit them to match your voice.</div>
+        </div>
+      `,
+    },
+    quiz: {
+      title: 'Quiz Builder',
+      html: `
+        <p class="ce-help-desc">Generates complete Canvas quizzes with AI — questions, answer choices, correct answers, and point values — published directly to your course.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">How to use</div>
+          <ol>
+            <li>Navigate to any course's <strong>Quizzes</strong> page. The Quiz Builder toolbar appears automatically.</li>
+            <li>Click <strong>Quiz Builder</strong> to open the generator.</li>
+            <li>Describe what you want: topic, difficulty level, number of questions, and question type.</li>
+            <li>Click <strong>Generate</strong> — the AI creates a full quiz draft.</li>
+            <li>Review each question in the panel and edit anything that needs adjusting.</li>
+            <li>Click <strong>Publish</strong> to create the quiz in Canvas with all questions loaded.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Be specific for better results. Example: <em>"10 multiple-choice questions on the American Civil War, high school level, focusing on causes and key battles."</em></div>
+        </div>
+        <div class="ce-help-note">⚠ Requires a Canvas API Token in Settings.</div>
+      `,
+    },
+    announcements: {
+      title: 'Announcement Composer',
+      html: `
+        <p class="ce-help-desc">Adds a Quick Post button to the Canvas announcement compose form so you can insert saved templates directly into the title and body fields.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Inserting a template</div>
+          <ol>
+            <li>Click <strong>Add Announcement</strong> in Canvas as you normally would.</li>
+            <li>The Announcement bar appears at the top of the compose form.</li>
+            <li>Click <strong>Quick Post</strong> to open your saved announcement library.</li>
+            <li>Click <strong>Insert</strong> — the title and body fields fill automatically.</li>
+            <li>Edit as needed, then post normally through Canvas.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Managing templates</div>
+          <ol>
+            <li>In the Quick Post panel, click <strong>+ New</strong> at the bottom to create a template.</li>
+            <li>Click the ✎ icon to edit any template.</li>
+            <li>Click ✕ to delete a template.</li>
+            <li>Templates are saved in your browser and persist between sessions.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Default templates are included: Welcome to the Week, Missing Work Reminder, Office Hours, and more. Edit them to match your style.</div>
+        </div>
+      `,
+    },
+    grader: {
+      title: 'AI Grader',
+      html: `
+        <p class="ce-help-desc">An AI-assisted grading panel inside SpeedGrader. It reads each student's submission, applies your rubric, and drafts scores and feedback for you to review before applying.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Setup</div>
+          <ol>
+            <li>Enter your <strong>Canvas API Token</strong> and <strong>License Key</strong> in Settings.</li>
+            <li>Open <strong>SpeedGrader</strong> for a written assignment.</li>
+            <li>Click <strong>AI Grader</strong> in the toolbar.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Grading a submission</div>
+          <ol>
+            <li>Load or create a rubric in the AI Grader panel.</li>
+            <li>Click <strong>Grade This Submission</strong> — the AI reads the student's work and drafts scores for each rubric criterion.</li>
+            <li>Review each row. Adjust scores or edit feedback text as needed.</li>
+            <li>Click <strong>Apply to Canvas</strong> to submit the grades.</li>
+            <li>Navigate to the next student and repeat.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Always review AI suggestions before applying. Treat it as a first draft — your professional judgment is the final word.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Grading quality</div>
+          <p>Under <strong>Settings → Grading Quality</strong>: Standard is faster and cheaper and works well for most assignments. High Quality is better for complex essays or nuanced rubrics.</p>
+        </div>
+      `,
+    },
+    scheduler: {
+      title: 'Assignment Scheduler',
+      html: `
+        <p class="ce-help-desc">A drag-and-drop visual calendar inside SpeedGrader that lets you plan and set due dates across your entire course without leaving the grading page.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">How to use</div>
+          <ol>
+            <li>Open <strong>SpeedGrader</strong> for any assignment.</li>
+            <li>Click <strong>Scheduler</strong> in the toolbar.</li>
+            <li>All course assignments appear in the left panel.</li>
+            <li>Drag any assignment onto a day in the calendar to set its due date.</li>
+            <li>Drag to a different day to reschedule.</li>
+            <li>Click <strong>Save Schedule</strong> to push all due dates to Canvas.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Due date changes are not saved until you click Save Schedule — drag freely before committing.</div>
+        </div>
+        <div class="ce-help-note">⚠ Requires a Canvas API Token in Settings.</div>
+      `,
+    },
+    audit: {
+      title: 'Grade Audit',
+      html: `
+        <p class="ce-help-desc">Runs a comprehensive audit of student submissions — checking for missing work, late submissions, grade discrepancies, and tab-switching events during quizzes.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">How to use</div>
+          <ol>
+            <li>Open <strong>SpeedGrader</strong> for any assignment.</li>
+            <li>Click <strong>Audit</strong> in the toolbar.</li>
+            <li>Select which checks to run: missing submissions, late work, grade gaps, quiz focus events.</li>
+            <li>Click <strong>Run Audit</strong> — the tool fetches data from Canvas.</li>
+            <li>Review the results. Each check shows a table with student names and details.</li>
+            <li>Use the findings to follow up with students or adjust grades.</li>
+          </ol>
+          <div class="ce-help-tip">💡 The quiz tab-switching check requires session event logging to be enabled on the quiz. If it shows "unavailable," check the quiz's settings page.</div>
+        </div>
+        <div class="ce-help-note">⚠ Requires a Canvas API Token in Settings.</div>
+      `,
+    },
   };
 
   let _active      = null;          // tool id with open panel
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
+  let _onDashboard = /^\/(dashboard)?\/?$/.test(window.location.pathname);
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -87,7 +270,7 @@
   const nav = el('div', `
     flex:1;height:100%;min-width:0;
     display:flex;flex-direction:row;align-items:center;
-    padding:0 8px;gap:4px;overflow-x:auto;overflow-y:hidden;
+    padding:0 8px 0 88px;gap:4px;overflow-x:auto;overflow-y:hidden;
   `);
 
   const btnMap     = {};
@@ -154,6 +337,58 @@
   }
   toolbar.appendChild(nav);
 
+  // ── CENTERED GREETING ─────────────────────────────────────────────────────
+  const greetingWrap = el('div', `
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    pointer-events:none;user-select:none;line-height:1.25;
+  `);
+
+  const welcomeLine = el('span', `
+    font-size:14px;font-style:italic;
+    font-family:Georgia,"Times New Roman",serif;
+    color:rgba(255,255,255,0.82);letter-spacing:.3px;
+    white-space:nowrap;
+  `);
+  welcomeLine.textContent = 'Welcome';
+
+  const subtitleLine = el('span', `
+    font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:1.2px;color:rgba(255,255,255,0.35);
+    font-family:${DS.font};white-space:nowrap;margin-top:1px;
+  `);
+  subtitleLine.textContent = 'Teaching Toolkit';
+
+  greetingWrap.append(welcomeLine, subtitleLine);
+  toolbar.appendChild(greetingWrap);
+
+  // Load teacher name: stored value → Canvas API → Canvas DOM
+  (async () => {
+    const s = await new Promise(r => chrome.storage.local.get('ces_teacher_name', r));
+    if (s.ces_teacher_name) {
+      welcomeLine.textContent = `Welcome, ${s.ces_teacher_name}`;
+      return;
+    }
+    try {
+      const resp = await fetch(window.location.origin + '/api/v1/users/self/profile', {
+        credentials: 'same-origin',
+      });
+      if (resp.ok) {
+        const profile = await resp.json();
+        const name = profile.short_name || profile.name || '';
+        if (name) {
+          welcomeLine.textContent = `Welcome, ${name}`;
+          chrome.storage.local.set({ ces_teacher_name: name });
+          return;
+        }
+      }
+    } catch(_) {}
+    // Last resort: Canvas global nav display name
+    const navName = document.querySelector('#global_nav_profile_link .ic-avatar + *, [data-testid="user-name"]')?.textContent?.trim()
+      || document.querySelector('#global_nav_profile_link')?.getAttribute('aria-label')?.replace(/^.*profile/i, '').trim();
+    if (navName) welcomeLine.textContent = `Welcome, ${navName}`;
+  })();
+
   // Collapse button — pill style matching inbox "Hide", pushed to the right edge
   const collapseBtn = el('button', `
     height:32px;padding:0 16px;flex-shrink:0;margin-left:auto;margin-right:8px;
@@ -169,6 +404,12 @@
   collapseBtn.addEventListener('mouseenter', () => { collapseBtn.style.background = 'rgba(255,255,255,0.22)'; collapseBtn.style.color = '#fff'; });
   collapseBtn.addEventListener('mouseleave', () => { collapseBtn.style.background = 'rgba(255,255,255,0.12)'; collapseBtn.style.color = 'rgba(255,255,255,0.85)'; });
   collapseBtn.addEventListener('click', toggleToolbar);
+
+  const helpNavBtn = el('button', `height:32px;padding:0 12px;flex-shrink:0;margin-right:4px;border:none;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;align-self:center;letter-spacing:.2px;transition:background .12s,color .12s;`, { type: 'button', title: 'Help', textContent: 'Help' });
+  helpNavBtn.addEventListener('mouseenter', () => { helpNavBtn.style.background = 'rgba(255,255,255,0.22)'; helpNavBtn.style.color = '#fff'; });
+  helpNavBtn.addEventListener('mouseleave', () => { helpNavBtn.style.background = 'rgba(255,255,255,0.12)'; helpNavBtn.style.color = 'rgba(255,255,255,0.85)'; });
+  helpNavBtn.addEventListener('click', () => openHelp('dashboard'));
+  nav.appendChild(helpNavBtn);
   nav.appendChild(collapseBtn);
 
   // ── COLLAPSED TAB ──────────────────────────────────────────────────────────
@@ -242,6 +483,84 @@
   ngModal.appendChild(ngBox);
   ngModal.addEventListener('click', e => { if (e.target === ngModal) closeNgModal(); });
 
+  // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
+  const settingsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  settingsModal.id = 'ce-settings-modal';
+  const settingsBox = el('div', `background:#fff;width:min(620px,calc(100vw - 48px));max-height:min(700px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const settingsMHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+  const settingsMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
+  settingsMTitle.textContent = 'Settings';
+  const settingsMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
+  settingsMClose.addEventListener('mouseenter', () => { settingsMClose.style.background = 'rgba(255,255,255,0.15)'; settingsMClose.style.color = '#fff'; });
+  settingsMClose.addEventListener('mouseleave', () => { settingsMClose.style.background = ''; settingsMClose.style.color = 'rgba(255,255,255,0.65)'; });
+  settingsMClose.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+  settingsMHdr.append(settingsMTitle, settingsMClose);
+  const settingsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0;`);
+  settingsMBody.id = 'ce-settings-mbody';
+  settingsBox.append(settingsMHdr, settingsMBody);
+  settingsModal.appendChild(settingsBox);
+  settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
+  settingsBox.addEventListener('click', e => e.stopPropagation());
+
+  // ── NOTES MODAL ────────────────────────────────────────────────────────────
+  const notesModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  notesModal.id = 'ce-notes-modal';
+  const notesBox = el('div', `background:#fff;width:min(680px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const notesMHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+  const notesMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
+  notesMTitle.textContent = 'Notes';
+  const notesMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
+  notesMClose.addEventListener('mouseenter', () => { notesMClose.style.background = 'rgba(255,255,255,0.15)'; notesMClose.style.color = '#fff'; });
+  notesMClose.addEventListener('mouseleave', () => { notesMClose.style.background = ''; notesMClose.style.color = 'rgba(255,255,255,0.65)'; });
+  notesMClose.addEventListener('click', () => { notesModal.style.display = 'none'; });
+  notesMHdr.append(notesMTitle, notesMClose);
+  const notesMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0;`);
+  notesMBody.id = 'ce-notes-mbody';
+  notesBox.append(notesMHdr, notesMBody);
+  notesModal.appendChild(notesBox);
+  notesModal.addEventListener('click', e => { if (e.target === notesModal) notesModal.style.display = 'none'; });
+  notesBox.addEventListener('click', e => e.stopPropagation());
+
+  // ── HELP MODAL ─────────────────────────────────────────────────────────────
+  const helpModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  helpModal.id = 'ce-help-modal';
+  const helpBox = el('div', `background:#fff;width:min(620px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const helpMHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+  const helpMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
+  const helpMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
+  helpMClose.addEventListener('mouseenter', () => { helpMClose.style.background = 'rgba(255,255,255,0.15)'; helpMClose.style.color = '#fff'; });
+  helpMClose.addEventListener('mouseleave', () => { helpMClose.style.background = ''; helpMClose.style.color = 'rgba(255,255,255,0.65)'; });
+  helpMClose.addEventListener('click', () => { helpModal.style.display = 'none'; });
+  helpMHdr.append(helpMTitle, helpMClose);
+  const helpMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:24px;`);
+  helpBox.append(helpMHdr, helpMBody);
+  helpModal.appendChild(helpBox);
+  helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal.style.display = 'none'; });
+  helpBox.addEventListener('click', e => e.stopPropagation());
+
+  function openHelp(key) {
+    const entry = HELP_CONTENT[key] || HELP_CONTENT['dashboard'];
+    helpMTitle.textContent = entry.title;
+    helpMBody.innerHTML = `<style>
+      .ce-help-desc{margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;}
+      .ce-help-section{margin-bottom:20px;}
+      .ce-help-sh{font-size:11px;font-weight:700;color:#1B303D;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}
+      .ce-help-section ol{margin:0;padding-left:20px;}
+      .ce-help-section ol li{font-size:13.5px;color:#374151;line-height:1.6;margin-bottom:6px;}
+      .ce-help-section p{font-size:13.5px;color:#374151;line-height:1.6;margin:0 0 8px;}
+      .ce-help-tip{background:#EFF6FF;border-left:3px solid #3B82F6;border-radius:4px;padding:10px 14px;font-size:13px;color:#1D4ED8;line-height:1.5;margin-top:8px;}
+      .ce-help-note{background:#FEF2F2;border-left:3px solid #EF4444;border-radius:4px;padding:10px 14px;font-size:13px;color:#B91C1C;line-height:1.5;margin-top:8px;}
+      code{background:#F3F4F6;padding:1px 5px;border-radius:3px;font-size:12px;}
+    </style>` + entry.html;
+    helpModal.style.display = 'flex';
+  }
+
+  function openNotesModal() {
+    notesMBody.innerHTML = '';
+    notesModal.style.display = 'flex';
+    renderNotes(notesMBody);
+  }
+
   // ── PANEL CONTENT ──────────────────────────────────────────────────────────
   function placeholder(icon, title, sub) {
     panelBody.innerHTML = '';
@@ -314,11 +633,13 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
-  async function renderSettings() {
+  async function renderSettings(target) {
+    const dest = target || panelBody;
+    try {
     const stored = await new Promise(r =>
       chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ce_license_key','ce_ai_provider','ce_grading_model','ce_features'], r)
     );
-    panelBody.innerHTML = '';
+    dest.innerHTML = '';
 
     const stack = el('div', 'display:flex;flex-direction:column;gap:18px;');
 
@@ -393,8 +714,7 @@
 
     saveBtn.addEventListener('click', () => {
       const features = {};
-      for (const tool of TOOLS) {
-        if (tool.id === 'settings' || !tool.desc) continue;
+      for (const tool of FEATURES) {
         const cb = document.getElementById(`ce-feat-${tool.id}`);
         if (cb) features[tool.id] = cb.checked;
       }
@@ -427,8 +747,7 @@
 
     const savedFeatures = stored.ce_features || {};
     const featureItems = el('div', `display:flex;flex-direction:column;gap:6px;`);
-    for (const tool of TOOLS) {
-      if (tool.id === 'settings' || !tool.desc) continue;
+    for (const tool of FEATURES) {
       const isOn = savedFeatures[tool.id] !== false;
       const featureRow = el('div', `
         display:flex;align-items:flex-start;gap:10px;
@@ -459,15 +778,32 @@
     stack.appendChild(divider());
 
     // About
-    const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:5px;`);
-    const av = el('div', `font-weight:600;color:${DS.text};`);
-    av.textContent = 'Canvas Enhancer v3.0';
-    const au = el('div', '');
-    au.textContent = 'To uninstall: Chrome menu → More tools → Extensions → Remove';
-    about.appendChild(av); about.appendChild(au);
+    const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:8px;`);
+    const av = el('div', `font-weight:600;color:${DS.text};font-size:13px;`);
+    av.textContent = 'Canvas Enhancer v2.4';
+    about.appendChild(av);
+
+    const uninstallBtn = el('button', `
+      padding:8px 16px;border-radius:3px;border:1px solid #DC2626;
+      background:#fff;color:#DC2626;font-size:12px;font-weight:600;
+      cursor:pointer;font-family:${DS.font};width:100%;
+      transition:background .12s,color .12s;text-align:left;
+    `, { type: 'button', textContent: 'Uninstall Canvas Enhancer…' });
+    uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
+    uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = '#fff'; });
+    uninstallBtn.addEventListener('click', () => {
+      if (confirm('Remove Canvas Enhancer from your browser? This will delete all your saved settings and templates.')) {
+        chrome.runtime.sendMessage({ type: 'UNINSTALL_SELF' });
+      }
+    });
+    about.appendChild(uninstallBtn);
     stack.appendChild(about);
 
-    panelBody.appendChild(stack);
+    dest.appendChild(stack);
+    } catch(e) {
+      console.error('[CE] Settings render error:', e);
+      dest.innerHTML = `<div style="padding:20px;font-size:13px;color:#BC1212;">Settings failed to load.<br><code style="font-size:11px;">${e.message}</code></div>`;
+    }
   }
 
   // ── AI GRADER ──────────────────────────────────────────────────────────────
@@ -1951,8 +2287,9 @@
 
   }
 
-  async function renderNotes() {
-    panelBody.innerHTML = '';
+  async function renderNotes(target) {
+    const dest = target || panelBody;
+    dest.innerHTML = '';
     const stored = await new Promise(r => chrome.storage.local.get(['ce_teacher_notes'], r));
     let notes = Array.isArray(stored.ce_teacher_notes) ? stored.ce_teacher_notes : [];
     let editingId = null;
@@ -2077,7 +2414,7 @@
     wrap.appendChild(msg);
     wrap.appendChild(divider());
     wrap.appendChild(list);
-    panelBody.appendChild(wrap);
+    dest.appendChild(wrap);
     renderList();
   }
 
@@ -2489,6 +2826,26 @@
       showNgModal();
       return;
     }
+    if (tool.id === 'settings-tg') {
+      closePanel();
+      closeAllExternal();
+      settingsMBody.innerHTML = '';
+      settingsModal.style.display = 'flex';
+      renderSettings(settingsMBody);
+      return;
+    }
+    if (tool.id === 'chat-db') {
+      closePanel();
+      closeAllExternal();
+      openQuickAI();
+      return;
+    }
+    if (tool.id === 'notes-db' || tool.id === 'notes') {
+      closePanel();
+      closeAllExternal();
+      openNotesModal();
+      return;
+    }
 
     if (tool.id === 'quiz') {
       closePanel();
@@ -2574,8 +2931,8 @@
 
   function applyToolbarState() {
     toolbar.style.transform = 'none';
-    toolbar.style.display = _expanded ? 'flex' : 'none';
-    tab.style.display = _expanded ? 'none' : 'flex';
+    toolbar.style.display = (_expanded && _onDashboard) ? 'flex' : 'none';
+    tab.style.display = (_onDashboard && !_expanded) ? 'flex' : 'none';
     if (!_expanded) {
       closePanel();
       panel.style.right = '0';
@@ -2638,6 +2995,12 @@
 
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
+    // Modals must be in the DOM on every page so cross-toolbar events work
+    document.body.appendChild(ngModal);
+    document.body.appendChild(settingsModal);
+    document.body.appendChild(notesModal);
+    document.body.appendChild(helpModal);
+
     if (SPEEDGRADER) return;
     // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar.
     // SpeedGrader renders its layout inside #full_width_container — padding-right
@@ -2652,18 +3015,37 @@
     document.body.insertBefore(tab, document.body.firstChild);
     document.body.insertBefore(toolbar, tab);
     document.body.appendChild(panel);
-    document.body.appendChild(ngModal);
     applyToolbarState();
     chrome.storage.local.get('ce_features', ({ ce_features }) => {
       if (ce_features) applyFeatures(ce_features);
     });
   }
 
+  // ── DASHBOARD PAGE DETECTION ───────────────────────────────────────────────
+  function updateDashboardMode() {
+    const p = window.location.pathname;
+    const onDash = /^\/(dashboard)?\/?$/.test(p);
+    if (onDash !== _onDashboard) {
+      _onDashboard = onDash;
+      applyToolbarState();
+      if (onDash) setTimeout(updateGraderBadge, 600);
+    }
+  }
+  updateDashboardMode();
+  new MutationObserver(() => setTimeout(updateDashboardMode, 200)).observe(document.body, { childList: true, subtree: false });
+  setInterval(updateDashboardMode, 1500);
+
   document.addEventListener('ce-open-ai-grader', () => showNgModal());
+  document.addEventListener('ce-open-chat',  () => openQuickAI());
+  document.addEventListener('ce-open-notes', () => openNotesModal());
+  document.addEventListener('ce-open-help',  e => openHelp(e.detail));
   document.addEventListener('ce-render-audit', e => {
     const c = e.detail?.container;
     if (!c) return;
-    renderAudit(c, { courseId: e.detail?.courseId, assignmentId: e.detail?.assignmentId, assignmentName: e.detail?.assignmentName });
+    renderAudit(c, { courseId: e.detail?.courseId, assignmentId: e.detail?.assignmentId, assignmentName: e.detail?.assignmentName })
+      .catch(err => {
+        c.innerHTML = `<div style="padding:24px;color:#B91C1C;font-size:13px;">Audit failed to load: ${err?.message || err}</div>`;
+      });
   });
 
   if (document.body) mount();

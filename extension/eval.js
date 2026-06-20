@@ -456,7 +456,7 @@
     for (const [key, fn] of Object.entries(scorers)) {
       if (!settings[key]?.enabled) continue;
       const meta = SETTINGS_META[key];
-      categories[key] = { name: meta.label, icon: meta.icon, score: fn(), details: details[key] };
+      categories[key] = { name: meta.label, icon: meta.icon, score: fn(), details: details[key], description: meta.description };
     }
     const keys = Object.keys(categories);
     const tw = keys.reduce((s, k) => s + (CATEGORY_WEIGHTS[k] || 0), 0);
@@ -516,65 +516,70 @@
     const style = document.createElement('style');
     style.id = 'ce-eval-styles';
     style.textContent = `
-      .ce-ev{display:flex;flex-direction:column;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;color:#2D3B45;}
-      .ce-ev-nav{display:flex;align-items:center;gap:6px;padding:10px 16px;flex-shrink:0;border-bottom:1px solid #E2E8F0;}
-      .ce-ev-nav-btn{border:1px solid #C7CDD1;border-radius:3px;background:#fff;color:#2D3B45;font-size:12px;font-weight:600;padding:4px 10px;cursor:pointer;font-family:inherit;transition:background .12s;}
-      .ce-ev-nav-btn:hover{background:#F5F5F5;}
+      .ce-ev{display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;color:#2D3B45;background:#F8FAFC;}
+      .ce-ev-nav{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:12px 24px;flex-shrink:0;border-bottom:1px solid #E2E8F0;background:#fff;}
+      .ce-ev-nav-btn{border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#334155;font-size:13px;font-weight:600;padding:7px 16px;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s;}
+      .ce-ev-nav-btn:hover{background:#F8FAFC;border-color:#94A3B8;}
       .ce-ev-nav-btn.ml{margin-left:auto;}
-      .ce-ev-scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
-      .ce-ev-top{display:flex;flex-direction:column;gap:18px;padding:18px;border:1px solid #E2E8F0;border-radius:12px;background:#fff;}
-      .ce-ev-form-grid{display:grid;grid-template-columns:repeat(3, minmax(0,1fr));gap:14px;align-items:start;}
+      .ce-ev-scroll{padding:24px;display:flex;flex-direction:column;gap:20px;}
+      .ce-ev-top{display:flex;flex-direction:column;gap:20px;padding:24px;border-radius:16px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+      .ce-ev-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;}
       .ce-ev-action-row{display:flex;justify-content:flex-end;}
-      .ce-ev-group{display:flex;flex-direction:column;gap:5px;}
-      .ce-ev-label{font-size:12px;font-weight:600;color:#2D3B45;}
-      .ce-ev-input,.ce-ev-select{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #C7CDD1;border-radius:8px;font-size:13px;font-family:inherit;color:#2D3B45;background:#F8FAFC;outline:none;}
-      .ce-ev-input:focus,.ce-ev-select:focus{border-color:#0770B8;background:#fff;}
-      .ce-ev-hint{font-size:11px;color:#6B7280;line-height:1.4;}
-      .ce-ev-submit{width:auto;padding:11px 20px;border:none;border-radius:8px;background:#0770B8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s;}
-      .ce-ev-submit:hover{opacity:.88;}
-      .ce-ev-submit:disabled{opacity:.5;cursor:not-allowed;}
-      @media (max-width: 840px) {
-        .ce-ev-form-grid{grid-template-columns:1fr;}
-      }
-      .ce-ev-loading{text-align:center;padding:48px 16px;display:flex;flex-direction:column;align-items:center;gap:14px;}
-      .ce-ev-spinner{width:36px;height:36px;border:3px solid #E2E8F0;border-top:3px solid #0770B8;border-radius:50%;animation:ce-ev-spin .8s linear infinite;}
+      .ce-ev-group{display:flex;flex-direction:column;gap:6px;}
+      .ce-ev-label{font-size:13px;font-weight:600;color:#1E293B;}
+      .ce-ev-input,.ce-ev-select{width:100%;box-sizing:border-box;padding:11px 14px;border:1px solid #CBD5E1;border-radius:10px;font-size:14px;font-family:inherit;color:#1E293B;background:#fff;outline:none;transition:border .15s,box-shadow .15s;}
+      .ce-ev-input:focus,.ce-ev-select:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+      .ce-ev-hint{font-size:12px;color:#94A3B8;margin-top:2px;line-height:1.4;}
+      .ce-ev-submit{padding:12px 28px;border:none;border-radius:10px;background:linear-gradient(135deg,#2563EB,#1D4ED8);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s,transform .15s;}
+      .ce-ev-submit:hover{opacity:.9;transform:translateY(-1px);}
+      .ce-ev-submit:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+      @media (max-width:640px){.ce-ev-form-grid{grid-template-columns:1fr;}}
+      .ce-ev-loading{text-align:center;padding:72px 24px;display:flex;flex-direction:column;align-items:center;gap:18px;}
+      .ce-ev-spinner{width:52px;height:52px;border:4px solid #E2E8F0;border-top:4px solid #2563EB;border-radius:50%;animation:ce-ev-spin .8s linear infinite;}
       @keyframes ce-ev-spin{to{transform:rotate(360deg);}}
-      .ce-ev-progress{font-size:12px;color:#6B7280;}
-      .ce-ev-hero{background:#fff;border:1px solid #E2E8F0;border-radius:4px;padding:14px;display:flex;align-items:center;gap:14px;}
-      .ce-ev-circle{width:72px;height:72px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:26px;flex-shrink:0;}
-      .ce-ev-circle small{font-size:10px;font-weight:600;opacity:.9;}
-      .ce-ev-hero-text h3{margin:0 0 4px;font-size:15px;font-weight:700;color:#1E293B;}
-      .ce-ev-hero-text p{margin:0;font-size:12px;color:#64748B;line-height:1.4;}
-      .ce-ev-cat{background:#fff;border:1px solid #E2E8F0;border-radius:4px;padding:12px;}
-      .ce-ev-cat-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-      .ce-ev-cat-title{font-size:13px;font-weight:700;color:#1E293B;}
-      .ce-ev-badge{padding:3px 8px;border-radius:3px;color:#fff;font-weight:700;font-size:13px;}
-      .ce-ev-bar-bg{background:#E2E8F0;border-radius:2px;height:5px;margin-bottom:8px;overflow:hidden;}
-      .ce-ev-bar-fill{height:100%;border-radius:2px;}
-      .ce-ev-metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;}
-      .ce-ev-metric{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #F1F5F9;}
-      .ce-ev-ml{color:#6B7280;}
+      .ce-ev-progress{font-size:14px;color:#64748B;}
+      .ce-ev-chips{display:flex;flex-wrap:wrap;gap:8px;}
+      .ce-ev-chip{background:#E2E8F0;color:#334155;padding:5px 14px;border-radius:8px;font-size:13px;font-weight:500;}
+      .ce-ev-hero{background:#fff;border-radius:16px;padding:28px 32px;display:flex;align-items:center;gap:28px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+      .ce-ev-circle{width:110px;height:110px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:36px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.15);}
+      .ce-ev-circle small{font-size:12px;font-weight:600;opacity:.9;margin-top:2px;}
+      .ce-ev-hero-text h3{margin:0 0 6px;font-size:22px;font-weight:700;color:#1E293B;}
+      .ce-ev-hero-text p{margin:0;font-size:14px;color:#64748B;line-height:1.5;}
+      .ce-ev-cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;}
+      .ce-ev-cat{background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s;}
+      .ce-ev-cat:hover{box-shadow:0 4px 14px rgba(0,0,0,.1);}
+      .ce-ev-cat-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+      .ce-ev-cat-title{font-size:14px;font-weight:700;color:#1E293B;display:flex;align-items:center;gap:7px;}
+      .ce-ev-badge{padding:4px 12px;border-radius:8px;color:#fff;font-weight:700;font-size:15px;}
+      .ce-ev-bar-bg{background:#E2E8F0;border-radius:4px;height:6px;margin-bottom:14px;overflow:hidden;}
+      .ce-ev-bar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+      .ce-ev-metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;}
+      .ce-ev-metric{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid #F1F5F9;}
+      .ce-ev-ml{color:#64748B;}
       .ce-ev-mv{color:#1E293B;font-weight:600;}
-      .ce-ev-flag{padding:7px 10px;border-radius:3px;font-size:12px;font-weight:500;line-height:1.4;}
-      .ce-ev-flag-critical{background:#FEF2F2;color:#991B1B;border-left:3px solid #EF4444;}
-      .ce-ev-flag-warning{background:#FFFBEB;color:#92400E;border-left:3px solid #F59E0B;}
-      .ce-ev-no-flags{background:#F0FDF4;color:#166534;padding:8px 12px;border-radius:3px;font-size:12px;font-weight:500;}
-      .ce-ev-rec{background:#EFF6FF;color:#1E40AF;padding:7px 10px;border-radius:3px;font-size:12px;line-height:1.5;}
-      .ce-ev-sh{font-size:13px;font-weight:700;color:#1E293B;}
-      .ce-ev-error{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:14px;border-radius:4px;font-size:13px;line-height:1.5;}
-      .ce-ev-sc{background:#fff;border:1px solid #E2E8F0;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:0;}
-      .ce-ev-sc-head{font-size:13px;font-weight:700;color:#1E293B;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
-      .ce-ev-sc-desc{font-size:11px;color:#6B7280;line-height:1.45;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #F1F5F9;}
-      .ce-ev-tr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #F1F5F9;}
+      .ce-ev-cat-desc{font-size:12px;color:#94A3B8;line-height:1.5;margin-top:12px;padding-top:10px;border-top:1px solid #F1F5F9;}
+      .ce-ev-sh{font-size:16px;font-weight:700;color:#1E293B;}
+      .ce-ev-flags-list,.ce-ev-recs-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+      .ce-ev-flag{padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;line-height:1.4;display:flex;align-items:flex-start;gap:10px;}
+      .ce-ev-flag-critical{background:#FEF2F2;color:#991B1B;border-left:4px solid #EF4444;}
+      .ce-ev-flag-warning{background:#FFFBEB;color:#92400E;border-left:4px solid #F59E0B;}
+      .ce-ev-no-flags{background:#F0FDF4;color:#166534;padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500;}
+      .ce-ev-rec{background:#EFF6FF;color:#1E40AF;padding:12px 16px;border-radius:10px;font-size:14px;line-height:1.5;display:flex;align-items:flex-start;gap:10px;}
+      .ce-ev-rec-icon{flex-shrink:0;margin-top:1px;}
+      .ce-ev-error{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;padding:20px 24px;border-radius:14px;font-size:14px;line-height:1.6;margin:8px 0;}
+      .ce-ev-sc{background:#fff;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:0;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+      .ce-ev-sc-head{font-size:14px;font-weight:700;color:#1E293B;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+      .ce-ev-sc-desc{font-size:12px;color:#64748B;line-height:1.5;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #F1F5F9;}
+      .ce-ev-tr{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F1F5F9;}
       .ce-ev-tr:last-child{border-bottom:none;}
-      .ce-ev-tl{font-size:12px;color:#2D3B45;}
-      .ce-ev-toggle{position:relative;display:inline-block;width:34px;height:18px;flex-shrink:0;}
+      .ce-ev-tl{font-size:13px;color:#2D3B45;}
+      .ce-ev-toggle{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;}
       .ce-ev-toggle input{opacity:0;width:0;height:0;}
-      .ce-ev-slider{position:absolute;cursor:pointer;inset:0;background:#C7CDD1;border-radius:18px;transition:background .2s;}
-      .ce-ev-slider:before{content:"";position:absolute;width:14px;height:14px;left:2px;top:2px;background:#fff;border-radius:50%;transition:transform .2s;}
-      .ce-ev-toggle input:checked+.ce-ev-slider{background:#0770B8;}
+      .ce-ev-slider{position:absolute;cursor:pointer;inset:0;background:#C7CDD1;border-radius:20px;transition:background .2s;}
+      .ce-ev-slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;background:#fff;border-radius:50%;transition:transform .2s;}
+      .ce-ev-toggle input:checked+.ce-ev-slider{background:#2563EB;}
       .ce-ev-toggle input:checked+.ce-ev-slider:before{transform:translateX(16px);}
-      .ce-ev-intro{font-size:12px;color:#64748B;line-height:1.5;}
+      .ce-ev-intro{font-size:13px;color:#64748B;line-height:1.6;}
     `;
     document.head.appendChild(style);
   }
@@ -614,14 +619,14 @@
     _container.innerHTML = '';
     const wrap = document.createElement('div');
     wrap.className = 'ce-ev';
-    wrap.appendChild(makeNav(makeNavBtn('⚙ Settings', () => showSettingsView(settings))));
+    wrap.appendChild(makeNav(makeNavBtn('⚙ Settings', () => showSettingsView(settings), 'ml')));
 
     const scroll = document.createElement('div');
     scroll.className = 'ce-ev-scroll';
 
     const intro = document.createElement('div');
     intro.className = 'ce-ev-intro';
-    intro.textContent = 'Configure the course context below, then run the evaluation to score this course across 6 categories.';
+    intro.textContent = 'Configure the course context below, then run the evaluation to score this course across 6 categories. Results include a full scorecard, flags, and improvement recommendations.';
 
     const top = document.createElement('div');
     top.className = 'ce-ev-top';
@@ -746,14 +751,30 @@
     wrap.className = 'ce-ev';
     wrap.appendChild(makeNav(
       makeNavBtn('◀ New Eval', () => showForm()),
-      makeNavBtn('↺ Re-run', async () => {
-        const s = await loadSettings();
-        await runEvaluation(context, s);
-      }, 'ml')
+      makeNavBtn('⚙ Settings', async () => showSettingsView(await loadSettings())),
+      makeNavBtn('↺ Re-run', async () => { const s = await loadSettings(); await runEvaluation(context, s); }, 'ml')
     ));
 
     const scroll = document.createElement('div');
     scroll.className = 'ce-ev-scroll';
+
+    // Context chips
+    const chips = document.createElement('div');
+    chips.className = 'ce-ev-chips';
+    const delivLabel = { online: 'Online', hybrid: 'Hybrid', 'in-person': 'In-Person' }[context.deliveryType] || context.deliveryType;
+    for (const text of [
+      'Course: ' + esc(courseInfo?.name || 'Unknown'),
+      context.courseHours + ' course hours',
+      context.termWeeks + '-week term',
+      delivLabel,
+      metrics.studentCount + ' students',
+    ]) {
+      const chip = document.createElement('span');
+      chip.className = 'ce-ev-chip';
+      chip.textContent = text;
+      chips.appendChild(chip);
+    }
+    scroll.appendChild(chips);
 
     // Overall hero
     const lbl = scoreLabel(scores.overallScore);
@@ -762,60 +783,95 @@
     const circle = document.createElement('div');
     circle.className = 'ce-ev-circle';
     circle.style.background = lbl.color;
-    circle.innerHTML = `${scores.overallScore}<small>/100</small>`;
+    circle.innerHTML = scores.overallScore + '<small>/100</small>';
     const heroText = document.createElement('div');
     heroText.className = 'ce-ev-hero-text';
-    heroText.innerHTML = `<h3>${lbl.label}</h3><p>${esc(courseInfo?.name || 'Course Evaluation')}</p>`;
+    const h3 = document.createElement('h3');
+    h3.textContent = lbl.label;
+    const p = document.createElement('p');
+    p.textContent = 'Overall course evaluation score across ' + Object.keys(scores.categories).length + ' categories. ' + (scores.overallScore >= 80 ? 'This course is performing well.' : scores.overallScore >= 60 ? 'Some areas need attention.' : 'Several areas require immediate review.');
+    heroText.appendChild(h3);
+    heroText.appendChild(p);
     hero.appendChild(circle);
     hero.appendChild(heroText);
     scroll.appendChild(hero);
 
-    // Category cards
+    // Category cards grid
+    const grid = document.createElement('div');
+    grid.className = 'ce-ev-cat-grid';
     for (const cat of Object.values(scores.categories)) {
       const cl = scoreLabel(cat.score);
       const card = document.createElement('div');
       card.className = 'ce-ev-cat';
       const hdr = document.createElement('div');
       hdr.className = 'ce-ev-cat-hdr';
-      hdr.innerHTML = `<div class="ce-ev-cat-title">${cat.icon}  ${esc(cat.name)}</div><div class="ce-ev-badge" style="background:${cl.color}">${cat.score}</div>`;
+      const titleEl = document.createElement('div');
+      titleEl.className = 'ce-ev-cat-title';
+      titleEl.innerHTML = cat.icon + ' ' + esc(cat.name);
+      const badge = document.createElement('div');
+      badge.className = 'ce-ev-badge';
+      badge.style.background = cl.color;
+      badge.textContent = cat.score;
+      hdr.appendChild(titleEl);
+      hdr.appendChild(badge);
       const bar = document.createElement('div');
       bar.className = 'ce-ev-bar-bg';
-      bar.innerHTML = `<div class="ce-ev-bar-fill" style="width:${cat.score}%;background:${cl.color}"></div>`;
-      const metrics = document.createElement('div');
-      metrics.className = 'ce-ev-metrics';
-      metrics.innerHTML = cat.details.map(d =>
-        `<div class="ce-ev-metric"><span class="ce-ev-ml">${esc(d.label)}</span><span class="ce-ev-mv">${esc(String(d.value))}</span></div>`
+      bar.innerHTML = '<div class="ce-ev-bar-fill" style="width:' + cat.score + '%;background:' + cl.color + '"></div>';
+      const metricsEl = document.createElement('div');
+      metricsEl.className = 'ce-ev-metrics';
+      metricsEl.innerHTML = cat.details.map(d =>
+        '<div class="ce-ev-metric"><span class="ce-ev-ml">' + esc(d.label) + '</span><span class="ce-ev-mv">' + esc(String(d.value)) + '</span></div>'
       ).join('');
       card.appendChild(hdr);
       card.appendChild(bar);
-      card.appendChild(metrics);
-      scroll.appendChild(card);
+      card.appendChild(metricsEl);
+      if (cat.description) {
+        const desc = document.createElement('div');
+        desc.className = 'ce-ev-cat-desc';
+        desc.textContent = cat.description;
+        card.appendChild(desc);
+      }
+      grid.appendChild(card);
     }
+    scroll.appendChild(grid);
 
     // Flags
-    const flagSection = makeSection([
-      Object.assign(document.createElement('div'), { className: 'ce-ev-sh', textContent: 'Flags' }),
-    ]);
+    const flagWrap = document.createElement('div');
+    const flagHdr = document.createElement('div');
+    flagHdr.className = 'ce-ev-sh';
+    flagHdr.textContent = 'Flags';
+    flagWrap.appendChild(flagHdr);
+    const flagList = document.createElement('div');
+    flagList.className = 'ce-ev-flags-list';
     if (!flags.length) {
-      flagSection.appendChild(Object.assign(document.createElement('div'), { className: 'ce-ev-no-flags', textContent: '✅  No critical issues found.' }));
+      flagList.appendChild(Object.assign(document.createElement('div'), { className: 'ce-ev-no-flags', textContent: '✅  No critical issues found.' }));
     } else {
       for (const f of flags) {
         const el = document.createElement('div');
         el.className = 'ce-ev-flag ce-ev-flag-' + f.level;
-        el.textContent = (f.level === 'critical' ? '🔴 ' : '⚠️ ') + f.msg;
-        flagSection.appendChild(el);
+        el.innerHTML = '<span>' + (f.level === 'critical' ? '🔴' : '⚠️') + '</span><span>' + esc(f.msg) + '</span>';
+        flagList.appendChild(el);
       }
     }
-    scroll.appendChild(flagSection);
+    flagWrap.appendChild(flagList);
+    scroll.appendChild(flagWrap);
 
     // Recommendations
-    const recSection = makeSection([
-      Object.assign(document.createElement('div'), { className: 'ce-ev-sh', textContent: 'Recommendations' }),
-    ]);
+    const recWrap = document.createElement('div');
+    const recHdr = document.createElement('div');
+    recHdr.className = 'ce-ev-sh';
+    recHdr.textContent = 'Recommendations';
+    recWrap.appendChild(recHdr);
+    const recList = document.createElement('div');
+    recList.className = 'ce-ev-recs-list';
     for (const rec of recs) {
-      recSection.appendChild(Object.assign(document.createElement('div'), { className: 'ce-ev-rec', textContent: '→ ' + rec }));
+      const el = document.createElement('div');
+      el.className = 'ce-ev-rec';
+      el.innerHTML = '<span class="ce-ev-rec-icon">→</span><span>' + esc(rec) + '</span>';
+      recList.appendChild(el);
     }
-    scroll.appendChild(recSection);
+    recWrap.appendChild(recList);
+    scroll.appendChild(recWrap);
 
     wrap.appendChild(scroll);
     _container.appendChild(wrap);
@@ -913,14 +969,133 @@
     _container.appendChild(wrap);
   }
 
-  // ── ENTRY POINT ───────────────────────────────────────────────────────────────
+  // ── ENTRY POINT (panel / modal) ───────────────────────────────────────────────
   document.addEventListener('ce-render-eval', e => {
     _container = e.detail?.container;
     if (!_container) return;
     _container.style.padding = '0';
-    _container.style.overflow = 'hidden';
+    _container.style.overflow = 'auto';
     injectStyles();
     showForm();
   });
+
+  // ── COURSE HOME TOOLBAR + CENTERED MODAL ──────────────────────────────────────
+  (function installVitalsToolbar() {
+    if (document.getElementById('ce-vitals-toolbar')) return;
+
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
+
+    const st = document.createElement('style');
+    st.textContent = 'body.ce-vitals-mode #ce-hub{display:none!important}body.ce-vitals-mode #ce-hub-panel{display:none!important}';
+    (document.head || document.documentElement).appendChild(st);
+
+    // ── CENTERED MODAL ────────────────────────────────────────────────────────
+    const backdrop = document.createElement('div');
+    backdrop.id = 'ce-vitals-modal';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:2147483640;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#F8FAFC;width:min(1100px,calc(100vw - 48px));max-height:min(900px,calc(100vh - 60px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;';
+
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
+    const ttl = document.createElement('h2');
+    ttl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';';
+    ttl.textContent = 'Course Vitals';
+    const xBtn = document.createElement('button');
+    xBtn.type = 'button'; xBtn.textContent = '×';
+    xBtn.style.cssText = 'width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:' + font + ';padding:0;';
+    xBtn.addEventListener('mouseenter', () => { xBtn.style.background = 'rgba(255,255,255,0.15)'; xBtn.style.color = '#fff'; });
+    xBtn.addEventListener('mouseleave', () => { xBtn.style.background = ''; xBtn.style.color = 'rgba(255,255,255,0.65)'; });
+    xBtn.addEventListener('click', () => { backdrop.style.display = 'none'; });
+    hdr.append(ttl, xBtn);
+
+    const body = document.createElement('div');
+    body.style.cssText = 'flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;background:#F8FAFC;';
+
+    box.append(hdr, body);
+    backdrop.appendChild(box);
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.style.display = 'none'; });
+    box.addEventListener('click', e => e.stopPropagation());
+
+    let _rendered = false;
+    function openVitals() {
+      backdrop.style.display = 'flex';
+      if (!_rendered) {
+        _rendered = true;
+        document.dispatchEvent(new CustomEvent('ce-render-eval', { detail: { container: body } }));
+      }
+    }
+
+    // ── COLLAPSED TAB ─────────────────────────────────────────────────────────
+    const colTab = document.createElement('button');
+    colTab.id = 'ce-vitals-tab';
+    colTab.type = 'button';
+    colTab.textContent = 'Course ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => { colTab.style.color = '#fff'; });
+    colTab.addEventListener('mouseleave', () => { colTab.style.color = 'rgba(255,255,255,0.85)'; });
+    document.body.appendChild(colTab);
+
+    // ── TOOLBAR BAR ───────────────────────────────────────────────────────────
+    const bar = document.createElement('div');
+    bar.id = 'ce-vitals-toolbar';
+    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
+    lbl.textContent = 'Course';
+
+    function mkBtn(text) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = text;
+      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      return b;
+    }
+
+    const vitalsBtn = mkBtn('Vitals');
+    vitalsBtn.addEventListener('click', openVitals);
+
+    const needsGradedBtn = mkBtn('Needs Graded');
+    needsGradedBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-ai-grader')));
+
+    const chatBtn = mkBtn('Chat');
+    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
+    const notesBtn = mkBtn('Notes');
+    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+
+    const hideBtn = mkBtn('Hide');
+    hideBtn.style.marginLeft = 'auto';
+    hideBtn.addEventListener('click', () => { bar.style.display = 'none'; colTab.style.display = 'block'; });
+    colTab.addEventListener('click', () => { colTab.style.display = 'none'; bar.style.display = 'flex'; });
+
+    bar.append(lbl, vitalsBtn, needsGradedBtn, chatBtn, notesBtn, hideBtn);
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // ── PAGE DETECTION ────────────────────────────────────────────────────────
+    let _onPage = false;
+    function updateBar() {
+      const p = window.location.pathname;
+      const onPage = /\/courses\/\d+(\/home)?\/?$/.test(p);
+      if (onPage && !_onPage) {
+        document.body.classList.add('ce-vitals-mode');
+        bar.style.display = 'flex';
+        colTab.style.display = 'none';
+      } else if (!onPage && _onPage) {
+        document.body.classList.remove('ce-vitals-mode');
+        bar.style.display = 'none';
+        colTab.style.display = 'none';
+        backdrop.style.display = 'none';
+      }
+      _onPage = onPage;
+    }
+
+    updateBar();
+    new MutationObserver(() => setTimeout(updateBar, 200)).observe(document.body, { childList: true, subtree: false });
+    setInterval(updateBar, 1500);
+  })();
 
 })();

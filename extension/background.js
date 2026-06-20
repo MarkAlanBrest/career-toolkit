@@ -100,6 +100,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleOpenClaudeSplit(msg.payload, sender).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'UNINSTALL_SELF') {
+    chrome.management.uninstallSelf({ showConfirmDialog: false });
+    return false;
+  }
 });
 
 async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {

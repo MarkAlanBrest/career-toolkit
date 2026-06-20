@@ -6,12 +6,11 @@
   "permissions": [
     "storage",
     "cookies",
-    "windows"
+    "windows",
+    "management"
   ],
   "host_permissions": [
-    "https://*.instructure.com/*",
-    "https://*.canvas.com/*",
-    "https://*.canvaslms.com/*",
+    "https://*/*",
     "https://*.vercel.app/*",
     "https://canvasenhancer.com/*",
     "http://localhost:3000/*",
@@ -27,12 +26,8 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://*.instructure.com/*",
-        "https://*.canvas.com/*",
-        "https://*.canvaslms.com/*"
-      ],
-      "js": ["hub.js", "content.js", "grader.js", "scheduler.js", "date-autofill.js", "email.js", "eval.js"],
+      "matches": ["https://*/*"],
+      "js": ["hub.js", "content.js", "grader.js", "scheduler.js", "date-autofill.js", "email.js", "eval.js", "announcements.js"],
       "css": ["toolbar.css"],
       "run_at": "document_idle"
     }

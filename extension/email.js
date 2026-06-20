@@ -2470,10 +2470,11 @@
   }
 
   /* =========================================================
-     SPEEDGRADER COMMENT INSERTER
+     INBOX TOOLBAR — placeholder kept for file structure
   ========================================================= */
   function installSpeedGraderInserter() {
-    if (!/speed_grader/.test(window.location.href)) return;
+    // removed — Insert Comment floating button replaced by grader.js Comments toolbar button
+    return;
 
     const sgPanel = document.createElement('div');
     sgPanel.id = 'ces-sg-message-panel';
@@ -2614,7 +2615,7 @@
     // ── FULL BAR ─────────────────────────────────────────────────────────────
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
 
     const lbl = document.createElement('span');
     lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
@@ -2644,6 +2645,15 @@
       renderTemplatesTab(document.getElementById('ces-tpl-body'));
     });
 
+    const chatBtn = mkBtn('Chat');
+    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
+    const notesBtn = mkBtn('Notes');
+    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+
+    const helpBtn = mkBtn('Help');
+    helpBtn.title = 'Help';
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'inbox' })));
+
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
     hideBtn.style.marginLeft = 'auto';
@@ -2658,23 +2668,22 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(lbl, sendBtn, tplBtn, hideBtn);
+    bar.append(lbl, sendBtn, tplBtn, chatBtn, notesBtn, helpBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
     let _onInbox = false;
 
     function updateBar() {
-      const onInbox = window.location.pathname.includes('/conversations');
+      const p = window.location.pathname;
+      const onInbox = p.includes('/conversations');
 
       if (onInbox && !_onInbox) {
-        // Just arrived at inbox — expand by default
         document.body.classList.add('ces-inbox-mode');
         document.body.classList.remove('ces-inbox-collapsed');
         bar.style.display = 'flex';
         colTab.style.display = 'none';
       } else if (!onInbox && _onInbox) {
-        // Left inbox — restore hub toolbar
         document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
         bar.style.display = 'none';
         colTab.style.display = 'none';

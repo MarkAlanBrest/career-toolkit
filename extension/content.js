@@ -2258,6 +2258,91 @@ Critical rules:
     else document.body.appendChild(toolbar);
   }
 
+  // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
+  (function installQuizToolbar() {
+    if (document.getElementById('ce-quiz-toolbar')) return;
+
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
+
+    const st = document.createElement('style');
+    st.textContent = 'body.ce-quiz-mode #ce-hub{display:none!important}body.ce-quiz-mode #ce-hub-panel{display:none!important}';
+    (document.head || document.documentElement).appendChild(st);
+
+    const colTab = document.createElement('button');
+    colTab.id = 'ce-quiz-tab';
+    colTab.type = 'button';
+    colTab.textContent = 'Quizzes ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
+    colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
+    document.body.appendChild(colTab);
+
+    const bar = document.createElement('div');
+    bar.id = 'ce-quiz-toolbar';
+    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
+    lbl.textContent = 'Quizzes';
+
+    function mkBtn(text) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      return b;
+    }
+
+    const quizBtn = mkBtn('Quiz Builder');
+    quizBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-quiz')));
+
+    const chatBtn = mkBtn('Chat');
+    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
+
+    const notesBtn = mkBtn('Notes');
+    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+
+    const helpBtn = mkBtn('Help');
+    helpBtn.title = 'Help';
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'quiz' })));
+
+    const hideBtn = mkBtn('Hide');
+    hideBtn.style.marginLeft = 'auto';
+    hideBtn.addEventListener('click', () => {
+      bar.style.display = 'none';
+      colTab.style.display = 'block';
+    });
+    colTab.addEventListener('click', () => {
+      colTab.style.display = 'none';
+      bar.style.display = 'flex';
+    });
+
+    bar.append(lbl, quizBtn, chatBtn, notesBtn, helpBtn, hideBtn);
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    let _onPage = false;
+
+    function updateQuizBar() {
+      const onPage = /\/courses\/\d+\/quizzes/.test(window.location.pathname);
+      if (onPage && !_onPage) {
+        document.body.classList.add('ce-quiz-mode');
+        bar.style.display = 'flex';
+        colTab.style.display = 'none';
+      } else if (!onPage && _onPage) {
+        document.body.classList.remove('ce-quiz-mode');
+        bar.style.display = 'none';
+        colTab.style.display = 'none';
+      }
+      _onPage = onPage;
+    }
+
+    updateQuizBar();
+    new MutationObserver(() => setTimeout(updateQuizBar, 200)).observe(document.body, { childList: true, subtree: false });
+    setInterval(updateQuizBar, 1500);
+  })();
+
   // ── HUB INTEGRATION ──────────────────────────────────────────────────────────
   document.addEventListener('ce-toggle-quiz', () => {
     const existing = document.getElementById('ce-qm-overlay');
