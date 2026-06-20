@@ -438,7 +438,7 @@
       const settingsBtn = ceSgToolbarButton('Settings', false);
       const helpBtn = ceSgToolbarButton('Help', false);
       helpBtn.title = 'Help';
-      helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'grader' })));
+      helpBtn.addEventListener('click', () => showDrawer('help'));
       const collapseBtn = ceSgToolbarButton('Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
       main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, helpBtn, settingsBtn, collapseBtn);
@@ -621,6 +621,23 @@
         return f;
       }
 
+      function mkHelpCard(tips) {
+        const card = document.createElement('div');
+        card.style.cssText = 'flex-shrink:0;padding:8px 14px 10px;background:#F0F6FF;border-top:1px solid #D0E3F4;font-size:11px;color:#2D3B45;line-height:1.65;';
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-weight:700;margin-bottom:5px;font-size:10px;color:#0770B8;text-transform:uppercase;letter-spacing:.06em;';
+        lbl.textContent = 'ⓘ How to use';
+        const list = document.createElement('ul');
+        list.style.cssText = 'margin:0;padding-left:15px;display:flex;flex-direction:column;gap:2px;';
+        tips.forEach(tip => {
+          const li = document.createElement('li');
+          li.textContent = tip;
+          list.appendChild(li);
+        });
+        card.append(lbl, list);
+        return card;
+      }
+
       function composeCriteriaText(c) {
         if (!c) return '';
         if (typeof c === 'string') return c;
@@ -686,7 +703,12 @@
           body.append(filterRow, queueStatus, queueList);
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📬', 'Needs Graded'), body, mkFooter(cancelBtn, refreshQueueBtn));
+          drawer.append(makeModalHeader('📬', 'Needs Graded'), body, mkHelpCard([
+            'Shows every student submission waiting to be graded across all your active courses.',
+            'Click a student\'s name to jump directly to their submission in SpeedGrader.',
+            'Published Only hides courses not yet visible to students. Dashboard Only shows only the courses pinned to your Canvas home.',
+            'The list refreshes automatically each time you open this panel.',
+          ]), mkFooter(cancelBtn, refreshQueueBtn));
           loadQueue(true);
 
         } else if (mode === 'ai') {
@@ -817,7 +839,12 @@
 
           const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           closeBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub'), body, mkFooter(closeBtn));
+          drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub'), body, mkHelpCard([
+            'Click "Grade This Assignment" to have the AI read the student\'s submission and draft a score and feedback.',
+            'Set up your rubric in the Criteria tab before grading — the more detail you give, the better the AI performs.',
+            'Always review the AI\'s suggestions. Insert Score and Insert Comment push them into Canvas when you\'re ready.',
+            'If no criteria are set, the AI will still grade but will use its own judgment — a warning will appear.',
+          ]), mkFooter(closeBtn));
 
         } else if (mode === 'criteria') {
           criteriaBtn.classList.add('ce-sg-btn-primary');
@@ -884,7 +911,13 @@
 
           const doneBtn = mkAbtn('Done', 'ce-sg-abtn-primary');
           doneBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('📋', 'Grading Criteria', ctx.assignmentName || ''), split, mkFooter(doneBtn));
+          drawer.append(makeModalHeader('📋', 'Grading Criteria', ctx.assignmentName || ''), split, mkHelpCard([
+            'Everything here tells the AI how to grade. The more detail you add, the more consistent and accurate the results.',
+            'Rubric: paste your grading breakdown or point categories. The AI will score against each one.',
+            'Answer Key: paste a model answer for the AI to compare student work against.',
+            'Notes for AI: add special instructions — tone, partial credit rules, what to focus on or ignore.',
+            'Criteria are saved per assignment. Set it once and it applies every time you grade that assignment.',
+          ]), mkFooter(doneBtn));
 
         } else if (mode === 'comments') {
           commentsBtn.classList.add('ce-sg-btn-primary');
@@ -1008,7 +1041,12 @@
             }
           });
 
-          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkFooter(resetBtn, closeBtn, addBtn));
+          drawer.append(makeModalHeader('💬', 'Comment Snippets'), listBody, mkHelpCard([
+            'Save feedback phrases you write repeatedly — insert them into Canvas with one click.',
+            'Pairs well with AI grading: use AI for the first draft, then add a saved snippet for your personal touch.',
+            'Click "+ Add Comment" to save a new phrase. Use Edit to refine it any time.',
+            'Reset to Defaults restores the built-in starter comments without deleting your custom ones first.',
+          ]), mkFooter(resetBtn, closeBtn, addBtn));
 
         } else if (mode === 'audit') {
           auditBtn.classList.add('ce-sg-btn-primary');
@@ -1017,7 +1055,13 @@
           auditContainer.style.cssText = 'flex:1;min-height:0;overflow:auto;';
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('🔍', 'Cheating Detection'), auditContainer, mkFooter(cancelBtn));
+          drawer.append(makeModalHeader('🔍', 'Cheating Detection'), auditContainer, mkHelpCard([
+            'Automatically scans this assignment\'s submissions for patterns that may warrant a closer look.',
+            'Checks include: text similarity between students, submission timing clusters, quiz tab-switching, unusually fast completions, and matching wrong answers.',
+            'Only checks that apply to this assignment type are shown — quiz checks are hidden for regular essay assignments.',
+            'Click "Open full report →" under a flagged item for a detailed printable report. Use the Print button for a full summary.',
+            'Results are for instructor review only. This tool identifies signals — you determine what, if anything, happened.',
+          ]), mkFooter(cancelBtn));
           setTimeout(() => {
             const { courseId: aCid, assignmentId: aAid } = getSpeedGraderUrlParts();
             const assignName = document.querySelector('#assignment_title a, .assignment-title, [data-testid="assignment-title"]')?.textContent?.trim() || '';
@@ -1043,7 +1087,12 @@
           saveMsg.style.cssText += ';text-align:center;color:#127A1B;';
           const cancelBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
           cancelBtn.addEventListener('click', closeDrawer);
-          drawer.append(makeModalHeader('⚙️', 'Settings'), body, mkFooter(cancelBtn, saveBtn));
+          drawer.append(makeModalHeader('⚙️', 'Settings'), body, mkHelpCard([
+            'Canvas API Token is required for AI grading and the Needs Graded list. Get one from Canvas → Account → Settings → + New Access Token.',
+            'Teacher Name appears at the end of every AI-generated comment as a personal closing.',
+            'AI Model: Standard (Haiku) is fast and works great for most assignments. High Quality (Sonnet) is better for complex essays.',
+            'Click Save Settings after making any changes.',
+          ]), mkFooter(cancelBtn, saveBtn));
 
           (async () => {
             const stored = await ceSgStorageGet(['ce_canvas_token', 'ce_teacher_name', 'ce_license_key']);
@@ -1133,6 +1182,79 @@
               setTimeout(() => { saveMsg.textContent = ''; }, 2500);
             });
           })();
+
+        } else if (mode === 'help') {
+          drawer.classList.add('ce-sz-sm');
+
+          const body = document.createElement('div');
+          body.className = 'ce-sg-mbody';
+          body.style.cssText += ';gap:0;padding:0;';
+
+          const intro = document.createElement('div');
+          intro.style.cssText = 'padding:16px 18px 12px;border-bottom:1px solid #eee;';
+          const introTitle = document.createElement('div');
+          introTitle.style.cssText = 'font-size:15px;font-weight:800;color:#2D3B45;margin-bottom:6px;';
+          introTitle.textContent = 'Canvas Enhancer — Grader Toolbar';
+          const introSub = document.createElement('div');
+          introSub.style.cssText = 'font-size:12px;color:#556066;line-height:1.6;';
+          introSub.textContent = 'A complete grading assistant built into SpeedGrader. The tools below work together to save you hours every week — and help you give students more consistent, detailed feedback.';
+          intro.append(introTitle, introSub);
+          body.appendChild(intro);
+
+          const tools = [
+            {
+              icon: '📬',
+              name: 'Needs Graded',
+              desc: 'One-click view of every ungraded student submission across all your active courses. Click a name to jump directly to their work in SpeedGrader — no more hunting through courses.',
+            },
+            {
+              icon: '🎓',
+              name: 'AI Grade',
+              desc: 'The AI reads each student\'s submission, applies your rubric, and drafts a score and personalized feedback. You review, adjust, and insert with one click. Grades faster, comments better, never misses a rubric point.',
+            },
+            {
+              icon: '📋',
+              name: 'Grading Criteria',
+              desc: 'Tell the AI exactly how to grade: paste your rubric, answer key, and any special instructions. Set it once per assignment and the AI applies your rules to every student, every time.',
+            },
+            {
+              icon: '💬',
+              name: 'Comment Snippets',
+              desc: 'Save feedback phrases you write over and over. Insert any saved comment into Canvas with a single click — works alongside AI feedback or on its own.',
+            },
+            {
+              icon: '🔍',
+              name: 'Cheating Detection',
+              desc: 'Automatically checks submissions for similarity, unusual timing, quiz tab-switching, fast completions, and matching wrong answers. Flags patterns for your review — you decide what to do with them.',
+            },
+          ];
+
+          tools.forEach((tool, i) => {
+            const row = document.createElement('div');
+            row.style.cssText = `display:flex;gap:12px;padding:13px 18px;${i > 0 ? 'border-top:1px solid #f0f2f4;' : ''}`;
+            const ico = document.createElement('div');
+            ico.style.cssText = 'font-size:20px;flex-shrink:0;width:28px;text-align:center;padding-top:1px;';
+            ico.textContent = tool.icon;
+            const text = document.createElement('div');
+            const nm = document.createElement('div');
+            nm.style.cssText = 'font-size:13px;font-weight:700;color:#2D3B45;margin-bottom:3px;';
+            nm.textContent = tool.name;
+            const ds = document.createElement('div');
+            ds.style.cssText = 'font-size:12px;color:#556066;line-height:1.55;';
+            ds.textContent = tool.desc;
+            text.append(nm, ds);
+            row.append(ico, text);
+            body.appendChild(row);
+          });
+
+          const tip = document.createElement('div');
+          tip.style.cssText = 'padding:10px 18px 14px;border-top:1px solid #eee;font-size:11px;color:#8A9299;line-height:1.5;';
+          tip.textContent = '💡 Start with Settings to add your Canvas API Token, then open Grading Criteria to set up your rubric before grading. Each tool shows its own tips in the "How to use" bar at the bottom.';
+          body.appendChild(tip);
+
+          const closeBtn = mkAbtn('Close', 'ce-sg-abtn-secondary');
+          closeBtn.addEventListener('click', closeDrawer);
+          drawer.append(makeModalHeader('❓', 'How to Use Canvas Enhancer Grader'), body, mkFooter(closeBtn));
         }
       }
 
