@@ -309,6 +309,41 @@
     return x;
   }
 
+  // Shared stat tile used by Vitals and At Risk
+  function makeStatTile(icon, value, label, sublabel, valColor) {
+    const card = el('div', `flex:1;padding:16px 8px 14px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:0;`);
+    const icoEl = el('div', `font-size:20px;line-height:1;margin-bottom:5px;`); icoEl.textContent = icon;
+    const valEl = el('div', `font-size:28px;font-weight:700;color:${valColor};line-height:1;`); valEl.textContent = String(value);
+    const lblEl = el('div', `font-size:10px;font-weight:700;color:${DS.text};text-transform:uppercase;letter-spacing:.5px;text-align:center;margin-top:5px;`); lblEl.textContent = label;
+    const subEl = el('div', `font-size:9px;color:${DS.muted};text-align:center;margin-top:2px;`); subEl.textContent = sublabel || '';
+    card.append(icoEl, valEl, lblEl, subEl);
+    return card;
+  }
+
+  // Shared section divider label used inside modal bodies
+  function makeSecHdr(text, extraStyle) {
+    const h = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;${extraStyle || ''}`);
+    h.textContent = text;
+    return h;
+  }
+
+  // Shared clickable row link used inside modal bodies
+  function makeRowLink(href) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.style.cssText = `display:flex;align-items:center;gap:12px;padding:11px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+    a.addEventListener('mouseenter', () => { a.style.background = DS.gray; });
+    a.addEventListener('mouseleave', () => { a.style.background = ''; });
+    return a;
+  }
+
+  // Shared pill badge
+  function makeBadge(text, bg, color) {
+    const b = el('div', `background:${bg};color:${color};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
+    b.textContent = text;
+    return b;
+  }
+
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
   const toolbar = el('div', `
     position:relative;width:100%;height:${TOOLBAR_H}px;
@@ -543,14 +578,14 @@
   // ── VITALS MODAL ───────────────────────────────────────────────────────────
   const vitalsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   vitalsModal.id = 'ce-hub-vitals-modal';
-  const vitalsBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const vitalsBox = el('div', `background:#fff;width:min(680px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 64px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   vitalsModal.appendChild(vitalsBox);
   vitalsModal.addEventListener('click', e => { if (e.target === vitalsModal) { vitalsModal.style.display = 'none'; setActive(null); } });
 
   // ── AT RISK MODAL ──────────────────────────────────────────────────────────
   const atRiskModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   atRiskModal.id = 'ce-atrisk-modal';
-  const atRiskBox = el('div', `background:#fff;width:min(720px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 64px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const atRiskBox = el('div', `background:#fff;width:min(680px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 64px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   atRiskModal.appendChild(atRiskBox);
   atRiskModal.addEventListener('click', e => { if (e.target === atRiskModal) { atRiskModal.style.display = 'none'; setActive(null); } });
 
