@@ -43,15 +43,14 @@
   const TOOLS = [
     // ── Dashboard Toolbar ─────────────────────────────────────────────────────
     { _section: 'db', label: 'Dashboard' },
-    { id: 'chat-db',     group: 'db', icon: '💬', label: 'Chat' },
-    { id: 'notes-db',    group: 'db', icon: '📝', label: 'Notes' },
-    { id: 'settings-tg', group: 'db', icon: '⚙️', label: 'Settings' },
+    { id: 'vitals-db',    group: 'db', icon: '📊', label: 'Vitals' },
+    { id: 'needs-graded', group: 'db', icon: '✏️', label: 'Needs Graded' },
+    { id: 'at-risk',      group: 'db', icon: '⚠️', label: 'At Risk' },
+    { id: 'settings-tg',  group: 'db', icon: '⚙️', label: 'Settings' },
   ];
 
   // Features shown in Settings — separate from toolbar TOOLS so they don't render as buttons
   const FEATURES = [
-    { id: 'chat-db',       icon: '💬', label: 'Chat Assistant',    desc: 'Opens an AI chat window (Claude, ChatGPT, Gemini, etc.) in a side panel.' },
-    { id: 'notes-db',      icon: '📝', label: 'Notes',             desc: 'Personal notes panel — stays saved between sessions for quick reference.' },
     { id: 'quiz-builder',  icon: '✅', label: 'Quiz Builder',      desc: 'AI-powered quiz generator — appears in the toolbar on the Quizzes page.' },
     { id: 'inbox-toolbar', icon: '📨', label: 'Inbox Toolbar',     desc: 'Bulk Message and Templates on the Canvas Inbox and Announcements pages.' },
     { id: 'announce-bar',  icon: '📢', label: 'Announcement Bar',  desc: 'Quick Post button on the announcement compose form with saved templates.' },
@@ -273,7 +272,7 @@
   let _active      = null;          // tool id with open panel
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
-  let _onDashboard = /^\/(dashboard)?\/?$/.test(window.location.pathname);
+  let _onDashboard = window.location.pathname === '/';
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -281,6 +280,33 @@
     if (css) e.style.cssText = css;
     if (attrs) Object.assign(e, attrs);
     return e;
+  }
+
+  function makeHelpDescPanel(text) {
+    const p = el('div', `display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.6;flex-shrink:0;`);
+    p.textContent = text;
+    return p;
+  }
+
+  function makeHelpQBtn(descPanel) {
+    const q = el('button', `width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.45);background:none;color:rgba(255,255,255,0.8);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:${DS.font};transition:background .12s,color .12s;`, { type:'button', textContent:'?' });
+    q.addEventListener('click', () => {
+      const open = descPanel.style.display !== 'none';
+      descPanel.style.display = open ? 'none' : 'block';
+      q.style.background = open ? '' : 'rgba(255,255,255,0.2)';
+      q.style.color = open ? 'rgba(255,255,255,0.8)' : '#fff';
+    });
+    q.addEventListener('mouseenter', () => { if (descPanel.style.display === 'none') q.style.background = 'rgba(255,255,255,0.12)'; });
+    q.addEventListener('mouseleave', () => { if (descPanel.style.display === 'none') q.style.background = ''; });
+    return q;
+  }
+
+  function makeModalCloseBtn(onClose) {
+    const x = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;line-height:1;padding:0;font-family:${DS.font};transition:background .12s,color .12s;`, { type:'button', textContent:'×' });
+    x.addEventListener('mouseenter', () => { x.style.background = 'rgba(255,255,255,0.15)'; x.style.color = '#fff'; });
+    x.addEventListener('mouseleave', () => { x.style.background = ''; x.style.color = 'rgba(255,255,255,0.65)'; });
+    x.addEventListener('click', onClose);
+    return x;
   }
 
   // ── TOOLBAR ────────────────────────────────────────────────────────────────
@@ -388,7 +414,7 @@
     letter-spacing:1.2px;color:rgba(255,255,255,0.35);
     font-family:${DS.font};white-space:nowrap;margin-top:1px;
   `);
-  subtitleLine.textContent = 'Teaching Toolkit';
+  subtitleLine.textContent = 'Canvas Enhancer — Reports Toolbar';
 
   greetingWrap.append(welcomeLine, subtitleLine);
   toolbar.appendChild(greetingWrap);
@@ -513,6 +539,20 @@
   const ngBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(600px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   ngModal.appendChild(ngBox);
   ngModal.addEventListener('click', e => { if (e.target === ngModal) closeNgModal(); });
+
+  // ── VITALS MODAL ───────────────────────────────────────────────────────────
+  const vitalsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  vitalsModal.id = 'ce-vitals-modal';
+  const vitalsBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  vitalsModal.appendChild(vitalsBox);
+  vitalsModal.addEventListener('click', e => { if (e.target === vitalsModal) { vitalsModal.style.display = 'none'; setActive(null); } });
+
+  // ── AT RISK MODAL ──────────────────────────────────────────────────────────
+  const atRiskModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  atRiskModal.id = 'ce-atrisk-modal';
+  const atRiskBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  atRiskModal.appendChild(atRiskBox);
+  atRiskModal.addEventListener('click', e => { if (e.target === atRiskModal) { atRiskModal.style.display = 'none'; setActive(null); } });
 
   // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
   const settingsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
@@ -2698,36 +2738,30 @@
 
   function closeAllExternal() {
     document.dispatchEvent(new CustomEvent('ce-close-scheduler'));
+    if (vitalsModal.style.display   !== 'none') { vitalsModal.style.display   = 'none'; setActive(null); }
+    if (atRiskModal.style.display   !== 'none') { atRiskModal.style.display   = 'none'; setActive(null); }
+    if (ngModal.style.display       !== 'none') { closeNgModal(); }
   }
 
   function closeNgModal() {
     ngModal.style.display = 'none';
-    if (_active === 'ai-grader') setActive(null);
+    if (_active === 'needs-graded') setActive(null);
   }
 
   async function showNgModal() {
     if (ngModal.style.display !== 'none') { closeNgModal(); return; }
-    setActive('ai-grader');
+    setActive('needs-graded');
     ngBox.innerHTML = '';
 
+    const desc = makeHelpDescPanel('A complete grading queue pulled from all your active Canvas courses in one place. Canvas spreads your ungraded work across every individual course — this brings everything together so you can see it all at once. Each row shows the course name, the assignment, the due date, and how many students are still waiting to be graded. Click any row to jump directly into SpeedGrader for that assignment and start grading right away.');
     const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
-    const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '🎓';
+    const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '✏️';
     const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Needs Graded';
-    const xBtn = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;line-height:1;padding:0;font-family:${DS.font};`, { type:'button', textContent:'×', title:'Close' });
-    xBtn.addEventListener('mouseenter', () => { xBtn.style.background = 'rgba(255,255,255,0.15)'; xBtn.style.color = '#fff'; });
-    xBtn.addEventListener('mouseleave', () => { xBtn.style.background = ''; xBtn.style.color = 'rgba(255,255,255,0.65)'; });
-    xBtn.addEventListener('click', closeNgModal);
-    hdr.append(ico, ttl, xBtn);
-    ngBox.appendChild(hdr);
+    hdr.append(ico, ttl, makeHelpQBtn(desc), makeModalCloseBtn(closeNgModal));
+    ngBox.append(hdr, desc);
 
     const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
     ngBox.appendChild(body);
-
-    const ftr = el('div', `flex-shrink:0;padding:10px 16px;border-top:1px solid ${DS.border};display:flex;justify-content:flex-end;background:#fff;`);
-    const closeBtn = el('button', `padding:8px 18px;border:1px solid ${DS.border};border-radius:5px;background:#fff;color:${DS.text};font-size:13px;font-weight:600;cursor:pointer;font-family:${DS.font};`, { type:'button', textContent:'Close' });
-    closeBtn.addEventListener('click', closeNgModal);
-    ftr.appendChild(closeBtn);
-    ngBox.appendChild(ftr);
 
     ngModal.style.display = 'flex';
     await loadNeedsGrading(body);
@@ -2796,11 +2830,281 @@
     }
   }
 
+  // ── VITALS ─────────────────────────────────────────────────────────────────
+  async function showVitalsModal() {
+    if (vitalsModal.style.display !== 'none') { vitalsModal.style.display = 'none'; setActive(null); return; }
+    setActive('vitals-db');
+    vitalsBox.innerHTML = '';
+    const desc = makeHelpDescPanel('Your morning briefing for all active Canvas courses. Vitals pulls live data from Canvas and shows you at a glance how many assignments are waiting to be graded, how many are due in the next seven days, and how many courses you are actively running. Each course row shows whether you are caught up on grading or still have submissions waiting. Click any course name to go directly to that course in Canvas.');
+    const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+    const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '📊';
+    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Course Vitals';
+    hdr.append(ico, ttl, makeHelpQBtn(desc), makeModalCloseBtn(() => { vitalsModal.style.display = 'none'; setActive(null); }));
+    const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
+    vitalsBox.append(hdr, desc, body);
+    vitalsModal.style.display = 'flex';
+    await loadVitals(body);
+  }
+
+  async function loadVitals(body) {
+    function msg(text, color) {
+      body.innerHTML = '';
+      const m = el('div', `padding:48px 20px;text-align:center;font-size:13px;color:${color || DS.muted};line-height:1.6;`);
+      m.textContent = text; body.appendChild(m);
+    }
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token'], r));
+    const tok = stored.ce_canvas_token;
+    const origin = window.location.origin;
+    if (!tok) { msg('Add your Canvas API token in Settings to see Course Vitals.'); return; }
+    msg('Loading…');
+    function apiCall(path) {
+      return ceSendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } })
+        .catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
+    }
+    try {
+      const [todoItems, courses, upcoming] = await Promise.all([
+        apiCall('/api/v1/users/self/todo?per_page=100'),
+        apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100'),
+        apiCall('/api/v1/users/self/upcoming_events?per_page=50'),
+      ]);
+      const courseNames = {};
+      const courseUrls  = {};
+      for (const c of (courses || [])) {
+        courseNames[c.id] = c.course_code || c.name;
+        courseUrls[c.id]  = `${origin}/courses/${c.id}`;
+      }
+      const pending = (todoItems || []).filter(item => item.type === 'grading' && item.assignment);
+      const totalUngraded = pending.reduce((sum, item) => sum + (item.needs_grading_count ?? item.assignment?.needs_grading_count ?? 0), 0);
+      const now     = new Date();
+      const weekOut = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const dueThisWeek = (upcoming || []).filter(e => {
+        const d = new Date(e.assignment?.due_at || e.start_at || 0);
+        return d >= now && d <= weekOut;
+      });
+      const courseUngraded = {};
+      for (const item of pending) {
+        const cid = item.assignment?.course_id;
+        if (cid) courseUngraded[cid] = (courseUngraded[cid] || 0) + (item.needs_grading_count ?? item.assignment?.needs_grading_count ?? 0);
+      }
+      body.innerHTML = '';
+
+      // Stat summary row
+      const summary = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
+      function statCard(value, label, color) {
+        const card = el('div', `flex:1;padding:18px 8px 16px;background:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;`);
+        const val = el('div', `font-size:26px;font-weight:700;color:${color};line-height:1;`);
+        val.textContent = String(value);
+        const lbl = el('div', `font-size:10px;color:${DS.muted};text-transform:uppercase;letter-spacing:.4px;text-align:center;margin-top:2px;`);
+        lbl.textContent = label;
+        card.append(val, lbl);
+        return card;
+      }
+      summary.append(
+        statCard(totalUngraded,          'Ungraded',      totalUngraded > 0 ? '#B45309' : DS.green),
+        statCard(dueThisWeek.length,     'Due This Week', dueThisWeek.length > 3 ? '#B45309' : DS.blue),
+        statCard((courses || []).length, 'Courses',       DS.text),
+      );
+      body.appendChild(summary);
+
+      // Course breakdown
+      const secHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;`);
+      secHdr.textContent = 'Active Courses';
+      body.appendChild(secHdr);
+      if (!(courses || []).length) {
+        const none = el('div', `padding:24px 16px;text-align:center;font-size:12px;color:${DS.muted};`);
+        none.textContent = 'No active courses found.';
+        body.appendChild(none);
+      } else {
+        for (const c of (courses || [])) {
+          const ungraded = courseUngraded[c.id] || 0;
+          const row = document.createElement('a');
+          row.href = courseUrls[c.id];
+          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:11px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+          const left = el('div', `flex:1;min-width:0;`);
+          const name = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          name.textContent = c.name || c.course_code || `Course ${c.id}`;
+          const code = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;`);
+          code.textContent = c.course_code || '';
+          left.append(name, code);
+          let right;
+          if (ungraded > 0) {
+            right = el('div', `background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
+            right.textContent = ungraded + ' to grade';
+          } else {
+            right = el('div', `font-size:11px;color:${DS.green};font-weight:600;`);
+            right.textContent = '✓ All graded';
+          }
+          row.append(left, right);
+          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+          row.addEventListener('mouseleave', () => row.style.background = '');
+          body.appendChild(row);
+        }
+      }
+
+      // Due this week section
+      if (dueThisWeek.length > 0) {
+        const dueSecHdr = el('div', `padding:10px 16px 8px;font-size:10px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.5px;border-top:2px solid ${DS.border};margin-top:4px;`);
+        dueSecHdr.textContent = 'Due This Week';
+        body.appendChild(dueSecHdr);
+        const tomorrow = new Date(now.getTime() + 86400000);
+        for (const event of dueThisWeek.slice(0, 15)) {
+          const a = event.assignment || event;
+          const dueDate = new Date(a.due_at || event.start_at || 0);
+          const cid = a.course_id;
+          const href = cid ? `${origin}/courses/${cid}/gradebook/speed_grader?assignment_id=${a.id}` : '#';
+          const row = document.createElement('a');
+          row.href = href;
+          row.style.cssText = `display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+          const left = el('div', `flex:1;min-width:0;`);
+          const cLbl = el('div', `font-size:10px;color:${DS.muted};margin-bottom:2px;`);
+          cLbl.textContent = courseNames[cid] || '';
+          const aName = el('div', `font-size:12px;font-weight:600;color:${DS.text};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+          aName.textContent = a.name || event.title || 'Assignment';
+          left.append(cLbl, aName);
+          const dateEl = el('div', `flex-shrink:0;font-size:11px;font-weight:600;`);
+          const isToday    = dueDate.toDateString() === now.toDateString();
+          const isTomorrow = dueDate.toDateString() === tomorrow.toDateString();
+          dateEl.textContent = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dueDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+          dateEl.style.color = isToday ? '#DC2626' : DS.blue;
+          row.append(left, dateEl);
+          row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+          row.addEventListener('mouseleave', () => row.style.background = '');
+          body.appendChild(row);
+        }
+      }
+    } catch(e) {
+      msg('Error loading vitals: ' + e.message, '#991B1B');
+    }
+  }
+
+  // ── AT RISK ────────────────────────────────────────────────────────────────
+  async function showAtRiskModal() {
+    if (atRiskModal.style.display !== 'none') { atRiskModal.style.display = 'none'; setActive(null); return; }
+    setActive('at-risk');
+    atRiskBox.innerHTML = '';
+    const desc = makeHelpDescPanel('This report flags students who may need your help before they fall too far behind. Canvas Enhancer looks at every student across your active courses and identifies anyone whose current grade is below 70%, or who has not logged into Canvas in more than 14 days. It does not tell you who is in trouble — that is always your call as the teacher. It just surfaces the names worth a second look so you can reach out early, before a small problem becomes a big one. Click a student name to open their Canvas grade page.');
+    const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+    const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '⚠️';
+    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'At Risk Students';
+    hdr.append(ico, ttl, makeHelpQBtn(desc), makeModalCloseBtn(() => { atRiskModal.style.display = 'none'; setActive(null); }));
+    const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
+    atRiskBox.append(hdr, desc, body);
+    atRiskModal.style.display = 'flex';
+    await loadAtRisk(body);
+  }
+
+  async function loadAtRisk(body) {
+    function msg(text, color) {
+      body.innerHTML = '';
+      const m = el('div', `padding:48px 20px;text-align:center;font-size:13px;color:${color || DS.muted};line-height:1.6;`);
+      m.textContent = text; body.appendChild(m);
+    }
+    const stored = await new Promise(r => chrome.storage.local.get(['ce_canvas_token'], r));
+    const tok = stored.ce_canvas_token;
+    const origin = window.location.origin;
+    if (!tok) { msg('Add your Canvas API token in Settings to see At Risk Students.'); return; }
+    msg('Scanning your courses for at-risk students…');
+    function apiCall(path) {
+      return ceSendMessage({ type: 'CANVAS_API', payload: { url: origin + path, token: tok } })
+        .catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
+    }
+    try {
+      const courses = await apiCall('/api/v1/courses?enrollment_type=teacher&workflow_state=available&per_page=100');
+      if (!courses?.length) { msg('No active courses found.'); return; }
+      const courseSubset = courses.slice(0, 8);
+      const courseNames  = {};
+      for (const c of courses) courseNames[c.id] = c.course_code || c.name;
+      const enrollmentResults = await Promise.all(
+        courseSubset.map(c => apiCall(`/api/v1/courses/${c.id}/enrollments?type[]=StudentEnrollment&per_page=100`))
+      );
+      const now = new Date();
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const atRiskList = [];
+      for (let i = 0; i < courseSubset.length; i++) {
+        const c = courseSubset[i];
+        for (const e of (enrollmentResults[i] || [])) {
+          const grade      = e.grades?.current_score;
+          const lastActive = e.last_activity_at ? new Date(e.last_activity_at) : null;
+          const isLowGrade = typeof grade === 'number' && grade < 70;
+          const isInactive = !lastActive || lastActive < fourteenDaysAgo;
+          if (!isLowGrade && !isInactive) continue;
+          const reasons = [];
+          if (isLowGrade) reasons.push(`${Math.round(grade)}% current grade`);
+          if (isInactive) reasons.push(!lastActive ? 'never logged in' : `inactive ${Math.round((now - lastActive) / 86400000)}d`);
+          atRiskList.push({
+            name: e.user?.sortable_name || e.user?.name || 'Student',
+            courseName: courseNames[c.id],
+            grade, isLowGrade, isInactive, reasons,
+            gradesUrl: `${origin}/courses/${c.id}/grades/${e.user_id}`,
+          });
+        }
+      }
+      body.innerHTML = '';
+      if (!atRiskList.length) {
+        msg('✅  No at-risk students found across your active courses. Everyone is active and passing.');
+        return;
+      }
+      atRiskList.sort((a, b) => {
+        if (a.isLowGrade && !b.isLowGrade) return -1;
+        if (!a.isLowGrade && b.isLowGrade) return 1;
+        if (typeof a.grade === 'number' && typeof b.grade === 'number') return a.grade - b.grade;
+        return 0;
+      });
+      const subHdr = el('div', `padding:12px 16px 10px;font-size:12px;color:${DS.muted};border-bottom:1px solid ${DS.border};`);
+      subHdr.textContent = `${atRiskList.length} student${atRiskList.length !== 1 ? 's' : ''} flagged across ${courseSubset.length} course${courseSubset.length !== 1 ? 's' : ''}`;
+      body.appendChild(subHdr);
+      if (courses.length > 8) {
+        const notice = el('div', `padding:8px 16px;font-size:11px;color:#92400E;background:#FEF3C7;border-bottom:1px solid ${DS.border};`);
+        notice.textContent = `Showing first 8 of ${courses.length} courses.`;
+        body.appendChild(notice);
+      }
+      for (const s of atRiskList) {
+        const row = document.createElement('a');
+        row.href = s.gradesUrl;
+        row.style.cssText = `display:flex;align-items:center;gap:12px;padding:12px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
+        const left = el('div', `flex:1;min-width:0;`);
+        const nameEl = el('div', `font-size:13px;font-weight:600;color:${DS.blue};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
+        nameEl.textContent = s.name;
+        const courseEl = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;text-transform:uppercase;letter-spacing:.3px;`);
+        courseEl.textContent = s.courseName;
+        const whyEl = el('div', `font-size:11px;color:${DS.muted};margin-top:3px;`);
+        whyEl.textContent = s.reasons.join(' · ');
+        left.append(nameEl, courseEl, whyEl);
+        let badge;
+        if (s.isLowGrade) {
+          badge = el('div', `background:#FEE2E2;color:#991B1B;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
+          badge.textContent = Math.round(s.grade) + '%';
+        } else {
+          badge = el('div', `background:#FEF3C7;color:#92400E;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;white-space:nowrap;`);
+          badge.textContent = 'Inactive';
+        }
+        row.append(left, badge);
+        row.addEventListener('mouseenter', () => row.style.background = DS.gray);
+        row.addEventListener('mouseleave', () => row.style.background = '');
+        body.appendChild(row);
+      }
+    } catch(e) {
+      msg('Error loading at-risk students: ' + e.message, '#991B1B');
+    }
+  }
+
   function onToolClick(tool) {
-    if (tool.id === 'ai-grader') {
+    if (tool.id === 'needs-graded') {
       closePanel();
       closeAllExternal();
       showNgModal();
+      return;
+    }
+    if (tool.id === 'vitals-db') {
+      closePanel();
+      closeAllExternal();
+      showVitalsModal();
+      return;
+    }
+    if (tool.id === 'at-risk') {
+      closePanel();
+      closeAllExternal();
+      showAtRiskModal();
       return;
     }
     if (tool.id === 'settings-tg') {
@@ -2809,12 +3113,6 @@
       settingsMBody.innerHTML = '';
       settingsModal.style.display = 'flex';
       renderSettings(settingsMBody);
-      return;
-    }
-    if (tool.id === 'chat-db') {
-      closePanel();
-      closeAllExternal();
-      openQuickAI();
       return;
     }
     if (tool.id === 'notes-db' || tool.id === 'notes') {
@@ -2948,7 +3246,7 @@
         payload: { url: window.location.origin + '/api/v1/users/self/todo_item_count', token: tok },
       }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); return null; });
       const count = data?.needs_grading_count || 0;
-      const btn = btnMap['ai-grader'];
+      const btn = btnMap['needs-graded'];
       if (!btn) return;
       let badge = btn.querySelector('.ce-hub-badge');
       if (!badge) {
@@ -2974,6 +3272,8 @@
   function mount() {
     // Modals must be in the DOM on every page so cross-toolbar events work
     document.body.appendChild(ngModal);
+    document.body.appendChild(vitalsModal);
+    document.body.appendChild(atRiskModal);
     document.body.appendChild(settingsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
@@ -3001,7 +3301,7 @@
   // ── DASHBOARD PAGE DETECTION ───────────────────────────────────────────────
   function updateDashboardMode() {
     const p = window.location.pathname;
-    const onDash = /^\/(dashboard)?\/?$/.test(p);
+    const onDash = p === '/';
     if (onDash !== _onDashboard) {
       _onDashboard = onDash;
       applyToolbarState();

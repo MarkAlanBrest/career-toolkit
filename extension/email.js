@@ -2304,9 +2304,15 @@
   }
 
   function getActiveComposeRoot() {
-    const button = document.getElementById('ces-quick-message-btn');
-    const buttonRoot = button?.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form');
-    if (buttonRoot) return buttonRoot;
+    // Try the compose toolbar bar first — it's injected inside the form root
+    const composeBar = document.getElementById('ces-compose-tpl-btn') || document.getElementById('ces-quick-message-btn');
+    if (composeBar) {
+      const barRoot = composeBar.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form');
+      if (barRoot) return barRoot;
+      // bar is a sibling of the body input — walk up to find the shared parent
+      const siblingBody = composeBar.parentElement?.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, textarea.message-body');
+      if (siblingBody) return siblingBody.closest('form, [role="dialog"], .ui-dialog, .ReactModal__Content, .compose-message, .message-form') || siblingBody.parentElement;
+    }
     const subjectInput = getComposeSubjectInput(document);
     const bodyInput = getComposeBodyInput(document);
     const field = subjectInput || bodyInput;
@@ -2314,8 +2320,10 @@
   }
 
   function insertIntoCompose(subject, body) {
+    // Use stored refs from the injected compose bar first — most reliable
+    const composeBar = document.getElementById('ces-compose-tpl-btn') || document.getElementById('ces-quick-message-btn');
     const root = getActiveComposeRoot();
-    const subjectInput = getComposeSubjectInput(root) || getComposeSubjectInput(document);
+    const subjectInput = composeBar?._ceSubjectInput || getComposeSubjectInput(root) || getComposeSubjectInput(document);
     let subjectInserted = false;
     if (subjectInput && subject) {
       subjectInput.focus();
@@ -2328,7 +2336,7 @@
       }
       subjectInserted = true;
     }
-    const bodyInput = getComposeBodyInput(root) || getComposeBodyInput(document);
+    const bodyInput = composeBar?._ceBodyInput || getComposeBodyInput(root) || getComposeBodyInput(document);
     let bodyInserted = false;
     if (bodyInput) {
       if (bodyInput.tagName === 'TEXTAREA') {
@@ -2361,16 +2369,34 @@
     hdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
     const ttl = document.createElement('h2');
     ttl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    ttl.textContent = 'Message Templates';
+    ttl.textContent = 'Fast Message';
+
+    const qmDescPanel = document.createElement('div');
+    qmDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
+    qmDescPanel.textContent = 'Choose a saved template to instantly fill in the subject line and message body of the compose window — no copy-pasting required. Click Insert next to any template and it drops straight in. Use the form at the bottom to save a new template or edit an existing one.';
+
+    const qmHelpBtn = document.createElement('button');
+    qmHelpBtn.type = 'button';
+    qmHelpBtn.textContent = '?';
+    qmHelpBtn.title = 'What does this do?';
+    qmHelpBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
+    let qmHelpOpen = false;
+    qmHelpBtn.addEventListener('click', () => {
+      qmHelpOpen = !qmHelpOpen;
+      qmDescPanel.style.display = qmHelpOpen ? 'block' : 'none';
+      qmHelpBtn.style.background = qmHelpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
+      qmHelpBtn.style.color = qmHelpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
+    });
+
     const xBtn = document.createElement('button');
     xBtn.type = 'button'; xBtn.textContent = '×'; xBtn.className = 'ces-close-btn';
     xBtn.addEventListener('click', closeQmModal);
-    hdr.append(ttl, xBtn);
+    hdr.append(ttl, qmHelpBtn, xBtn);
 
     const qmBody = document.createElement('div');
     qmBody.style.cssText = 'flex:1;min-height:0;overflow-y:auto;padding:16px;';
 
-    box.append(hdr, qmBody);
+    box.append(hdr, qmDescPanel, qmBody);
     modal.appendChild(box);
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) closeQmModal(); });
@@ -2467,7 +2493,7 @@
 
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;';
-      lbl.textContent = 'Compose';
+      lbl.textContent = 'Canvas Enhancer';
 
       const fastBtn = document.createElement('button');
       fastBtn.type = 'button';
@@ -2477,7 +2503,31 @@
       fastBtn.addEventListener('mouseleave', () => { fastBtn.style.background = 'rgba(255,255,255,0.12)'; fastBtn.style.color = 'rgba(255,255,255,0.85)'; });
       fastBtn.addEventListener('click', openQmModal);
 
-      bar.append(lbl, fastBtn);
+      // ── HELP BUTTON ──────────────────────────────────────────────────────────
+      const descPanel = document.createElement('div');
+      descPanel.style.cssText = 'display:none;position:absolute;top:100%;left:0;right:0;z-index:10;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;box-shadow:0 4px 8px rgba(0,0,0,.12);';
+      descPanel.textContent = 'Click Fast Message to open your saved message templates and insert a subject line and body into this compose window with one click — no typing required. To create or edit templates, open "Message Templates" from the Messages toolbar at the top of the Canvas Inbox page.';
+
+      const helpQBtn = document.createElement('button');
+      helpQBtn.type = 'button';
+      helpQBtn.textContent = '?';
+      helpQBtn.title = 'What does this do?';
+      helpQBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
+      let helpOpen = false;
+      helpQBtn.addEventListener('click', () => {
+        helpOpen = !helpOpen;
+        descPanel.style.display = helpOpen ? 'block' : 'none';
+        helpQBtn.style.background = helpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
+        helpQBtn.style.color = helpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
+      });
+
+      bar.style.position = 'relative';
+      bar.append(lbl, fastBtn, helpQBtn);
+      bar.appendChild(descPanel);
+
+      // Store live references so insertIntoCompose can find them without re-querying
+      bar._ceBodyInput    = bodyInput;
+      bar._ceSubjectInput = getComposeSubjectInput(formRoot) || getComposeSubjectInput(document);
 
       let insertBefore = bodyInput;
       while (insertBefore.parentElement && insertBefore.parentElement !== formRoot) {
@@ -2647,7 +2697,7 @@
 
     const lbl = document.createElement('span');
     lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
-    lbl.textContent = 'Messages';
+    lbl.textContent = 'Canvas Enhancer — Message Toolbar';
 
     function mkBtn(text) {
       const b = document.createElement('button');
@@ -2673,6 +2723,119 @@
       renderTemplatesTab(document.getElementById('ces-tpl-body'));
     });
 
+    // ── SETTINGS MODAL ───────────────────────────────────────────────────────
+    const settingsOverlay = document.createElement('div');
+    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
+    document.body.appendChild(settingsOverlay);
+
+    const settingsBox = document.createElement('div');
+    settingsBox.className = 'ces-modal-box';
+    settingsBox.style.width = 'min(480px,calc(100vw - 48px))';
+    settingsBox.style.maxHeight = 'min(520px,calc(100vh - 80px))';
+
+    const sHdr = document.createElement('div');
+    sHdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
+    const sTtl = document.createElement('h2');
+    sTtl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';';
+    sTtl.textContent = 'Messages Settings';
+
+    const sDescPanel = document.createElement('div');
+    sDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
+    sDescPanel.textContent = 'Teacher Name is used in message templates wherever you write {{teacherName}} — it fills in automatically when you send. No Canvas API token is needed here; the Messages toolbar uses your existing Canvas login session. Uninstall removes all saved Messages data (templates, settings, quick messages) and disables this toolbar permanently.';
+
+    const sHelpBtn = document.createElement('button');
+    sHelpBtn.type = 'button';
+    sHelpBtn.textContent = '?';
+    sHelpBtn.title = 'What does this do?';
+    sHelpBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
+    let sHelpOpen = false;
+    sHelpBtn.addEventListener('click', () => {
+      sHelpOpen = !sHelpOpen;
+      sDescPanel.style.display = sHelpOpen ? 'block' : 'none';
+      sHelpBtn.style.background = sHelpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
+      sHelpBtn.style.color = sHelpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
+    });
+
+    const sXBtn = document.createElement('button');
+    sXBtn.type = 'button'; sXBtn.textContent = '×'; sXBtn.className = 'ces-close-btn';
+    sXBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
+    sHdr.append(sTtl, sHelpBtn, sXBtn);
+
+    const sBody = document.createElement('div');
+    sBody.style.cssText = 'flex:1;overflow-y:auto;padding:20px 20px 8px;display:flex;flex-direction:column;gap:16px;';
+
+    // Teacher Name field
+    const nameGroup = document.createElement('div');
+    const nameLbl = document.createElement('label');
+    nameLbl.className = 'ces-label';
+    nameLbl.style.marginTop = '0';
+    nameLbl.textContent = 'Teacher Name';
+    const nameInput = document.createElement('input');
+    nameInput.className = 'ces-input';
+    nameInput.placeholder = 'e.g. Ms. Johnson';
+    nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+    nameGroup.append(nameLbl, nameInput);
+
+    const saveMsg = document.createElement('div');
+    saveMsg.style.cssText = 'font-size:12px;color:#127A1B;min-height:18px;';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'ces-btn ces-btn-primary';
+    saveBtn.textContent = 'Save Settings';
+    saveBtn.addEventListener('click', () => {
+      GM_setValue(STORAGE_KEYS.TEACHER_NAME, nameInput.value.trim());
+      saveMsg.textContent = '✓ Saved';
+      setTimeout(() => { saveMsg.textContent = ''; }, 2500);
+    });
+
+    const divider = document.createElement('div');
+    divider.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
+
+    const uninstallBtn = document.createElement('button');
+    uninstallBtn.type = 'button';
+    uninstallBtn.className = 'ces-btn ces-btn-danger';
+    uninstallBtn.style.cssText += ';width:100%;justify-content:center;border-color:#DC2626;color:#DC2626;margin-top:4px;';
+    uninstallBtn.textContent = 'Uninstall Messages Toolbar…';
+    uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
+    uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = ''; });
+    uninstallBtn.addEventListener('click', () => {
+      if (!confirm('Remove the Canvas Enhancer Messages Toolbar? This will delete all saved templates, quick messages, and settings for this tool.')) return;
+      const keysToRemove = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled'];
+      chrome.storage.local.remove(keysToRemove, () => {
+        chrome.storage.local.set({ ces_inbox_disabled: true }, () => {
+          bar.remove();
+          colTab.remove();
+          settingsOverlay.remove();
+          const st2 = document.getElementById('ces-inbox-style');
+          if (st2) st2.remove();
+          document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
+        });
+      });
+    });
+
+    const sFooter = document.createElement('div');
+    sFooter.style.cssText = 'flex-shrink:0;padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;';
+    const cancelSBtn = document.createElement('button');
+    cancelSBtn.type = 'button';
+    cancelSBtn.className = 'ces-btn ces-btn-secondary';
+    cancelSBtn.textContent = 'Close';
+    cancelSBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
+
+    sBody.append(nameGroup, saveMsg, saveBtn, divider, uninstallBtn);
+    settingsBox.append(sHdr, sDescPanel, sBody, sFooter);
+    sFooter.append(cancelSBtn);
+    settingsOverlay.appendChild(settingsBox);
+    settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
+    settingsBox.addEventListener('click', e => e.stopPropagation());
+
+    const settingsBtn = mkBtn('Settings');
+    settingsBtn.addEventListener('click', () => {
+      nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
+      saveMsg.textContent = '';
+      settingsOverlay.style.display = 'flex';
+    });
+
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('Hide');
     hideBtn.style.marginLeft = 'auto';
@@ -2687,7 +2850,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(lbl, sendBtn, tplBtn, hideBtn);
+    bar.append(lbl, sendBtn, tplBtn, settingsBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
