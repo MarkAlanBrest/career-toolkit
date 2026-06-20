@@ -1374,9 +1374,9 @@
     // Appended to document.body so it never touches Canvas's React tree
     const TOOLBAR_W = 52;
     const TOP_OFF   = 60;
-    const PROMPT_SUBMISSION_CHARS = 55000;
-    const PROMPT_HEAD_CHARS = 38000;
-    const PROMPT_TAIL_CHARS = 14000;
+    const PROMPT_SUBMISSION_CHARS = 150000;
+    const PROMPT_HEAD_CHARS = 105000;
+    const PROMPT_TAIL_CHARS = 40000;
 
     function submissionForPrompt(text) {
       const value = String(text || '(no submission)');
