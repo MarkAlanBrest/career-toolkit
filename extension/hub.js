@@ -542,7 +542,7 @@
 
   // ── VITALS MODAL ───────────────────────────────────────────────────────────
   const vitalsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
-  vitalsModal.id = 'ce-vitals-modal';
+  vitalsModal.id = 'ce-hub-vitals-modal';
   const vitalsBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   vitalsModal.appendChild(vitalsBox);
   vitalsModal.addEventListener('click', e => { if (e.target === vitalsModal) { vitalsModal.style.display = 'none'; setActive(null); } });
