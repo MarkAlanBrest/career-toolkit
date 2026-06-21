@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getEntitlement, licenseHash } from '@/lib/billing';
+import { getAccountEntitlements, licenseHash, MeterName } from '@/lib/billing';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
-const PACKS: Record<string, { amount: number; env: string }> = {
-  '25': { amount: 25, env: 'LEMONSQUEEZY_CREDITS_25_VARIANT_ID' },
-  '50': { amount: 50, env: 'LEMONSQUEEZY_CREDITS_50_VARIANT_ID' },
+const PACKS: Record<string, { amount: number; meter: MeterName; env: string }> = {
+  teaching100: { amount: 100, meter: 'teaching', env: 'LEMONSQUEEZY_TEACHING_REFILL_VARIANT_ID' },
+  creation50: { amount: 50, meter: 'creation', env: 'LEMONSQUEEZY_CREATION_REFILL_VARIANT_ID' },
 };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const licenseKey = String(body?.licenseKey || '');
+  const licenseKeys = body?.licenseKeys ?? body?.licenseKey ?? '';
   const pack = PACKS[String(body?.pack || '')];
   if (!pack) return NextResponse.json({ error: 'Choose a valid credit pack.' }, { status: 400, headers: CORS });
-  const entitlement = await getEntitlement(licenseKey);
-  if (!entitlement.valid) return NextResponse.json({ error: entitlement.error || 'An active license is required.' }, { status: 403, headers: CORS });
+  const account = await getAccountEntitlements(licenseKeys);
+  const entitlement = account.packages[pack.meter];
+  if (!entitlement?.valid) return NextResponse.json({ error: entitlement?.error || `An active ${pack.meter} package is required.` }, { status: 403, headers: CORS });
 
   const apiKey = process.env.LEMONSQUEEZY_API_KEY;
   const storeId = process.env.LEMONSQUEEZY_STORE_ID;
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({ data: {
       type: 'checkouts',
       attributes: {
-        checkout_data: { email: entitlement.customerEmail, custom: { license_hash: licenseHash(licenseKey), credit_amount: String(pack.amount) } },
+        checkout_data: { email: entitlement.customerEmail, custom: { license_hash: licenseHash(entitlement.licenseKey!), meter: pack.meter, credit_amount: String(pack.amount) } },
         product_options: process.env.NEXT_PUBLIC_APP_URL ? { redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/setup?credits=purchased` } : undefined,
       },
       relationships: { store: { data: { type: 'stores', id: String(storeId) } }, variant: { data: { type: 'variants', id: String(variantId) } } },

@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { addCredits, invalidateCustomerLicenses, redis } from '@/lib/billing';
+import { addCredits, invalidateCustomerLicenses, MeterName, redis } from '@/lib/billing';
 
 function validSignature(body: string, signature: string, secret: string) {
   const expected = createHmac('sha256', secret).update(body).digest('hex');
@@ -9,10 +9,9 @@ function validSignature(body: string, signature: string, secret: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function creditAmount(variantId: string) {
-  if (variantId === String(process.env.LEMONSQUEEZY_CREDITS_25_VARIANT_ID || '')) return 25;
-  if (variantId === String(process.env.LEMONSQUEEZY_CREDITS_50_VARIANT_ID || '')) return 50;
-  return 0;
+function creditPack(variantId: string): { amount: number; meter: MeterName } | undefined {
+  if (variantId === String(process.env.LEMONSQUEEZY_TEACHING_REFILL_VARIANT_ID || '')) return { amount: 100, meter: 'teaching' };
+  if (variantId === String(process.env.LEMONSQUEEZY_CREATION_REFILL_VARIANT_ID || '')) return { amount: 50, meter: 'creation' };
 }
 
 export async function POST(req: NextRequest) {
@@ -33,8 +32,8 @@ export async function POST(req: NextRequest) {
     if (event === 'order_created') {
       const custom = payload?.meta?.custom_data || {};
       const variantId = String(attributes?.first_order_item?.variant_id || attributes?.variant_id || '');
-      const amount = creditAmount(variantId);
-      if (amount && custom.license_hash) await addCredits(String(custom.license_hash), amount);
+      const pack = creditPack(variantId);
+      if (pack && custom.license_hash) await addCredits(String(custom.license_hash), pack.meter, pack.amount);
     }
     if (event.startsWith('subscription_')) {
       const customerId = String(attributes?.customer_id || '');
