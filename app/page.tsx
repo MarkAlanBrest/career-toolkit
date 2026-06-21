@@ -1,4 +1,8 @@
+'use client';
+import { useState } from 'react';
+
 export default function HomePage() {
+  const [costPopup, setCostPopup] = useState<'teaching' | 'creation' | null>(null);
   const teachingMonthly  = process.env.NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_MONTHLY_URL   || '#';
   const teachingSixMonth = process.env.NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_SIXMONTH_URL  || '#';
   const teachingAnnual   = process.env.NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_ANNUAL_URL    || '#';
@@ -90,30 +94,49 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── AI Cost Estimate ─────────────────────────────────────────────────── */}
-      <section style={{ background: '#fff', padding: '40px 32px', borderBottom: `1px solid #e5e7eb` }}>
-        <div style={{ maxWidth: 760, margin: '0 auto' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6, textAlign: 'center' }}>Estimated Claude API costs for AI features</h3>
-          <p style={{ fontSize: 13, color: '#6b7780', textAlign: 'center', marginBottom: 24 }}>Based on Claude Haiku pricing, which Canvas Enhancer uses by default for speed and low cost.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 16 }}>
-            {[
-              { label: 'One graded assignment', est: '~$0.003', note: 'Less than half a cent. Rubric scoring and written feedback.' },
-              { label: '100 graded assignments', est: '~$0.30', note: 'A typical grading session for one assignment across a class.' },
-              { label: 'One AI-generated page', est: '~$0.02', note: 'Full Canvas page with content, headers, and callouts.' },
-              { label: 'One AI-generated quiz', est: '~$0.05', note: 'Complete quiz with questions, answers, and feedback.' },
-            ].map(item => (
-              <div key={item.label} style={{ background: light, borderRadius: 8, padding: '16px', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#6b7780', marginBottom: 4 }}>{item.label}</div>
-                <div style={{ fontSize: 26, fontWeight: 800, color: blue, marginBottom: 4 }}>{item.est}</div>
-                <div style={{ fontSize: 12, color: '#6b7780', lineHeight: 1.5 }}>{item.note}</div>
-              </div>
-            ))}
+      {/* ── AI Cost Popup ────────────────────────────────────────────────────── */}
+      {costPopup && (
+        <div onClick={() => setCostPopup(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: '32px 28px', maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>
+                {costPopup === 'teaching' ? 'Teaching Tools' : 'Creation Tools'} — Estimated Claude Costs
+              </h3>
+              <button onClick={() => setCostPopup(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7780', lineHeight: 1, padding: '0 4px' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#6b7780', marginBottom: 20, lineHeight: 1.5 }}>
+              Based on Claude Haiku, which Canvas Enhancer uses by default. You pay Anthropic directly — we never mark up AI costs.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {(costPopup === 'teaching' ? [
+                { label: 'One graded assignment',      est: '~$0.003', note: 'Rubric scoring and written feedback. Less than half a cent.' },
+                { label: 'Grading 30 students',        est: '~$0.09',  note: 'A typical class set for one assignment.' },
+                { label: 'Grading 100 assignments',    est: '~$0.30',  note: 'A heavy grading session across multiple assignments.' },
+                { label: 'Busy month of AI grading',   est: '~$1–2',   note: 'Grading 200+ assignments across all your courses.' },
+              ] : [
+                { label: 'One AI-generated page',  est: '~$0.02', note: 'Full Canvas page with content, headers, and callouts.' },
+                { label: 'One AI-generated quiz',  est: '~$0.05', note: 'Complete quiz with questions, answers, and feedback.' },
+                { label: '10 pages + 5 quizzes',   est: '~$0.45', note: 'A week of heavy content creation.' },
+                { label: 'Busy month of creation', est: '~$1–3',  note: 'Building out a full course unit with AI.' },
+              ]).map(item => (
+                <div key={item.label} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', background: light, borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: blue, minWidth: 58, flexShrink: 0 }}>{item.est}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: navy, marginBottom: 2 }}>{item.label}</div>
+                    <div style={{ fontSize: 12, color: '#6b7780', lineHeight: 1.5 }}>{item.note}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: '#9ca3af', margin: '0 0 20px', lineHeight: 1.5 }}>
+              Costs vary slightly with content length. <a href="https://www.anthropic.com/pricing" target="_blank" rel="noopener noreferrer" style={{ color: blue }}>See current Claude pricing →</a>
+            </p>
+            <button onClick={() => setCostPopup(null)} style={{ width: '100%', background: blue, color: '#fff', border: 'none', padding: '11px 0', borderRadius: 7, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+              Got it
+            </button>
           </div>
-          <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', marginTop: 16 }}>
-            A typical month of heavy AI use — grading 200 assignments and creating 10 pages — costs approximately $1–2 directly with Anthropic. Costs may vary slightly based on content length. <a href="https://www.anthropic.com/pricing" target="_blank" rel="noopener noreferrer" style={{ color: blue }}>See current Claude pricing →</a>
-          </p>
         </div>
-      </section>
+      )}
 
       {/* ── Packages ─────────────────────────────────────────────────────────── */}
       <section style={{ padding: '64px 32px', background: light }}>
@@ -148,9 +171,12 @@ export default function HomePage() {
 
               <div style={{ background: '#f0f7ff', border: `1px solid #c3dff5`, borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: navy, marginBottom: 4 }}>✦ AI features — requires Claude account</div>
-                <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6 }}>
-                  AI-assisted grading inside SpeedGrader, drafted rubric scores and student feedback. Estimated cost: under $0.01 per assignment paid directly to Anthropic.
+                <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6, marginBottom: 8 }}>
+                  AI-assisted grading inside SpeedGrader with drafted rubric scores and student feedback. You pay Anthropic directly.
                 </div>
+                <button onClick={() => setCostPopup('teaching')} style={{ background: 'none', border: 'none', padding: 0, color: blue, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                  See estimated costs →
+                </button>
               </div>
 
             </div>
@@ -180,9 +206,12 @@ export default function HomePage() {
 
               <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: navy, marginBottom: 4 }}>✦ AI features — requires Claude account</div>
-                <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6 }}>
-                  AI-assisted Canvas page creation, complete AI-generated quizzes with questions, answers, feedback, and point values. Estimated cost: $0.02–0.05 per page or quiz paid directly to Anthropic.
+                <div style={{ fontSize: 13, color: '#444', lineHeight: 1.6, marginBottom: 8 }}>
+                  AI-assisted Canvas page creation and complete AI-generated quizzes with questions, answers, feedback, and point values. You pay Anthropic directly.
                 </div>
+                <button onClick={() => setCostPopup('creation')} style={{ background: 'none', border: 'none', padding: 0, color: navy, fontSize: 13, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>
+                  See estimated costs →
+                </button>
               </div>
 
             </div>
