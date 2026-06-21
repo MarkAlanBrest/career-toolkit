@@ -21,8 +21,6 @@
     chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token', 'ce_scheduler_toolbar_disabled'], resolve)
   );
 
-  const canvasToken = _store['ce_canvas_token'] || '';
-
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
     _store[key] = val;
@@ -358,6 +356,9 @@
   }
 
   async function canvasRequest(url, options) {
+    const canvasToken = await new Promise(resolve =>
+      chrome.storage.local.get('ce_canvas_token', result => resolve(result.ce_canvas_token || ''))
+    );
     const headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -1535,6 +1536,7 @@
     settingsIntro.style.cssText='font-size:12px;color:#64748B;line-height:1.55;';
     settingsIntro.textContent='Assignment Pulse saves your scheduler dates, weekday pattern, timing rules, item overrides, and last generated schedule.';
     settingsBody.appendChild(settingsIntro);
+    if(globalThis.CECanvasToken) settingsBody.appendChild(globalThis.CECanvasToken.createControl());
     if(globalThis.CEDataBackup) settingsBody.appendChild(globalThis.CEDataBackup.createSection({accent:'#0770B8'}));
     const uninstallBtn=document.createElement('button');
     uninstallBtn.type='button'; uninstallBtn.textContent='Uninstall Assignment Pulse Toolbar…';
@@ -1550,6 +1552,7 @@
     settingsBox.onclick=e=>e.stopPropagation();document.body.appendChild(settingsOverlay);
 
     const settingsBtn=mkBtn('⚙','Settings');
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
     settingsBtn.onclick=()=>settingsOverlay.style.display='flex';
 
     const helpBtn = document.createElement('button');

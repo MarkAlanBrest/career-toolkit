@@ -9,6 +9,10 @@
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      for (const [key, change] of Object.entries(changes)) _store[key] = change.newValue;
+    });
 
     function getToken() { return GM_getValue('ce_canvas_token', ''); }
     const gradingModel = GM_getValue('ce_grading_model', 'claude-haiku-4-5-20251001');
@@ -497,6 +501,7 @@
       const commentsBtn = ceSgToolbarButton('💬 Comments', false);
       const auditBtn = ceSgToolbarButton('🔎 Audit', false);
       const settingsBtn = ceSgToolbarButton('⚙ Settings', false);
+      globalThis.CECanvasToken?.bindIndicator(settingsBtn);
       const collapseBtn = ceSgToolbarButton('— Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
       main.append(brand, gradingWrap, commentsBtn, auditBtn, settingsBtn, collapseBtn);
@@ -1169,7 +1174,6 @@
               return wrap;
             }
 
-            const tokenInp   = mkSettingsInput('password', stored.ce_canvas_token, 'Paste your Canvas token');
             const nameInp    = mkSettingsInput('text',     stored.ce_teacher_name,  'Your display name');
             const licenseInp = mkSettingsInput('text',     stored.ce_license_key,   'Enter your license key');
 
@@ -1208,7 +1212,7 @@
             });
 
             body.append(
-              mkSettingsFgrp('Canvas API Token', tokenInp, 'Canvas → Account → Settings → New Access Token'),
+              ...(globalThis.CECanvasToken ? [globalThis.CECanvasToken.createControl()] : []),
               mkSettingsFgrp('Teacher Name',     nameInp),
               mkSettingsFgrp('License Key',      licenseInp),
               saveMsg,
@@ -1220,7 +1224,6 @@
 
             saveBtn.addEventListener('click', () => {
               const values = {
-                ce_canvas_token: tokenInp.value.trim(),
                 ce_teacher_name: nameInp.value.trim(),
                 ce_license_key:  licenseInp.value.trim(),
               };
@@ -1372,8 +1375,6 @@
     new MutationObserver(() => {
       if (!document.getElementById('ce-sg-toolbar')) setTimeout(ensureSpeedGraderToolbar, 100);
     }).observe(document.body, { childList: true, subtree: true });
-    if (!getToken()) return;
-
     // ── HELPERS ───────────────────────────────────────────────────────────────
     function getUrlParts() {
       return getSpeedGraderUrlParts();

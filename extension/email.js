@@ -2749,7 +2749,7 @@
 
     const sDescPanel = document.createElement('div');
     sDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
-    sDescPanel.textContent = 'Message Pulse brings outreach, message templates, quick compose messages, and announcement templates into one place. Teacher Name fills {{teacherName}} automatically. No Canvas API token is needed because messages use your existing Canvas login session.';
+    sDescPanel.textContent = 'Message Pulse brings outreach, message templates, quick compose messages, and announcement templates into one place. Teacher Name fills {{teacherName}} automatically. The shared Canvas token can also be managed here for every Canvas Enhancer toolbar.';
 
     const sHelpBtn = document.createElement('button');
     sHelpBtn.type = 'button';
@@ -2831,6 +2831,7 @@
     cancelSBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
 
     sBody.append(nameGroup, saveMsg, saveBtn, divider);
+    if (globalThis.CECanvasToken) sBody.appendChild(globalThis.CECanvasToken.createControl());
     if (globalThis.CEDataBackup) sBody.appendChild(globalThis.CEDataBackup.createSection({ accent:'#0770B8' }));
     sBody.appendChild(uninstallBtn);
     settingsBox.append(sHdr, sDescPanel, sBody, sFooter);
@@ -2840,11 +2841,15 @@
     settingsBox.addEventListener('click', e => e.stopPropagation());
 
     const settingsBtn = mkBtn('⚙', 'Settings');
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
     settingsBtn.addEventListener('click', () => {
       nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
       saveMsg.textContent = '';
       settingsOverlay.style.display = 'flex';
     });
+
+    const helpBtn = mkBtn('?', 'Help');
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'inbox' })));
 
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
     const hideBtn = mkBtn('—', 'Hide');
@@ -2860,7 +2865,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(brand, messagingWrap, settingsBtn, hideBtn);
+    bar.append(brand, messagingWrap, settingsBtn, helpBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 

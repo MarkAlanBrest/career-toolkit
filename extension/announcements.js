@@ -483,7 +483,15 @@
     helpBtn.addEventListener('mouseleave', () => { helpBtn.style.background = 'rgba(255,255,255,0.12)'; helpBtn.style.color = 'rgba(255,255,255,0.85)'; });
     helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'announcements' })));
 
-    bar.append(lbl, quickBtn, helpBtn);
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.textContent = 'Settings';
+    settingsBtn.title = 'Canvas Enhancer settings';
+    settingsBtn.style.cssText = helpBtn.style.cssText;
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
+    settingsBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-settings')));
+
+    bar.append(lbl, quickBtn, settingsBtn, helpBtn);
 
     titleInput.insertAdjacentElement('beforebegin', bar);
 

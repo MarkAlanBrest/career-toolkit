@@ -197,6 +197,30 @@
         </div>
       `,
     },
+    content: {
+      title: 'Content Studio',
+      html: `
+        <p class="ce-help-desc">Adds reusable, accessible content blocks and an AI drafting assistant directly below the Canvas Rich Content Editor.</p>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">Insert and edit content</div>
+          <ol>
+            <li>Open a Canvas page, assignment, or discussion and select <strong>Edit</strong>.</li>
+            <li>Use <strong>Insert</strong>, <strong>Layouts</strong>, or <strong>Icons</strong> to add a component at the editor cursor.</li>
+            <li>Select an inserted component to reveal its color, spacing, alignment, and text controls.</li>
+            <li>Use Canvas Preview or Student View before publishing to check links, readability, and mobile layout.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">AI Assist</div>
+          <ol>
+            <li>Select <strong>AI Assist</strong>, describe the content, and choose the Canvas content type, theme, and length.</li>
+            <li>Optionally read the current editor or attach source material so the draft follows your existing content.</li>
+            <li>Generate, review, and edit the result. Choose <strong>Replace</strong> only when you intend to overwrite the editor; otherwise append it.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Canvas does not automatically save Content Studio changes. Use Canvas's Save or Save &amp; Publish button when finished.</div>
+        </div>
+      `,
+    },
     grader: {
       title: 'AI Grader',
       html: `
@@ -229,18 +253,18 @@
     scheduler: {
       title: 'Assignment Scheduler',
       html: `
-        <p class="ce-help-desc">A drag-and-drop visual calendar inside SpeedGrader that lets you plan and set due dates across your entire course without leaving the grading page.</p>
+        <p class="ce-help-desc">A drag-and-drop planning board on a course Assignments page that updates due, availability, and answer-showing dates in batches.</p>
         <div class="ce-help-section">
           <div class="ce-help-sh">How to use</div>
           <ol>
-            <li>Open <strong>SpeedGrader</strong> for any assignment.</li>
+            <li>Open a course and select <strong>Assignments</strong>.</li>
             <li>Click <strong>Scheduler</strong> in the toolbar.</li>
-            <li>All course assignments appear in the left panel.</li>
-            <li>Drag any assignment onto a day in the calendar to set its due date.</li>
-            <li>Drag to a different day to reschedule.</li>
-            <li>Click <strong>Save Schedule</strong> to push all due dates to Canvas.</li>
+            <li>Select the course and load its assignments, discussions, and quizzes.</li>
+            <li>Set a start date, meeting weekdays, due time, and optional open/close offsets.</li>
+            <li>Drag items between schedule slots, then review the generated dates.</li>
+            <li>Apply the schedule to send the changes to Canvas. Review the completion summary for any item that failed.</li>
           </ol>
-          <div class="ce-help-tip">💡 Due date changes are not saved until you click Save Schedule — drag freely before committing.</div>
+          <div class="ce-help-tip">💡 Changes are not sent to Canvas until you apply the schedule. Back up your scheduler data before a large course-wide change.</div>
         </div>
         <div class="ce-help-note">⚠ Requires a Canvas API Token in Settings.</div>
       `,
@@ -758,7 +782,6 @@
     stack.appendChild(head);
 
     const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || '');
-    const tokenIn   = input('ce-s-token',   'password', 'Paste your Canvas token', stored.ce_canvas_token || '');
     const licenseIn = input('ce-s-license', 'text',     'Enter your license key',  stored.ce_license_key  || '');
 
     // AI provider select
@@ -781,7 +804,7 @@
     providerSel.addEventListener('blur',  () => providerSel.style.borderColor = DS.border);
 
     // Focus ring on text inputs
-    for (const inp of [nameIn, tokenIn, licenseIn]) {
+    for (const inp of [nameIn, licenseIn]) {
       inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
@@ -811,7 +834,7 @@
     stack.appendChild(row('AI Chat Window', providerSel, 'Used by the Chat button'));
     stack.appendChild(row('Grading Quality', gradingModelSel, 'Standard is recommended — quality difference is minimal for rubric grading'));
     stack.appendChild(row('Teacher Name', nameIn));
-    stack.appendChild(row('Canvas API Token', tokenIn, 'Canvas → Account → Settings → New Access Token'));
+    if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
     stack.appendChild(row('License Key', licenseIn));
 
     const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
@@ -826,7 +849,6 @@
       chrome.storage.local.set({
         ce_ai_provider:    providerSel.value,
         ce_grading_model:  gradingModelSel.value,
-        ce_canvas_token:   tokenIn.value.trim(),
         ce_teacher_name:   nameIn.value.trim(),
         ce_license_key:    licenseIn.value.trim(),
         ce_features:       features,
@@ -3526,6 +3548,11 @@
   document.addEventListener('ce-open-chat',    () => openQuickAI());
   document.addEventListener('ce-open-notes',   () => openNotesModal());
   document.addEventListener('ce-open-help',    e => openHelp(e.detail));
+  document.addEventListener('ce-open-settings', () => {
+    settingsMBody.innerHTML = '';
+    settingsModal.style.display = 'flex';
+    renderSettings(settingsMBody);
+  });
   document.addEventListener('ce-open-vitals',  () => showVitalsModal());
   document.addEventListener('ce-open-at-risk', () => showAtRiskModal());
   document.addEventListener('ce-render-audit', e => {

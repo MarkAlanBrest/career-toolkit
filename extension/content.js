@@ -995,7 +995,7 @@
       insertMode: 'replace',
       pointValue:'', dueDate:'',
       textContent:'', uploadedFile:'', uploadedName:'',
-      includedVideos:[], includedImages:[], includedLinks:[],
+      includedVideos:[], includedLinks:[],
       generatedHTML:'',
       helpOpen:false,
       apiKey: GM_getValue('ce_license_key',''),
@@ -1012,6 +1012,7 @@
     panel.style.cssText = `width:${pw}px;height:${ph}px;background:#f1f5f9;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;overflow:hidden;`;
 
     function render() {
+      const prevScroll = panel.querySelector('div[style*="overflow-y:auto"]')?.scrollTop || 0;
       panel.innerHTML = '';
       panel.appendChild(cbHeader());
       if (st.helpOpen) panel.appendChild(cbHelp());
@@ -1022,6 +1023,7 @@
       else if (st.view==='loading') body.appendChild(cbLoading());
       else if (st.view==='result')  body.appendChild(cbResult());
       panel.appendChild(body);
+      body.scrollTop = prevScroll;
     }
 
     function cbLoading() {
@@ -1248,21 +1250,6 @@
         includeCard.appendChild(item);
       });
 
-      // — Images —
-      includeCard.appendChild(mkSubHdr('Images','10px'));
-      const imgRow=mkAddRow(); const imgInput=mkUrlInput('Image URL (https://...)'); const imgAddBtn=mkAddBtn();
-      imgAddBtn.onclick=()=>{
-        const url=imgInput.value.trim();
-        if(!url||!url.startsWith('http')){showNotice('Enter a valid image URL starting with http');return;}
-        st.includedImages.push({url,size:'full',align:'center'}); imgInput.value=''; render();
-      };
-      imgRow.append(imgInput,imgAddBtn); includeCard.appendChild(imgRow);
-      st.includedImages.forEach((img,i)=>{
-        const item=mkItem();
-        item.append(mkIcon('🖼'),mkItemLbl(img.url),mkMiniSel([['full','Full'],['half','Half'],['quarter','¼']],img.size,val=>{st.includedImages[i].size=val;}),mkMiniSel([['center','Center'],['left','Left'],['right','Right']],img.align,val=>{st.includedImages[i].align=val;}),mkRmv(()=>{st.includedImages.splice(i,1);render();}));
-        includeCard.appendChild(item);
-      });
-
       // — Links & Resources —
       includeCard.appendChild(mkSubHdr('Links & Resources','10px'));
       const linkUrlInput=document.createElement('input'); linkUrlInput.type='text'; linkUrlInput.placeholder='URL (https://...)';
@@ -1401,10 +1388,11 @@
         ].forEach(([k,l,d])=>elemCard.appendChild(mkToggle(l,d,st.syllabusElements[k],v=>{st.syllabusElements[k]=v;})));
       }
       const advanced=document.createElement('details');
+      advanced.open=true;
       advanced.style.cssText='background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05);';
       const advancedSummary=document.createElement('summary');
       advancedSummary.style.cssText='padding:13px 14px;cursor:pointer;font-size:12px;font-weight:750;color:#334155;list-style:none;display:flex;align-items:center;justify-content:space-between;';
-      advancedSummary.innerHTML='<span>Advanced content options</span><span style="color:#94A3B8">▾</span>';
+      advancedSummary.innerHTML='<span>Advanced content options</span>';
       elemCard.style.cssText='border:0;border-top:1px solid #F1F5F9;border-radius:0;padding:14px;margin:0;box-shadow:none;';
       advanced.append(advancedSummary,elemCard);rightCol.appendChild(advanced);
 
@@ -1616,13 +1604,7 @@
       prompt+=`\nEmbed these videos. Convert watch URLs to embed URLs. Wrap each in: <div style="width:WIDTH;margin:1em auto;"><div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:6px;"><iframe src="EMBED_URL" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe></div></div>\n`;
       st.includedVideos.forEach((v,i)=>{ prompt+=`- Video ${i+1}: ${v.url} width:${vw[v.size]||'100%'}\n`; });
     }
-    if (st.includedImages.length) {
-      const iw={full:'100%',half:'50%',quarter:'25%'};
-      const im={center:'0.75em auto',left:'0.75em auto 0.75em 0',right:'0.75em 0 0.75em auto'};
-      prompt+=`\nEmbed these images: <img src="URL" style="width:WIDTH;display:block;margin:MARGIN;border-radius:4px;max-width:100%;">\n`;
-      st.includedImages.forEach((img,i)=>{ prompt+=`- Image ${i+1}: ${img.url} width:${iw[img.size]||'100%'} margin:${im[img.align]||im.center}\n`; });
-    }
-    if (st.includedLinks.length) {
+if (st.includedLinks.length) {
       prompt+=`\nInclude a styled "Resources" section with these links as clickable cards or a clean styled list:\n`;
       st.includedLinks.forEach(({url,label})=>{ prompt+=`- ${label}: ${url}\n`; });
     }
@@ -2324,6 +2306,11 @@ Critical rules:
     hdr.appendChild(title); hdr.appendChild(closeBtn); panel.appendChild(hdr);
 
     const body=document.createElement('div'); body.style.cssText='padding:20px 24px;';
+    if (globalThis.CECanvasToken) {
+      const tokenControl=globalThis.CECanvasToken.createControl();
+      tokenControl.style.marginBottom='16px';
+      body.appendChild(tokenControl);
+    }
 
     function settingsSection(icon, label, desc, badge) {
       const row=document.createElement('div');
@@ -2415,7 +2402,13 @@ Critical rules:
     gearBtn.title='Settings';
     gearBtn.classList.add('ce-studio-spacer');
     gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSettings();};
+    globalThis.CECanvasToken?.bindIndicator(gearBtn);
     rowBottom.appendChild(gearBtn);
+
+    const helpBtn=document.createElement('button'); helpBtn.className='ce-btn'; helpBtn.type='button';
+    helpBtn.textContent='? Help'; helpBtn.title='How Content Studio works';
+    helpBtn.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-help',{detail:'content'}));};
+    rowBottom.appendChild(helpBtn);
 
     const hideBtn=document.createElement('button');hideBtn.className='ce-btn';hideBtn.type='button';hideBtn.textContent='— Hide';
     rowBottom.appendChild(hideBtn);
@@ -2500,6 +2493,7 @@ Critical rules:
     settingsIntro.style.cssText = 'font-size:12px;color:#64748B;line-height:1.55;';
     settingsIntro.textContent = 'Quiz Builder creates quizzes directly in Canvas and does not keep separate saved copies or other data that needs backing up.';
     settingsBody.appendChild(settingsIntro);
+    if (globalThis.CECanvasToken) settingsBody.appendChild(globalThis.CECanvasToken.createControl());
     const danger = document.createElement('div');
     danger.style.cssText = 'border-top:1px solid #E2E8F0;padding-top:16px;margin-top:2px;';
     const uninstallBtn = document.createElement('button');
@@ -2521,9 +2515,13 @@ Critical rules:
     document.body.appendChild(settingsOverlay);
 
     const settingsBtn = mkBtn('⚙', 'Settings');
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
     settingsBtn.addEventListener('click', () => {
       settingsOverlay.style.display = 'flex';
     });
+
+    const helpBtn = mkBtn('?', 'Help');
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'quiz' })));
 
     const hideBtn = mkBtn('—', 'Hide');
     hideBtn.style.marginLeft = 'auto';
@@ -2538,7 +2536,7 @@ Critical rules:
       document.body.classList.remove('ce-quiz-collapsed');
     });
 
-    bar.append(brand, quizBtn, settingsBtn, hideBtn);
+    bar.append(brand, quizBtn, settingsBtn, helpBtn, hideBtn);
     document.body.insertBefore(bar, document.body.firstChild);
 
     let _onPage = false;
