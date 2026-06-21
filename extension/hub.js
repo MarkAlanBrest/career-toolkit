@@ -95,38 +95,35 @@
   // ── HELP CONTENT ───────────────────────────────────────────────────────────
   const HELP_CONTENT = {
     dashboard: {
-      title: 'Teaching Toolkit — Dashboard',
+      title: 'Canvas Enhancer — Overview',
       html: `
-        <p class="ce-help-desc">Your always-on toolbar, available on every Canvas page. Quick access to AI chat, personal notes, and settings without leaving what you're doing.</p>
+        <p class="ce-help-desc">Canvas Enhancer adds a suite of teaching tools to Canvas. Tools appear where they are useful — a floating AI button on every page, course toolbars on course home pages, and messaging tools in the Canvas Inbox.</p>
         <div class="ce-help-section">
-          <div class="ce-help-sh">💬 Chat</div>
+          <div class="ce-help-sh">🤖 AI Assistant</div>
           <ol>
-            <li>Click <strong>Chat</strong> to open your preferred AI assistant in a side window alongside Canvas.</li>
-            <li>Reference your course content while chatting — the Canvas page stays fully visible.</li>
-            <li>Use it to draft feedback, brainstorm rubric language, or answer student questions.</li>
-            <li>Change your AI provider (Claude, ChatGPT, Gemini, Copilot, Perplexity) under <strong>Settings</strong>.</li>
+            <li>A floating <strong>AI</strong> button appears in the bottom-right corner of every Canvas page.</li>
+            <li>Click it to open your preferred AI (Claude, ChatGPT, Gemini, Copilot, or Perplexity) in a side window.</li>
+            <li>Change your AI provider under <strong>Settings</strong> (gear icon).</li>
           </ol>
         </div>
         <div class="ce-help-section">
-          <div class="ce-help-sh">📝 Notes</div>
+          <div class="ce-help-sh">📊 Course Reports (Course Home)</div>
           <ol>
-            <li>Click <strong>Notes</strong> to open a private notepad that saves automatically.</li>
-            <li>Use it for to-do lists, reminders, copy-paste snippets, or student notes.</li>
-            <li>Notes persist between sessions and are only visible to you.</li>
+            <li>A toolbar appears at the top of each Course Home page.</li>
+            <li><strong>Vitals</strong> — see ungraded work, upcoming due dates, and a course summary at a glance.</li>
+            <li><strong>Needs Graded</strong> — jump straight to a list of ungraded student submissions.</li>
+            <li><strong>At Risk</strong> — identify students with missing work, low grades, or inactivity across all your courses.</li>
           </ol>
         </div>
         <div class="ce-help-section">
           <div class="ce-help-sh">⚙️ Settings</div>
           <ol>
-            <li><strong>Teacher Name</strong> — sets the welcome greeting shown in the toolbar.</li>
-            <li><strong>Canvas API Token</strong> — required for AI Grader and bulk messaging. Get it from Canvas → Account → Settings → + New Access Token.</li>
-            <li><strong>AI Provider</strong> — choose which assistant opens when you click Chat.</li>
-            <li><strong>Grading Quality</strong> — Standard is faster and cheaper; High Quality is better for complex writing.</li>
+            <li><strong>Canvas API Token</strong> — required for AI Grader, Vitals, At Risk, and bulk messaging. Get it from Canvas → Account → Settings → + New Access Token.</li>
+            <li><strong>AI Provider</strong> — choose which assistant opens when you click the AI button.</li>
+            <li><strong>Grading Quality</strong> — Standard is faster; High Quality produces richer AI feedback.</li>
             <li><strong>License Key</strong> — enter your Canvas Enhancer license to unlock all features.</li>
-            <li><strong>Features</strong> — toggle individual tools on or off.</li>
           </ol>
         </div>
-        <div class="ce-help-tip">💡 Click <strong>Hide</strong> to collapse the toolbar. A small tab remains so you can bring it back any time.</div>
       `,
     },
     inbox: {
@@ -272,7 +269,7 @@
   let _active      = null;          // tool id with open panel
   let _expanded    = !SPEEDGRADER;  // SpeedGrader starts minimized
   let _panelCleanup = null;  // storage listener teardown for active panel
-  let _onDashboard = false; // toolbar lives on course home pages via eval.js
+  let _onDashboard = false; // legacy toolbar remains disabled
 
   // ── HELPERS ────────────────────────────────────────────────────────────────
   function el(tag, css, attrs) {
@@ -331,6 +328,8 @@
   function makeRowLink(href) {
     const a = document.createElement('a');
     a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
     a.style.cssText = `display:flex;align-items:center;gap:12px;padding:11px 16px;text-decoration:none;border-bottom:1px solid ${DS.border};transition:background .12s;`;
     a.addEventListener('mouseenter', () => { a.style.background = DS.gray; });
     a.addEventListener('mouseleave', () => { a.style.background = ''; });
@@ -571,7 +570,7 @@
   // ── NEEDS GRADED MODAL ─────────────────────────────────────────────────────
   const ngModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   ngModal.id = 'ce-ng-modal';
-  const ngBox = el('div', `background:#fff;width:min(640px,calc(100vw - 48px));max-height:min(600px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const ngBox = el('div', `background:#F8FAFC;width:min(1100px,calc(100vw - 48px));max-height:min(900px,calc(100vh - 60px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   ngModal.appendChild(ngBox);
   ngModal.addEventListener('click', e => { if (e.target === ngModal) closeNgModal(); });
 
@@ -585,7 +584,7 @@
   // ── AT RISK MODAL ──────────────────────────────────────────────────────────
   const atRiskModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   atRiskModal.id = 'ce-atrisk-modal';
-  const atRiskBox = el('div', `background:#fff;width:min(680px,calc(100vw - 48px));max-height:min(720px,calc(100vh - 64px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const atRiskBox = el('div', `background:#F8FAFC;width:min(1100px,calc(100vw - 48px));max-height:min(900px,calc(100vh - 60px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   atRiskModal.appendChild(atRiskBox);
   atRiskModal.addEventListener('click', e => { if (e.target === atRiskModal) { atRiskModal.style.display = 'none'; setActive(null); } });
 
@@ -599,7 +598,7 @@
   const settingsMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
   settingsMClose.addEventListener('mouseenter', () => { settingsMClose.style.background = 'rgba(255,255,255,0.15)'; settingsMClose.style.color = '#fff'; });
   settingsMClose.addEventListener('mouseleave', () => { settingsMClose.style.background = ''; settingsMClose.style.color = 'rgba(255,255,255,0.65)'; });
-  settingsMClose.addEventListener('click', () => { settingsModal.style.display = 'none'; });
+  settingsMClose.addEventListener('click', () => { settingsModal.style.display = 'none'; setActive(null); });
   settingsMHdr.append(settingsMTitle, settingsMClose);
   const settingsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0;`);
   settingsMBody.id = 'ce-settings-mbody';
@@ -618,7 +617,7 @@
   const notesMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
   notesMClose.addEventListener('mouseenter', () => { notesMClose.style.background = 'rgba(255,255,255,0.15)'; notesMClose.style.color = '#fff'; });
   notesMClose.addEventListener('mouseleave', () => { notesMClose.style.background = ''; notesMClose.style.color = 'rgba(255,255,255,0.65)'; });
-  notesMClose.addEventListener('click', () => { notesModal.style.display = 'none'; });
+  notesMClose.addEventListener('click', () => { notesModal.style.display = 'none'; setActive(null); });
   notesMHdr.append(notesMTitle, notesMClose);
   const notesMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0;`);
   notesMBody.id = 'ce-notes-mbody';
@@ -636,7 +635,7 @@
   const helpMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.65);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
   helpMClose.addEventListener('mouseenter', () => { helpMClose.style.background = 'rgba(255,255,255,0.15)'; helpMClose.style.color = '#fff'; });
   helpMClose.addEventListener('mouseleave', () => { helpMClose.style.background = ''; helpMClose.style.color = 'rgba(255,255,255,0.65)'; });
-  helpMClose.addEventListener('click', () => { helpModal.style.display = 'none'; });
+  helpMClose.addEventListener('click', () => { helpModal.style.display = 'none'; setActive(null); });
   helpMHdr.append(helpMTitle, helpMClose);
   const helpMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:24px;`);
   helpBox.append(helpMHdr, helpMBody);
@@ -882,6 +881,11 @@
     }
     stack.appendChild(featureItems);
     stack.appendChild(divider());
+
+    if (globalThis.CEDataBackup) {
+      stack.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
+      stack.appendChild(divider());
+    }
 
     // About
     const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:8px;`);
@@ -2791,11 +2795,11 @@
     const desc = makeHelpDescPanel('A complete grading queue pulled from all your active Canvas courses in one place. Canvas spreads your ungraded work across every individual course — this brings everything together so you can see it all at once. Each row shows the course name, the assignment, the due date, and how many students are still waiting to be graded. Click any row to jump directly into SpeedGrader for that assignment and start grading right away.');
     const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
     const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '✏️';
-    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Needs Graded';
+    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Grade Queue';
     hdr.append(ico, ttl, makeHelpQBtn(desc), makeModalCloseBtn(closeNgModal));
     ngBox.append(hdr, desc);
 
-    const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
+    const body = el('div', `flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;background:#F8FAFC;padding:24px;box-sizing:border-box;`);
     ngBox.appendChild(body);
 
     ngModal.style.display = 'flex';
@@ -2832,10 +2836,33 @@
           return da - db;
         });
       body.innerHTML = '';
-      if (!pending.length) { msg('✅  All caught up — nothing left to grade.'); return; }
-      const subHdr = el('div', `padding:12px 16px 10px;font-size:12px;color:${DS.muted};border-bottom:1px solid ${DS.border};`);
-      subHdr.textContent = `${pending.length} assignment${pending.length !== 1 ? 's' : ''} waiting to be graded`;
-      body.appendChild(subHdr);
+      const totalSubmissions = pending.reduce((sum, item) => sum + (item.needs_grading_count ?? item.assignment?.needs_grading_count ?? 0), 0);
+      const courseCount = new Set(pending.map(item => item.assignment?.course_id).filter(Boolean)).size;
+      const hero = el('div', `background:#fff;border-radius:16px;padding:28px 32px;display:flex;align-items:center;gap:28px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px;`);
+      const circle = el('div', `width:110px;height:110px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${totalSubmissions ? '#D97706' : DS.green};color:#fff;font-weight:800;font-size:36px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.15);`);
+      circle.innerHTML = String(totalSubmissions) + '<small style="font-size:12px;font-weight:600;opacity:.9;margin-top:2px">TO GRADE</small>';
+      const heroCopy = el('div', ``);
+      const heroTitle = el('div', `font-size:22px;font-weight:700;color:#1E293B;margin-bottom:6px;`);
+      heroTitle.textContent = totalSubmissions ? 'Your grading queue is ready' : 'You are all caught up';
+      const heroDesc = el('div', `font-size:14px;color:#64748B;line-height:1.5;`);
+      heroDesc.textContent = totalSubmissions
+        ? `${pending.length} assignment${pending.length === 1 ? '' : 's'} across ${courseCount} course${courseCount === 1 ? '' : 's'}. Start with the oldest due date below.`
+        : 'There are no submissions waiting for a grade.';
+      heroCopy.append(heroTitle, heroDesc);
+      hero.append(circle, heroCopy);
+      body.appendChild(hero);
+
+      const queueCard = el('div', `background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.06);`);
+      const queueTitle = el('div', `font-size:16px;font-weight:700;color:#1E293B;margin-bottom:10px;`);
+      queueTitle.textContent = 'Assignments Waiting';
+      queueCard.appendChild(queueTitle);
+      body.appendChild(queueCard);
+      if (!pending.length) {
+        const clear = el('div', `padding:32px 20px;text-align:center;font-size:13px;color:${DS.green};border-top:1px solid #F1F5F9;`);
+        clear.textContent = '✓ Nothing needs grading right now.';
+        queueCard.appendChild(clear);
+        return;
+      }
       for (const item of pending) {
         const a = item.assignment;
         const cid = a.course_id;
@@ -2858,7 +2885,7 @@
         row.append(left, badge);
         row.addEventListener('mouseenter', () => row.style.background = DS.gray);
         row.addEventListener('mouseleave', () => row.style.background = '');
-        body.appendChild(row);
+        queueCard.appendChild(row);
       }
     } catch (e) {
       msg('Error: ' + e.message, '#991B1B');
@@ -2997,9 +3024,9 @@
     const desc = makeHelpDescPanel('This report flags students who may need your attention before they fall too far behind. Canvas Enhancer checks every student in your dashboard courses for three warning signs: missing assignments (past due and never submitted), a low current grade (below 70%), and recent inactivity (no Canvas login in 14+ days). Click an active course row to include or exclude it. Students with more than one flag are sorted to the top. Click any student row to open their grade page in Canvas.');
     const hdr = el('div', `flex-shrink:0;height:52px;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
     const ico = el('span', `font-size:18px;line-height:1;`); ico.textContent = '⚠️';
-    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'At Risk Students';
+    const ttl = el('span', `flex:1;font-size:14px;font-weight:700;color:#fff;letter-spacing:.2px;`); ttl.textContent = 'Student Alerts';
     hdr.append(ico, ttl, makeHelpQBtn(desc), makeModalCloseBtn(() => { atRiskModal.style.display = 'none'; setActive(null); }));
-    const body = el('div', `flex:1;min-height:0;overflow-y:auto;`);
+    const body = el('div', `flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;background:#F8FAFC;`);
     atRiskBox.append(hdr, desc, body);
     atRiskModal.style.display = 'flex';
     await loadAtRisk(body);
@@ -3053,14 +3080,14 @@
         const enrollments = enrollResults[i] || [];
         const subs        = missingResults[i] || [];
         const missingByUid = {};
-        for (const s of subs) missingByUid[s.user_id] = (missingByUid[s.user_id] || 0) + 1;
+        for (const s of subs) missingByUid[String(s.user_id)] = (missingByUid[String(s.user_id)] || 0) + 1;
 
         for (const e of enrollments) {
           const grade      = e.grades?.current_score;
           const lastActive = e.last_activity_at ? new Date(e.last_activity_at) : null;
-          const missing    = missingByUid[e.user_id] || 0;
+          const missing    = missingByUid[String(e.user_id)] || 0;
           const isLowGrade = typeof grade === 'number' && grade < 70;
-          const isInactive = !lastActive || lastActive < cutoff;
+          const isInactive = lastActive !== null && lastActive < cutoff;
           const hasMissing = missing > 0;
           if (!hasMissing && !isLowGrade && !isInactive) continue;
           const flags = [];
@@ -3084,77 +3111,97 @@
 
       // Track which courses are toggled on
       const enabled = {};
-      for (const c of courses) enabled[c.id] = true;
+      for (const c of courses) enabled[String(c.id)] = true;
 
-      // Tiles row
-      const tilesRow = el('div', `display:flex;gap:1px;background:${DS.border};border-bottom:2px solid ${DS.border};`);
-      body.appendChild(tilesRow);
+      // Vitals-style sticky control row
+      const controls = el('div', `position:sticky;top:0;z-index:5;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 24px;background:#fff;border-bottom:1px solid #E2E8F0;`);
+      const controlsLabel = el('span', `font-size:12px;font-weight:700;color:#475569;margin-right:2px;`);
+      controlsLabel.textContent = 'Courses';
+      controls.appendChild(controlsLabel);
+      body.appendChild(controls);
 
-      // Course breakdown / filter
-      const coursesEl = el('div', ``);
-      body.appendChild(coursesEl);
+      const content = el('div', `padding:24px;display:flex;flex-direction:column;gap:20px;`);
+      const heroEl = el('div', ``);
+      const riskCardsEl = el('div', `display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;`);
+      const listCard = el('div', `background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.06);`);
+      content.append(heroEl, riskCardsEl, listCard);
+      body.appendChild(content);
 
-      // Student list
-      const listEl = el('div', ``);
-      body.appendChild(listEl);
-
-      function courseRiskCount(courseId) {
-        return rows.filter(r => r.courseId === courseId).length;
-      }
-
-      function renderCourses() {
-        coursesEl.innerHTML = '';
-        coursesEl.appendChild(makeSecHdr('Active Courses'));
+      function renderControls() {
+        while (controls.children.length > 1) controls.lastChild.remove();
         for (const c of courses) {
-          const selected = enabled[c.id];
-          const count = courseRiskCount(c.id);
-          const row = el('button', `width:100%;display:flex;align-items:center;gap:12px;padding:11px 16px;border:0;border-bottom:1px solid ${DS.border};background:${selected ? '#fff' : DS.gray};text-align:left;cursor:pointer;font-family:${DS.font};transition:background .12s,opacity .12s;opacity:${selected ? '1' : '.62'};`, { type:'button' });
-          const left = el('div', `flex:1;min-width:0;`);
-          const name = el('div', `font-size:13px;font-weight:600;color:${selected ? DS.blue : DS.muted};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`);
-          name.textContent = c.name || c.course_code || `Course ${c.id}`;
-          const code = el('div', `font-size:10px;color:${DS.muted};margin-top:2px;`);
-          code.textContent = c.course_code || '';
-          left.append(name, code);
-          const right = count > 0
-            ? makeBadge(`${count} at risk`, '#FEE2E2', '#991B1B')
-            : el('div', `font-size:11px;color:${DS.green};font-weight:600;`);
-          if (!count) right.textContent = '✓ No flags';
-          const check = el('span', `width:18px;flex-shrink:0;text-align:center;font-size:14px;font-weight:700;color:${selected ? DS.blue : DS.muted};`);
-          check.textContent = selected ? '✓' : '–';
-          row.append(left, right, check);
-          row.title = selected ? 'Click to exclude this course' : 'Click to include this course';
-          row.addEventListener('mouseenter', () => { row.style.background = selected ? DS.gray : '#EEF2F7'; });
-          row.addEventListener('mouseleave', () => { row.style.background = selected ? '#fff' : DS.gray; });
-          row.addEventListener('click', () => {
-            enabled[c.id] = !enabled[c.id];
-            renderCourses();
+          const selected = enabled[String(c.id)];
+          const btn = el('button', `border:1px solid ${selected ? '#2563EB' : '#CBD5E1'};border-radius:8px;background:${selected ? '#EFF6FF' : '#fff'};color:${selected ? '#1D4ED8' : '#64748B'};font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer;font-family:${DS.font};transition:background .12s,border-color .12s;`, { type:'button' });
+          btn.textContent = (selected ? '✓ ' : '') + (c.course_code || c.name);
+          btn.title = selected ? 'Click to exclude this course' : 'Click to include this course';
+          btn.addEventListener('click', () => {
+            enabled[String(c.id)] = !enabled[String(c.id)];
+            renderControls();
             rerender();
           });
-          coursesEl.appendChild(row);
+          controls.appendChild(btn);
         }
       }
 
+      function makeRiskCard(icon, value, label, description, color, total) {
+        const card = el('div', `background:#fff;border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.06);`);
+        const head = el('div', `display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;`);
+        const title = el('div', `font-size:14px;font-weight:700;color:#1E293B;`);
+        title.textContent = icon + '  ' + label;
+        const badge = el('div', `padding:4px 12px;border-radius:8px;background:${color};color:#fff;font-weight:700;font-size:15px;`);
+        badge.textContent = String(value);
+        head.append(title, badge);
+        const bar = el('div', `height:6px;margin-bottom:12px;border-radius:4px;background:#E2E8F0;overflow:hidden;`);
+        const fill = el('div', `height:100%;width:${total ? Math.min(100, Math.round(value / total * 100)) : 0}%;border-radius:4px;background:${color};`);
+        bar.appendChild(fill);
+        const descEl = el('div', `font-size:12px;color:#64748B;line-height:1.5;`);
+        descEl.textContent = description;
+        card.append(head, bar, descEl);
+        return card;
+      }
+
       function rerender() {
-        const visIds = new Set(courses.filter(c => enabled[c.id]).map(c => c.id));
-        const vis    = rows.filter(r => visIds.has(r.courseId));
+        const visIds = new Set(courses.filter(c => enabled[String(c.id)]).map(c => String(c.id)));
+        const vis    = rows.filter(r => visIds.has(String(r.courseId)));
 
         const nMulti = vis.filter(r => r.flagCount >= 2).length;
-        const nCourses = visIds.size;
+        const nMissing = vis.filter(r => r.hasMissing).length;
+        const nLowGrade = vis.filter(r => r.isLowGrade).length;
+        const nInactive = vis.filter(r => r.isInactive).length;
 
-        tilesRow.innerHTML = '';
-        tilesRow.append(
-          makeStatTile('⚠️', vis.length, 'At Risk',         'students with 1+ flags', vis.length > 0 ? '#DC2626' : DS.green),
-          makeStatTile('🚨', nMulti,     'High Priority',   'students with 2+ flags', nMulti > 0 ? '#9D174D' : DS.green),
-          makeStatTile('📚', nCourses,   'Courses',         'currently included',    DS.text),
+        heroEl.innerHTML = '';
+        const hero = el('div', `background:#fff;border-radius:16px;padding:28px 32px;display:flex;align-items:center;gap:28px;box-shadow:0 1px 3px rgba(0,0,0,.06);`);
+        const circleColor = vis.length ? '#DC2626' : DS.green;
+        const circle = el('div', `width:110px;height:110px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:${circleColor};color:#fff;font-weight:800;font-size:36px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.15);`);
+        circle.innerHTML = String(vis.length) + '<small style="font-size:12px;font-weight:600;opacity:.9;margin-top:2px">AT RISK</small>';
+        const heroText = el('div', `min-width:0;`);
+        const heroTitle = el('div', `font-size:22px;font-weight:700;color:#1E293B;margin-bottom:6px;`);
+        heroTitle.textContent = vis.length ? `${vis.length} student${vis.length === 1 ? '' : 's'} need attention` : 'All selected courses look clear';
+        const heroDesc = el('div', `font-size:14px;color:#64748B;line-height:1.5;`);
+        heroDesc.textContent = vis.length
+          ? `${nMulti} high-priority student${nMulti === 1 ? '' : 's'} have two or more warning signs across ${visIds.size} selected course${visIds.size === 1 ? '' : 's'}.`
+          : 'No missing-work, low-grade, or inactivity flags were found for the selected courses.';
+        heroText.append(heroTitle, heroDesc);
+        hero.append(circle, heroText);
+        heroEl.appendChild(hero);
+
+        riskCardsEl.innerHTML = '';
+        riskCardsEl.append(
+          makeRiskCard('📭', nMissing, 'Missing Work', 'Past-due assignments that were not submitted.', '#DC2626', vis.length),
+          makeRiskCard('📉', nLowGrade, 'Low Grade', 'Students whose current grade is below 70%.', '#D97706', vis.length),
+          makeRiskCard('💤', nInactive, 'Inactive', 'No Canvas activity recorded in the last 14 days.', '#64748B', vis.length),
         );
 
-        listEl.innerHTML = '';
+        listCard.innerHTML = '';
+        const listTitle = el('div', `font-size:16px;font-weight:700;color:#1E293B;margin-bottom:10px;`);
+        listTitle.textContent = 'Students Needing Attention';
+        listCard.appendChild(listTitle);
         if (!vis.length) {
-          const none = el('div', `padding:40px 20px;text-align:center;font-size:13px;color:${DS.muted};`);
+          const none = el('div', `padding:32px 20px;text-align:center;font-size:13px;color:${DS.muted};border-top:1px solid #F1F5F9;`);
           none.textContent = visIds.size === 0
             ? 'Select at least one course above to see students.'
             : '✅ No at-risk students in the selected courses.';
-          listEl.appendChild(none);
+          listCard.appendChild(none);
           return;
         }
 
@@ -3167,8 +3214,6 @@
           return 0;
         });
 
-        listEl.appendChild(makeSecHdr(`${vis.length} student${vis.length !== 1 ? 's' : ''} need attention`));
-
         for (const s of vis) {
           const row = makeRowLink(s.gradesUrl);
           const left = el('div', `flex:1;min-width:0;`);
@@ -3179,14 +3224,14 @@
           left.append(nameEl, crsEl);
           const badges = el('div', `display:flex;gap:4px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;`);
           if (s.hasMissing) badges.appendChild(makeBadge(`${s.missing} missing`, '#FEE2E2', '#991B1B'));
-          if (s.isLowGrade) badges.appendChild(makeBadge(`${Math.round(s.grade)}%`, '#FEF3C7', '#92400E'));
+          if (s.isLowGrade) badges.appendChild(makeBadge(`${Math.floor(s.grade)}%`, '#FEF3C7', '#92400E'));
           if (s.isInactive) badges.appendChild(makeBadge('inactive', '#F3F4F6', '#374151'));
           row.append(left, badges);
-          listEl.appendChild(row);
+          listCard.appendChild(row);
         }
       }
 
-      renderCourses();
+      renderControls();
       rerender();
 
     } catch(e) {
@@ -3246,20 +3291,90 @@
     openPanel(tool);
   }
 
+  function openAIProvider(provider) {
+    if (!provider) return;
+    chrome.storage.local.set({ ce_ai_provider: provider.id });
+    ceSendMessage({
+      type: 'OPEN_CLAUDE_SPLIT',
+      payload: {
+        url:         provider.url,
+        screenWidth:  window.screen.availWidth,
+        screenHeight: window.screen.availHeight,
+        screenTop:    window.screen.availTop  || 0,
+        screenLeft:   window.screen.availLeft || 0,
+      },
+    }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); });
+  }
+
   function openQuickAI() {
     chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
       const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
-      ceSendMessage({
-        type: 'OPEN_CLAUDE_SPLIT',
-        payload: {
-          url:         provider.url,
-          screenWidth:  window.screen.availWidth,
-          screenHeight: window.screen.availHeight,
-          screenTop:    window.screen.availTop  || 0,
-          screenLeft:   window.screen.availLeft || 0,
-        },
-      }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); });
+      openAIProvider(provider);
     });
+  }
+
+  function mountAILauncher() {
+    if (document.getElementById('ce-ai-launcher')) return;
+    const root = el('div', `position:fixed;right:20px;bottom:20px;z-index:2147483639;font-family:${DS.font};`);
+    root.id = 'ce-ai-launcher';
+
+    const menu = el('div', `position:absolute;right:0;bottom:64px;width:260px;padding:8px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.25);display:none;flex-direction:column;gap:2px;`);
+    const head = el('div', `padding:10px 11px 9px;border-bottom:1px solid #F1F5F9;margin-bottom:4px;`);
+    const title = el('div', `font-size:13px;font-weight:750;color:#0F172A;`); title.textContent = 'Open an AI assistant';
+    const sub = el('div', `font-size:11px;color:#64748B;margin-top:3px;line-height:1.4;`); sub.textContent = 'Opens beside Canvas in a companion window.';
+    head.append(title, sub);
+    menu.appendChild(head);
+
+    const providerMeta = {
+      claude:     ['C', '#D97757'],
+      chatgpt:    ['✦', '#10A37F'],
+      gemini:     ['✦', '#4F7DF3'],
+      copilot:    ['C', '#2563EB'],
+      perplexity: ['P', '#20808D'],
+    };
+    for (const provider of AI_PROVIDERS) {
+      const item = el('button', `width:100%;display:flex;align-items:center;gap:11px;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#334155;text-align:left;cursor:pointer;font-family:${DS.font};`, { type:'button' });
+      const meta = providerMeta[provider.id] || ['AI', '#475569'];
+      const mark = el('span', `width:30px;height:30px;border-radius:9px;background:${meta[1]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;`); mark.textContent = meta[0];
+      const copy = el('span', `display:flex;flex-direction:column;min-width:0;`);
+      const name = el('span', `font-size:12px;font-weight:700;color:#1E293B;`); name.textContent = provider.label.replace(/\s*\([^)]*\)\s*$/, '');
+      const domain = el('span', `font-size:10px;color:#94A3B8;margin-top:2px;`); domain.textContent = new URL(provider.url).hostname.replace(/^www\./, '');
+      copy.append(name, domain);
+      item.append(mark, copy);
+      item.addEventListener('mouseenter', () => item.style.background = '#F1F5F9');
+      item.addEventListener('mouseleave', () => item.style.background = 'transparent');
+      item.addEventListener('click', () => { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); openAIProvider(provider); });
+      menu.appendChild(item);
+    }
+
+    const footer = el('div', `border-top:1px solid #F1F5F9;margin-top:5px;padding:7px 4px 1px;`);
+    const removeBtn = el('button', `width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#94A3B8;text-align:left;cursor:pointer;font-size:11px;font-weight:650;font-family:${DS.font};`, { type:'button' });
+    removeBtn.innerHTML = '<span style="width:20px;text-align:center">⊘</span><span>Remove AI launcher…</span>';
+    removeBtn.addEventListener('mouseenter', () => { removeBtn.style.background = '#FEF2F2'; removeBtn.style.color = '#B91C1C'; });
+    removeBtn.addEventListener('mouseleave', () => { removeBtn.style.background = 'transparent'; removeBtn.style.color = '#94A3B8'; });
+    removeBtn.addEventListener('click', () => {
+      if (!confirm('Remove the AI launcher from Canvas? Re-enabling it will require resetting or reinstalling Canvas Enhancer.')) return;
+      chrome.storage.local.set({ ce_ai_launcher_disabled: true }, () => root.remove());
+    });
+    footer.appendChild(removeBtn);
+    menu.appendChild(footer);
+
+    const launch = el('button', `width:52px;height:52px;border:0;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#14B8A6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.28);font-size:22px;transition:transform .14s,box-shadow .14s;`, { type:'button', title:'Open AI assistant', textContent:'✦' });
+    launch.setAttribute('aria-label', 'Open AI assistant menu');
+    launch.setAttribute('aria-expanded', 'false');
+    launch.addEventListener('mouseenter', () => { launch.style.transform = 'translateY(-2px)'; launch.style.boxShadow = '0 12px 30px rgba(15,23,42,.32)'; });
+    launch.addEventListener('mouseleave', () => { launch.style.transform = ''; launch.style.boxShadow = '0 8px 24px rgba(15,23,42,.28)'; });
+    launch.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = menu.style.display === 'flex';
+      menu.style.display = open ? 'none' : 'flex';
+      launch.setAttribute('aria-expanded', String(!open));
+    });
+    menu.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); } });
+    root.append(menu, launch);
+    document.body.appendChild(root);
   }
 
   function setActive(id) {
@@ -3377,12 +3492,13 @@
   // ── MOUNT ──────────────────────────────────────────────────────────────────
   function mount() {
     // Modals must be in the DOM on every page so cross-toolbar events work
-    document.body.appendChild(ngModal);
-    document.body.appendChild(vitalsModal);
-    document.body.appendChild(atRiskModal);
     document.body.appendChild(settingsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
+    chrome.storage.local.get('ce_ai_launcher_disabled', ({ ce_ai_launcher_disabled }) => {
+      if (!ce_ai_launcher_disabled) mountAILauncher();
+    });
+    return;
 
     if (SPEEDGRADER) return;
     // Reserve 52 px on the right so Canvas content doesn't flow under the toolbar.
@@ -3404,14 +3520,14 @@
     });
   }
 
-  // ── DASHBOARD PAGE DETECTION (disabled — toolbar on course home via eval.js) ─
+  // Legacy dashboard toolbar remains disabled.
   function updateDashboardMode() { /* toolbar hidden; hub.js runs for modals/events only */ }
 
-  document.addEventListener('ce-open-ai-grader', () => showNgModal());
-  document.addEventListener('ce-open-at-risk',   () => showAtRiskModal());
-  document.addEventListener('ce-open-chat',  () => openQuickAI());
-  document.addEventListener('ce-open-notes', () => openNotesModal());
-  document.addEventListener('ce-open-help',  e => openHelp(e.detail));
+  document.addEventListener('ce-open-chat',    () => openQuickAI());
+  document.addEventListener('ce-open-notes',   () => openNotesModal());
+  document.addEventListener('ce-open-help',    e => openHelp(e.detail));
+  document.addEventListener('ce-open-vitals',  () => showVitalsModal());
+  document.addEventListener('ce-open-at-risk', () => showAtRiskModal());
   document.addEventListener('ce-render-audit', e => {
     const c = e.detail?.container;
     if (!c) return;
@@ -3425,5 +3541,5 @@
   else document.addEventListener('DOMContentLoaded', mount);
 
   // Fetch grader badge count after a short delay so the page token is ready
-  setTimeout(updateGraderBadge, 1500);
+  setTimeout(updateGraderBadge, 2000);
 })();

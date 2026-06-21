@@ -3,6 +3,27 @@
 
 const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
+// ── REMOTE CONFIG ─────────────────────────────────────────────────────────────
+const CONFIG_URL      = 'https://canvasenhancer.com/extension-config.json';
+const CONFIG_CACHE_KEY = 'ce_remote_config';
+const CONFIG_TTL_MS   = 6 * 60 * 60 * 1000; // re-fetch every 6 hours
+
+async function fetchRemoteConfig() {
+  try {
+    const stored = await chrome.storage.local.get(CONFIG_CACHE_KEY);
+    const cached = stored[CONFIG_CACHE_KEY];
+    if (cached?.fetchedAt && (Date.now() - cached.fetchedAt) < CONFIG_TTL_MS) return;
+    const res = await fetch(CONFIG_URL, { cache: 'no-store' });
+    if (!res.ok) return;
+    const config = await res.json();
+    await chrome.storage.local.set({ [CONFIG_CACHE_KEY]: { ...config, fetchedAt: Date.now() } });
+    console.log('[CE] Remote config refreshed, version:', config.version);
+  } catch { /* network unavailable — content scripts fall back to built-in defaults */ }
+}
+
+chrome.runtime.onInstalled.addListener(fetchRemoteConfig);
+chrome.runtime.onStartup.addListener(fetchRemoteConfig);
+
 // Keep service worker alive during long AI requests
 chrome.runtime.onConnect.addListener(port => {
   if (port.name === 'ce-keepalive') port.onDisconnect.addListener(() => {});
@@ -104,20 +125,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.management.uninstallSelf({ showConfirmDialog: false });
     return false;
   }
+  if (msg.type === 'REFRESH_CONFIG') {
+    chrome.storage.local.remove(CONFIG_CACHE_KEY, () => {
+      fetchRemoteConfig().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+    });
+    return true;
+  }
 });
 
 async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {
   const sl  = screenLeft || 0;
   const st  = screenTop  || 0;
   const aiW = 460;
+  const edgeGap = 32;
 
-  // Open AI chat floating on the right, leaving the 52px CE hub toolbar visible
+  // Open AI chat as a narrow companion window on the right.
   await chrome.windows.create({
     url:    url || 'https://claude.ai/new',
-    left:   sl + screenWidth - aiW - 52,
-    top:    st,
+    left:   sl + screenWidth - aiW - edgeGap,
+    top:    st + 8,
     width:  aiW,
-    height: screenHeight,
+    height: screenHeight - 16,
     type:   'normal',
   });
 }
@@ -192,11 +220,12 @@ async function handleCanvasApi({ url, token, method, body }) {
     headers,
     body:    body ? JSON.stringify(body) : undefined,
   });
-  const data = await res.json();
   if (!res.ok) {
-    throw new Error(data?.errors?.[0]?.message || data?.message || `Canvas API error ${res.status}`);
+    let errMsg = `Canvas API error ${res.status}`;
+    try { const d = await res.json(); errMsg = d?.errors?.[0]?.message || d?.message || errMsg; } catch(_) {}
+    throw new Error(errMsg);
   }
-  return data;
+  return res.json();
 }
 
 async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {

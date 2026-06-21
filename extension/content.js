@@ -12,7 +12,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_quiz_toolbar_disabled'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -27,7 +27,8 @@
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ type: 'GENERATE', payload }, res => {
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-        if (res?.error) return reject(new Error(res.error));
+        if (res === undefined || res === null) return reject(new Error('No response from extension — please reload the page and try again.'));
+        if (res?.error) return reject(new Error(typeof res.error === 'string' ? res.error : res.error?.message || 'Unknown error'));
         resolve(res);
       });
     });
@@ -232,7 +233,7 @@
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parseFloat(parsed.version) > parseFloat(BAKED_VERSION)) {
-          COMPONENTS = { ...parsed.components, navigation: BAKED_COMPONENTS.navigation };
+          COMPONENTS = { ...parsed.components, ...(BAKED_COMPONENTS.navigation ? { navigation: BAKED_COMPONENTS.navigation } : {}) };
         }
       }
     } catch(e) {}
@@ -255,23 +256,25 @@
   const style = document.createElement('style');
   style.textContent = `
     #ce-toolbar {
+      display:block;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      font-size:13px; background:#f5f5f5;
-      border:1px solid #ddd; border-bottom:none;
-      border-radius:4px 4px 0 0; position:relative; z-index:9000; user-select:none;
+      font-size:13px; background:#F8FAFC;
+      border:1px solid #CBD5E1; border-bottom:none;
+      border-radius:10px 10px 0 0; position:relative; z-index:9000; user-select:none;
+      box-shadow:0 -1px 0 rgba(15,23,42,.03);
     }
     #ce-row-top {
       display:flex; align-items:center; gap:4px;
       padding:6px 10px; border-bottom:1px solid #e0e0e0; flex-wrap:wrap;
     }
     #ce-row-bottom {
-      display:flex; align-items:center; gap:4px;
-      padding:6px 10px; flex-wrap:wrap;
+      min-height:52px;display:flex;align-items:center;gap:6px;
+      padding:0 10px;background:#172A36;flex-wrap:wrap;border-radius:9px 9px 0 0;
     }
     #ce-row-props {
       display:none; align-items:center; gap:8px; flex-wrap:wrap;
-      padding:8px 12px; border-top:1px solid #e0e0e0;
-      background:#fff; border-bottom:2px solid #0770B8;
+      padding:10px 14px; border-top:1px solid #E2E8F0;
+      background:#fff; border-bottom:2px solid #3B82F6;
     }
     #ce-row-props.open { display:flex; }
     #ce-props-label {
@@ -316,29 +319,38 @@
     .ce-prop-sep { width:1px; height:20px; background:#e0e0e0; flex-shrink:0; }
     .ce-sep { width:1px; height:20px; background:#ddd; margin:0 2px; flex-shrink:0; }
     .ce-group { position:relative; }
+    .ce-studio-brand { height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 6px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap; }
+    .ce-studio-mark { width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25); }
+    .ce-studio-copy { display:flex;flex-direction:column;align-items:flex-start;line-height:1.05; }
+    .ce-studio-copy strong { font-size:12px;letter-spacing:.2px; }
+    .ce-studio-copy small { font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px; }
     .ce-btn {
       display:flex; align-items:center; gap:5px;
-      background:#fff; border:1px solid #ccc; border-radius:4px;
-      padding:5px 10px; cursor:pointer; font-size:13px; color:#333;
-      white-space:nowrap; transition:background .15s,border-color .15s; font-family:inherit;
+      height:34px;background:transparent;border:1px solid transparent;border-radius:7px;
+      padding:0 12px;cursor:pointer;font-size:12px;font-weight:650;color:rgba(255,255,255,.78);
+      white-space:nowrap;transition:background .12s,color .12s,border-color .12s;font-family:inherit;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:#0770B8; border-color:#0770B8; color:#fff; }
+    .ce-btn:hover, .ce-btn.ce-open { background:rgba(255,255,255,.1);color:#fff; }
     .ce-icon { font-style:normal; font-size:14px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 4px); left:0;
-      background:#fff; border:1px solid #ddd; border-radius:4px;
-      box-shadow:0 4px 12px rgba(0,0,0,.12); min-width:180px;
+      background:#fff;border:1px solid #E2E8F0;border-radius:10px;
+      box-shadow:0 12px 30px rgba(15,23,42,.22);min-width:210px;
       z-index:9999; overflow:hidden;
     }
     .ce-panel.ce-open { display:block; }
     .ce-item {
       display:block; width:100%; text-align:left; background:none;
-      border:none; border-bottom:1px solid #f0f0f0;
-      padding:9px 14px; font-size:13px; color:#222;
+      border:none;border-radius:7px;
+      padding:9px 11px;font-size:12px;font-weight:600;color:#334155;
       cursor:pointer; transition:background .1s; font-family:inherit;
     }
     .ce-item:last-child { border-bottom:none; }
-    .ce-item:hover { background:#e8f0fb; color:#0770B8; }
+    .ce-item:hover { background:#F1F5F9;color:#0F172A; }
+    .ce-mega-panel { width:280px;padding:7px;max-height:420px;overflow-y:auto; }
+    .ce-menu-section { padding:8px 10px 5px;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em; }
+    .ce-studio-spacer { margin-left:auto; }
+    .ce-studio-reopen { display:none;align-items:center;gap:8px;padding:7px 12px;border:1px solid #CBD5E1;border-bottom:0;border-radius:8px 8px 0 0;background:#172A36;color:#fff;font:700 11px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer; }
     .ce-icon-panel { min-width:300px; padding:0; }
     .ce-icon-tabs { display:flex; border-bottom:1px solid #eee; }
     .ce-icon-tab {
@@ -843,6 +855,13 @@
     ocean:  { name:'🔵 Ocean',   primary:'#0770B8', secondary:'#38bdf8', bg:'#f0f7ff', headerBg:'#dbeafe', accent:'#3b82f6', text:'#111827', cardBg:'#eff6ff', border:'#bfdbfe' },
     earth:  { name:'🌿 Earth',   primary:'#854d0e', secondary:'#a16207', bg:'#fefce8', headerBg:'#fef9c3', accent:'#ca8a04', text:'#1c1917', cardBg:'#fffbeb', border:'#fde68a' },
     dark:   { name:'🌙 Dark',    primary:'#0ea5e9', secondary:'#38bdf8', bg:'#0f172a', headerBg:'#1e293b', accent:'#7dd3fc', text:'#f1f5f9', cardBg:'#1e293b', border:'#334155' },
+    minimal:{ name:'□ Minimal', primary:'#334155', secondary:'#64748b', bg:'#ffffff', headerBg:'#f8fafc', accent:'#475569', text:'#0f172a', cardBg:'#ffffff', border:'#e2e8f0' },
+    forest: { name:'🌲 Forest', primary:'#166534', secondary:'#15803d', bg:'#f0fdf4', headerBg:'#dcfce7', accent:'#22c55e', text:'#14532d', cardBg:'#f7fee7', border:'#bbf7d0' },
+    sunset: { name:'🌅 Sunset', primary:'#c2410c', secondary:'#e11d48', bg:'#fff7ed', headerBg:'#ffedd5', accent:'#f97316', text:'#431407', cardBg:'#fff1f2', border:'#fdba74' },
+    lavender:{ name:'Lavender', primary:'#6d28d9', secondary:'#a855f7', bg:'#faf5ff', headerBg:'#f3e8ff', accent:'#8b5cf6', text:'#2e1065', cardBg:'#faf5ff', border:'#d8b4fe' },
+    teal:   { name:'🌊 Teal', primary:'#0f766e', secondary:'#0891b2', bg:'#f0fdfa', headerBg:'#ccfbf1', accent:'#14b8a6', text:'#134e4a', cardBg:'#ecfeff', border:'#99f6e4' },
+    rose:   { name:'🌹 Rose', primary:'#be123c', secondary:'#db2777', bg:'#fff1f2', headerBg:'#ffe4e6', accent:'#f43f5e', text:'#4c0519', cardBg:'#fdf2f8', border:'#fecdd3' },
+    academic:{ name:'🎓 Academic', primary:'#1e3a8a', secondary:'#b45309', bg:'#f8fafc', headerBg:'#dbeafe', accent:'#d97706', text:'#172554', cardBg:'#ffffff', border:'#bfdbfe' },
     custom: { name:'🏫 Custom',  primary:'#1e3a5f', secondary:'#2563eb', bg:'#f0f7ff', headerBg:'#dbeafe', accent:'#3b82f6', text:'#111827', cardBg:'#eff6ff', border:'#bfdbfe' },
   };
 
@@ -944,7 +963,8 @@
     wrapHistoryEvent('pushState');
     wrapHistoryEvent('replaceState');
 
-    const updateToolbar = () => window.dispatchEvent(new CustomEvent('ce-page-changed'));
+    let _debTimer = null;
+    const updateToolbar = () => { clearTimeout(_debTimer); _debTimer = setTimeout(() => window.dispatchEvent(new CustomEvent('ce-page-changed')), 250); };
     window.addEventListener('popstate', updateToolbar);
     window.addEventListener('pushState', updateToolbar);
     window.addEventListener('replaceState', updateToolbar);
@@ -975,7 +995,9 @@
       insertMode: 'replace',
       pointValue:'', dueDate:'',
       textContent:'', uploadedFile:'', uploadedName:'',
+      includedVideos:[], includedImages:[], includedLinks:[],
       generatedHTML:'',
+      helpOpen:false,
       apiKey: GM_getValue('ce_license_key',''),
     };
 
@@ -984,7 +1006,7 @@
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
     overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
 
-    const pw = Math.min(760, window.innerWidth-40);
+    const pw = Math.min(980, window.innerWidth-40);
     const ph = Math.min(880, window.innerHeight-40);
     const panel = document.createElement('div');
     panel.style.cssText = `width:${pw}px;height:${ph}px;background:#f1f5f9;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;overflow:hidden;`;
@@ -992,6 +1014,7 @@
     function render() {
       panel.innerHTML = '';
       panel.appendChild(cbHeader());
+      if (st.helpOpen) panel.appendChild(cbHelp());
       const body = document.createElement('div');
       body.style.cssText = 'flex:1;overflow-y:auto;min-height:0;';
       if      (st.view==='setup')   body.appendChild(cbSetup());
@@ -1014,7 +1037,7 @@
       spinner.style.cssText='width:56px;height:56px;border:5px solid #e5e7eb;border-top-color:#0770B8;border-radius:50%;animation:ce-spin .8s linear infinite;flex-shrink:0;';
       const msg=document.createElement('div');
       msg.style.cssText='font-size:16px;font-weight:700;color:#374151;text-align:center;';
-      msg.textContent='Claude is building your content…';
+      msg.textContent='AI Assist is building your content…';
       const sub=document.createElement('div');
       sub.style.cssText='font-size:13px;color:#9ca3af;text-align:center;line-height:1.5;';
       sub.textContent='This usually takes 15–30 seconds.\nDo not close this window.';
@@ -1025,30 +1048,31 @@
     // ── HEADER ──────────────────────────────────────────────────────────────────
     function cbHeader() {
       const h = document.createElement('div');
-      h.style.cssText = 'background:#2d1b69;color:#fff;height:52px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-radius:12px 12px 0 0;';
+      h.style.cssText = 'background:#172A36;color:#fff;height:52px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-radius:12px 12px 0 0;';
       const left = document.createElement('div');
       left.style.cssText = 'display:flex;align-items:center;gap:10px;';
       left.innerHTML = '<div style="width:28px;height:28px;border-radius:7px;background:#0770B8;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</div>';
       const t = document.createElement('strong');
       t.style.fontSize = '15px';
-      t.textContent = st.view==='setup' ? 'API Setup' : st.view==='result' ? 'Generated Content' : 'AI Content Builder';
+      t.textContent = st.view==='setup' ? 'API Setup' : st.view==='result' ? 'Review Content' : 'AI Assist';
       left.appendChild(t); h.appendChild(left);
       const right = document.createElement('div');
       right.style.cssText = 'display:flex;align-items:center;gap:8px;';
-      if (st.view !== 'setup') {
-        const bTab = cbHdrBtn('Build', st.view==='build');
-        bTab.onclick = () => { st.view='build'; render(); };
-        right.appendChild(bTab);
-      }
+      const help = document.createElement('button');
+      help.type='button'; help.textContent='?'; help.title='How AI Assist works';
+      help.style.cssText=`width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:${st.helpOpen?'rgba(255,255,255,.2)':'transparent'};color:#fff;font-size:13px;font-weight:750;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;`;
+      help.onclick=()=>{st.helpOpen=!st.helpOpen;render();};
+      right.appendChild(help);
       const x = document.createElement('button');
       x.textContent='✕'; x.style.cssText='background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;padding:4px;line-height:1;';
       x.onclick=()=>overlay.remove(); right.appendChild(x); h.appendChild(right);
       return h;
     }
-    function cbHdrBtn(label, active) {
-      const b = document.createElement('button'); b.textContent=label;
-      b.style.cssText=`padding:5px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${active?'#0770B8':'rgba(255,255,255,.12)'};color:${active?'#fff':'#cbd5e1'};`;
-      return b;
+    function cbHelp() {
+      const help=document.createElement('div');
+      help.style.cssText='padding:12px 18px;background:#EBF4FF;border-bottom:1px solid #B3D4F5;color:#1a407a;font-size:12px;line-height:1.55;flex-shrink:0;';
+      help.innerHTML='<strong style="display:block;margin-bottom:3px;">Using AI Assist</strong>Paste instructions, upload a source file, or read the current Canvas editor. Choose the Canvas content type, visual theme, length, and any advanced options, then select Generate. Review or edit the result before replacing or appending it in Canvas.';
+      return help;
     }
 
     // ── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1117,14 +1141,22 @@
 
     // ── BUILD VIEW ───────────────────────────────────────────────────────────────
     function cbBuild() {
-      const w=document.createElement('div'); w.style.cssText='padding:14px;';
+      const w=document.createElement('div'); w.style.cssText='min-height:100%;padding:14px 14px 0;box-sizing:border-box;display:flex;flex-direction:column;';
+      const mainGrid=document.createElement('div');mainGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;';
+      const leftCol=document.createElement('div');
+      const rightCol=document.createElement('div');
+      mainGrid.append(leftCol,rightCol);w.appendChild(mainGrid);
       const themeCard=mkCard();
       themeCard.appendChild(mkSecHdr('Style / Theme'));
-      const themeGrid=document.createElement('div'); themeGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;';
+      const themeGrid=document.createElement('div'); themeGrid.style.cssText='display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px;';
       Object.entries(CB_THEMES).forEach(([key,theme])=>{
         const act=st.pageStyle===key;
-        const tb=document.createElement('button'); tb.textContent=theme.name;
-        tb.style.cssText=`padding:8px 6px;border-radius:8px;border:2px solid ${act?'#0770B8':'#e5e7eb'};background:${act?'#E8F1F8':'#f9fafb'};cursor:pointer;font-size:11px;font-weight:500;color:${act?'#0770B8':'#374151'};font-family:inherit;`;
+        const tb=document.createElement('button');
+        tb.style.cssText=`padding:7px;border-radius:9px;border:2px solid ${act?'#0770B8':'#e5e7eb'};background:${act?'#E8F1F8':'#fff'};cursor:pointer;font-size:11px;font-weight:650;color:${act?'#0770B8':'#374151'};font-family:inherit;text-align:left;overflow:hidden;`;
+        const swatch=document.createElement('span');
+        swatch.style.cssText=`display:block;height:22px;margin:-1px -1px 6px;border-radius:5px;background:linear-gradient(110deg,${theme.primary} 0 42%,${theme.secondary} 42% 67%,${theme.bg} 67%);border:1px solid ${theme.border};`;
+        const themeLabel=document.createElement('span');themeLabel.textContent=theme.name;
+        tb.append(swatch,themeLabel);
         tb.onclick=()=>{ st.pageStyle=key; render(); }; themeGrid.appendChild(tb);
       });
       themeCard.appendChild(themeGrid);
@@ -1160,7 +1192,7 @@
       uploadRow.appendChild(chip);
       const upBtn=document.createElement('button'); upBtn.textContent='📁 Upload File';
       upBtn.style.cssText='background:#64748b;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;flex-shrink:0;font-family:inherit;';
-      upBtn.onclick=()=>{ const fi=document.createElement('input'); fi.type='file'; fi.accept='.txt,.pdf,.doc,.docx,.csv,.md'; fi.style.cssText='position:fixed;top:-9999px;'; fi.onchange=()=>{ const file=fi.files[0]; fi.remove(); if(!file)return; const reader=new FileReader(); reader.onload=e=>{st.uploadedFile=e.target.result;st.uploadedName=file.name;render();}; reader.readAsText(file); }; document.body.appendChild(fi); fi.click(); };
+      upBtn.onclick=()=>{ const fi=document.createElement('input'); fi.type='file'; fi.accept='.txt,.csv,.md'; fi.style.cssText='position:fixed;top:-9999px;'; fi.onchange=()=>{ const file=fi.files[0]; fi.remove(); if(!file)return; if(file.size>500000){showNotice('File too large — max 500 KB. Try a .txt or .csv file.');return;} const reader=new FileReader(); reader.onload=e=>{st.uploadedFile=e.target.result;st.uploadedName=file.name;render();}; reader.readAsText(file); }; document.body.appendChild(fi); fi.click(); };
       uploadRow.appendChild(upBtn);
       if (st.uploadedName) { const clr=document.createElement('button'); clr.textContent='✕'; clr.style.cssText='background:#ef4444;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;'; clr.onclick=()=>{st.uploadedFile='';st.uploadedName='';render();}; uploadRow.appendChild(clr); }
       contentCard.appendChild(uploadRow);
@@ -1170,7 +1202,7 @@
       ta.value=st.textContent;
       ta.style.cssText='width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #d1d5db;font-size:13px;font-family:inherit;resize:vertical;background:#f9fafb;line-height:1.5;';
       ta.oninput=()=>{st.textContent=ta.value;};
-      contentCard.appendChild(ta); w.appendChild(contentCard);
+      contentCard.appendChild(ta); leftCol.appendChild(contentCard);
 
       // Type
       const typeCard=mkCard();
@@ -1184,8 +1216,74 @@
       typeSel.style.cssText='width:100%;padding:10px 12px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:13px;font-family:inherit;cursor:pointer;color:#374151;';
       PAGE_TYPES.forEach(t=>{ const o=document.createElement('option'); o.value=t.value; o.textContent=`${t.icon}  ${t.label}`; if(t.value===st.contentType) o.selected=true; typeSel.appendChild(o); });
       typeSel.onchange=()=>{st.contentType=typeSel.value;render();};
-      typeCard.appendChild(typeSel); w.appendChild(typeCard);
-      w.appendChild(themeCard);
+      typeCard.appendChild(typeSel);
+      leftCol.appendChild(typeCard);
+
+      // ── CONTENT TO INCLUDE ──────────────────────────────────────────────────────
+      const includeCard=mkCard();
+      includeCard.appendChild(mkSecHdr('Content to include'));
+
+      const mkSubHdr=(txt,mt)=>{const d=document.createElement('div');d.style.cssText=`font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;${mt?'margin:'+mt+' 0 6px;':'margin-bottom:6px;'}`;d.textContent=txt;return d;};
+      const mkMiniSel=(opts,val,onChange)=>{const s=document.createElement('select');s.style.cssText='padding:2px 5px;border-radius:4px;border:1px solid #d1d5db;font-size:11px;background:#fff;cursor:pointer;flex-shrink:0;color:#374151;';opts.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;if(v===val)o.selected=true;s.appendChild(o);});s.addEventListener('change',()=>onChange(s.value));return s;};
+      const mkAddRow=()=>{const r=document.createElement('div');r.style.cssText='display:flex;gap:6px;margin-bottom:6px;';return r;};
+      const mkUrlInput=(ph)=>{const i=document.createElement('input');i.type='text';i.placeholder=ph;i.style.cssText='flex:1;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:12px;font-family:inherit;background:#f9fafb;min-width:0;';return i;};
+      const mkAddBtn=()=>{const b=document.createElement('button');b.type='button';b.textContent='+ Add';b.style.cssText='padding:8px 12px;border-radius:8px;border:none;background:#0770B8;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0;';return b;};
+      const mkItem=()=>{const d=document.createElement('div');d.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:6px 8px;background:#f1f5f9;border-radius:6px;';return d;};
+      const mkIcon=(ch)=>{const s=document.createElement('span');s.textContent=ch;s.style.flexShrink='0';return s;};
+      const mkItemLbl=(text,title)=>{const s=document.createElement('span');s.style.cssText='flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#374151;';s.textContent=text;s.title=title||text;return s;};
+      const mkRmv=(fn)=>{const b=document.createElement('button');b.type='button';b.textContent='✕';b.style.cssText='border:none;background:transparent;color:#9ca3af;cursor:pointer;font-size:12px;padding:0;flex-shrink:0;';b.onclick=fn;return b;};
+
+      // — Videos —
+      includeCard.appendChild(mkSubHdr('Videos'));
+      const vidRow=mkAddRow(); const vidInput=mkUrlInput('YouTube or Vimeo URL'); const vidAddBtn=mkAddBtn();
+      vidAddBtn.onclick=()=>{
+        const url=vidInput.value.trim(); if(!url)return;
+        if(!url.includes('youtube')&&!url.includes('youtu.be')&&!url.includes('vimeo')){showNotice('Enter a YouTube or Vimeo URL');return;}
+        st.includedVideos.push({url,size:'full'}); vidInput.value=''; render();
+      };
+      vidRow.append(vidInput,vidAddBtn); includeCard.appendChild(vidRow);
+      st.includedVideos.forEach((v,i)=>{
+        const item=mkItem();
+        item.append(mkIcon('🎬'),mkItemLbl(v.url),mkMiniSel([['full','Full'],['75','75%'],['50','50%']],v.size,val=>{st.includedVideos[i].size=val;}),mkRmv(()=>{st.includedVideos.splice(i,1);render();}));
+        includeCard.appendChild(item);
+      });
+
+      // — Images —
+      includeCard.appendChild(mkSubHdr('Images','10px'));
+      const imgRow=mkAddRow(); const imgInput=mkUrlInput('Image URL (https://...)'); const imgAddBtn=mkAddBtn();
+      imgAddBtn.onclick=()=>{
+        const url=imgInput.value.trim();
+        if(!url||!url.startsWith('http')){showNotice('Enter a valid image URL starting with http');return;}
+        st.includedImages.push({url,size:'full',align:'center'}); imgInput.value=''; render();
+      };
+      imgRow.append(imgInput,imgAddBtn); includeCard.appendChild(imgRow);
+      st.includedImages.forEach((img,i)=>{
+        const item=mkItem();
+        item.append(mkIcon('🖼'),mkItemLbl(img.url),mkMiniSel([['full','Full'],['half','Half'],['quarter','¼']],img.size,val=>{st.includedImages[i].size=val;}),mkMiniSel([['center','Center'],['left','Left'],['right','Right']],img.align,val=>{st.includedImages[i].align=val;}),mkRmv(()=>{st.includedImages.splice(i,1);render();}));
+        includeCard.appendChild(item);
+      });
+
+      // — Links & Resources —
+      includeCard.appendChild(mkSubHdr('Links & Resources','10px'));
+      const linkUrlInput=document.createElement('input'); linkUrlInput.type='text'; linkUrlInput.placeholder='URL (https://...)';
+      linkUrlInput.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:12px;font-family:inherit;background:#f9fafb;margin-bottom:4px;';
+      includeCard.appendChild(linkUrlInput);
+      const linkRow=mkAddRow(); const linkLblInput=mkUrlInput('Label (optional)'); const linkAddBtn=mkAddBtn();
+      linkAddBtn.onclick=()=>{
+        const url=linkUrlInput.value.trim();
+        if(!url||!url.startsWith('http')){showNotice('Enter a valid URL starting with http');return;}
+        const label=linkLblInput.value.trim()||url;
+        st.includedLinks.push({url,label}); linkUrlInput.value=''; linkLblInput.value=''; render();
+      };
+      linkRow.append(linkLblInput,linkAddBtn); includeCard.appendChild(linkRow);
+      st.includedLinks.forEach(({url,label},i)=>{
+        const item=mkItem();
+        item.append(mkIcon('🔗'),mkItemLbl(label,url),mkRmv(()=>{st.includedLinks.splice(i,1);render();}));
+        includeCard.appendChild(item);
+      });
+      leftCol.appendChild(includeCard);
+
+      rightCol.appendChild(themeCard);
 
       // ── CUSTOMIZE ───────────────────────────────────────────────────────────────
       const elemCard=mkCard();
@@ -1302,7 +1400,13 @@
          ['officeHours','Office Hours','Instructor availability and contact info'],
         ].forEach(([k,l,d])=>elemCard.appendChild(mkToggle(l,d,st.syllabusElements[k],v=>{st.syllabusElements[k]=v;})));
       }
-      w.appendChild(elemCard);
+      const advanced=document.createElement('details');
+      advanced.style.cssText='background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05);';
+      const advancedSummary=document.createElement('summary');
+      advancedSummary.style.cssText='padding:13px 14px;cursor:pointer;font-size:12px;font-weight:750;color:#334155;list-style:none;display:flex;align-items:center;justify-content:space-between;';
+      advancedSummary.innerHTML='<span>Advanced content options</span><span style="color:#94A3B8">▾</span>';
+      elemCard.style.cssText='border:0;border-top:1px solid #F1F5F9;border-radius:0;padding:14px;margin:0;box-shadow:none;';
+      advanced.append(advancedSummary,elemCard);rightCol.appendChild(advanced);
 
       // Length
       const lenCard=mkCard();
@@ -1315,40 +1419,67 @@
         lb.innerHTML=`<div style="font-weight:700;margin-bottom:2px;">${label}</div><div style="font-size:11px;opacity:.75;">${desc}</div>`;
         lb.onclick=()=>{st.contentLength=val;render();}; lenRow.appendChild(lb);
       });
-      lenCard.appendChild(lenRow); w.appendChild(lenCard);
+      lenCard.appendChild(lenRow); leftCol.appendChild(lenCard);
 
       // Generate button
       const genBtn=document.createElement('button');
       genBtn.textContent=`✦ Generate ${PAGE_TYPES.find(t=>t.value===st.contentType)?.label||'Content'}`;
       genBtn.style.cssText='width:100%;padding:14px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,.35);margin-bottom:6px;font-family:inherit;';
       genBtn.onclick=()=>cbGenerate(st,genBtn,render);
-      w.appendChild(genBtn);
+      const actionBar=document.createElement('div');
+      actionBar.style.cssText='position:sticky;bottom:0;z-index:4;margin:6px -14px 0;padding:12px 14px;background:rgba(248,250,252,.96);backdrop-filter:blur(8px);border-top:1px solid #E2E8F0;display:flex;gap:10px;align-items:center;';
+      genBtn.style.marginBottom='0';
+      actionBar.appendChild(genBtn);
 
       if (st.generatedHTML) {
         const vb=document.createElement('button'); vb.textContent='View Last Result →';
-        vb.style.cssText='width:100%;padding:10px;background:#e2e8f0;color:#374151;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;';
-        vb.onclick=()=>{st.view='result';render();}; w.appendChild(vb);
+        vb.style.cssText='min-width:170px;padding:13px 16px;background:#e2e8f0;color:#374151;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;';
+        vb.onclick=()=>{st.view='result';render();}; actionBar.appendChild(vb);
       }
+      w.appendChild(actionBar);
       return w;
     }
 
     // ── RESULT VIEW ──────────────────────────────────────────────────────────────
+    function reviseGenerated(instruction) {
+      if(!st.generatedHTML)return;
+      st.view='loading';render();
+      const prompt='Revise the following Canvas LMS HTML. '+instruction+' Preserve valid HTML, inline styles, links, accessibility, and the original meaning. Return only the complete revised HTML with no markdown fences.\n\n'+st.generatedHTML;
+      ceGenerate({model:'claude-sonnet-4-6',max_tokens:8096,messages:[{role:'user',content:prompt}]})
+        .then(data=>{
+          let html=data?.content?.[0]?.text||'';
+          html=html.replace(/```html\s*/gi,'').replace(/```/g,'').trim();
+          if(html)st.generatedHTML=html;
+          st.view='result';render();
+        })
+        .catch(err=>{st.view='result';render();showNotice(err.message||'Could not revise content');});
+    }
+
     function cbResult() {
       const w=document.createElement('div'); w.style.cssText='display:flex;flex-direction:column;height:100%;';
       const tabRow=document.createElement('div'); tabRow.style.cssText='display:flex;border-bottom:1px solid #e5e7eb;background:#fff;flex-shrink:0;';
       const pTab=document.createElement('button'); pTab.textContent='👁 Preview';
       pTab.style.cssText='flex:1;padding:10px;border:none;border-bottom:2px solid #0770B8;background:#fff;cursor:pointer;font-size:13px;font-weight:700;color:#0770B8;font-family:inherit;';
-      const cTab=document.createElement('button'); cTab.textContent='</> HTML';
+      const cTab=document.createElement('button'); cTab.textContent='</> Edit HTML';
       cTab.style.cssText='flex:1;padding:10px;border:none;border-bottom:2px solid transparent;background:#f9fafb;cursor:pointer;font-size:13px;font-weight:500;color:#6b7280;font-family:inherit;';
       const iframe=document.createElement('iframe'); iframe.style.cssText='flex:1;border:none;background:#fff;width:100%;';
+      iframe.sandbox='allow-same-origin';
       iframe.srcdoc=st.generatedHTML||'<p>No content generated.</p>';
-      const codeBox=document.createElement('textarea'); codeBox.value=st.generatedHTML; codeBox.readOnly=true;
+      const codeBox=document.createElement('textarea'); codeBox.value=st.generatedHTML;
       codeBox.style.cssText='flex:1;padding:12px;font-family:Consolas,monospace;font-size:11px;border:none;resize:none;background:#1e293b;color:#e2e8f0;line-height:1.6;display:none;width:100%;box-sizing:border-box;';
+      codeBox.oninput=()=>{st.generatedHTML=codeBox.value;iframe.srcdoc=st.generatedHTML;};
       pTab.onclick=()=>{ iframe.style.display='block'; codeBox.style.display='none'; pTab.style.borderBottomColor='#0770B8'; pTab.style.color='#0770B8'; pTab.style.background='#fff'; pTab.style.fontWeight='700'; cTab.style.borderBottomColor='transparent'; cTab.style.background='#f9fafb'; cTab.style.color='#6b7280'; cTab.style.fontWeight='500'; };
       cTab.onclick=()=>{ iframe.style.display='none'; codeBox.style.display='block'; cTab.style.borderBottomColor='#0770B8'; cTab.style.color='#0770B8'; cTab.style.background='#fff'; cTab.style.fontWeight='700'; pTab.style.borderBottomColor='transparent'; pTab.style.background='#f9fafb'; pTab.style.color='#6b7280'; pTab.style.fontWeight='500'; };
       tabRow.appendChild(pTab); tabRow.appendChild(cTab);
       const ca=document.createElement('div'); ca.style.cssText='flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;'; ca.appendChild(iframe); ca.appendChild(codeBox);
       const actions=document.createElement('div'); actions.style.cssText='padding:12px 14px;border-top:1px solid #e5e7eb;background:#f8fafc;display:flex;flex-direction:column;gap:8px;flex-shrink:0;';
+      const refineRow=document.createElement('div');refineRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;';
+      [['Shorten','Make the content more concise without removing essential instructions.'],['Add detail','Add useful detail and examples without becoming repetitive.'],['Improve clarity','Improve organization, readability, and clarity for students.'],['Friendlier tone','Use a warmer, encouraging, teacher-like tone.']].forEach(([label,instruction])=>{
+        const rb=document.createElement('button');rb.type='button';rb.textContent=label;
+        rb.style.cssText='flex:1;min-width:110px;padding:7px 9px;border:1px solid #CBD5E1;border-radius:8px;background:#fff;color:#475569;font-size:11px;font-weight:650;cursor:pointer;font-family:inherit;';
+        rb.onclick=()=>reviseGenerated(instruction);refineRow.appendChild(rb);
+      });
+      actions.appendChild(refineRow);
       // Insert mode toggle
       const modeRow=document.createElement('div'); modeRow.style.cssText='display:flex;gap:6px;';
       [['replace','Replace existing content'],['append','Keep existing & append']].forEach(([val,label])=>{
@@ -1480,6 +1611,21 @@
 
     const lengthInstr = { concise:'Keep the output concise and focused — 1-2 short sections, minimal copy.', standard:'Use a balanced amount of detail — 3-4 sections with moderate copy.', detailed:'Be comprehensive — cover the topic thoroughly with multiple sections, rich detail, and supporting elements.' };
     prompt+=`\nLength: ${lengthInstr[st.contentLength]||lengthInstr.standard}\n`;
+    if (st.includedVideos.length) {
+      const vw={full:'100%','75':'75%','50':'50%'};
+      prompt+=`\nEmbed these videos. Convert watch URLs to embed URLs. Wrap each in: <div style="width:WIDTH;margin:1em auto;"><div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:6px;"><iframe src="EMBED_URL" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen loading="lazy"></iframe></div></div>\n`;
+      st.includedVideos.forEach((v,i)=>{ prompt+=`- Video ${i+1}: ${v.url} width:${vw[v.size]||'100%'}\n`; });
+    }
+    if (st.includedImages.length) {
+      const iw={full:'100%',half:'50%',quarter:'25%'};
+      const im={center:'0.75em auto',left:'0.75em auto 0.75em 0',right:'0.75em 0 0.75em auto'};
+      prompt+=`\nEmbed these images: <img src="URL" style="width:WIDTH;display:block;margin:MARGIN;border-radius:4px;max-width:100%;">\n`;
+      st.includedImages.forEach((img,i)=>{ prompt+=`- Image ${i+1}: ${img.url} width:${iw[img.size]||'100%'} margin:${im[img.align]||im.center}\n`; });
+    }
+    if (st.includedLinks.length) {
+      prompt+=`\nInclude a styled "Resources" section with these links as clickable cards or a clean styled list:\n`;
+      st.includedLinks.forEach(({url,label})=>{ prompt+=`- ${label}: ${url}\n`; });
+    }
     if (st.textContent.trim()) prompt+=`\nContent:\n${st.textContent}\n`;
     if (st.uploadedFile)       prompt+=`\nUploaded file (${st.uploadedName}):\n${st.uploadedFile}\n`;
     prompt+=`\nRules: Return ONLY HTML. Inline CSS only — no <style> tags, no <head>/<body>. Web-safe fonts only. No JavaScript. No external images. Ready to paste into Canvas Rich Content Editor.`;
@@ -1521,10 +1667,22 @@
     const topBar=document.createElement('div');
     topBar.style.cssText='height:52px;background:#394B58;color:#fff;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
     const topTitle=document.createElement('span'); topTitle.style.cssText='font-size:15px;font-weight:700;flex:1;'; topTitle.textContent='✦ Quiz Maker';
+    const helpPanel=document.createElement('div');
+    helpPanel.style.cssText='display:none;padding:11px 18px 13px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.6;flex-shrink:0;';
+    helpPanel.textContent='Build a quiz by entering a topic, choosing question types and difficulty, then generating questions. Review the results, select the questions you want, and add them to the quiz queue. When the quiz is ready, export it directly to Canvas as a draft so you can review it before publishing.';
+    const helpBtn=document.createElement('button');
+    helpBtn.type='button'; helpBtn.textContent='?'; helpBtn.title='How Quiz Maker works';
+    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;transition:background .12s,color .12s;';
+    helpBtn.onclick=()=>{
+      const open=helpPanel.style.display!=='none';
+      helpPanel.style.display=open?'none':'block';
+      helpBtn.style.background=open?'transparent':'rgba(255,255,255,.2)';
+      helpBtn.style.color=open?'rgba(255,255,255,.82)':'#fff';
+    };
     const closeBtn=document.createElement('button');
     closeBtn.style.cssText='background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:3px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;';
     closeBtn.textContent='✕ Close'; closeBtn.onclick=()=>overlay.remove();
-    topBar.appendChild(topTitle); topBar.appendChild(closeBtn); panel.appendChild(topBar);
+    topBar.append(topTitle,helpBtn,closeBtn); panel.append(topBar,helpPanel);
 
     // 3-column grid
     const cols=document.createElement('div');
@@ -1735,15 +1893,19 @@
         q.choices.forEach(c=>{
           const row=document.createElement('div');
           row.style.cssText=`display:flex;gap:6px;align-items:flex-start;font-size:12px;padding:4px 8px;border-radius:6px;margin-bottom:3px;${c.correct?'background:#f0fdf4;border:1px solid #86efac;':'background:#f9fafb;border:1px solid #f3f4f6;'}`;
-          row.innerHTML=`<span style="font-weight:700;min-width:16px;color:${c.correct?'#166534':'#6b7280'}">${c.label}.</span><span style="color:${c.correct?'#166534':'#374151'}">${c.text}</span>`;
-          ans.appendChild(row);
+          const lbl=document.createElement('span');lbl.style.cssText=`font-weight:700;min-width:16px;color:${c.correct?'#166534':'#6b7280'}`;lbl.textContent=`${c.label}.`;
+          const txt=document.createElement('span');txt.style.cssText=`color:${c.correct?'#166534':'#374151'}`;txt.textContent=c.text;
+          row.append(lbl,txt); ans.appendChild(row);
         });
       } else if(q.type==='tf'){
-        ans.innerHTML=`<span style="font-size:12px;padding:3px 10px;border-radius:6px;background:#f0fdf4;border:1px solid #86efac;color:#166534;display:inline-block;">Answer: ${q.answer?'True':'False'}</span>`;
+        const tfSpan=document.createElement('span');tfSpan.style.cssText='font-size:12px;padding:3px 10px;border-radius:6px;background:#f0fdf4;border:1px solid #86efac;color:#166534;display:inline-block;';
+        const isTrue=q.answer===true||q.answer==='true';tfSpan.textContent='Answer: '+(isTrue?'True':'False');ans.appendChild(tfSpan);
       } else if(q.type==='short'){
-        ans.innerHTML=`<span style="font-size:12px;padding:3px 10px;border-radius:6px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:inline-block;">Answer: ${q.answer||''}</span>`;
+        const sSpan=document.createElement('span');sSpan.style.cssText='font-size:12px;padding:3px 10px;border-radius:6px;background:#fef3c7;border:1px solid #fde68a;color:#92400e;display:inline-block;';
+        sSpan.textContent='Answer: '+(q.answer||'');ans.appendChild(sSpan);
       } else {
-        ans.innerHTML=`<span style="font-size:11px;padding:3px 10px;border-radius:6px;background:#E8F1F8;border:1px solid #C7CDD1;color:#0770B8;display:inline-block;">Manually graded</span>`;
+        const eSpan=document.createElement('span');eSpan.style.cssText='font-size:11px;padding:3px 10px;border-radius:6px;background:#E8F1F8;border:1px solid #C7CDD1;color:#0770B8;display:inline-block;';
+        eSpan.textContent='Manually graded';ans.appendChild(eSpan);
       }
       wrap.appendChild(ans);
       if(qst.includeExplanations&&q.explanation){
@@ -1984,8 +2146,8 @@ Critical rules:
         const body={question_name:`Q${pos}`,question_text:q.text,question_type:TYPE_MAP[q.type]||'short_answer_question',points_possible:q.type==='essay'?5:1,position:pos};
         if(groupId) body.quiz_group_id=groupId;
         if(q.type==='mc') body.answers=q.choices.map(c=>({answer_text:c.text,answer_weight:c.correct?100:0,answer_comments:c.correct&&q.explanation?q.explanation:''}));
-        else if(q.type==='tf') body.answers=[{answer_text:'True',answer_weight:q.answer===true?100:0},{answer_text:'False',answer_weight:q.answer===false?100:0}];
-        else if(q.type==='short'){const alts=[q.answer,...(q.answer_alts||[])].filter(Boolean);body.answers=alts.map(a=>({answer_text:a,answer_weight:100}));}
+        else if(q.type==='tf'){const isTrue=q.answer===true||q.answer==='true';body.answers=[{answer_text:'True',answer_weight:isTrue?100:0},{answer_text:'False',answer_weight:isTrue?0:100}];}
+        else if(q.type==='short'){const alts=[q.answer,...(q.answer_alts||[])].filter(a=>a!==null&&a!==undefined&&a!=='');body.answers=alts.map(a=>({answer_text:String(a),answer_weight:100}));}
         return body;
       }
       let pos=1;
@@ -2049,9 +2211,13 @@ Critical rules:
       const cid=window.location.pathname.match(/\/courses\/(\d+)/)?.[1];
       if(!cid){showExportStatus('Navigate to a Canvas course first.','err');return;}
       createBtn.disabled=true;createBtn.textContent='Creating…';
-      try{ if(qst.engine==='classic') await createClassicQuiz(cid); else await createNewQuiz(cid); }
-      catch(e){showExportStatus(`Error: ${e.message}`,'err');}
-      createBtn.disabled=false;createBtn.textContent='✓ Create Quiz in Canvas';
+      try{
+        if(qst.engine==='classic') await createClassicQuiz(cid); else await createNewQuiz(cid);
+        createBtn.textContent='✓ Quiz Created';
+      } catch(e){
+        showExportStatus(`Error: ${escapeHtml(e.message)}`,'err');
+        createBtn.disabled=false;createBtn.textContent='✓ Create Quiz in Canvas';
+      }
     };
   }
 
@@ -2177,6 +2343,11 @@ Critical rules:
     body.appendChild(settingsSection('🔔','Notifications','Control update alerts and release notes.'));
     body.appendChild(settingsSection('🎨','Appearance','Toolbar position, button labels, and theme.'));
     body.appendChild(settingsSection('🔒','Privacy & Data','What is stored locally and how to clear it.'));
+    if (globalThis.CEDataBackup) {
+      const backupSection=globalThis.CEDataBackup.createSection({accent:'#0770B8'});
+      backupSection.style.marginTop='16px';
+      body.appendChild(backupSection);
+    }
     body.appendChild(settingsSection('🗑','Uninstall','Remove all stored data and deactivate Canvas Enhancer.'));
 
     const ver=document.createElement('div');
@@ -2193,6 +2364,7 @@ Critical rules:
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
+    document.getElementById('ce-studio-reopen')?.remove();
     const toolbar = document.createElement('div'); toolbar.id = 'ce-toolbar';
 
     // rowProps must exist before rowTop so icon/video handlers can reference it
@@ -2208,41 +2380,50 @@ Critical rules:
 
     const rowBottom = document.createElement('div'); rowBottom.id = 'ce-row-bottom';
 
-    const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
-    aiBtn.textContent='AI Builder';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
-    rowBottom.appendChild(aiBtn);
+    const brand=document.createElement('div');brand.className='ce-studio-brand';
+    brand.innerHTML='<span class="ce-studio-mark">◆</span><span class="ce-studio-copy"><strong>Content Studio</strong><small>RICH CONTENT TOOLS</small></span>';
+    rowBottom.appendChild(brand);
 
-    Object.entries(COMPONENTS).forEach(([,cat]) => {
-      const group=document.createElement('div'); group.className='ce-group';
-      const btn=document.createElement('button'); btn.className='ce-btn'; btn.type='button';
-      btn.textContent=`${cat.label} ▾`;
-      const panel=document.createElement('div'); panel.className='ce-panel';
-      cat.items.forEach(item => {
-        const entry=document.createElement('button'); entry.className='ce-item'; entry.type='button';
-        if (false && item.pro) {
-          entry.innerHTML=`${item.label} <span style="opacity:.55;font-size:11px;">🔒</span>`;
-          entry.style.cssText='color:#666;';
-          entry.onclick=e=>{e.stopPropagation();chrome.storage.local.get('ce_license_key',s=>{s.ce_license_key?handleItemClick(item,rowProps):showUpgradeModal('Pro Components');});};
-        } else {
-          entry.textContent=item.label;
-          entry.onclick=e=>{e.stopPropagation();handleItemClick(item,rowProps);};
-        }
-        panel.appendChild(entry);
+    function buildCategoryPanel(keys){
+      const panel=document.createElement('div');panel.className='ce-mega-panel';
+      keys.forEach(key=>{
+        const cat=COMPONENTS[key];if(!cat)return;
+        const heading=document.createElement('div');heading.className='ce-menu-section';heading.textContent=(cat.icon?cat.icon+'  ':'')+cat.label;
+        panel.appendChild(heading);
+        cat.items.forEach(item=>{
+          const entry=document.createElement('button');entry.className='ce-item';entry.type='button';entry.textContent=item.label;
+          entry.onclick=e=>{e.stopPropagation();closeAllPanels();handleItemClick(item,rowProps);};
+          panel.appendChild(entry);
+        });
       });
-      btn.onclick=e=>{e.stopPropagation();const isOpen=panel.classList.contains('ce-open');closeAllPanels();if(!isOpen){panel.classList.add('ce-open');btn.classList.add('ce-open');}};
-      group.appendChild(btn); group.appendChild(panel); rowBottom.appendChild(group);
-    });
+      return panel;
+    }
 
-    const iconsGroup=makeTopGroup('Icons',buildIconPanel(rowProps));
+    rowBottom.appendChild(makeTopGroup('Insert  ▾',buildCategoryPanel(['headers','callouts','lists','dividers'])));
+    rowBottom.appendChild(makeTopGroup('Layouts  ▾',buildCategoryPanel(['layouts','cards'])));
+
+    const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
+    aiBtn.textContent='✨ AI Assist';
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
+    rowBottom.insertBefore(aiBtn,rowBottom.children[1]);
+
+    const iconsGroup=makeTopGroup('Icons  ▾',buildIconPanel(rowProps));
     rowBottom.appendChild(iconsGroup);
 
     const gearBtn=document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
-    gearBtn.innerHTML='<span class="ce-icon">⚙</span>';
+    gearBtn.innerHTML='<span class="ce-icon">⚙</span><span>Settings</span>';
     gearBtn.title='Settings';
-    gearBtn.style.cssText='padding:4px 8px;font-size:16px;';
+    gearBtn.classList.add('ce-studio-spacer');
     gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSettings();};
     rowBottom.appendChild(gearBtn);
+
+    const hideBtn=document.createElement('button');hideBtn.className='ce-btn';hideBtn.type='button';hideBtn.textContent='— Hide';
+    rowBottom.appendChild(hideBtn);
+
+    const reopen=document.createElement('button');reopen.id='ce-studio-reopen';reopen.className='ce-studio-reopen';reopen.type='button';
+    reopen.innerHTML='<span>◆</span><span>Content Studio</span>';
+    hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.style.display='none';reopen.style.display='flex';};
+    reopen.onclick=()=>{reopen.style.display='none';toolbar.style.display='block';};
 
     toolbar.appendChild(rowBottom);
     toolbar.appendChild(rowProps);
@@ -2254,72 +2435,110 @@ Critical rules:
     document.addEventListener('click', closeAllPanels);
 
     const rce = document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce');
-    if (rce) rce.parentNode.insertBefore(toolbar, rce);
-    else document.body.appendChild(toolbar);
+    if (rce) { rce.parentNode.insertBefore(reopen,rce);rce.parentNode.insertBefore(toolbar,rce); }
+    else document.body.append(reopen,toolbar);
   }
 
   // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
   (function installQuizToolbar() {
     if (document.getElementById('ce-quiz-toolbar')) return;
+    if (GM_getValue('ce_quiz_toolbar_disabled', false)) return;
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
     const st = document.createElement('style');
-    st.textContent = 'body.ce-quiz-mode #ce-hub{display:none!important}body.ce-quiz-mode #ce-hub-panel{display:none!important}';
+    st.textContent = 'body.ce-quiz-mode #ce-hub{display:none!important}body.ce-quiz-mode #ce-hub-panel{display:none!important}body.ce-quiz-mode:not(.ce-quiz-collapsed){padding-top:52px!important;box-sizing:border-box!important}body.ce-quiz-mode.ce-quiz-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#ce-quiz-toolbar{left:0!important}}';
     (document.head || document.documentElement).appendChild(st);
 
     const colTab = document.createElement('button');
     colTab.id = 'ce-quiz-tab';
     colTab.type = 'button';
-    colTab.textContent = 'Quizzes ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.textContent = 'Quiz Pulse  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
     colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
     document.body.appendChild(colTab);
 
     const bar = document.createElement('div');
     bar.id = 'ce-quiz-toolbar';
-    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
-    const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
-    lbl.textContent = 'Quizzes';
+    const brand = document.createElement('div');
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Quiz Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">QUIZ WORKFLOW</small></span>';
 
-    function mkBtn(text) {
+    function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = text;
-      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
       return b;
     }
 
-    const quizBtn = mkBtn('Quiz Builder');
+    const quizBtn = mkBtn('✨', 'Quiz Builder');
     quizBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-quiz')));
 
-    const chatBtn = mkBtn('Chat');
-    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
+    const settingsOverlay = document.createElement('div');
+    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
+    const settingsBox = document.createElement('div');
+    settingsBox.style.cssText = 'width:min(480px,calc(100vw - 48px));max-height:calc(100vh - 80px);background:#F8FAFC;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.3);display:flex;flex-direction:column;overflow:hidden;';
+    const settingsHdr = document.createElement('div');
+    settingsHdr.style.cssText = 'height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;background:#172A36;color:#fff;flex-shrink:0;';
+    const settingsTitle = document.createElement('div');
+    settingsTitle.style.cssText = 'flex:1;font-size:15px;font-weight:700;';
+    settingsTitle.textContent = 'Quiz Builder Settings';
+    const settingsClose = document.createElement('button');
+    settingsClose.type = 'button'; settingsClose.textContent = '×';
+    settingsClose.style.cssText = 'width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;';
+    settingsClose.addEventListener('click', () => settingsOverlay.style.display = 'none');
+    settingsHdr.append(settingsTitle, settingsClose);
+    const settingsBody = document.createElement('div');
+    settingsBody.style.cssText = 'padding:22px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;';
+    const settingsIntro = document.createElement('div');
+    settingsIntro.style.cssText = 'font-size:12px;color:#64748B;line-height:1.55;';
+    settingsIntro.textContent = 'Quiz Builder creates quizzes directly in Canvas and does not keep separate saved copies or other data that needs backing up.';
+    settingsBody.appendChild(settingsIntro);
+    const danger = document.createElement('div');
+    danger.style.cssText = 'border-top:1px solid #E2E8F0;padding-top:16px;margin-top:2px;';
+    const uninstallBtn = document.createElement('button');
+    uninstallBtn.type = 'button'; uninstallBtn.textContent = 'Uninstall Quiz Builder Toolbar…';
+    uninstallBtn.style.cssText = 'width:100%;height:38px;border:1px solid #DC2626;border-radius:8px;background:#fff;color:#DC2626;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';';
+    uninstallBtn.addEventListener('click', () => {
+      if (!confirm('Remove the Quiz Builder toolbar from Canvas? Re-enabling it will require resetting or reinstalling Canvas Enhancer.')) return;
+      GM_setValue('ce_quiz_toolbar_disabled', true);
+      document.getElementById('ce-qm-overlay')?.remove();
+      document.body.classList.remove('ce-quiz-mode', 'ce-quiz-collapsed');
+      bar.remove(); colTab.remove(); settingsOverlay.remove(); st.remove();
+    });
+    danger.appendChild(uninstallBtn);
+    settingsBody.appendChild(danger);
+    settingsBox.append(settingsHdr, settingsBody);
+    settingsOverlay.appendChild(settingsBox);
+    settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
+    settingsBox.addEventListener('click', e => e.stopPropagation());
+    document.body.appendChild(settingsOverlay);
 
-    const notesBtn = mkBtn('Notes');
-    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+    const settingsBtn = mkBtn('⚙', 'Settings');
+    settingsBtn.addEventListener('click', () => {
+      settingsOverlay.style.display = 'flex';
+    });
 
-    const helpBtn = mkBtn('Help');
-    helpBtn.title = 'Help';
-    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'quiz' })));
-
-    const hideBtn = mkBtn('Hide');
+    const hideBtn = mkBtn('—', 'Hide');
     hideBtn.style.marginLeft = 'auto';
     hideBtn.addEventListener('click', () => {
       bar.style.display = 'none';
       colTab.style.display = 'block';
+      document.body.classList.add('ce-quiz-collapsed');
     });
     colTab.addEventListener('click', () => {
       colTab.style.display = 'none';
       bar.style.display = 'flex';
+      document.body.classList.remove('ce-quiz-collapsed');
     });
 
-    bar.append(lbl, quizBtn, chatBtn, notesBtn, helpBtn, hideBtn);
+    bar.append(brand, quizBtn, settingsBtn, hideBtn);
     document.body.insertBefore(bar, document.body.firstChild);
 
     let _onPage = false;
@@ -2328,10 +2547,11 @@ Critical rules:
       const onPage = /\/courses\/\d+\/quizzes/.test(window.location.pathname);
       if (onPage && !_onPage) {
         document.body.classList.add('ce-quiz-mode');
+        document.body.classList.remove('ce-quiz-collapsed');
         bar.style.display = 'flex';
         colTab.style.display = 'none';
       } else if (!onPage && _onPage) {
-        document.body.classList.remove('ce-quiz-mode');
+        document.body.classList.remove('ce-quiz-mode', 'ce-quiz-collapsed');
         bar.style.display = 'none';
         colTab.style.display = 'none';
       }
@@ -2354,8 +2574,6 @@ Critical rules:
   insertQuizBuilderPageButton();
   wireQuizPageNavigation();
 
-  // Verify local file is loading correctly
-  setTimeout(() => showNotice('✓ Canvas Enhancer v2.4 — local file loaded'), 1500);
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
   if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();

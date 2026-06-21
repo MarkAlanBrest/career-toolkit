@@ -10,7 +10,7 @@
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
 
-    const token        = GM_getValue('ce_canvas_token', '');
+    function getToken() { return GM_getValue('ce_canvas_token', ''); }
     const gradingModel = GM_getValue('ce_grading_model', 'claude-haiku-4-5-20251001');
 
     // ── SPEEDGRADER COMMENT TOOLBAR ───────────────────────────────────────────
@@ -401,18 +401,28 @@
       style.id = 'ce-sg-toolbar-style';
       style.textContent = `
         body.ce-sg-toolbar-open { padding-top:0 !important; box-sizing:border-box !important; }
-        #ce-sg-toolbar { position:relative; width:100%; height:56px; z-index:10; border-bottom:1px solid #1B303D; background:#394B58; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.22); }
+        #ce-sg-toolbar { position:relative; width:100%; height:52px; z-index:2147483640; overflow:visible; isolation:isolate; border-bottom:1px solid #0F1D25; background:#172A36; color:#fff; font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif; box-sizing:border-box; box-shadow:0 2px 8px rgba(0,0,0,.22); }
         #ce-sg-toolbar.ce-sg-collapsed { display:none !important; }
         #ce-sg-toolbar * { box-sizing:border-box; }
-        .ce-sg-mainbar { height:100%; display:flex; align-items:center; gap:4px; padding:0 8px 0 88px; overflow-x:auto; overflow-y:hidden; }
-        .ce-sg-brand { flex-shrink:0; height:100%; border-right:1px solid rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; padding:0 12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; margin-right:4px; }
-        .ce-sg-btn { height:32px; padding:0 16px; flex-shrink:0; border:none; border-radius:4px; background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.85); cursor:pointer; font-family:inherit; font-size:12px; font-weight:700; letter-spacing:.2px; white-space:nowrap; transition:background .12s,color .12s; position:relative; }
+        .ce-sg-mainbar { height:100%; display:flex; align-items:center; gap:6px; padding:0 14px 0 88px; overflow:visible; }
+        .ce-sg-brand { flex-shrink:0; height:38px; border-right:1px solid rgba(255,255,255,.14); color:#fff; display:flex; align-items:center; gap:9px; padding:0 14px 0 8px; white-space:nowrap; margin-right:4px; }
+        .ce-sg-brand-mark { width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25); }
+        .ce-sg-brand-copy { display:flex;flex-direction:column;align-items:flex-start;line-height:1.05; }
+        .ce-sg-brand-copy strong { font-size:12px;letter-spacing:.2px; }
+        .ce-sg-brand-copy small { font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px;letter-spacing:.2px; }
+        .ce-sg-btn { height:34px; padding:0 12px; flex-shrink:0; border:1px solid transparent; border-radius:7px; background:transparent; color:rgba(255,255,255,.78); cursor:pointer; font-family:inherit; font-size:12px; font-weight:650; letter-spacing:.1px; white-space:nowrap; transition:background .12s,color .12s,border-color .12s; position:relative; }
         .ce-sg-badge { position:absolute;top:3px;right:3px;background:#e53e3e;color:#fff;border-radius:8px;font-size:9px;font-weight:700;padding:1px 4px;line-height:1.3;display:none;pointer-events:none; }
         .ce-sg-btn-label { display:block; font-size:12px; font-weight:700; letter-spacing:.2px; color:inherit; pointer-events:none; }
-        .ce-sg-btn:hover { background:rgba(255,255,255,0.22); color:#fff; }
-        .ce-sg-btn-primary { background:rgba(255,255,255,0.28) !important; color:#fff !important; }
+        .ce-sg-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+        .ce-sg-btn-primary { background:rgba(59,130,246,.24) !important; border-color:rgba(96,165,250,.35) !important; color:#fff !important; }
+        .ce-sg-menu-wrap { position:relative;z-index:2;flex-shrink:0; }
+        .ce-sg-menu { display:none;position:absolute;left:0;top:40px;z-index:2147483642;width:210px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22); }
+        .ce-sg-menu.ce-open { display:flex;flex-direction:column;gap:2px; }
+        .ce-sg-menu-item { width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;border:0;border-radius:7px;background:transparent;color:#334155;font:650 12px/1.2 inherit;text-align:left;cursor:pointer; }
+        .ce-sg-menu-item:hover { background:#F1F5F9;color:#0F172A; }
+        .ce-sg-menu-item span:first-child { width:20px;text-align:center;font-size:14px; }
         .ce-sg-collapse { margin-left:auto; }
-        #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:128px; height:26px; border:1px solid #394B58; border-top:none; border-radius:0 0 4px 4px; background:#394B58; box-shadow:0 2px 8px rgba(0,0,0,.22); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
+        #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:148px; height:28px; border:1px solid #0F1D25; border-top:none; border-radius:0 0 0 7px; background:#172A36; box-shadow:0 2px 8px rgba(0,0,0,.22); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
         .ce-sg-drawer { display:none; position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2147483638; border-radius:8px; background:#fff; box-shadow:0 24px 64px rgba(0,0,0,.32),0 0 0 1px rgba(0,0,0,0.08); flex-direction:column; overflow:hidden; }
         .ce-sg-drawer.ce-open { display:flex; }
         .ce-sz-sm { width:min(520px,calc(100vw - 48px)); max-height:min(480px,calc(100vh - 80px)); }
@@ -459,23 +469,37 @@
       main.className = 'ce-sg-mainbar';
       const brand = document.createElement('div');
       brand.className = 'ce-sg-brand';
-      brand.textContent = 'Canvas Enhancer — Grader Toolbar';
-      const queueBtn = ceSgToolbarButton('Needs Graded', false);
+      brand.innerHTML = '<span class="ce-sg-brand-mark">◆</span><span class="ce-sg-brand-copy"><strong>Grading Pulse</strong><small>SPEEDGRADER WORKFLOW</small></span>';
+      const gradingWrap = document.createElement('div');
+      gradingWrap.className = 'ce-sg-menu-wrap';
+      const gradingBtn = ceSgToolbarButton('✏️ Grading  ▾', false);
       const queueBadge = document.createElement('span');
       queueBadge.className = 'ce-sg-badge';
-      queueBtn.appendChild(queueBadge);
+      gradingBtn.appendChild(queueBadge);
       function setQueueBadge(count) {
-        if (count > 0) { queueBadge.textContent = String(count); queueBadge.style.display = ''; }
+        if (count > 0) { queueBadge.textContent = String(count); queueBadge.style.display = 'inline-block'; }
         else { queueBadge.style.display = 'none'; }
       }
-      const aiBtn = ceSgToolbarButton('AI Grade', false);
-      const criteriaBtn = ceSgToolbarButton('Criteria', false);
-      const commentsBtn = ceSgToolbarButton('Comments', false);
-      const auditBtn = ceSgToolbarButton('Audit', false);
-      const settingsBtn = ceSgToolbarButton('Settings', false);
-      const collapseBtn = ceSgToolbarButton('Hide', false);
+      const gradingMenu = document.createElement('div');
+      gradingMenu.className = 'ce-sg-menu';
+      function gradingMenuItem(icon, label) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'ce-sg-menu-item';
+        b.innerHTML = '<span>' + icon + '</span><span>' + label + '</span>';
+        return b;
+      }
+      const queueBtn = gradingMenuItem('✏️', 'Grade Queue');
+      const aiBtn = gradingMenuItem('✨', 'AI Grade');
+      const criteriaBtn = gradingMenuItem('🎯', 'Criteria');
+      gradingMenu.append(queueBtn, aiBtn, criteriaBtn);
+      gradingWrap.append(gradingBtn, gradingMenu);
+      const commentsBtn = ceSgToolbarButton('💬 Comments', false);
+      const auditBtn = ceSgToolbarButton('🔎 Audit', false);
+      const settingsBtn = ceSgToolbarButton('⚙ Settings', false);
+      const collapseBtn = ceSgToolbarButton('— Hide', false);
       collapseBtn.classList.add('ce-sg-collapse');
-      main.append(brand, queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn, collapseBtn);
+      main.append(brand, gradingWrap, commentsBtn, auditBtn, settingsBtn, collapseBtn);
       bar.appendChild(main);
 
       const drawer = document.createElement('div');
@@ -485,7 +509,7 @@
       const tab = document.createElement('button');
       tab.id = 'ce-sg-tab';
       tab.type = 'button';
-      tab.textContent = 'Grader Toolbar';
+      tab.textContent = 'Grading Pulse  ▾';
       document.body.classList.add('ce-sg-toolbar-open');
 
       function setToolbarOpen(open) {
@@ -494,7 +518,8 @@
         document.body.classList.toggle('ce-sg-toolbar-open', open);
         if (!open) {
           drawer.classList.remove('ce-open');
-          [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+          gradingMenu.classList.remove('ce-open');
+          [gradingBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
         }
       }
 
@@ -598,7 +623,8 @@
 
       function closeDrawer() {
         drawer.classList.remove('ce-open');
-        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        gradingMenu.classList.remove('ce-open');
+        [gradingBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
       }
 
       function makeModalHeader(icon, title, subtitle, subtitleId, description) {
@@ -711,10 +737,11 @@
         drawer.innerHTML = '';
         drawer.className = 'ce-sg-drawer';
         drawer.classList.add('ce-open');
-        [queueBtn, aiBtn, criteriaBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
+        gradingMenu.classList.remove('ce-open');
+        [gradingBtn, commentsBtn, auditBtn, settingsBtn].forEach(b => b.classList.remove('ce-sg-btn-primary'));
 
         if (mode === 'needs') {
-          queueBtn.classList.add('ce-sg-btn-primary');
+          gradingBtn.classList.add('ce-sg-btn-primary');
           drawer.classList.add('ce-sz-sm');
 
           const filterRow = document.createElement('div');
@@ -755,7 +782,7 @@
           loadQueue(true);
 
         } else if (mode === 'ai') {
-          aiBtn.classList.add('ce-sg-btn-primary');
+          gradingBtn.classList.add('ce-sg-btn-primary');
           drawer.classList.add('ce-sz-md');
 
           const body = document.createElement('div');
@@ -889,7 +916,7 @@
           drawer.append(makeModalHeader('🎓', 'AI Grade', ctx.studentName || '', 'ce-ai-grade-name-sub', 'This is the core of the Grader Toolbar. Click "Grade This Assignment" and the AI reads the student\'s full submission, applies the rubric and grading rules you set up in the Criteria tab, and drafts a score and a personalized feedback comment — in seconds. You are always in control: review what the AI suggests, edit anything you want to change, then click "Insert Score" and "Insert Comment" to push the results into Canvas SpeedGrader. The AI is a first draft, not a final grade. It handles the repetitive work — reading through long submissions, checking rubric points, writing structured feedback — so you can focus on the judgment calls that only a teacher can make. For best results, fill in the Grading Criteria tab before you start grading.'), body, mkFooter(closeBtn));
 
         } else if (mode === 'criteria') {
-          criteriaBtn.classList.add('ce-sg-btn-primary');
+          gradingBtn.classList.add('ce-sg-btn-primary');
           drawer.classList.add('ce-sz-lg');
 
           const savedRaw = state.stored.ce_criteria?.[criteriaKey];
@@ -1186,6 +1213,7 @@
               mkSettingsFgrp('License Key',      licenseInp),
               saveMsg,
               divider,
+              ...(globalThis.CEDataBackup ? [globalThis.CEDataBackup.createSection({ accent:'#0770B8' })] : []),
               updateBtn,
               uninstallBtn,
             );
@@ -1206,6 +1234,12 @@
         }
       }
 
+      gradingBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        gradingMenu.classList.toggle('ce-open');
+      });
+      gradingMenu.addEventListener('click', e => e.stopPropagation());
+      document.addEventListener('click', () => gradingMenu.classList.remove('ce-open'));
       queueBtn.addEventListener('click', () => showDrawer('needs'));
       aiBtn.addEventListener('click', () => showDrawer('ai'));
       criteriaBtn.addEventListener('click', () => showDrawer('criteria'));
@@ -1338,7 +1372,7 @@
     new MutationObserver(() => {
       if (!document.getElementById('ce-sg-toolbar')) setTimeout(ensureSpeedGraderToolbar, 100);
     }).observe(document.body, { childList: true, subtree: true });
-    if (!token) return;
+    if (!getToken()) return;
 
     // ── HELPERS ───────────────────────────────────────────────────────────────
     function getUrlParts() {
@@ -1356,11 +1390,14 @@
 
     async function canvasApi(url) {
       const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'Accept': 'application/json' },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.errors?.[0]?.message || `Canvas API ${res.status}`);
-      return data;
+      if (!res.ok) {
+        let errMsg = `Canvas API ${res.status}`;
+        try { const d = await res.json(); errMsg = d?.errors?.[0]?.message || errMsg; } catch(_) {}
+        throw new Error(errMsg);
+      }
+      return res.json();
     }
 
     function isVisible(el) {
@@ -1417,7 +1454,7 @@
 
     // ── CONTEXT ───────────────────────────────────────────────────────────────
     let ctx = {
-      token,
+      token: getToken(),
       canvasOrigin: location.origin,
       courseId: '', assignmentId: '', assignmentName: '',
       studentId: '', studentName: '',
@@ -1440,7 +1477,7 @@
 
       const nextCtx = {
         ...ctx,
-        token,
+        token: getToken(),
         canvasOrigin: location.origin,
         courseId,
         assignmentId,
@@ -1572,7 +1609,7 @@
     }
 
     function buildPrompt(c, criteria) {
-      const tot         = parseInt(criteria?.match(/TOTAL POINTS:\s*(\d+)/i)?.[1] || '100', 10);
+      const tot         = parseInt(criteria?.match(/Points Possible:\s*(\d+)/i)?.[1] || '100', 10);
       const fn          = c?.studentName?.split(' ')[0] || 'the student';
       const teacherName = GM_getValue('ce_teacher_name', '').trim();
       const closing     = teacherName ? `\n${teacherName}` : '';

@@ -2,7 +2,8 @@
   'use strict';
 
   const STORAGE_KEY = 'ce_announcements';
-  const _store = await new Promise(resolve => chrome.storage.local.get([STORAGE_KEY], resolve));
+  const _store = await new Promise(resolve => chrome.storage.local.get([STORAGE_KEY, 'ce_remote_config'], resolve));
+  const _cfg = _store.ce_remote_config || {};
 
   const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
@@ -95,23 +96,25 @@
   // Finds the Canvas announcement compose title input.
   // Canvas uses several selectors depending on version / React migration.
   function findTitleInput() {
-    return document.querySelector([
+    const sel = _cfg.selectors?.announcementTitle || [
       'input#discussion_topic_title',
       'input[name="title"][id*="discussion"]',
       'input[data-testid="discussion-title-input"]',
       'input[placeholder*="opic Title"]',
       'input[aria-label*="opic Title"]',
       '.discussion-title input[type="text"]',
-    ].join(', '));
+    ];
+    return document.querySelector(sel.join(', '));
   }
 
   // True when we're somewhere in the announcement compose flow.
-  // Checks URL first, then falls back to page title / DOM signals.
   function isAnnouncementContext() {
     const p = window.location.pathname;
     const q = window.location.search;
     if (/\/courses\/\d+\/announcements(\/new|\/\d+\/edit)?/.test(p)) return true;
     if (/\/discussion_topics(\/new|\/\d+\/edit)?/.test(p) && q.includes('is_announcement')) return true;
+    // DOM fallback: title input + RCE editor present = compose form regardless of URL
+    if (findTitleInput() && document.querySelector('.tox-edit-area__iframe, [contenteditable="true"][role="textbox"], textarea#discussion_topic_message')) return true;
     return false;
   }
 
@@ -151,7 +154,7 @@
 
     // 2. Direct TinyMCE iframe body write — covers Canvas's new RCE
     if (!bodySet) {
-      const tinyIframe = document.querySelector('.tox-edit-area__iframe');
+      const tinyIframe = document.querySelector((_cfg.selectors?.rceIframe || ['.tox-edit-area__iframe']).join(', '));
       if (tinyIframe) {
         try {
           const iDoc = tinyIframe.contentDocument || tinyIframe.contentWindow?.document;
@@ -169,12 +172,12 @@
 
     // 3. contenteditable div — some Canvas RCE versions skip TinyMCE entirely
     if (!bodySet) {
-      const ce = document.querySelector([
+      const ce = document.querySelector((_cfg.selectors?.rceContentEditable || [
         '.tox-edit-area [contenteditable="true"]',
         '[data-testid="rce-content-editable"]',
         'div[contenteditable="true"][role="textbox"]',
         '.RceHtmlEditor [contenteditable]',
-      ].join(', '));
+      ]).join(', '));
       if (ce) {
         ce.focus();
         ce.innerHTML = htmlBody;
@@ -187,11 +190,11 @@
 
     // 4. Hidden textarea fallback (TinyMCE keeps one in sync)
     if (!bodySet) {
-      const ta = document.querySelector([
+      const ta = document.querySelector((_cfg.selectors?.announcementBodyTextarea || [
         'textarea#discussion_topic_message',
         'textarea[name="message"]',
         'textarea[id*="discussion_topic"]',
-      ].join(', '));
+      ]).join(', '));
       if (ta) {
         ta.value = htmlBody;
         ta.dispatchEvent(new Event('input',  { bubbles: true }));
@@ -322,6 +325,8 @@
   function closeModal() {
     modal.classList.remove('open');
   }
+
+  document.addEventListener('ce-open-quick-announcements', openModal);
 
   /* =========================================================
      PANEL
@@ -471,7 +476,7 @@
 
     const helpBtn = document.createElement('button');
     helpBtn.type = 'button';
-    helpBtn.textContent = 'Help';
+    helpBtn.textContent = '?';
     helpBtn.title = 'Help';
     helpBtn.style.cssText = 'height:32px;padding:0 12px;border:none;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;transition:background .12s,color .12s;';
     helpBtn.addEventListener('mouseenter', () => { helpBtn.style.background = 'rgba(255,255,255,0.22)'; helpBtn.style.color = '#fff'; });
@@ -480,14 +485,22 @@
 
     bar.append(lbl, quickBtn, helpBtn);
 
-    // Inject directly before the title input — simplest, most reliable
     titleInput.insertAdjacentElement('beforebegin', bar);
 
     return true;
   }
 
-  new MutationObserver(() => setTimeout(injectComposeBar, 300))
-    .observe(document.body, { childList: true, subtree: true });
-  setInterval(injectComposeBar, 1500);
-  injectComposeBar();
+  // Auto-inject the Quick Post bar whenever the Canvas announcement compose form appears.
+  let _annObserver = null;
+  function startAnnObserver() {
+    if (_annObserver) return;
+    injectComposeBar();
+    _annObserver = new MutationObserver(() => injectComposeBar());
+    _annObserver.observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startAnnObserver);
+  } else {
+    startAnnObserver();
+  }
 })();

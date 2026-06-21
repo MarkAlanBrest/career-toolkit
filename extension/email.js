@@ -2,8 +2,9 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled', 'ce_remote_config'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
+  const _cfg = _store.ce_remote_config || {};
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
     _store[key] = val;
@@ -2291,7 +2292,12 @@
 
   function getComposeBodyInput(root) {
     const scope = root || document;
-    return scope.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, [contenteditable="true"][role="textbox"], [contenteditable="true"], [role="textbox"]');
+    const sel = (_cfg.selectors?.composeBodyTextarea || [
+      'textarea[name="body"]',
+      'textarea[data-testid="message-body"]',
+      '#compose-message-body',
+    ]).concat(['[contenteditable="true"][role="textbox"]', '[contenteditable="true"]', '[role="textbox"]']);
+    return scope.querySelector(sel.join(', '));
   }
 
   function setNativeValue(el, value) {
@@ -2369,11 +2375,11 @@
     hdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
     const ttl = document.createElement('h2');
     ttl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    ttl.textContent = 'Fast Message';
+    ttl.textContent = 'Quick Messages';
 
     const qmDescPanel = document.createElement('div');
     qmDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
-    qmDescPanel.textContent = 'Choose a saved template to instantly fill in the subject line and message body of the compose window — no copy-pasting required. Click Insert next to any template and it drops straight in. Use the form at the bottom to save a new template or edit an existing one.';
+    qmDescPanel.textContent = 'Create and manage short reusable messages inside Message Pulse. While a Canvas compose window is open, Insert fills its subject and message body immediately.';
 
     const qmHelpBtn = document.createElement('button');
     qmHelpBtn.type = 'button';
@@ -2469,7 +2475,7 @@
       }
 
       const bodyInput = document.querySelector(
-        'textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, textarea.message-body'
+        (_cfg.selectors?.composeBodyTextarea || ['textarea[name="body"]', 'textarea[data-testid="message-body"]', '#compose-message-body', 'textarea.message-body']).join(', ')
       );
       if (!bodyInput) {
         document.getElementById(BTN_ID)?.remove();
@@ -2491,60 +2497,29 @@
       bar.id = BTN_ID;
       bar.style.cssText = 'width:100%;display:flex;align-items:center;gap:8px;padding:0 10px;height:44px;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 6px rgba(0,0,0,.2);box-sizing:border-box;flex-shrink:0;font-family:' + font + ';';
 
-      const lbl = document.createElement('span');
-      lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;';
-      lbl.textContent = 'Canvas Enhancer';
+      const quickBtn = document.createElement('button');
+      quickBtn.type = 'button';
+      quickBtn.textContent = '⚡ Quick Messages';
+      quickBtn.style.cssText = 'height:32px;padding:0 16px;border:none;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
+      quickBtn.addEventListener('mouseenter', () => { quickBtn.style.background = 'rgba(255,255,255,0.22)'; quickBtn.style.color = '#fff'; });
+      quickBtn.addEventListener('mouseleave', () => { quickBtn.style.background = 'rgba(255,255,255,0.12)'; quickBtn.style.color = 'rgba(255,255,255,0.85)'; });
+      quickBtn.addEventListener('click', openQmModal);
 
-      const fastBtn = document.createElement('button');
-      fastBtn.type = 'button';
-      fastBtn.textContent = 'Fast Message';
-      fastBtn.style.cssText = 'height:32px;padding:0 16px;border:none;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
-      fastBtn.addEventListener('mouseenter', () => { fastBtn.style.background = 'rgba(255,255,255,0.22)'; fastBtn.style.color = '#fff'; });
-      fastBtn.addEventListener('mouseleave', () => { fastBtn.style.background = 'rgba(255,255,255,0.12)'; fastBtn.style.color = 'rgba(255,255,255,0.85)'; });
-      fastBtn.addEventListener('click', openQmModal);
-
-      // ── HELP BUTTON ──────────────────────────────────────────────────────────
-      const descPanel = document.createElement('div');
-      descPanel.style.cssText = 'display:none;position:absolute;top:100%;left:0;right:0;z-index:10;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;box-shadow:0 4px 8px rgba(0,0,0,.12);';
-      descPanel.textContent = 'Click Fast Message to open your saved message templates and insert a subject line and body into this compose window with one click — no typing required. To create or edit templates, open "Message Templates" from the Messages toolbar at the top of the Canvas Inbox page.';
-
-      const helpQBtn = document.createElement('button');
-      helpQBtn.type = 'button';
-      helpQBtn.textContent = '?';
-      helpQBtn.title = 'What does this do?';
-      helpQBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
-      let helpOpen = false;
-      helpQBtn.addEventListener('click', () => {
-        helpOpen = !helpOpen;
-        descPanel.style.display = helpOpen ? 'block' : 'none';
-        helpQBtn.style.background = helpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
-        helpQBtn.style.color = helpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
-      });
-
-      bar.style.position = 'relative';
-      bar.append(lbl, fastBtn, helpQBtn);
-      bar.appendChild(descPanel);
+      bar.append(quickBtn);
 
       // Store live references so insertIntoCompose can find them without re-querying
       bar._ceBodyInput    = bodyInput;
       bar._ceSubjectInput = getComposeSubjectInput(formRoot) || getComposeSubjectInput(document);
 
-      let insertBefore = bodyInput;
-      while (insertBefore.parentElement && insertBefore.parentElement !== formRoot) {
-        insertBefore = insertBefore.parentElement;
-      }
-      if (insertBefore.parentElement === formRoot) {
-        formRoot.insertBefore(bar, insertBefore);
-      } else {
-        bodyInput.parentElement.insertBefore(bar, bodyInput);
-      }
+      formRoot.insertAdjacentElement('afterbegin', bar);
       return true;
     }
 
-    document.addEventListener('ces-trigger-quick-panel', () => openQmModal());
-    new MutationObserver(() => setTimeout(injectComposeButton, 300)).observe(document.body, { childList: true, subtree: true });
-    setInterval(injectComposeButton, 1500);
     injectComposeButton();
+    const _composeObserver = new MutationObserver(() => injectComposeButton());
+    _composeObserver.observe(document.body, { childList: true, subtree: true });
+
+    document.addEventListener('ces-trigger-quick-panel', () => openQmModal());
   }
 
   /* =========================================================
@@ -2677,15 +2652,15 @@
     // CSS: hides hub toolbar on inbox pages (inbox bar takes its place in flow)
     const st = document.createElement('style');
     st.id = 'ces-inbox-style';
-    st.textContent = 'body.ces-inbox-mode #ce-hub { display:none!important; } body.ces-inbox-mode #ce-hub-panel { display:none!important; }';
+    st.textContent = 'body.ces-inbox-mode #ce-hub{display:none!important}body.ces-inbox-mode #ce-hub-panel{display:none!important}body.ces-inbox-mode:not(.ces-inbox-collapsed){padding-top:52px!important;box-sizing:border-box!important}body.ces-inbox-collapsed{padding-top:28px!important;box-sizing:border-box!important}';
     (document.head || document.documentElement).appendChild(st);
 
     // ── COLLAPSED TAB ────────────────────────────────────────────────────────
     const colTab = document.createElement('button');
     colTab.id = 'ces-inbox-tab';
     colTab.type = 'button';
-    colTab.textContent = 'Messages  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.textContent = 'Message Pulse  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
     colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
     document.body.appendChild(colTab);
@@ -2693,31 +2668,64 @@
     // ── FULL BAR ─────────────────────────────────────────────────────────────
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;height:52px;z-index:2147483640;overflow:visible;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;isolation:isolate;';
 
-    const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
-    lbl.textContent = 'Canvas Enhancer — Message Toolbar';
+    const brand = document.createElement('div');
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Message Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">OUTREACH WORKFLOW</small></span>';
 
-    function mkBtn(text) {
+    function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = text;
-      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
       return b;
     }
 
-    const sendBtn = mkBtn('Bulk Message Students');
-    const tplBtn  = mkBtn('Message Templates');
+    const messagingWrap = document.createElement('div');
+    messagingWrap.style.cssText = 'position:relative;z-index:2;flex-shrink:0;';
+    const messagingBtn = mkBtn('📨', 'Messaging  ▾');
+    const messagingMenu = document.createElement('div');
+    messagingMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;width:210px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22);display:none;flex-direction:column;gap:2px;';
+    function messagingMenuItem(icon, label) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = '<span style="width:20px;text-align:center;font-size:14px">' + icon + '</span><span>' + label + '</span>';
+      b.style.cssText = 'width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;border:0;border-radius:7px;background:transparent;color:#334155;font:650 12px/1.2 ' + font + ';text-align:left;cursor:pointer;';
+      b.addEventListener('mouseenter', () => { if (b.dataset.available !== 'false') { b.style.background = '#F1F5F9'; b.style.color = '#0F172A'; } });
+      b.addEventListener('mouseleave', () => { if (b.dataset.available !== 'false') { b.style.background = 'transparent'; b.style.color = '#334155'; } });
+      return b;
+    }
+    const sendBtn = messagingMenuItem('📨', 'New Outreach');
+    const tplBtn  = messagingMenuItem('📄', 'Templates');
+    messagingMenu.append(sendBtn, tplBtn);
+    function setMenuAvailability(button, available, availableTitle, unavailableTitle) {
+      button.dataset.available = String(available);
+      button.setAttribute('aria-disabled', String(!available));
+      button.title = available ? availableTitle : unavailableTitle;
+      button.style.opacity = available ? '1' : '.42';
+      button.style.cursor = available ? 'pointer' : 'not-allowed';
+      button.style.background = 'transparent';
+      button.style.color = available ? '#334155' : '#64748B';
+    }
+    messagingWrap.append(messagingBtn, messagingMenu);
+    messagingBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      messagingMenu.style.display = messagingMenu.style.display === 'none' ? 'flex' : 'none';
+    });
+    messagingMenu.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => { messagingMenu.style.display = 'none'; });
 
     sendBtn.addEventListener('click', () => {
+      messagingMenu.style.display = 'none';
       if (!_overlay) return;
       _overlay.classList.add('ces-open');
       renderSendTab(document.getElementById('ces-body'));
     });
     tplBtn.addEventListener('click', () => {
+      messagingMenu.style.display = 'none';
       if (!_tplOverlay) return;
       _tplOverlay.classList.add('ces-open');
       renderTemplatesTab(document.getElementById('ces-tpl-body'));
@@ -2741,7 +2749,7 @@
 
     const sDescPanel = document.createElement('div');
     sDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
-    sDescPanel.textContent = 'Teacher Name is used in message templates wherever you write {{teacherName}} — it fills in automatically when you send. No Canvas API token is needed here; the Messages toolbar uses your existing Canvas login session. Uninstall removes all saved Messages data (templates, settings, quick messages) and disables this toolbar permanently.';
+    sDescPanel.textContent = 'Message Pulse brings outreach, message templates, quick compose messages, and announcement templates into one place. Teacher Name fills {{teacherName}} automatically. No Canvas API token is needed because messages use your existing Canvas login session.';
 
     const sHelpBtn = document.createElement('button');
     sHelpBtn.type = 'button';
@@ -2801,7 +2809,7 @@
     uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = ''; });
     uninstallBtn.addEventListener('click', () => {
       if (!confirm('Remove the Canvas Enhancer Messages Toolbar? This will delete all saved templates, quick messages, and settings for this tool.')) return;
-      const keysToRemove = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled'];
+      const keysToRemove = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ce_announcements', 'ces_inbox_disabled'];
       chrome.storage.local.remove(keysToRemove, () => {
         chrome.storage.local.set({ ces_inbox_disabled: true }, () => {
           bar.remove();
@@ -2822,14 +2830,16 @@
     cancelSBtn.textContent = 'Close';
     cancelSBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
 
-    sBody.append(nameGroup, saveMsg, saveBtn, divider, uninstallBtn);
+    sBody.append(nameGroup, saveMsg, saveBtn, divider);
+    if (globalThis.CEDataBackup) sBody.appendChild(globalThis.CEDataBackup.createSection({ accent:'#0770B8' }));
+    sBody.appendChild(uninstallBtn);
     settingsBox.append(sHdr, sDescPanel, sBody, sFooter);
     sFooter.append(cancelSBtn);
     settingsOverlay.appendChild(settingsBox);
     settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
     settingsBox.addEventListener('click', e => e.stopPropagation());
 
-    const settingsBtn = mkBtn('Settings');
+    const settingsBtn = mkBtn('⚙', 'Settings');
     settingsBtn.addEventListener('click', () => {
       nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
       saveMsg.textContent = '';
@@ -2837,7 +2847,7 @@
     });
 
     // ── HIDE / SHOW TOGGLE ───────────────────────────────────────────────────
-    const hideBtn = mkBtn('Hide');
+    const hideBtn = mkBtn('—', 'Hide');
     hideBtn.style.marginLeft = 'auto';
     hideBtn.addEventListener('click', () => {
       bar.style.display = 'none';
@@ -2850,7 +2860,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(lbl, sendBtn, tplBtn, settingsBtn, hideBtn);
+    bar.append(brand, messagingWrap, settingsBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
@@ -2859,18 +2869,23 @@
     function updateBar() {
       const p = window.location.pathname;
       const onInbox = p.includes('/conversations');
+      const onAnnouncements = p.includes('/announcements') || (p.includes('/discussion_topics') && new URLSearchParams(location.search).get('is_announcement') === 'true');
+      const onMessagingPage = onInbox || onAnnouncements;
+      const composeOpen = Boolean(document.querySelector('textarea[name="body"], textarea[data-testid="message-body"], #compose-message-body, textarea.message-body'));
 
-      if (onInbox && !_onInbox) {
-        document.body.classList.add('ces-inbox-mode');
-        document.body.classList.remove('ces-inbox-collapsed');
-        bar.style.display = 'flex';
+      if (onMessagingPage) {
+        // Hide the bar whenever the compose popup is open — it sits above the modal and blocks the close button
+        const shouldShow = !composeOpen && !document.body.classList.contains('ces-inbox-collapsed');
+        bar.style.display = shouldShow ? 'flex' : 'none';
+        document.body.classList.toggle('ces-inbox-mode', shouldShow);
+        if (!_onInbox) document.body.classList.remove('ces-inbox-collapsed');
         colTab.style.display = 'none';
-      } else if (!onInbox && _onInbox) {
+      } else if (!onMessagingPage && _onInbox) {
         document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
         bar.style.display = 'none';
         colTab.style.display = 'none';
       }
-      _onInbox = onInbox;
+      _onInbox = onMessagingPage;
     }
 
     updateBar();
@@ -2890,6 +2905,7 @@
   /* =========================================================
      INIT
   ========================================================= */
+  if (GM_getValue('ces_inbox_disabled', false)) return;
   buildUI();
   checkComposePageHelper();
   installQuickMessageInserter();

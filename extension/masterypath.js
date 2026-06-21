@@ -341,9 +341,8 @@
         lower_bound: i === state.paths.length - 1 ? 0 : path.lower / 100,
         assignment_sets: path.items.length ? [{
           assignment_set_associations: path.items.map((item, pos) => ({
-            model_type: item.type,
-            model_id: Number(item.contentId),
-            position: pos,
+            assignment_id: Number(item.contentId),
+            position: pos + 1,
           })),
         }] : [],
       }));
@@ -572,6 +571,8 @@
     if (target === 'trigger') {
       if (!GRADABLE.has(item.type)) {
         setStatus('Only assignments, quizzes, and graded discussions can trigger a path.', 'err');
+        renderLeft();
+        renderRight();
         return;
       }
       state.trigger = item;

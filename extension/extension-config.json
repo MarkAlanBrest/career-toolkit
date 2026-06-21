@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "features": {
+    "messagePulse": true,
+    "announcementPulse": true,
+    "quizPulse": true,
+    "assignmentPulse": true,
+    "aiBuilder": true
+  },
+  "selectors": {
+    "announcementTitle": [
+      "input#discussion_topic_title",
+      "input[name='title'][id*='discussion']",
+      "input[data-testid='discussion-title-input']",
+      "input[placeholder*='opic Title']",
+      "input[aria-label*='opic Title']",
+      ".discussion-title input[type='text']"
+    ],
+    "rceIframe": [
+      ".tox-edit-area__iframe"
+    ],
+    "rceContentEditable": [
+      ".tox-edit-area [contenteditable='true']",
+      "[data-testid='rce-content-editable']",
+      "div[contenteditable='true'][role='textbox']",
+      ".RceHtmlEditor [contenteditable]"
+    ],
+    "announcementBodyTextarea": [
+      "textarea#discussion_topic_message",
+      "textarea[name='message']",
+      "textarea[id*='discussion_topic']"
+    ],
+    "composeBodyTextarea": [
+      "textarea[name='body']",
+      "textarea[data-testid='message-body']",
+      "#compose-message-body",
+      "textarea.message-body"
+    ]
+  }
+}

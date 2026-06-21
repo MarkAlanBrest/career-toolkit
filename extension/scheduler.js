@@ -18,7 +18,7 @@
   ];
 
   const _store = await new Promise(resolve =>
-    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token'], resolve)
+    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token', 'ce_scheduler_toolbar_disabled'], resolve)
   );
 
   const canvasToken = _store['ce_canvas_token'] || '';
@@ -542,8 +542,11 @@
     setNotice(`Publishing ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'} to Canvas...`, 'info');
     render();
 
-    try {
-      for (const item of scheduledItems) {
+    const errors = [];
+    const succeeded = [];
+
+    for (const item of scheduledItems) {
+      try {
         const dueDateKey  = state.schedule[item.id];
         const openBefore  = getItemSetting(item.id, 'openDaysBefore');
         const closAfter   = getItemSetting(item.id, 'closeDaysAfter');
@@ -559,34 +562,42 @@
         if (item.quizId) {
           const answersAt = combineLocalDateAndTime(addDays(dueDateKey, ansAfter), state.settings.dueTime);
           await canvasAPI('PUT', `/api/v1/courses/${state.courseId}/quizzes/${item.quizId}`, {
-            quiz: { show_correct_answers: true, show_correct_answers_at: answersAt }
+            quiz: { due_at: dueAt, show_correct_answers: true, show_correct_answers_at: answersAt }
           });
         }
+
+        succeeded.push(item);
+      } catch (error) {
+        console.error('[Canvas Scheduler] Failed to update item:', item.id, error);
+        errors.push(item.id);
       }
-
-      state.items = state.items.map((item) => {
-        const dueDateKey = state.schedule[item.id];
-        if (!dueDateKey) return item;
-        return {
-          ...item,
-          currentDueAt:    combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
-          currentUnlockAt: combineLocalDateAndTime(addDays(dueDateKey, -getItemSetting(item.id, 'openDaysBefore')), '00:00'),
-          currentLockAt:   combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'closeDaysAfter')), '23:59'),
-          currentAnswersAt: item.quizId
-            ? combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'answersDaysAfter')), state.settings.dueTime)
-            : item.currentAnswersAt
-        };
-      });
-
-      persistSettings();
-      setNotice(`Canvas updated ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'}.`, 'ok');
-    } catch (error) {
-      console.error('[Canvas Scheduler] Publish failed:', error);
-      setNotice(`Canvas could not save the schedule: ${error.message}`, 'err');
-    } finally {
-      state.saving = false;
-      render();
     }
+
+    state.items = state.items.map((item) => {
+      const dueDateKey = state.schedule[item.id];
+      if (!dueDateKey || errors.includes(item.id)) return item;
+      return {
+        ...item,
+        currentDueAt:    combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
+        currentUnlockAt: combineLocalDateAndTime(addDays(dueDateKey, -getItemSetting(item.id, 'openDaysBefore')), '00:00'),
+        currentLockAt:   combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'closeDaysAfter')), '23:59'),
+        currentAnswersAt: item.quizId
+          ? combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'answersDaysAfter')), state.settings.dueTime)
+          : item.currentAnswersAt
+      };
+    });
+
+    persistSettings();
+    if (errors.length === 0) {
+      setNotice(`Canvas updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}.`, 'ok');
+    } else if (succeeded.length === 0) {
+      setNotice(`All ${errors.length} update${errors.length === 1 ? '' : 's'} failed. Check your Canvas token in Settings.`, 'err');
+    } else {
+      setNotice(`Updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}. ${errors.length} failed — check your Canvas token.`, 'err');
+    }
+
+    state.saving = false;
+    render();
   }
 
   function handleTileDragStart(itemId, event) {
@@ -1467,19 +1478,20 @@
   /* ── Assignment-page toolbar ─────────────────────────────────────────── */
   (function installSchedulerToolbar() {
     if (document.getElementById('csch-toolbar')) return;
+    if (GM_getValue('ce_scheduler_toolbar_disabled', false)) return;
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
     const st = document.createElement('style');
-    st.textContent = 'body.csch-page-mode #ce-hub{display:none!important}body.csch-page-mode #ce-hub-panel{display:none!important}';
+    st.textContent = 'body.csch-page-mode #ce-hub{display:none!important}body.csch-page-mode #ce-hub-panel{display:none!important}body.csch-page-mode:not(.csch-toolbar-collapsed){padding-top:52px!important;box-sizing:border-box!important}body.csch-page-mode.csch-toolbar-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#csch-toolbar{left:0!important}}';
     (document.head || document.documentElement).appendChild(st);
 
     // Collapsed tab (top-right, shows when bar is hidden)
     const colTab = document.createElement('button');
     colTab.id = 'csch-toolbar-tab';
     colTab.type = 'button';
-    colTab.textContent = 'Assignments ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#394B58;border:none;border-left:1px solid #1B303D;border-bottom:1px solid #1B303D;border-radius:0 0 0 6px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.textContent = 'Assignment Pulse  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => { colTab.style.color = '#fff'; });
     colTab.addEventListener('mouseleave', () => { colTab.style.color = 'rgba(255,255,255,0.85)'; });
     document.body.appendChild(colTab);
@@ -1487,46 +1499,78 @@
     // Full toolbar bar
     const bar = document.createElement('div');
     bar.id = 'csch-toolbar';
-    bar.style.cssText = 'position:relative;width:100%;height:56px;z-index:10;background:#394B58;border-bottom:1px solid #1B303D;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 16px 0 88px;gap:8px;font-family:' + font + ';box-sizing:border-box;flex-shrink:0;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
-    const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-right:4px;flex-shrink:0;';
-    lbl.textContent = 'Assignments';
+    const brand = document.createElement('div');
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Assignment Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">ASSIGNMENT WORKFLOW</small></span>';
 
-    function mkBtn(text) {
+    function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = text;
-      b.style.cssText = 'height:32px;padding:0 16px;border:none;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;border-radius:4px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s;letter-spacing:.2px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,0.22)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'rgba(255,255,255,0.12)'; b.style.color = 'rgba(255,255,255,0.85)'; });
+      b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
       return b;
     }
 
-    const schedBtn = mkBtn('Scheduler');
+    const schedBtn = mkBtn('📅', 'Scheduler');
     schedBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-scheduler')));
 
-    const chatBtn = mkBtn('Chat');
-    chatBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-chat')));
-    const notesBtn = mkBtn('Notes');
-    notesBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-notes')));
+    const settingsOverlay = document.createElement('div');
+    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
+    const settingsBox = document.createElement('div');
+    settingsBox.style.cssText = 'width:min(480px,calc(100vw - 48px));max-height:calc(100vh - 80px);background:#F8FAFC;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.3);display:flex;flex-direction:column;overflow:hidden;';
+    const settingsHdr = document.createElement('div');
+    settingsHdr.style.cssText = 'height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;background:#172A36;color:#fff;flex-shrink:0;';
+    settingsHdr.innerHTML = '<strong style="flex:1;font-size:15px">Assignment Pulse Settings</strong>';
+    const settingsClose = document.createElement('button');
+    settingsClose.type='button'; settingsClose.textContent='×';
+    settingsClose.style.cssText='width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;';
+    settingsClose.onclick=()=>settingsOverlay.style.display='none'; settingsHdr.appendChild(settingsClose);
+    const settingsBody=document.createElement('div');
+    settingsBody.style.cssText='padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;';
+    const settingsIntro=document.createElement('div');
+    settingsIntro.style.cssText='font-size:12px;color:#64748B;line-height:1.55;';
+    settingsIntro.textContent='Assignment Pulse saves your scheduler dates, weekday pattern, timing rules, item overrides, and last generated schedule.';
+    settingsBody.appendChild(settingsIntro);
+    if(globalThis.CEDataBackup) settingsBody.appendChild(globalThis.CEDataBackup.createSection({accent:'#0770B8'}));
+    const uninstallBtn=document.createElement('button');
+    uninstallBtn.type='button'; uninstallBtn.textContent='Uninstall Assignment Pulse Toolbar…';
+    uninstallBtn.style.cssText='width:100%;height:38px;border:1px solid #DC2626;border-radius:8px;background:#fff;color:#DC2626;font-size:12px;font-weight:700;cursor:pointer;font-family:'+font+';';
+    uninstallBtn.onclick=()=>{
+      if(!confirm('Remove the Assignment Pulse toolbar? Your saved scheduler data will remain available for backup or restore.'))return;
+      GM_setValue('ce_scheduler_toolbar_disabled',true);
+      document.body.classList.remove('csch-page-mode','csch-toolbar-collapsed');
+      bar.remove();colTab.remove();settingsOverlay.remove();st.remove();
+    };
+    settingsBody.appendChild(uninstallBtn);settingsBox.append(settingsHdr,settingsBody);settingsOverlay.appendChild(settingsBox);
+    settingsOverlay.onclick=e=>{if(e.target===settingsOverlay)settingsOverlay.style.display='none';};
+    settingsBox.onclick=e=>e.stopPropagation();document.body.appendChild(settingsOverlay);
 
-    const helpBtn = mkBtn('Help');
-    helpBtn.title = 'Help';
+    const settingsBtn=mkBtn('⚙','Settings');
+    settingsBtn.onclick=()=>settingsOverlay.style.display='flex';
+
+    const helpBtn = document.createElement('button');
+    helpBtn.type='button';helpBtn.textContent='?';helpBtn.title='How Assignment Pulse works';
+    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:'+font+';margin-left:2px;';
     helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'scheduler' })));
 
-    const hideBtn = mkBtn('Hide');
+    const hideBtn = mkBtn('—', 'Hide');
     hideBtn.style.marginLeft = 'auto';
     hideBtn.addEventListener('click', () => {
       bar.style.display = 'none';
       colTab.style.display = 'block';
+      document.body.classList.add('csch-toolbar-collapsed');
     });
     colTab.addEventListener('click', () => {
       colTab.style.display = 'none';
       bar.style.display = 'flex';
+      document.body.classList.remove('csch-toolbar-collapsed');
     });
 
-    bar.append(lbl, schedBtn, chatBtn, notesBtn, helpBtn, hideBtn);
+    bar.append(brand, schedBtn, settingsBtn, helpBtn, hideBtn);
     document.body.insertBefore(bar, document.body.firstChild);
 
     let _onPage = false;
@@ -1534,10 +1578,11 @@
       const onPage = /\/courses\/\d+\/assignments/.test(window.location.pathname);
       if (onPage && !_onPage) {
         document.body.classList.add('csch-page-mode');
+        document.body.classList.remove('csch-toolbar-collapsed');
         bar.style.display = 'flex';
         colTab.style.display = 'none';
       } else if (!onPage && _onPage) {
-        document.body.classList.remove('csch-page-mode');
+        document.body.classList.remove('csch-page-mode', 'csch-toolbar-collapsed');
         bar.style.display = 'none';
         colTab.style.display = 'none';
       }
