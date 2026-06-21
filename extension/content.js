@@ -12,7 +12,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_quiz_toolbar_disabled'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_quiz_toolbar_disabled','ce_features'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -2276,75 +2276,12 @@ Critical rules:
     const keyLink = document.createElement('div');
     keyLink.style.cssText = 'text-align:center;font-size:12px;color:#6b7280;';
     keyLink.innerHTML = 'Already have a license key? <a href="#" style="color:#0770B8;font-weight:600;">Enter it here →</a>';
-    keyLink.querySelector('a').onclick = e => { e.preventDefault(); overlay.remove(); showSettings(); };
+    keyLink.querySelector('a').onclick = e => { e.preventDefault(); overlay.remove(); document.dispatchEvent(new CustomEvent('ce-open-settings')); };
     body.appendChild(keyLink);
 
     panel.appendChild(body);
     overlay.appendChild(panel);
     overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
-    document.body.appendChild(overlay);
-  }
-
-  // ── SETTINGS ──────────────────────────────────────────────────────────────────
-  function showSettings() {
-    if (document.getElementById('ce-settings-overlay')) return;
-    const overlay=document.createElement('div'); overlay.id='ce-settings-overlay';
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
-
-    const panel=document.createElement('div');
-    panel.style.cssText='background:#fff;border-radius:12px;width:460px;max-width:calc(100vw - 40px);max-height:calc(100vh - 60px);overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:inherit;';
-
-    // Header
-    const hdr=document.createElement('div');
-    hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #e5e7eb;';
-    const title=document.createElement('div');
-    title.style.cssText='font-size:16px;font-weight:700;color:#111827;';
-    title.textContent='⚙ Canvas Enhancer Settings';
-    const closeBtn=document.createElement('button');
-    closeBtn.textContent='✕'; closeBtn.style.cssText='background:none;border:none;font-size:18px;cursor:pointer;color:#6b7280;line-height:1;padding:0;';
-    closeBtn.onclick=()=>overlay.remove();
-    hdr.appendChild(title); hdr.appendChild(closeBtn); panel.appendChild(hdr);
-
-    const body=document.createElement('div'); body.style.cssText='padding:20px 24px;';
-    if (globalThis.CECanvasToken) {
-      const tokenControl=globalThis.CECanvasToken.createControl();
-      tokenControl.style.marginBottom='16px';
-      body.appendChild(tokenControl);
-    }
-
-    function settingsSection(icon, label, desc, badge) {
-      const row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #f3f4f6;cursor:default;';
-      const left=document.createElement('div');
-      const lbl=document.createElement('div'); lbl.style.cssText='font-size:13px;font-weight:600;color:#111827;'; lbl.textContent=`${icon} ${label}`;
-      const d=document.createElement('div'); d.style.cssText='font-size:12px;color:#6b7280;margin-top:2px;'; d.textContent=desc;
-      left.appendChild(lbl); left.appendChild(d);
-      const right=document.createElement('div');
-      right.style.cssText='font-size:11px;font-weight:600;color:#9ca3af;background:#f3f4f6;border-radius:20px;padding:2px 10px;white-space:nowrap;flex-shrink:0;margin-left:12px;';
-      right.textContent=badge||'Coming soon';
-      row.appendChild(left); row.appendChild(right); return row;
-    }
-
-    body.appendChild(settingsSection('📦','Plan & Usage','View your current plan, usage limits, and upgrade options.'));
-    body.appendChild(settingsSection('🔑','License Key','Enter or manage your Canvas Enhancer license key.'));
-    body.appendChild(settingsSection('🔔','Notifications','Control update alerts and release notes.'));
-    body.appendChild(settingsSection('🎨','Appearance','Toolbar position, button labels, and theme.'));
-    body.appendChild(settingsSection('🔒','Privacy & Data','What is stored locally and how to clear it.'));
-    if (globalThis.CEDataBackup) {
-      const backupSection=globalThis.CEDataBackup.createSection({accent:'#0770B8'});
-      backupSection.style.marginTop='16px';
-      body.appendChild(backupSection);
-    }
-    body.appendChild(settingsSection('🗑','Uninstall','Remove all stored data and deactivate Canvas Enhancer.'));
-
-    const ver=document.createElement('div');
-    ver.style.cssText='margin-top:20px;font-size:11px;color:#9ca3af;text-align:center;';
-    ver.textContent='Canvas Enhancer v2.4';
-    body.appendChild(ver);
-
-    panel.appendChild(body);
-    overlay.appendChild(panel);
-    overlay.onclick=e=>{if(e.target===overlay)overlay.remove();};
     document.body.appendChild(overlay);
   }
 
@@ -2401,7 +2338,7 @@ Critical rules:
     gearBtn.innerHTML='<span class="ce-icon">⚙</span><span>Settings</span>';
     gearBtn.title='Settings';
     gearBtn.classList.add('ce-studio-spacer');
-    gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showSettings();};
+    gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-settings'));};
     globalThis.CECanvasToken?.bindIndicator(gearBtn);
     rowBottom.appendChild(gearBtn);
 
@@ -2435,6 +2372,7 @@ Critical rules:
   // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
   (function installQuizToolbar() {
     if (document.getElementById('ce-quiz-toolbar')) return;
+    if (GM_getValue('ce_features', {})['quiz-builder'] === false) return;
     if (GM_getValue('ce_quiz_toolbar_disabled', false)) return;
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
@@ -2473,51 +2411,10 @@ Critical rules:
     const quizBtn = mkBtn('✨', 'Quiz Builder');
     quizBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-quiz')));
 
-    const settingsOverlay = document.createElement('div');
-    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
-    const settingsBox = document.createElement('div');
-    settingsBox.style.cssText = 'width:min(480px,calc(100vw - 48px));max-height:calc(100vh - 80px);background:#F8FAFC;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.3);display:flex;flex-direction:column;overflow:hidden;';
-    const settingsHdr = document.createElement('div');
-    settingsHdr.style.cssText = 'height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;background:#172A36;color:#fff;flex-shrink:0;';
-    const settingsTitle = document.createElement('div');
-    settingsTitle.style.cssText = 'flex:1;font-size:15px;font-weight:700;';
-    settingsTitle.textContent = 'Quiz Builder Settings';
-    const settingsClose = document.createElement('button');
-    settingsClose.type = 'button'; settingsClose.textContent = '×';
-    settingsClose.style.cssText = 'width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;';
-    settingsClose.addEventListener('click', () => settingsOverlay.style.display = 'none');
-    settingsHdr.append(settingsTitle, settingsClose);
-    const settingsBody = document.createElement('div');
-    settingsBody.style.cssText = 'padding:22px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;';
-    const settingsIntro = document.createElement('div');
-    settingsIntro.style.cssText = 'font-size:12px;color:#64748B;line-height:1.55;';
-    settingsIntro.textContent = 'Quiz Builder creates quizzes directly in Canvas and does not keep separate saved copies or other data that needs backing up.';
-    settingsBody.appendChild(settingsIntro);
-    if (globalThis.CECanvasToken) settingsBody.appendChild(globalThis.CECanvasToken.createControl());
-    const danger = document.createElement('div');
-    danger.style.cssText = 'border-top:1px solid #E2E8F0;padding-top:16px;margin-top:2px;';
-    const uninstallBtn = document.createElement('button');
-    uninstallBtn.type = 'button'; uninstallBtn.textContent = 'Uninstall Quiz Builder Toolbar…';
-    uninstallBtn.style.cssText = 'width:100%;height:38px;border:1px solid #DC2626;border-radius:8px;background:#fff;color:#DC2626;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';';
-    uninstallBtn.addEventListener('click', () => {
-      if (!confirm('Remove the Quiz Builder toolbar from Canvas? Re-enabling it will require resetting or reinstalling Canvas Enhancer.')) return;
-      GM_setValue('ce_quiz_toolbar_disabled', true);
-      document.getElementById('ce-qm-overlay')?.remove();
-      document.body.classList.remove('ce-quiz-mode', 'ce-quiz-collapsed');
-      bar.remove(); colTab.remove(); settingsOverlay.remove(); st.remove();
-    });
-    danger.appendChild(uninstallBtn);
-    settingsBody.appendChild(danger);
-    settingsBox.append(settingsHdr, settingsBody);
-    settingsOverlay.appendChild(settingsBox);
-    settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
-    settingsBox.addEventListener('click', e => e.stopPropagation());
-    document.body.appendChild(settingsOverlay);
-
     const settingsBtn = mkBtn('⚙', 'Settings');
     globalThis.CECanvasToken?.bindIndicator(settingsBtn);
     settingsBtn.addEventListener('click', () => {
-      settingsOverlay.style.display = 'flex';
+      document.dispatchEvent(new CustomEvent('ce-open-settings'));
     });
 
     const helpBtn = mkBtn('?', 'Help');
@@ -2574,9 +2471,9 @@ Critical rules:
 
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
-  if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
+  if (GM_getValue('ce_features', {})['content-studio'] !== false && isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    if (GM_getValue('ce_features', {})['content-studio'] !== false && isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
     insertQuizBuilderPageButton();
   }).observe(document.body, { childList:true, subtree:true });
 

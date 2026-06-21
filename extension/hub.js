@@ -51,11 +51,12 @@
 
   // Features shown in Settings — separate from toolbar TOOLS so they don't render as buttons
   const FEATURES = [
+    { id: 'content-studio', icon: '🧩', label: 'Content Studio',     desc: 'Rich-content components and AI Assist in the Canvas editor.' },
     { id: 'quiz-builder',  icon: '✅', label: 'Quiz Builder',      desc: 'AI-powered quiz generator — appears in the toolbar on the Quizzes page.' },
-    { id: 'inbox-toolbar', icon: '📨', label: 'Inbox Toolbar',     desc: 'Bulk Message and Templates on the Canvas Inbox and Announcements pages.' },
+    { id: 'inbox-toolbar', icon: '📨', label: 'Message Pulse',     desc: 'Outreach and templates on the Canvas Inbox and Announcements pages.' },
     { id: 'announce-bar',  icon: '📢', label: 'Announcement Bar',  desc: 'Quick Post button on the announcement compose form with saved templates.' },
     { id: 'ai-grader',     icon: '🎓', label: 'AI Grader',         desc: 'AI-assisted grading panel available in SpeedGrader.' },
-    { id: 'scheduler',     icon: '📅', label: 'Scheduler',         desc: 'Drag-and-drop assignment scheduler available in SpeedGrader.' },
+    { id: 'scheduler',     icon: '📅', label: 'Assignment Pulse',  desc: 'Drag-and-drop assignment scheduler on course Assignments pages.' },
     { id: 'date-autofill', icon: '📆', label: 'Date Autofill',     desc: 'Automatically fills due dates when creating or editing assignments.' },
   ];
 
@@ -766,7 +767,7 @@
     const dest = target || panelBody;
     try {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ce_license_key','ce_ai_provider','ce_grading_model','ce_features'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_ai_provider','ce_grading_model','ce_features'], r)
     );
     dest.innerHTML = '';
 
@@ -781,7 +782,7 @@
     head.appendChild(ht); head.appendChild(hs);
     stack.appendChild(head);
 
-    const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || '');
+    const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || stored.ces_teacher_name || '');
     const licenseIn = input('ce-s-license', 'text',     'Enter your license key',  stored.ce_license_key  || '');
 
     // AI provider select
@@ -852,10 +853,13 @@
         ce_teacher_name:   nameIn.value.trim(),
         ce_license_key:    licenseIn.value.trim(),
         ce_features:       features,
+        ce_quiz_toolbar_disabled: features['quiz-builder'] === false,
+        ce_scheduler_toolbar_disabled: features.scheduler === false,
+        ces_inbox_disabled: features['inbox-toolbar'] === false,
       }, () => {
         applyFeatures(features);
-        saveMsg.textContent = '✓ Saved';
-        setTimeout(() => { saveMsg.textContent = ''; }, 2500);
+        saveMsg.textContent = '✓ Saved. Reloading Canvas…';
+        setTimeout(() => location.reload(), 500);
       });
     });
 
@@ -909,11 +913,41 @@
       stack.appendChild(divider());
     }
 
+    const dataHead = el('div', '');
+    const dataTitle = el('div', `font-size:15px;font-weight:700;color:${DS.text};margin-bottom:3px;`, { textContent: 'Tool Data' });
+    const dataHelp = el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Reset saved data for one tool without uninstalling Canvas Enhancer.' });
+    const resetSchedulerBtn = btn('Reset Assignment Pulse schedule…', `background:#fff;color:#B45309;border-color:#D97706;width:100%;text-align:left;`);
+    resetSchedulerBtn.addEventListener('click', () => {
+      if (!confirm('Delete the saved Assignment Pulse schedule, timing rules, and item overrides? This cannot be undone unless you have a backup.')) return;
+      chrome.storage.local.remove('canvas_scheduler_settings_v1', () => {
+        resetSchedulerBtn.textContent = '✓ Assignment Pulse data reset';
+        setTimeout(() => { resetSchedulerBtn.textContent = 'Reset Assignment Pulse schedule…'; }, 3000);
+      });
+    });
+    dataHead.append(dataTitle, dataHelp);
+    stack.append(dataHead, resetSchedulerBtn, divider());
+
     // About
     const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:8px;`);
     const av = el('div', `font-weight:600;color:${DS.text};font-size:13px;`);
-    av.textContent = 'Canvas Enhancer v2.4';
+    av.textContent = `Canvas Enhancer v${chrome.runtime.getManifest().version}`;
     about.appendChild(av);
+
+    const updateBtn = el('button', `
+      padding:8px 16px;border-radius:3px;border:1px solid ${DS.border};
+      background:#fff;color:${DS.text};font-size:12px;font-weight:600;
+      cursor:pointer;font-family:${DS.font};width:100%;text-align:left;
+    `, { type: 'button', textContent: 'Check for Updates' });
+    updateBtn.addEventListener('click', async () => {
+      updateBtn.disabled = true;
+      updateBtn.textContent = 'Checking…';
+      try {
+        const { status } = await chrome.runtime.requestUpdateCheck();
+        updateBtn.textContent = status === 'update_available' ? 'Update available — reload the extension to apply it' : status === 'no_update' ? '✓ Canvas Enhancer is up to date' : 'Update check unavailable';
+      } catch (_) { updateBtn.textContent = 'Update check unavailable'; }
+      setTimeout(() => { updateBtn.textContent = 'Check for Updates'; updateBtn.disabled = false; }, 3500);
+    });
+    about.appendChild(updateBtn);
 
     const uninstallBtn = el('button', `
       padding:8px 16px;border-radius:3px;border:1px solid #DC2626;
@@ -924,7 +958,7 @@
     uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
     uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = '#fff'; });
     uninstallBtn.addEventListener('click', () => {
-      if (confirm('Remove Canvas Enhancer from your browser? This will delete all your saved settings and templates.')) {
+      if (confirm('Uninstall the entire Canvas Enhancer extension? Export a backup first if you want to keep settings, templates, criteria, and schedules.')) {
         ceSendMessage({ type: 'UNINSTALL_SELF' }).catch(() => {});
       }
     });

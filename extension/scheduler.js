@@ -18,8 +18,9 @@
   ];
 
   const _store = await new Promise(resolve =>
-    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token', 'ce_scheduler_toolbar_disabled'], resolve)
+    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token', 'ce_scheduler_toolbar_disabled', 'ce_features'], resolve)
   );
+  if (_store.ce_features?.scheduler === false) return;
 
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -1519,41 +1520,9 @@
     const schedBtn = mkBtn('📅', 'Scheduler');
     schedBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-scheduler')));
 
-    const settingsOverlay = document.createElement('div');
-    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
-    const settingsBox = document.createElement('div');
-    settingsBox.style.cssText = 'width:min(480px,calc(100vw - 48px));max-height:calc(100vh - 80px);background:#F8FAFC;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.3);display:flex;flex-direction:column;overflow:hidden;';
-    const settingsHdr = document.createElement('div');
-    settingsHdr.style.cssText = 'height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;background:#172A36;color:#fff;flex-shrink:0;';
-    settingsHdr.innerHTML = '<strong style="flex:1;font-size:15px">Assignment Pulse Settings</strong>';
-    const settingsClose = document.createElement('button');
-    settingsClose.type='button'; settingsClose.textContent='×';
-    settingsClose.style.cssText='width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;';
-    settingsClose.onclick=()=>settingsOverlay.style.display='none'; settingsHdr.appendChild(settingsClose);
-    const settingsBody=document.createElement('div');
-    settingsBody.style.cssText='padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;';
-    const settingsIntro=document.createElement('div');
-    settingsIntro.style.cssText='font-size:12px;color:#64748B;line-height:1.55;';
-    settingsIntro.textContent='Assignment Pulse saves your scheduler dates, weekday pattern, timing rules, item overrides, and last generated schedule.';
-    settingsBody.appendChild(settingsIntro);
-    if(globalThis.CECanvasToken) settingsBody.appendChild(globalThis.CECanvasToken.createControl());
-    if(globalThis.CEDataBackup) settingsBody.appendChild(globalThis.CEDataBackup.createSection({accent:'#0770B8'}));
-    const uninstallBtn=document.createElement('button');
-    uninstallBtn.type='button'; uninstallBtn.textContent='Uninstall Assignment Pulse Toolbar…';
-    uninstallBtn.style.cssText='width:100%;height:38px;border:1px solid #DC2626;border-radius:8px;background:#fff;color:#DC2626;font-size:12px;font-weight:700;cursor:pointer;font-family:'+font+';';
-    uninstallBtn.onclick=()=>{
-      if(!confirm('Remove the Assignment Pulse toolbar? Your saved scheduler data will remain available for backup or restore.'))return;
-      GM_setValue('ce_scheduler_toolbar_disabled',true);
-      document.body.classList.remove('csch-page-mode','csch-toolbar-collapsed');
-      bar.remove();colTab.remove();settingsOverlay.remove();st.remove();
-    };
-    settingsBody.appendChild(uninstallBtn);settingsBox.append(settingsHdr,settingsBody);settingsOverlay.appendChild(settingsBox);
-    settingsOverlay.onclick=e=>{if(e.target===settingsOverlay)settingsOverlay.style.display='none';};
-    settingsBox.onclick=e=>e.stopPropagation();document.body.appendChild(settingsOverlay);
-
     const settingsBtn=mkBtn('⚙','Settings');
     globalThis.CECanvasToken?.bindIndicator(settingsBtn);
-    settingsBtn.onclick=()=>settingsOverlay.style.display='flex';
+    settingsBtn.onclick=()=>document.dispatchEvent(new CustomEvent('ce-open-settings'));
 
     const helpBtn = document.createElement('button');
     helpBtn.type='button';helpBtn.textContent='?';helpBtn.title='How Assignment Pulse works';

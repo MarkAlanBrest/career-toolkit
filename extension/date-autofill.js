@@ -1,4 +1,4 @@
-(function () {
+(async function () {
   'use strict';
 
   const STORAGE_KEY = 'ce_date_autofill';
@@ -6,6 +6,8 @@
 
   // Only run on assignment edit / new-assignment pages
   if (!/\/assignments\/(new|\d+\/edit)/.test(location.pathname)) return;
+  const { ce_features = {} } = await new Promise(resolve => chrome.storage.local.get('ce_features', resolve));
+  if (ce_features['date-autofill'] === false) return;
 
   // ── Date field discovery ──────────────────────────────────────────────────────
   // Canvas uses different DOM depending on version.

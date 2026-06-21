@@ -2,8 +2,13 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled', 'ce_remote_config'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ce_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled', 'ce_remote_config', 'ce_features'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
+  if (_store.ce_features?.['inbox-toolbar'] === false) return;
+  if (!_store.ce_teacher_name && _store.ces_teacher_name) {
+    _store.ce_teacher_name = _store.ces_teacher_name;
+    chrome.storage.local.set({ ce_teacher_name: _store.ce_teacher_name });
+  }
   const _cfg = _store.ce_remote_config || {};
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -205,7 +210,7 @@
   const STORAGE_KEYS = {
     TEMPLATES:    'ces_templates',
     TEMPLATE_VERSION: 'ces_template_version',
-    TEACHER_NAME: 'ces_teacher_name',
+    TEACHER_NAME: 'ce_teacher_name',
     LAST_COURSE:  'ces_last_course',
     SEND_SETTINGS: 'ces_send_settings',
     QUICK_MESSAGES: 'ces_quick_messages',
@@ -2174,53 +2179,6 @@
   }
 
   /* =========================================================
-     TAB: SETTINGS
-  ========================================================= */
-  function legacyRenderSettingsTab(container) {
-    const teacherName = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
-    const daysForward = GM_getValue(STORAGE_KEYS.DAYS_FORWARD, 7);
-    const daysBack    = GM_getValue(STORAGE_KEYS.DAYS_BACK, 14);
-
-    container.innerHTML = `
-      <div id="ces-settings-status"></div>
-      <div class="ces-card">
-        <h3 style="margin:0 0 12px;">Teacher Information</h3>
-        <label class="ces-label">Teacher Name</label>
-        <input type="text" class="ces-input" id="ces-set-teacher" value="${escapeAttr(teacherName)}" placeholder="Professor Smith">
-        <p style="font-size:12px;color:#6b7280;margin-top:4px;">This name is used in all email templates as {{teacherName}}.</p>
-      </div>
-      <div class="ces-card">
-        <h3 style="margin:0 0 12px;">Default Time Ranges</h3>
-        <div class="ces-grid-2">
-          <div><label class="ces-label">Days Forward (Upcoming)</label><input type="number" class="ces-input" id="ces-set-forward" value="${daysForward}" min="1" max="90"></div>
-          <div><label class="ces-label">Days Back (Missing Work)</label><input type="number" class="ces-input" id="ces-set-back" value="${daysBack}" min="1" max="365"></div>
-        </div>
-      </div>
-      <div class="ces-card" style="background:#f9fafb;">
-        <h3 style="margin:0 0 8px;">How It Works</h3>
-        <ul style="font-size:13px;color:#374151;margin:0;padding-left:20px;line-height:1.7;">
-          <li>Uses your existing Canvas login — no API token needed.</li>
-          <li>Messages sent through Canvas's built-in messaging system (Inbox).</li>
-          <li>Announcements are posted directly to the selected course.</li>
-          <li>All templates and settings are saved in browser extension storage.</li>
-        </ul>
-      </div>
-      <div class="ces-mt"><button class="ces-btn ces-btn-primary" id="ces-save-settings">Save Settings</button></div>
-    `;
-
-    container.querySelector('#ces-save-settings').addEventListener('click', () => {
-      GM_setValue(STORAGE_KEYS.TEACHER_NAME, container.querySelector('#ces-set-teacher').value.trim());
-      GM_setValue(STORAGE_KEYS.DAYS_FORWARD, parseInt(container.querySelector('#ces-set-forward').value) || 7);
-      GM_setValue(STORAGE_KEYS.DAYS_BACK,    parseInt(container.querySelector('#ces-set-back').value) || 14);
-      const statusArea = document.getElementById('ces-settings-status');
-      if (statusArea) {
-        statusArea.innerHTML = '<div class="ces-status ces-status-success">Settings saved!</div>';
-        setTimeout(() => { statusArea.innerHTML = ''; }, 5000);
-      }
-    });
-  }
-
-  /* =========================================================
      COMPOSE PAGE HELPER
   ========================================================= */
   function checkComposePageHelper() {
@@ -2731,121 +2689,10 @@
       renderTemplatesTab(document.getElementById('ces-tpl-body'));
     });
 
-    // ── SETTINGS MODAL ───────────────────────────────────────────────────────
-    const settingsOverlay = document.createElement('div');
-    settingsOverlay.style.cssText = 'position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:' + font + ';';
-    document.body.appendChild(settingsOverlay);
-
-    const settingsBox = document.createElement('div');
-    settingsBox.className = 'ces-modal-box';
-    settingsBox.style.width = 'min(480px,calc(100vw - 48px))';
-    settingsBox.style.maxHeight = 'min(520px,calc(100vh - 80px))';
-
-    const sHdr = document.createElement('div');
-    sHdr.style.cssText = 'height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;';
-    const sTtl = document.createElement('h2');
-    sTtl.style.cssText = 'flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:' + font + ';';
-    sTtl.textContent = 'Messages Settings';
-
-    const sDescPanel = document.createElement('div');
-    sDescPanel.style.cssText = 'display:none;padding:10px 16px 12px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.65;flex-shrink:0;';
-    sDescPanel.textContent = 'Message Pulse brings outreach, message templates, quick compose messages, and announcement templates into one place. Teacher Name fills {{teacherName}} automatically. The shared Canvas token can also be managed here for every Canvas Enhancer toolbar.';
-
-    const sHelpBtn = document.createElement('button');
-    sHelpBtn.type = 'button';
-    sHelpBtn.textContent = '?';
-    sHelpBtn.title = 'What does this do?';
-    sHelpBtn.style.cssText = 'width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.55);background:transparent;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;line-height:1;padding:0;transition:background .12s,color .12s;';
-    let sHelpOpen = false;
-    sHelpBtn.addEventListener('click', () => {
-      sHelpOpen = !sHelpOpen;
-      sDescPanel.style.display = sHelpOpen ? 'block' : 'none';
-      sHelpBtn.style.background = sHelpOpen ? 'rgba(255,255,255,0.25)' : 'transparent';
-      sHelpBtn.style.color = sHelpOpen ? '#fff' : 'rgba(255,255,255,0.85)';
-    });
-
-    const sXBtn = document.createElement('button');
-    sXBtn.type = 'button'; sXBtn.textContent = '×'; sXBtn.className = 'ces-close-btn';
-    sXBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
-    sHdr.append(sTtl, sHelpBtn, sXBtn);
-
-    const sBody = document.createElement('div');
-    sBody.style.cssText = 'flex:1;overflow-y:auto;padding:20px 20px 8px;display:flex;flex-direction:column;gap:16px;';
-
-    // Teacher Name field
-    const nameGroup = document.createElement('div');
-    const nameLbl = document.createElement('label');
-    nameLbl.className = 'ces-label';
-    nameLbl.style.marginTop = '0';
-    nameLbl.textContent = 'Teacher Name';
-    const nameInput = document.createElement('input');
-    nameInput.className = 'ces-input';
-    nameInput.placeholder = 'e.g. Ms. Johnson';
-    nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
-    nameGroup.append(nameLbl, nameInput);
-
-    const saveMsg = document.createElement('div');
-    saveMsg.style.cssText = 'font-size:12px;color:#127A1B;min-height:18px;';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.type = 'button';
-    saveBtn.className = 'ces-btn ces-btn-primary';
-    saveBtn.textContent = 'Save Settings';
-    saveBtn.addEventListener('click', () => {
-      GM_setValue(STORAGE_KEYS.TEACHER_NAME, nameInput.value.trim());
-      saveMsg.textContent = '✓ Saved';
-      setTimeout(() => { saveMsg.textContent = ''; }, 2500);
-    });
-
-    const divider = document.createElement('div');
-    divider.style.cssText = 'height:1px;background:#e5e7eb;margin:4px 0;';
-
-    const uninstallBtn = document.createElement('button');
-    uninstallBtn.type = 'button';
-    uninstallBtn.className = 'ces-btn ces-btn-danger';
-    uninstallBtn.style.cssText += ';width:100%;justify-content:center;border-color:#DC2626;color:#DC2626;margin-top:4px;';
-    uninstallBtn.textContent = 'Uninstall Messages Toolbar…';
-    uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
-    uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = ''; });
-    uninstallBtn.addEventListener('click', () => {
-      if (!confirm('Remove the Canvas Enhancer Messages Toolbar? This will delete all saved templates, quick messages, and settings for this tool.')) return;
-      const keysToRemove = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ce_announcements', 'ces_inbox_disabled'];
-      chrome.storage.local.remove(keysToRemove, () => {
-        chrome.storage.local.set({ ces_inbox_disabled: true }, () => {
-          bar.remove();
-          colTab.remove();
-          settingsOverlay.remove();
-          const st2 = document.getElementById('ces-inbox-style');
-          if (st2) st2.remove();
-          document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
-        });
-      });
-    });
-
-    const sFooter = document.createElement('div');
-    sFooter.style.cssText = 'flex-shrink:0;padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;align-items:center;gap:8px;';
-    const cancelSBtn = document.createElement('button');
-    cancelSBtn.type = 'button';
-    cancelSBtn.className = 'ces-btn ces-btn-secondary';
-    cancelSBtn.textContent = 'Close';
-    cancelSBtn.addEventListener('click', () => { settingsOverlay.style.display = 'none'; });
-
-    sBody.append(nameGroup, saveMsg, saveBtn, divider);
-    if (globalThis.CECanvasToken) sBody.appendChild(globalThis.CECanvasToken.createControl());
-    if (globalThis.CEDataBackup) sBody.appendChild(globalThis.CEDataBackup.createSection({ accent:'#0770B8' }));
-    sBody.appendChild(uninstallBtn);
-    settingsBox.append(sHdr, sDescPanel, sBody, sFooter);
-    sFooter.append(cancelSBtn);
-    settingsOverlay.appendChild(settingsBox);
-    settingsOverlay.addEventListener('click', e => { if (e.target === settingsOverlay) settingsOverlay.style.display = 'none'; });
-    settingsBox.addEventListener('click', e => e.stopPropagation());
-
     const settingsBtn = mkBtn('⚙', 'Settings');
     globalThis.CECanvasToken?.bindIndicator(settingsBtn);
     settingsBtn.addEventListener('click', () => {
-      nameInput.value = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
-      saveMsg.textContent = '';
-      settingsOverlay.style.display = 'flex';
+      document.dispatchEvent(new CustomEvent('ce-open-settings'));
     });
 
     const helpBtn = mkBtn('?', 'Help');
