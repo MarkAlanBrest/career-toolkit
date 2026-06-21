@@ -2,7 +2,7 @@
   'use strict';
 
   const ALLOWED_PREFIXES = ['ce_', 'ces_', 'canvas_'];
-  const SENSITIVE_KEYS = new Set(['ce_canvas_token', 'ce_license_key', 'ce_claude_context']);
+  const SENSITIVE_KEYS = new Set(['ce_canvas_token', 'ce_license_key', 'ce_license_keys', 'ce_claude_context']);
   const TRANSIENT_KEYS = new Set(['ces_compose_pending', 'ce_quiz_settings']);
 
   function storageGetAll() {

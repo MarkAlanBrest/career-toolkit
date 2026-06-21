@@ -6,10 +6,10 @@ The code is complete, but Lemon Squeezy and Vercel need the IDs and secrets from
 
 Create these products/variants in the Lemon Squeezy dashboard:
 
-1. Base subscription — enable license keys; set the subscription price.
-2. Pro subscription — enable license keys; set the subscription price.
-3. 25 AI generations — one-time purchase; do not generate a new license key.
-4. 50 AI generations — one-time purchase; do not generate a new license key.
+1. Teaching Tools subscription — monthly and annual variants; enable license keys.
+2. Creation Tools subscription — monthly and annual variants; enable license keys.
+3. 100 Teaching AI gradings — $4.99 one-time purchase; do not generate a new license key.
+4. 50 Creation AI generations — $9 one-time purchase; do not generate a new license key.
 
 Copy each numeric variant ID. If a plan has monthly and annual pricing, put both variant IDs in that plan's comma-separated environment variable.
 
@@ -17,18 +17,20 @@ Copy each numeric variant ID. If a plan has monthly and annual pricing, put both
 
 Add every variable shown in `.env.example` to the Vercel project. The important mappings are:
 
-- `LEMONSQUEEZY_BASE_VARIANT_IDS`: Base subscription variant ID(s)
-- `LEMONSQUEEZY_PRO_VARIANT_IDS`: Pro subscription variant ID(s)
-- `LEMONSQUEEZY_CREDITS_25_VARIANT_ID`: 25-credit one-time variant
-- `LEMONSQUEEZY_CREDITS_50_VARIANT_ID`: 50-credit one-time variant
-- `NEXT_PUBLIC_LEMONSQUEEZY_BASE_CHECKOUT_URL`: Base product checkout/share URL
-- `NEXT_PUBLIC_LEMONSQUEEZY_PRO_CHECKOUT_URL`: Pro product checkout/share URL
+- `LEMONSQUEEZY_TEACHING_VARIANT_IDS`: Teaching monthly and annual variant IDs
+- `LEMONSQUEEZY_CREATION_VARIANT_IDS`: Creation monthly and annual variant IDs
+- `LEMONSQUEEZY_TEACHING_REFILL_VARIANT_ID`: 100-grading refill variant
+- `LEMONSQUEEZY_CREATION_REFILL_VARIANT_ID`: 50-generation refill variant
+- `NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_MONTHLY_URL`: Teaching monthly checkout URL
+- `NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_ANNUAL_URL`: Teaching annual checkout URL
+- `NEXT_PUBLIC_LEMONSQUEEZY_CREATION_MONTHLY_URL`: Creation monthly checkout URL
+- `NEXT_PUBLIC_LEMONSQUEEZY_CREATION_ANNUAL_URL`: Creation annual checkout URL
 - `LEMONSQUEEZY_API_KEY`: Lemon Squeezy API key used to create credit checkouts
 - `LEMONSQUEEZY_STORE_ID`: numeric store ID
 - `LEMONSQUEEZY_WEBHOOK_SECRET`: a long random value entered in both Lemon Squeezy and Vercel
 
 Keep API keys and webhook secrets server-side. Do not place them in extension files or variables beginning with `NEXT_PUBLIC_`.
-The two checkout URLs are intentionally public and connect the website's Base and Pro buttons to Lemon Squeezy.
+The four checkout URLs are intentionally public and connect the monthly and annual website buttons to their Lemon Squeezy variants.
 
 ## 3. Create the webhook
 
@@ -53,13 +55,14 @@ The webhook is signature-checked and idempotent. Repeated delivery cannot add th
 
 Use Lemon Squeezy test mode first:
 
-1. Buy a Base plan and copy its generated license key.
+1. Buy Teaching Tools and copy its generated license key.
 2. Open Canvas Enhancer → Global Settings, enter the key, and save.
-3. Confirm the account panel says Base and shows 0 of 50 used.
-4. Run one AI action and reopen Global Settings; it should show 1 of 50 used.
-5. Click Buy 25 more and complete the test checkout.
-6. Reopen Global Settings; it should show 25 rollover credits.
-7. Cancel or expire the test subscription and confirm AI generation is rejected after entitlement refresh. Non-AI toolbar features should still work.
+3. Confirm Teaching Tools is active and shows 0 of 500 gradings used.
+4. Confirm the Teaching toolbars load and the Creation toolbars do not.
+5. Run one grading and confirm usage changes to 1 of 500.
+6. Buy Creation Tools, enter both keys separated by a comma, and confirm both packages load after refreshing Canvas.
+7. Complete each refill checkout and confirm the correct package balance increases.
+8. Cancel a test subscription and confirm only that package stops loading after its entitlement expires.
 
 When the tests pass, replace test-mode IDs/keys with live-mode values and redeploy.
 

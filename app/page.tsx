@@ -1,6 +1,8 @@
 export default function HomePage() {
-  const baseCheckout = process.env.NEXT_PUBLIC_LEMONSQUEEZY_BASE_CHECKOUT_URL || 'https://canvasenhancer.com/upgrade';
-  const proCheckout = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_CHECKOUT_URL || 'https://canvasenhancer.com/upgrade';
+  const teachingMonthly = process.env.NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_MONTHLY_URL || 'https://canvasenhancer.com/upgrade';
+  const teachingAnnual = process.env.NEXT_PUBLIC_LEMONSQUEEZY_TEACHING_ANNUAL_URL || teachingMonthly;
+  const creationMonthly = process.env.NEXT_PUBLIC_LEMONSQUEEZY_CREATION_MONTHLY_URL || 'https://canvasenhancer.com/upgrade';
+  const creationAnnual = process.env.NEXT_PUBLIC_LEMONSQUEEZY_CREATION_ANNUAL_URL || creationMonthly;
   return (
     <main style={{ color: "#2d3b45" }}>
 
@@ -63,7 +65,7 @@ export default function HomePage() {
           </h1>
           <p style={{ fontSize: 18, lineHeight: 1.6, color: "#c8d8e4", margin: "0 0 36px" }}>
             Canvas Enhancer adds a professional design toolbar directly inside the Canvas
-            editor — plus AI-powered content generation and quiz building for Pro users.
+            editor — plus focused Teaching and Creation packages for educators who want to save serious time.
           </p>
           <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
             <a href="#install" style={{
@@ -153,7 +155,7 @@ export default function HomePage() {
             textTransform: "uppercase",
             marginBottom: 16,
           }}>
-            Pro Features
+            Creation Features
           </div>
           <h2 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12 }}>
             AI-powered tools built for educators
@@ -277,7 +279,7 @@ export default function HomePage() {
               </a>
             </div>
 
-            {/* Base */}
+            {/* Teaching Tools */}
             <div style={{ border: "2px solid #0770a3", borderRadius: 12, padding: "32px 28px", position: "relative" }}>
               <div style={{
                 position: "absolute",
@@ -292,18 +294,18 @@ export default function HomePage() {
                 borderRadius: 20,
                 whiteSpace: "nowrap",
               }}>Most Popular</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0770a3", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Base</div>
-              <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 2 }}>$6.58<span style={{ fontSize: 16, fontWeight: 400, color: "#6b7780" }}>/mo</span></div>
-              <div style={{ fontSize: 13, color: "#6b7780", marginBottom: 4 }}>billed annually ($79/yr)</div>
-              <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>or $7.75/mo month-to-month</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0770a3", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Teaching Tools</div>
+              <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 2 }}>$14.99<span style={{ fontSize: 16, fontWeight: 400, color: "#6b7780" }}>/mo</span></div>
+              <div style={{ fontSize: 13, color: "#6b7780", marginBottom: 4 }}>$149.99/year</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>Save hours on everyday course work</div>
               <ul style={{ listStyle: "none", padding: 0, fontSize: 14, lineHeight: 2.2, marginBottom: 28 }}>
-                <li>✓ Everything in Free</li>
-                <li>✓ AI Content Builder</li>
-                <li>✓ AI Quiz Maker</li>
-                <li>✓ 50 AI generations/month</li>
-                <li>✓ License key — instant activation</li>
+                <li>✓ Communication and announcements</li>
+                <li>✓ Scheduler and Date Auto-fill</li>
+                <li>✓ Course reports and Grade Audit</li>
+                <li>✓ AI-assisted grading</li>
+                <li>✓ 500 AI gradings/month</li>
               </ul>
-              <a href={baseCheckout} style={{
+              <a href={teachingMonthly} style={{
                 display: "block",
                 background: "#0770a3",
                 color: "#fff",
@@ -314,23 +316,24 @@ export default function HomePage() {
                 textDecoration: "none",
                 textAlign: "center",
               }}>
-                Get Base Plan
+                Get Teaching Tools
               </a>
+              <a href={teachingAnnual} style={{ display: "block", marginTop: 10, color: "#0770a3", fontSize: 13, fontWeight: 600, textAlign: "center" }}>Choose annual billing — $149.99</a>
             </div>
 
-            {/* Pro */}
+            {/* Creation Tools */}
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: "32px 28px" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#6b7780", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Pro</div>
-              <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 2 }}>$16.67<span style={{ fontSize: 16, fontWeight: 400, color: "#6b7780" }}>/mo</span></div>
-              <div style={{ fontSize: 13, color: "#6b7780", marginBottom: 4 }}>billed annually ($200/yr)</div>
-              <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>or $20/mo month-to-month</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#6b7780", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Creation Tools</div>
+              <div style={{ fontSize: 40, fontWeight: 800, marginBottom: 2 }}>$29<span style={{ fontSize: 16, fontWeight: 400, color: "#6b7780" }}>/mo</span></div>
+              <div style={{ fontSize: 13, color: "#6b7780", marginBottom: 4 }}>$289.99/year</div>
+              <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>Build polished Canvas content faster</div>
               <ul style={{ listStyle: "none", padding: 0, fontSize: 14, lineHeight: 2.2, marginBottom: 28 }}>
-                <li>✓ Everything in Base</li>
-                <li>✓ 150 AI generations/month</li>
-                <li>✓ 3× more capacity</li>
-                <li>✓ Ideal for heavy course builders</li>
+                <li>✓ Rich Content Toolbar</li>
+                <li>✓ AI Canvas page creation</li>
+                <li>✓ Complete AI Quiz Maker</li>
+                <li>✓ 100 AI generations/month</li>
               </ul>
-              <a href={proCheckout} style={{
+              <a href={creationMonthly} style={{
                 display: "block",
                 background: "#2d3b45",
                 color: "#fff",
@@ -341,8 +344,9 @@ export default function HomePage() {
                 textDecoration: "none",
                 textAlign: "center",
               }}>
-                Get Pro Plan
+                Get Creation Tools
               </a>
+              <a href={creationAnnual} style={{ display: "block", marginTop: 10, color: "#2d3b45", fontSize: 13, fontWeight: 600, textAlign: "center" }}>Choose annual billing — $289.99</a>
             </div>
 
           </div>

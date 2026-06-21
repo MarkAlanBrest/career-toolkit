@@ -3,6 +3,12 @@
 
 const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
+async function getLicenseKeys() {
+  const stored = await chrome.storage.local.get(['ce_license_keys', 'ce_license_key']);
+  if (Array.isArray(stored.ce_license_keys) && stored.ce_license_keys.length) return stored.ce_license_keys;
+  return String(stored.ce_license_key || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
+}
+
 // ── REMOTE CONFIG ─────────────────────────────────────────────────────────────
 const CONFIG_URL      = 'https://canvasenhancer.com/extension-config.json';
 const CONFIG_CACHE_KEY = 'ce_remote_config';
@@ -34,15 +40,14 @@ async function handleStreamPort(port) {
   port.onMessage.addListener(async (msg) => {
     if (msg.type !== 'STREAM_GENERATE') return;
     try {
-      const { messages, max_tokens, model } = msg.payload;
-      const stored = await chrome.storage.local.get('ce_license_key');
-      const licenseKey = stored.ce_license_key || '';
-      console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'licenseKey present:', !!licenseKey, 'msg count:', messages?.length);
+      const { messages, max_tokens, model, usageType } = msg.payload;
+      const licenseKeys = await getLicenseKeys();
+      console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, max_tokens, model, licenseKey }),
+        body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys }),
       });
 
       console.log('[CE-BG] fetch response status:', res.status, res.ok ? 'OK' : 'FAILED');
@@ -141,21 +146,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-async function handleLicenseStatus({ licenseKey } = {}) {
-  const key = licenseKey || (await chrome.storage.local.get('ce_license_key')).ce_license_key || '';
+async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
+  const keys = licenseKeys || (licenseKey ? [licenseKey] : await getLicenseKeys());
   const res = await fetch(`${API_BASE}/api/validate`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys, force: force === true }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
   return data;
 }
 
-async function handleCreditCheckout({ pack, licenseKey }) {
-  const stored = await chrome.storage.local.get('ce_license_key');
+async function handleCreditCheckout({ pack, licenseKeys }) {
   const res = await fetch(`${API_BASE}/api/credits/checkout`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ licenseKey: licenseKey || stored.ce_license_key || '', pack }),
+    body: JSON.stringify({ licenseKeys: licenseKeys || await getLicenseKeys(), pack }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data?.error || 'Could not open checkout.');
@@ -181,15 +185,13 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
 }
 
 async function handleGenerate(payload) {
-  const { messages, max_tokens, model } = payload;
-
-  const stored = await chrome.storage.local.get('ce_license_key');
-  const licenseKey = stored.ce_license_key || '';
+  const { messages, max_tokens, model, usageType } = payload;
+  const licenseKeys = await getLicenseKeys();
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, max_tokens, model, licenseKey }),
+    body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys }),
   });
 
   if (!res.ok) {

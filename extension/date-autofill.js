@@ -1,5 +1,7 @@
-(function () {
+(async function () {
   'use strict';
+
+  if (!await globalThis.CEEntitlements?.has('teaching')) return;
 
   const STORAGE_KEY = 'ce_date_autofill';
   const BAR_ID      = 'ce-date-autofill-bar';

@@ -24,7 +24,7 @@ export const normalizeKeys = (keys: string | string[]) => {
 };
 export const licenseHash = (key: string) => createHash('sha256').update(normalizeKey(key)).digest('hex');
 
-function packageForVariant(id: number | string | undefined): PackageName | undefined {
+function packageForVariant(id: number | string | undefined): MeterName | undefined {
   const value = String(id || '');
   if (envList('LEMONSQUEEZY_TEACHING_VARIANT_IDS').has(value)) return 'teaching';
   if (envList('LEMONSQUEEZY_CREATION_VARIANT_IDS').has(value)) return 'creation';

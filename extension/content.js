@@ -1,6 +1,8 @@
 (async function () {
   'use strict';
 
+  if (!await globalThis.CEEntitlements?.has('creation')) return;
+
   // Toolbar is for the Canvas content editor — not for SpeedGrader
   if (/speed_grader/.test(window.location.href)) return;
 
@@ -25,7 +27,7 @@
   // ── AI GENERATE (via background service worker) ───────────────────────────────
   function ceGenerate(payload) {
     return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({ type: 'GENERATE', payload }, res => {
+      chrome.runtime.sendMessage({ type: 'GENERATE', payload: { ...payload, usageType: 'creation' } }, res => {
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (res === undefined || res === null) return reject(new Error('No response from extension — please reload the page and try again.'));
         if (res?.error) return reject(new Error(typeof res.error === 'string' ? res.error : res.error?.message || 'Unknown error'));

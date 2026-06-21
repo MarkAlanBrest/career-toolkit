@@ -753,7 +753,7 @@
     const dest = target || panelBody;
     try {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_ai_provider'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_license_keys','ce_ai_provider'], r)
     );
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
@@ -770,7 +770,8 @@
     stack.appendChild(head);
 
     const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || stored.ces_teacher_name || '');
-    const licenseIn = input('ce-s-license', 'text',     'Enter your license key',  stored.ce_license_key  || '');
+    const savedKeys = Array.isArray(stored.ce_license_keys) && stored.ce_license_keys.length ? stored.ce_license_keys : String(stored.ce_license_key || '').split(/[\n,]+/).filter(Boolean);
+    const licenseIn = input('ce-s-license', 'text', 'Enter one or both license keys', savedKeys.join(', '));
 
     // AI provider select
     const providerSel = el('select', `
@@ -800,85 +801,98 @@
     stack.appendChild(row('AI Chat Window', providerSel, 'Used by the Chat button'));
     stack.appendChild(row('Teacher Name', nameIn));
     if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
-    stack.appendChild(row('License Key', licenseIn));
+    stack.appendChild(row('Package License Keys', licenseIn, 'Enter both keys, separated by a comma, if you own both packages.'));
 
     const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
     const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
 
     const accountBox = el('div', `padding:12px;border:1px solid ${DS.border};border-radius:4px;background:#F8FAFC;font-size:12px;color:${DS.muted};line-height:1.5;`);
-    accountBox.textContent = stored.ce_license_key ? 'Checking your account…' : 'Enter a license key to see your plan and AI usage.';
+    accountBox.textContent = savedKeys.length ? 'Checking your packages…' : 'Enter a license key to see your packages and AI usage.';
     stack.appendChild(accountBox);
 
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
-    async function showAccount(key) {
-      if (!key) {
-        accountBox.textContent = 'Enter a license key to see your plan and AI usage.';
+    const parseKeys = value => String(value || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
+    async function showAccount(keys) {
+      if (!keys.length) {
+        accountBox.textContent = 'Enter a license key to see your packages and AI usage.';
         return { valid: false };
       }
-      accountBox.textContent = 'Checking your account…';
-      const status = await sendRuntime({ type: 'LICENSE_STATUS', payload: { licenseKey: key } });
+      accountBox.textContent = 'Checking your packages…';
+      const status = await sendRuntime({ type: 'LICENSE_STATUS', payload: { licenseKeys: keys, force: true } });
       accountBox.innerHTML = '';
       if (!status?.valid) {
         accountBox.style.borderColor = '#DC2626';
         accountBox.style.background = '#FEF2F2';
         accountBox.style.color = '#991B1B';
-        accountBox.textContent = status?.error || 'This license is not active.';
+        accountBox.textContent = status?.errors?.join(' ') || 'No active package license was found.';
         return status || { valid: false };
       }
       accountBox.style.borderColor = DS.border;
       accountBox.style.background = '#F8FAFC';
       accountBox.style.color = DS.text;
-      const plan = String(status.plan || '').replace(/^./, c => c.toUpperCase());
-      const usage = status.usage || {};
-      accountBox.append(
-        el('div', 'font-weight:700;margin-bottom:3px;', { textContent: `${plan} plan — Active` }),
-        el('div', `color:${DS.muted};`, { textContent: status.plan === 'owner' ? 'Unlimited AI generations' : `${usage.used || 0} of ${usage.limit || 0} monthly AI generations used` })
-      );
-      if (status.plan !== 'owner') {
-        accountBox.appendChild(el('div', `color:${DS.muted};`, { textContent: `${usage.bonus || 0} rollover credits available` }));
-        const buys = el('div', 'display:flex;gap:8px;margin-top:10px;');
-        for (const size of [25, 50]) {
-          const buy = btn(`Buy ${size} more`, `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:7px;width:auto;`);
+      const packageConfig = [
+        ['teaching', 'Teaching Tools', 'AI gradings', 'teaching100', 100],
+        ['creation', 'Creation Tools', 'AI generations', 'creation50', 50],
+      ];
+      for (const [id, label, unit, pack, refill] of packageConfig) {
+        const entitlement = status.packages?.[id];
+        const card = el('div', `padding:${accountBox.childNodes.length ? '10px 0 0' : '0'};margin-top:${accountBox.childNodes.length ? '10px' : '0'};border-top:${accountBox.childNodes.length ? `1px solid ${DS.border}` : 'none'};`);
+        if (!entitlement?.valid) {
+          card.appendChild(el('div', `color:${DS.muted};`, { textContent: `${label} — Not purchased` }));
+          accountBox.appendChild(card);
+          continue;
+        }
+        const usage = entitlement.usage || {};
+        card.append(
+          el('div', 'font-weight:700;margin-bottom:3px;', { textContent: `${label} — Active` }),
+          el('div', `color:${DS.muted};`, { textContent: usage.limit === null ? `Unlimited ${unit}` : `${usage.used || 0} of ${usage.limit || 0} monthly ${unit} used` }),
+          el('div', `color:${DS.muted};`, { textContent: `${usage.bonus || 0} purchased credits available` })
+        );
+        if (usage.limit !== null) {
+          const buy = btn(`Buy ${refill} more`, `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:7px;width:auto;margin-top:8px;`);
           buy.addEventListener('click', async () => {
             buy.disabled = true; buy.textContent = 'Opening checkout…';
-            const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { pack: size, licenseKey: key } });
+            const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { pack, licenseKeys: keys } });
             if (result?.error) { saveMsg.style.color = '#DC2626'; saveMsg.textContent = result.error; }
-            buy.disabled = false; buy.textContent = `Buy ${size} more`;
+            buy.disabled = false; buy.textContent = `Buy ${refill} more`;
           });
-          buys.appendChild(buy);
+          card.appendChild(buy);
         }
-        accountBox.appendChild(buys);
+        accountBox.appendChild(card);
       }
+      if (status.errors?.length) accountBox.appendChild(el('div', 'color:#991B1B;margin-top:8px;', { textContent: status.errors.join(' ') }));
       return status;
     }
 
     saveBtn.addEventListener('click', async () => {
       saveBtn.disabled = true;
       saveMsg.style.color = DS.muted;
-      saveMsg.textContent = licenseIn.value.trim() ? 'Validating license…' : 'Saving…';
-      const status = licenseIn.value.trim() ? await showAccount(licenseIn.value.trim()) : { valid: false };
-      if (licenseIn.value.trim() && !status?.valid) {
+      const keys = parseKeys(licenseIn.value);
+      saveMsg.textContent = keys.length ? 'Validating licenses…' : 'Saving…';
+      const status = keys.length ? await showAccount(keys) : { valid: false, errors: [] };
+      if (keys.length && (!status?.valid || status.errors?.length)) {
         saveBtn.disabled = false;
         saveMsg.style.color = '#DC2626';
-        saveMsg.textContent = status?.error || 'License was not saved.';
+        saveMsg.textContent = status?.errors?.join(' ') || 'License keys were not saved.';
         return;
       }
       chrome.storage.local.set({
         ce_ai_provider:    providerSel.value,
         ce_teacher_name:   nameIn.value.trim(),
-        ce_license_key:    licenseIn.value.trim(),
+        ce_license_key:    keys.join('\n'),
+        ce_license_keys:   keys,
       }, () => {
         chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
         saveBtn.disabled = false;
         saveMsg.style.color = DS.green;
-        saveMsg.textContent = '✓ Saved';
+        saveMsg.textContent = '✓ Saved — refresh Canvas to load package changes';
         setTimeout(() => { saveMsg.textContent = ''; }, 2500);
       });
     });
 
     stack.appendChild(saveBtn);
     stack.appendChild(saveMsg);
-    if (stored.ce_license_key) showAccount(stored.ce_license_key);
+    if (savedKeys.length) showAccount(savedKeys);
     stack.appendChild(divider());
 
     if (globalThis.CEDataBackup) {

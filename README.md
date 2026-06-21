@@ -6,10 +6,11 @@ Next.js service and Chrome extension for Canvas Enhancer.
 
 Lemon Squeezy provides checkout, subscription billing, receipts, tax handling, cancellation, and license keys. This application validates those keys and enforces AI usage on the server:
 
-- Base: 50 AI generations per calendar month
-- Pro: 150 AI generations per calendar month
+- Teaching Tools: communication, scheduling, reports, auditing, and 500 AI gradings per calendar month
+- Creation Tools: Rich Content and Quiz Maker toolbars with 100 AI generations per calendar month
 - Purchased credits: used after the monthly allowance and never expire
-- Inactive or exhausted accounts: only AI generation is blocked; the installed toolbars continue working
+- Inactive packages: their toolbars do not load; the free AI launcher and Global Settings remain available
+- Exhausted packages: the toolbar remains available, but further AI actions require a refill
 
 See [LEMON_SQUEEZY_SETUP.md](./LEMON_SQUEEZY_SETUP.md) before deploying.
 

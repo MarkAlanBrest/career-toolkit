@@ -8,5 +8,5 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const keys = body?.keys ?? body?.key ?? '';
   if (!String(Array.isArray(keys) ? keys.join('') : keys).trim()) return NextResponse.json({ valid: false, packages: {}, errors: ['No key provided'] }, { status: 400, headers: CORS });
-  return NextResponse.json(await getAccountEntitlements(keys, true), { status: 200, headers: CORS });
+  return NextResponse.json(await getAccountEntitlements(keys, body?.force === true), { status: 200, headers: CORS });
 }

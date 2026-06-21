@@ -1,6 +1,8 @@
 (async function () {
   'use strict';
 
+  if (!await globalThis.CEEntitlements?.has('teaching')) return;
+
   if (document.getElementById('csch-app')) return;
 
   const STORAGE_KEY = 'canvas_scheduler_settings_v1';

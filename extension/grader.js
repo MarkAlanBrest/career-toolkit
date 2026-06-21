@@ -1,6 +1,7 @@
 (async function () {
   'use strict';
   try {
+    if (!await globalThis.CEEntitlements?.has('teaching')) return;
     if (!/speed_grader/.test(window.location.href)) return;
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
@@ -860,7 +861,7 @@
               statusEl.textContent = 'AI is grading…';
               const noCriteria = !criteriaText?.trim();
               const response = await ceSendMessage(
-                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel } }
+                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel, usageType: 'teaching' } }
               );
               if (response?.error) throw new Error(response.error);
               const text = response?.content?.[0]?.text || '';
