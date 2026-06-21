@@ -5,7 +5,7 @@
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
     const _store = await new Promise(resolve =>
-      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grading_model', 'ce_grader_filter_published', 'ce_grader_filter_dashboard', 'ce_teacher_name', 'ce_features'], resolve)
+      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grader_filter_published', 'ce_grader_filter_dashboard', 'ce_teacher_name'], resolve)
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
@@ -15,8 +15,7 @@
     });
 
     function getToken() { return GM_getValue('ce_canvas_token', ''); }
-    if (GM_getValue('ce_features', {})['ai-grader'] === false) return;
-    const gradingModel = GM_getValue('ce_grading_model', 'claude-haiku-4-5-20251001');
+    const gradingModel = 'claude-haiku-4-5-20251001';
 
     // ── SPEEDGRADER COMMENT TOOLBAR ───────────────────────────────────────────
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';

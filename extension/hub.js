@@ -1,6 +1,6 @@
 (function () {
   'use strict';
-  if (document.getElementById('ce-hub')) return;
+  if (document.getElementById('ce-hub') || document.getElementById('ce-settings-modal')) return;
 
   // Only activate on Canvas pages (always run on SpeedGrader so audit events work)
   if (!document.querySelector('#global_nav_logo, meta[name="canvas-csrf-token"], .ic-app') &&
@@ -47,17 +47,6 @@
     { id: 'needs-graded', group: 'db', icon: '✏️', label: 'Needs Graded' },
     { id: 'at-risk',      group: 'db', icon: '⚠️', label: 'At Risk' },
     { id: 'settings-tg',  group: 'db', icon: '⚙️', label: 'Settings' },
-  ];
-
-  // Features shown in Settings — separate from toolbar TOOLS so they don't render as buttons
-  const FEATURES = [
-    { id: 'content-studio', icon: '🧩', label: 'Content Studio',     desc: 'Rich-content components and AI Assist in the Canvas editor.' },
-    { id: 'quiz-builder',  icon: '✅', label: 'Quiz Builder',      desc: 'AI-powered quiz generator — appears in the toolbar on the Quizzes page.' },
-    { id: 'inbox-toolbar', icon: '📨', label: 'Message Pulse',     desc: 'Outreach and templates on the Canvas Inbox and Announcements pages.' },
-    { id: 'announce-bar',  icon: '📢', label: 'Announcement Bar',  desc: 'Quick Post button on the announcement compose form with saved templates.' },
-    { id: 'ai-grader',     icon: '🎓', label: 'AI Grader',         desc: 'AI-assisted grading panel available in SpeedGrader.' },
-    { id: 'scheduler',     icon: '📅', label: 'Assignment Pulse',  desc: 'Drag-and-drop assignment scheduler on course Assignments pages.' },
-    { id: 'date-autofill', icon: '📆', label: 'Date Autofill',     desc: 'Automatically fills due dates when creating or editing assignments.' },
   ];
 
   const GROUP_BG = {};
@@ -121,7 +110,6 @@
           <ol>
             <li><strong>Canvas API Token</strong> — required for AI Grader, Vitals, At Risk, and bulk messaging. Get it from Canvas → Account → Settings → + New Access Token.</li>
             <li><strong>AI Provider</strong> — choose which assistant opens when you click the AI button.</li>
-            <li><strong>Grading Quality</strong> — Standard is faster; High Quality produces richer AI feedback.</li>
             <li><strong>License Key</strong> — enter your Canvas Enhancer license to unlock all features.</li>
           </ol>
         </div>
@@ -244,10 +232,6 @@
             <li>Navigate to the next student and repeat.</li>
           </ol>
           <div class="ce-help-tip">💡 Always review AI suggestions before applying. Treat it as a first draft — your professional judgment is the final word.</div>
-        </div>
-        <div class="ce-help-section">
-          <div class="ce-help-sh">Grading quality</div>
-          <p>Under <strong>Settings → Grading Quality</strong>: Standard is faster and cheaper and works well for most assignments. High Quality is better for complex essays or nuanced rubrics.</p>
         </div>
       `,
     },
@@ -763,12 +747,15 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
+  let settingsRenderVersion = 0;
   async function renderSettings(target) {
+    const renderVersion = ++settingsRenderVersion;
     const dest = target || panelBody;
     try {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_ai_provider','ce_grading_model','ce_features'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_ai_provider'], r)
     );
+    if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
 
     const stack = el('div', 'display:flex;flex-direction:column;gap:18px;');
@@ -810,30 +797,7 @@
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
 
-    // Grading quality select
-    const gradingModelSel = el('select', `
-      width:100%;box-sizing:border-box;
-      padding:8px 10px;
-      border:1px solid ${DS.border};border-radius:3px;
-      font-size:13px;font-family:${DS.font};color:${DS.text};
-      background:${DS.white};outline:none;cursor:pointer;
-    `);
-    gradingModelSel.id = 'ce-s-grading-model';
-    for (const [value, label] of [
-      ['claude-haiku-4-5-20251001', 'Standard — faster, lower cost'],
-      ['claude-sonnet-4-6',         'High Quality — slower, higher cost'],
-    ]) {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      if (value === (stored.ce_grading_model || 'claude-haiku-4-5-20251001')) opt.selected = true;
-      gradingModelSel.appendChild(opt);
-    }
-    gradingModelSel.addEventListener('focus', () => gradingModelSel.style.borderColor = DS.blue);
-    gradingModelSel.addEventListener('blur',  () => gradingModelSel.style.borderColor = DS.border);
-
     stack.appendChild(row('AI Chat Window', providerSel, 'Used by the Chat button'));
-    stack.appendChild(row('Grading Quality', gradingModelSel, 'Standard is recommended — quality difference is minimal for rubric grading'));
     stack.appendChild(row('Teacher Name', nameIn));
     if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
     stack.appendChild(row('License Key', licenseIn));
@@ -842,70 +806,19 @@
     const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
 
     saveBtn.addEventListener('click', () => {
-      const features = {};
-      for (const tool of FEATURES) {
-        const cb = document.getElementById(`ce-feat-${tool.id}`);
-        if (cb) features[tool.id] = cb.checked;
-      }
       chrome.storage.local.set({
         ce_ai_provider:    providerSel.value,
-        ce_grading_model:  gradingModelSel.value,
         ce_teacher_name:   nameIn.value.trim(),
         ce_license_key:    licenseIn.value.trim(),
-        ce_features:       features,
-        ce_quiz_toolbar_disabled: features['quiz-builder'] === false,
-        ce_scheduler_toolbar_disabled: features.scheduler === false,
-        ces_inbox_disabled: features['inbox-toolbar'] === false,
       }, () => {
-        applyFeatures(features);
-        saveMsg.textContent = '✓ Saved. Reloading Canvas…';
-        setTimeout(() => location.reload(), 500);
+        chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
+        saveMsg.textContent = '✓ Saved';
+        setTimeout(() => { saveMsg.textContent = ''; }, 2500);
       });
     });
 
     stack.appendChild(saveBtn);
     stack.appendChild(saveMsg);
-    stack.appendChild(divider());
-
-    // Features toggle section
-    const featHead = el('div', '');
-    const fht = el('div', `font-size:15px;font-weight:700;color:${DS.text};margin-bottom:3px;`);
-    fht.textContent = 'Features';
-    const fhs = el('div', `font-size:12px;color:${DS.muted};`);
-    fhs.textContent = 'Toggle tools on or off. Disabled tools are hidden from the toolbar.';
-    featHead.appendChild(fht); featHead.appendChild(fhs);
-    stack.appendChild(featHead);
-
-    const savedFeatures = stored.ce_features || {};
-    const featureItems = el('div', `display:flex;flex-direction:column;gap:6px;`);
-    for (const tool of FEATURES) {
-      const isOn = savedFeatures[tool.id] !== false;
-      const featureRow = el('div', `
-        display:flex;align-items:flex-start;gap:10px;
-        padding:10px 12px;border:1px solid ${DS.border};border-radius:3px;
-        background:${DS.white};
-      `);
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = isOn;
-      cb.id = `ce-feat-${tool.id}`;
-      cb.style.cssText = `margin-top:3px;flex-shrink:0;width:15px;height:15px;cursor:pointer;accent-color:${DS.blue};`;
-      const textBlock = el('div', 'flex:1;min-width:0;');
-      const nameLabel = el('label', `
-        font-size:13px;font-weight:600;color:${DS.text};
-        cursor:pointer;display:flex;align-items:center;gap:5px;margin-bottom:3px;
-      `);
-      nameLabel.htmlFor = `ce-feat-${tool.id}`;
-      nameLabel.textContent = `${tool.icon}  ${tool.label}`;
-      const descDiv = el('div', `font-size:11px;color:${DS.muted};line-height:1.45;`);
-      descDiv.textContent = tool.desc;
-      textBlock.appendChild(nameLabel);
-      textBlock.appendChild(descDiv);
-      featureRow.appendChild(cb);
-      featureRow.appendChild(textBlock);
-      featureItems.appendChild(featureRow);
-    }
-    stack.appendChild(featureItems);
     stack.appendChild(divider());
 
     if (globalThis.CEDataBackup) {
@@ -3404,15 +3317,17 @@
     }
 
     const footer = el('div', `border-top:1px solid #F1F5F9;margin-top:5px;padding:7px 4px 1px;`);
-    const removeBtn = el('button', `width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#94A3B8;text-align:left;cursor:pointer;font-size:11px;font-weight:650;font-family:${DS.font};`, { type:'button' });
-    removeBtn.innerHTML = '<span style="width:20px;text-align:center">⊘</span><span>Remove AI launcher…</span>';
-    removeBtn.addEventListener('mouseenter', () => { removeBtn.style.background = '#FEF2F2'; removeBtn.style.color = '#B91C1C'; });
-    removeBtn.addEventListener('mouseleave', () => { removeBtn.style.background = 'transparent'; removeBtn.style.color = '#94A3B8'; });
-    removeBtn.addEventListener('click', () => {
-      if (!confirm('Remove the AI launcher from Canvas? Re-enabling it will require resetting or reinstalling Canvas Enhancer.')) return;
-      chrome.storage.local.set({ ce_ai_launcher_disabled: true }, () => root.remove());
+    const settingsBtn = el('button', `width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#475569;text-align:left;cursor:pointer;font-size:11px;font-weight:700;font-family:${DS.font};`, { type:'button' });
+    settingsBtn.innerHTML = '<span style="width:20px;text-align:center">⚙</span><span>Canvas Enhancer Settings</span>';
+    settingsBtn.addEventListener('mouseenter', () => { settingsBtn.style.background = '#F1F5F9'; settingsBtn.style.color = '#0F172A'; });
+    settingsBtn.addEventListener('mouseleave', () => { settingsBtn.style.background = 'transparent'; settingsBtn.style.color = '#475569'; });
+    settingsBtn.addEventListener('click', () => {
+      menu.style.display = 'none';
+      launch.setAttribute('aria-expanded', 'false');
+      document.dispatchEvent(new CustomEvent('ce-open-settings'));
     });
-    footer.appendChild(removeBtn);
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
+    footer.appendChild(settingsBtn);
     menu.appendChild(footer);
 
     const launch = el('button', `width:52px;height:52px;border:0;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#14B8A6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.28);font-size:22px;transition:transform .14s,box-shadow .14s;`, { type:'button', title:'Open AI assistant', textContent:'✦' });
@@ -3500,18 +3415,6 @@
     applyToolbarState();
   }
 
-  // ── FEATURES ───────────────────────────────────────────────────────────────
-  function applyFeatures(features) {
-    for (const tool of TOOLS) {
-      if (tool.id === 'settings') continue;
-      const b = btnMap[tool.id];
-      if (!b) continue;
-      const on = features[tool.id] !== false;
-      b.style.display = on ? '' : 'none';
-      if (!on && _active === tool.id) closePanel();
-    }
-  }
-
   // ── GRADER BADGE ───────────────────────────────────────────────────────────
   async function updateGraderBadge() {
     const s = await new Promise(r => chrome.storage.local.get('ce_canvas_token', r));
@@ -3551,9 +3454,7 @@
     document.body.appendChild(settingsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
-    chrome.storage.local.get('ce_ai_launcher_disabled', ({ ce_ai_launcher_disabled }) => {
-      if (!ce_ai_launcher_disabled) mountAILauncher();
-    });
+    mountAILauncher();
     return;
 
     if (SPEEDGRADER) return;
@@ -3571,9 +3472,6 @@
     document.body.insertBefore(toolbar, tab);
     document.body.appendChild(panel);
     applyToolbarState();
-    chrome.storage.local.get('ce_features', ({ ce_features }) => {
-      if (ce_features) applyFeatures(ce_features);
-    });
   }
 
   // Legacy dashboard toolbar remains disabled.

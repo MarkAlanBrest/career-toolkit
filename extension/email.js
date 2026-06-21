@@ -2,9 +2,8 @@
   'use strict';
 
   // Storage shim — pre-load keys used by the email system
-  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ce_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ces_inbox_disabled', 'ce_remote_config', 'ce_features'];
+  const EMAIL_KEYS = ['ces_templates', 'ces_template_version', 'ces_teacher_name', 'ce_teacher_name', 'ces_last_course', 'ces_send_settings', 'ces_quick_messages', 'ces_quick_messages_version', 'ces_compose_pending', 'ces_automations', 'ces_automation_logs', 'ce_remote_config'];
   const _store = await new Promise(resolve => chrome.storage.local.get(EMAIL_KEYS, resolve));
-  if (_store.ce_features?.['inbox-toolbar'] === false) return;
   if (!_store.ce_teacher_name && _store.ces_teacher_name) {
     _store.ce_teacher_name = _store.ces_teacher_name;
     chrome.storage.local.set({ ce_teacher_name: _store.ce_teacher_name });
@@ -2757,7 +2756,6 @@
   /* =========================================================
      INIT
   ========================================================= */
-  if (GM_getValue('ces_inbox_disabled', false)) return;
   buildUI();
   checkComposePageHelper();
   installQuickMessageInserter();

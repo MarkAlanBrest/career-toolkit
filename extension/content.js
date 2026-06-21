@@ -12,7 +12,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_quiz_toolbar_disabled','ce_features'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -2372,8 +2372,6 @@ Critical rules:
   // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
   (function installQuizToolbar() {
     if (document.getElementById('ce-quiz-toolbar')) return;
-    if (GM_getValue('ce_features', {})['quiz-builder'] === false) return;
-    if (GM_getValue('ce_quiz_toolbar_disabled', false)) return;
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
@@ -2471,9 +2469,9 @@ Critical rules:
 
 
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
-  if (GM_getValue('ce_features', {})['content-studio'] !== false && isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
+  if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (GM_getValue('ce_features', {})['content-studio'] !== false && isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
     insertQuizBuilderPageButton();
   }).observe(document.body, { childList:true, subtree:true });
 

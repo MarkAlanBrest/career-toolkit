@@ -2,8 +2,7 @@
   'use strict';
 
   const STORAGE_KEY = 'ce_announcements';
-  const _store = await new Promise(resolve => chrome.storage.local.get([STORAGE_KEY, 'ce_remote_config', 'ce_features'], resolve));
-  if (_store.ce_features?.['announce-bar'] === false) return;
+  const _store = await new Promise(resolve => chrome.storage.local.get([STORAGE_KEY, 'ce_remote_config'], resolve));
   const _cfg = _store.ce_remote_config || {};
 
   const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';

@@ -18,9 +18,8 @@
   ];
 
   const _store = await new Promise(resolve =>
-    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token', 'ce_scheduler_toolbar_disabled', 'ce_features'], resolve)
+    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token'], resolve)
   );
-  if (_store.ce_features?.scheduler === false) return;
 
   function GM_getValue(key, def) { return _store[key] ?? def; }
   function GM_setValue(key, val) {
@@ -1480,7 +1479,6 @@
   /* ── Assignment-page toolbar ─────────────────────────────────────────── */
   (function installSchedulerToolbar() {
     if (document.getElementById('csch-toolbar')) return;
-    if (GM_getValue('ce_scheduler_toolbar_disabled', false)) return;
 
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
