@@ -805,13 +805,72 @@
     const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
     const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
 
-    saveBtn.addEventListener('click', () => {
+    const accountBox = el('div', `padding:12px;border:1px solid ${DS.border};border-radius:4px;background:#F8FAFC;font-size:12px;color:${DS.muted};line-height:1.5;`);
+    accountBox.textContent = stored.ce_license_key ? 'Checking your account…' : 'Enter a license key to see your plan and AI usage.';
+    stack.appendChild(accountBox);
+
+    const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
+    async function showAccount(key) {
+      if (!key) {
+        accountBox.textContent = 'Enter a license key to see your plan and AI usage.';
+        return { valid: false };
+      }
+      accountBox.textContent = 'Checking your account…';
+      const status = await sendRuntime({ type: 'LICENSE_STATUS', payload: { licenseKey: key } });
+      accountBox.innerHTML = '';
+      if (!status?.valid) {
+        accountBox.style.borderColor = '#DC2626';
+        accountBox.style.background = '#FEF2F2';
+        accountBox.style.color = '#991B1B';
+        accountBox.textContent = status?.error || 'This license is not active.';
+        return status || { valid: false };
+      }
+      accountBox.style.borderColor = DS.border;
+      accountBox.style.background = '#F8FAFC';
+      accountBox.style.color = DS.text;
+      const plan = String(status.plan || '').replace(/^./, c => c.toUpperCase());
+      const usage = status.usage || {};
+      accountBox.append(
+        el('div', 'font-weight:700;margin-bottom:3px;', { textContent: `${plan} plan — Active` }),
+        el('div', `color:${DS.muted};`, { textContent: status.plan === 'owner' ? 'Unlimited AI generations' : `${usage.used || 0} of ${usage.limit || 0} monthly AI generations used` })
+      );
+      if (status.plan !== 'owner') {
+        accountBox.appendChild(el('div', `color:${DS.muted};`, { textContent: `${usage.bonus || 0} rollover credits available` }));
+        const buys = el('div', 'display:flex;gap:8px;margin-top:10px;');
+        for (const size of [25, 50]) {
+          const buy = btn(`Buy ${size} more`, `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:7px;width:auto;`);
+          buy.addEventListener('click', async () => {
+            buy.disabled = true; buy.textContent = 'Opening checkout…';
+            const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { pack: size, licenseKey: key } });
+            if (result?.error) { saveMsg.style.color = '#DC2626'; saveMsg.textContent = result.error; }
+            buy.disabled = false; buy.textContent = `Buy ${size} more`;
+          });
+          buys.appendChild(buy);
+        }
+        accountBox.appendChild(buys);
+      }
+      return status;
+    }
+
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveMsg.style.color = DS.muted;
+      saveMsg.textContent = licenseIn.value.trim() ? 'Validating license…' : 'Saving…';
+      const status = licenseIn.value.trim() ? await showAccount(licenseIn.value.trim()) : { valid: false };
+      if (licenseIn.value.trim() && !status?.valid) {
+        saveBtn.disabled = false;
+        saveMsg.style.color = '#DC2626';
+        saveMsg.textContent = status?.error || 'License was not saved.';
+        return;
+      }
       chrome.storage.local.set({
         ce_ai_provider:    providerSel.value,
         ce_teacher_name:   nameIn.value.trim(),
         ce_license_key:    licenseIn.value.trim(),
       }, () => {
         chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
+        saveBtn.disabled = false;
+        saveMsg.style.color = DS.green;
         saveMsg.textContent = '✓ Saved';
         setTimeout(() => { saveMsg.textContent = ''; }, 2500);
       });
@@ -819,6 +878,7 @@
 
     stack.appendChild(saveBtn);
     stack.appendChild(saveMsg);
+    if (stored.ce_license_key) showAccount(stored.ce_license_key);
     stack.appendChild(divider());
 
     if (globalThis.CEDataBackup) {

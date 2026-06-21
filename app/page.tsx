@@ -1,4 +1,6 @@
 export default function HomePage() {
+  const baseCheckout = process.env.NEXT_PUBLIC_LEMONSQUEEZY_BASE_CHECKOUT_URL || 'https://canvasenhancer.com/upgrade';
+  const proCheckout = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_CHECKOUT_URL || 'https://canvasenhancer.com/upgrade';
   return (
     <main style={{ color: "#2d3b45" }}>
 
@@ -301,7 +303,7 @@ export default function HomePage() {
                 <li>✓ 50 AI generations/month</li>
                 <li>✓ License key — instant activation</li>
               </ul>
-              <a href="https://canvasenhancer.com/upgrade" style={{
+              <a href={baseCheckout} style={{
                 display: "block",
                 background: "#0770a3",
                 color: "#fff",
@@ -328,7 +330,7 @@ export default function HomePage() {
                 <li>✓ 3× more capacity</li>
                 <li>✓ Ideal for heavy course builders</li>
               </ul>
-              <a href="https://canvasenhancer.com/upgrade" style={{
+              <a href={proCheckout} style={{
                 display: "block",
                 background: "#2d3b45",
                 color: "#fff",

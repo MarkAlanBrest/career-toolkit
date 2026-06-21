@@ -105,6 +105,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleGenerate(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'LICENSE_STATUS') {
+    handleLicenseStatus(msg.payload).then(sendResponse).catch(err => sendResponse({ valid: false, error: err.message }));
+    return true;
+  }
+  if (msg.type === 'CREATE_CREDIT_CHECKOUT') {
+    handleCreditCheckout(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
   if (msg.type === 'CANVAS_API') {
     handleCanvasApi(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
@@ -132,6 +140,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+async function handleLicenseStatus({ licenseKey } = {}) {
+  const key = licenseKey || (await chrome.storage.local.get('ce_license_key')).ce_license_key || '';
+  const res = await fetch(`${API_BASE}/api/validate`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function handleCreditCheckout({ pack, licenseKey }) {
+  const stored = await chrome.storage.local.get('ce_license_key');
+  const res = await fetch(`${API_BASE}/api/credits/checkout`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ licenseKey: licenseKey || stored.ce_license_key || '', pack }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) throw new Error(data?.error || 'Could not open checkout.');
+  await chrome.tabs.create({ url: data.url });
+  return { ok: true };
+}
 
 async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {
   const sl  = screenLeft || 0;
