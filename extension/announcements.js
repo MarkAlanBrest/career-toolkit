@@ -1,8 +1,6 @@
 (async function () {
   'use strict';
 
-  if (!await globalThis.CEEntitlements?.has('teaching')) return;
-
   const STORAGE_KEY = 'ce_announcements';
   const _store = await new Promise(resolve => chrome.storage.local.get([STORAGE_KEY, 'ce_remote_config'], resolve));
   const _cfg = _store.ce_remote_config || {};

@@ -1,8 +1,6 @@
 (async function () {
   'use strict';
 
-  if (!await globalThis.CEEntitlements?.has('creation')) return;
-
   // Toolbar is for the Canvas content editor — not for SpeedGrader
   if (/speed_grader/.test(window.location.href)) return;
 

@@ -1,7 +1,6 @@
 (async function () {
   'use strict';
   try {
-    if (!await globalThis.CEEntitlements?.has('teaching')) return;
     if (!/speed_grader/.test(window.location.href)) return;
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
