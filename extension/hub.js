@@ -93,7 +93,7 @@
           <ol>
             <li>A floating <strong>AI</strong> button appears in the bottom-right corner of every Canvas page.</li>
             <li>Click it to open your preferred AI (Claude, ChatGPT, Gemini, Copilot, or Perplexity) in a side window.</li>
-            <li>Change your AI provider under <strong>Settings</strong> (gear icon).</li>
+            <li>Click the button again to switch between Claude, ChatGPT, Gemini, Copilot, and Perplexity.</li>
           </ol>
         </div>
         <div class="ce-help-section">
@@ -753,7 +753,7 @@
     const dest = target || panelBody;
     try {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_license_keys','ce_ai_provider'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_license_keys'], r)
     );
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
@@ -773,32 +773,12 @@
     const savedKeys = Array.isArray(stored.ce_license_keys) && stored.ce_license_keys.length ? stored.ce_license_keys : String(stored.ce_license_key || '').split(/[\n,]+/).filter(Boolean);
     const licenseIn = input('ce-s-license', 'text', 'Enter one or both license keys', savedKeys.join(', '));
 
-    // AI provider select
-    const providerSel = el('select', `
-      width:100%;box-sizing:border-box;
-      padding:8px 10px;
-      border:1px solid ${DS.border};border-radius:3px;
-      font-size:13px;font-family:${DS.font};color:${DS.text};
-      background:${DS.white};outline:none;cursor:pointer;
-    `);
-    providerSel.id = 'ce-s-provider';
-    for (const p of AI_PROVIDERS) {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.label;
-      if (p.id === (stored.ce_ai_provider || 'claude')) opt.selected = true;
-      providerSel.appendChild(opt);
-    }
-    providerSel.addEventListener('focus', () => providerSel.style.borderColor = DS.blue);
-    providerSel.addEventListener('blur',  () => providerSel.style.borderColor = DS.border);
-
     // Focus ring on text inputs
     for (const inp of [nameIn, licenseIn]) {
       inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
 
-    stack.appendChild(row('AI Chat Window', providerSel, 'Used by the Chat button'));
     stack.appendChild(row('Teacher Name', nameIn));
     if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
     stack.appendChild(row('Package License Keys', licenseIn, 'Enter both keys, separated by a comma, if you own both packages.'));
@@ -877,7 +857,6 @@
         return;
       }
       chrome.storage.local.set({
-        ce_ai_provider:    providerSel.value,
         ce_teacher_name:   nameIn.value.trim(),
         ce_license_key:    keys.join('\n'),
         ce_license_keys:   keys,
@@ -900,19 +879,10 @@
       stack.appendChild(divider());
     }
 
-    const dataHead = el('div', '');
-    const dataTitle = el('div', `font-size:15px;font-weight:700;color:${DS.text};margin-bottom:3px;`, { textContent: 'Tool Data' });
-    const dataHelp = el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Reset saved data for one tool without uninstalling Canvas Enhancer.' });
-    const resetSchedulerBtn = btn('Reset Assignment Pulse schedule…', `background:#fff;color:#B45309;border-color:#D97706;width:100%;text-align:left;`);
-    resetSchedulerBtn.addEventListener('click', () => {
-      if (!confirm('Delete the saved Assignment Pulse schedule, timing rules, and item overrides? This cannot be undone unless you have a backup.')) return;
-      chrome.storage.local.remove('canvas_scheduler_settings_v1', () => {
-        resetSchedulerBtn.textContent = '✓ Assignment Pulse data reset';
-        setTimeout(() => { resetSchedulerBtn.textContent = 'Reset Assignment Pulse schedule…'; }, 3000);
-      });
-    });
-    dataHead.append(dataTitle, dataHelp);
-    stack.append(dataHead, resetSchedulerBtn, divider());
+    if (globalThis.CEDataBackup?.createToolSection) {
+      stack.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
+      stack.appendChild(divider());
+    }
 
     // About
     const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:8px;`);
