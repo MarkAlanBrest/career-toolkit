@@ -2286,6 +2286,8 @@ Critical rules:
   }
 
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
+  let toolbarHidden = false;
+
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
     document.getElementById('ce-studio-reopen')?.remove();
@@ -2352,8 +2354,8 @@ Critical rules:
 
     const reopen=document.createElement('button');reopen.id='ce-studio-reopen';reopen.className='ce-studio-reopen';reopen.type='button';
     reopen.innerHTML='<span>◆</span><span>Content Studio</span>';
-    hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.style.display='none';reopen.style.display='flex';};
-    reopen.onclick=()=>{reopen.style.display='none';toolbar.style.display='block';};
+    hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.style.display='none';reopen.style.display='flex';toolbarHidden=true;};
+    reopen.onclick=()=>{reopen.style.display='none';toolbar.style.display='block';toolbarHidden=false;};
 
     toolbar.appendChild(rowBottom);
     toolbar.appendChild(rowProps);
@@ -2471,7 +2473,19 @@ Critical rules:
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
   if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) buildToolbar();
+    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) {
+      const hasToolbar = document.getElementById('ce-toolbar');
+      const hasReopen  = document.getElementById('ce-studio-reopen');
+      if (!hasToolbar && !hasReopen) {
+        buildToolbar();
+        if (toolbarHidden) {
+          const t = document.getElementById('ce-toolbar');
+          const r = document.getElementById('ce-studio-reopen');
+          if (t) t.style.display = 'none';
+          if (r) r.style.display = 'flex';
+        }
+      }
+    }
     insertQuizBuilderPageButton();
   }).observe(document.body, { childList:true, subtree:true });
 

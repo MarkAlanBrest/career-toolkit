@@ -140,7 +140,6 @@
     { id: 'assignment-pulse',  label: 'Assignment Pulse',  keys: ['canvas_scheduler_settings_v1'] },
     { id: 'announcements',     label: 'Announcements',     keys: ['ce_announcements'] },
     { id: 'grader',            label: 'Grader',            keys: ['ce_grader_settings','ce_grader_filter_published','ce_grader_filter_dashboard'] },
-    { id: 'date-autofill',     label: 'Date Auto-fill',    keys: ['ce_date_autofill'] },
   ];
 
   async function downloadToolBackup(tool) {
