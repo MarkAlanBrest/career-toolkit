@@ -350,7 +350,7 @@
     .ce-mega-panel { width:280px;padding:7px;max-height:420px;overflow-y:auto; }
     .ce-menu-section { padding:8px 10px 5px;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em; }
     .ce-studio-spacer { margin-left:auto; }
-    .ce-studio-reopen { display:none;align-items:center;gap:8px;padding:7px 12px;border:1px solid #CBD5E1;border-bottom:0;border-radius:8px 8px 0 0;background:#172A36;color:#fff;font:700 11px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer; }
+    .ce-studio-reopen { display:none;position:fixed;bottom:16px;right:16px;z-index:99999;align-items:center;gap:7px;padding:8px 14px;border:1px solid #3d5166;border-radius:20px;background:#172A36;color:#fff;font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35); }
     .ce-icon-panel { min-width:300px; padding:0; }
     .ce-icon-tabs { display:flex; border-bottom:1px solid #eee; }
     .ce-icon-tab {
@@ -2367,8 +2367,9 @@ Critical rules:
     document.addEventListener('click', closeAllPanels);
 
     const rce = document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce');
-    if (rce) { rce.parentNode.insertBefore(reopen,rce);rce.parentNode.insertBefore(toolbar,rce); }
-    else document.body.append(reopen,toolbar);
+    if (rce) rce.parentNode.insertBefore(toolbar, rce);
+    else document.body.appendChild(toolbar);
+    document.body.appendChild(reopen);
   }
 
   // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
