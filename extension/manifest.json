@@ -26,7 +26,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*/*"],
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://*.canvas.com/*",
+        "https://*.canvaslms.com/*"
+      ],
       "js": ["backup.js", "canvas-token.js", "entitlements.js", "hub.js", "content.js", "grader.js", "scheduler.js", "email.js", "announcements.js"],
       "css": ["toolbar.css"],
       "run_at": "document_idle"

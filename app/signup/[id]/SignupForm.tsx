@@ -68,6 +68,7 @@ export default function SignupForm({ config }: { config: ClassConfig; configId: 
           phone: digits,
           className: courseName || config.className,
           courseId,
+          teacher: config.teacherName,
           term: config.term,
           name: studentName.trim() || 'Student',
           optIn,

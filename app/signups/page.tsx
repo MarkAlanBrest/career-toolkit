@@ -7,10 +7,10 @@ type Signup = {
   id: number;
   name: string;
   phone: string;
-  class_name: string;
-  teacher: string;
+  className: string;
+  teacher?: string;
   term: string;
-  created_at: string;
+  createdAt: string;
 };
 
 function formatPhone(d: string) {
@@ -23,10 +23,18 @@ function Dashboard() {
   const params = useSearchParams();
   const [teacher, setTeacher] = useState(params.get('teacher') || '');
   const [cls, setCls] = useState(params.get('class') || '');
+  const [token, setToken] = useState(params.get('token') || '');
   const [signups, setSignups] = useState<Signup[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetched, setFetched] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      const saved = window.localStorage.getItem('signup_admin_token') || '';
+      if (saved) setToken(saved);
+    }
+  }, [token]);
 
   async function load() {
     if (!teacher.trim()) { setError('Enter a teacher name to filter signups.'); return; }
@@ -34,19 +42,28 @@ function Dashboard() {
     try {
       const qs = new URLSearchParams({ teacher: teacher.trim() });
       if (cls.trim()) qs.set('class', cls.trim());
+      if (token.trim()) qs.set('token', token.trim());
       const res = await fetch(`/api/signup?${qs}`);
       const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Failed to load'); setSignups([]); }
-      else { setSignups(data.signups); setFetched(true); }
+      if (!res.ok) {
+        setError(res.status === 401 ? 'Unauthorized. Enter the signup admin token.' : data.error || 'Failed to load');
+        setSignups([]);
+      }
+      else {
+        if (token.trim()) window.localStorage.setItem('signup_admin_token', token.trim());
+        setSignups(data.signups);
+        setFetched(true);
+      }
     } catch { setError('Network error.'); }
     finally { setLoading(false); }
   }
 
   function exportCSV() {
     const header = 'Name,Phone,Class,Teacher,Term,Signed Up\n';
+    const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = signups.map(s =>
-      [s.name, formatPhone(s.phone), s.class_name, s.teacher, s.term, new Date(s.created_at).toLocaleString()]
-        .map(v => `"${v}"`).join(',')
+      [s.name, formatPhone(s.phone), s.className, s.teacher || '', s.term, new Date(s.createdAt).toLocaleString()]
+        .map(csvCell).join(',')
     ).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -69,6 +86,10 @@ function Dashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 200px' }}>
           <label style={{ fontSize: 12, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Class (optional)</label>
           <input value={cls} onChange={e => setCls(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} placeholder="All classes" style={inputStyle} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 200px' }}>
+          <label style={{ fontSize: 12, fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin Token</label>
+          <input value={token} onChange={e => setToken(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} placeholder="Required when configured" type="password" style={inputStyle} />
         </div>
         <button onClick={load} disabled={loading} style={{ padding: '10px 22px', background: '#0770B8', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 14, cursor: 'pointer', height: 40 }}>
           {loading ? 'Loading…' : 'Search'}
@@ -104,9 +125,9 @@ function Dashboard() {
                     <tr key={s.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fbfc', borderBottom: '1px solid #eee' }}>
                       <td style={tdStyle}>{s.name}</td>
                       <td style={tdStyle}>{formatPhone(s.phone)}</td>
-                      <td style={tdStyle}>{s.class_name}</td>
+                      <td style={tdStyle}>{s.className}</td>
                       <td style={tdStyle}>{s.term}</td>
-                      <td style={{ ...tdStyle, color: '#888', fontSize: 12 }}>{new Date(s.created_at).toLocaleDateString()}</td>
+                      <td style={{ ...tdStyle, color: '#888', fontSize: 12 }}>{new Date(s.createdAt).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>

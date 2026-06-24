@@ -570,13 +570,19 @@
         succeeded.push(item);
       } catch (error) {
         console.error('[Canvas Scheduler] Failed to update item:', item.id, error);
-        errors.push(item.id);
+        errors.push({
+          id: item.id,
+          title: item.title || `Item ${item.id}`,
+          message: error?.message || 'Unknown Canvas error'
+        });
       }
     }
 
+    const failedIds = new Set(errors.map(error => error.id));
+
     state.items = state.items.map((item) => {
       const dueDateKey = state.schedule[item.id];
-      if (!dueDateKey || errors.includes(item.id)) return item;
+      if (!dueDateKey || failedIds.has(item.id)) return item;
       return {
         ...item,
         currentDueAt:    combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
@@ -592,9 +598,12 @@
     if (errors.length === 0) {
       setNotice(`Canvas updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}.`, 'ok');
     } else if (succeeded.length === 0) {
-      setNotice(`All ${errors.length} update${errors.length === 1 ? '' : 's'} failed. Check your Canvas token in Settings.`, 'err');
+      const detail = errors.slice(0, 5).map(error => `- ${error.title}: ${error.message}`).join('\n');
+      setNotice(`All ${errors.length} update${errors.length === 1 ? '' : 's'} failed.\n${detail}`, 'err');
     } else {
-      setNotice(`Updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}. ${errors.length} failed — check your Canvas token.`, 'err');
+      const detail = errors.slice(0, 5).map(error => `- ${error.title}: ${error.message}`).join('\n');
+      const more = errors.length > 5 ? `\n...and ${errors.length - 5} more.` : '';
+      setNotice(`Updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}. ${errors.length} failed.\n${detail}${more}`, 'err');
     }
 
     state.saving = false;
@@ -635,6 +644,13 @@
     const leftBody = document.getElementById('csch-left-body');
     const rightBody = document.getElementById('csch-board');
     if (!leftBody || !rightBody) return;
+
+    const notice = document.getElementById('csch-notice');
+    if (notice) {
+      notice.textContent = state.notice || '';
+      notice.className = `csch-notice csch-notice-${state.noticeType || 'info'}`;
+      notice.style.display = state.notice ? 'block' : 'none';
+    }
 
     const unscheduledItems = getUnscheduledItems();
     const grouped = groupItemsByModule(unscheduledItems);
@@ -833,6 +849,7 @@
   app.innerHTML = `
     <div id="csch-shell">
       <div id="csch-topbar">
+        <span id="csch-brand">Assignment Scheduler</span>
         <div class="csch-dd-wrap">
           <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-course-btn">Course ▾</button>
           <div class="csch-dd-panel" id="csch-dd-course-panel">
@@ -888,6 +905,8 @@
         <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
         <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
       </div>
+
+      <div id="csch-notice" class="csch-notice" style="display:none"></div>
 
       <div id="csch-layout">
         <aside id="csch-left">
@@ -1010,7 +1029,7 @@
       right: 8px;
       border-radius: 6px;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       background: #F2F4F5;
       box-shadow: 0 8px 32px rgba(45, 59, 69, 0.28);
       pointer-events: auto;
@@ -1028,6 +1047,18 @@
       border-bottom: 1px solid #2D3B45;
       position: relative;
       flex-shrink: 0;
+    }
+
+    #csch-brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-right: 10px;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      margin-right: 2px;
     }
 
     .csch-tb-sep {
@@ -1297,6 +1328,19 @@
     .csch-btn-ghost:hover { background: rgba(255,255,255,0.22); }
 
     .csch-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .csch-notice {
+      padding: 8px 12px;
+      border-bottom: 1px solid #C7CDD1;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    .csch-notice-info { background: #E8F1F8; color: #075985; }
+    .csch-notice-ok   { background: #ECFDF5; color: #047857; }
+    .csch-notice-err  { background: #FEF2F2; color: #991B1B; }
 
     #csch-layout {
       min-height: 0;

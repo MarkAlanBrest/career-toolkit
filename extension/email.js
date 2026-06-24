@@ -1467,7 +1467,11 @@
   function showStatus(msg, type) {
     const area = document.getElementById('ces-status-area');
     if (!area) return;
-    area.innerHTML = `<div class="ces-status ces-status-${type}">${msg}</div>`;
+    area.innerHTML = '';
+    const status = document.createElement('div');
+    status.className = `ces-status ces-status-${type}`;
+    status.textContent = String(msg || '');
+    area.appendChild(status);
     setTimeout(() => { if (area) area.innerHTML = ''; }, 8000);
   }
 
