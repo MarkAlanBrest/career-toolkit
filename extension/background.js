@@ -47,8 +47,8 @@ async function handleStreamPort(port) {
       const licenseKeys = await getLicenseKeys();
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
-      if (DEV_MODE && !licenseKeys.length) {
-        port.postMessage({ type: 'chunk', text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0;">Running as unpacked extension with no license key. Enter a key in Settings for live AI.</p></div>' });
+      if (DEV_MODE) {
+        port.postMessage({ type: 'chunk', text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0;">Running as unpacked extension. AI generation is bypassed in dev mode — deploy to production or install from the store to use live AI.</p></div>' });
         port.postMessage({ type: 'done' });
         return;
       }
@@ -200,8 +200,8 @@ async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
   const licenseKeys = await getLicenseKeys();
 
-  if (DEV_MODE && !licenseKeys.length) {
-    return { content: [{ text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0 0 8px;">Running as an unpacked extension with no license key. Enter a key in Settings to use the real AI, or this placeholder will appear instead.</p><p style="color:#6b7280;font-size:13px;margin:0;">Content would appear here in production.</p></div>' }] };
+  if (DEV_MODE) {
+    return { content: [{ text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0 0 8px;">Running as unpacked extension. AI generation is bypassed in dev mode — deploy to production or install from the store to use live AI.</p><p style="color:#6b7280;font-size:13px;margin:0;">Content would appear here in production.</p></div>' }] };
   }
 
   const res = await fetch(`${API_BASE}/api/generate`, {

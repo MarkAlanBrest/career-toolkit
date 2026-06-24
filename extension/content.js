@@ -2144,6 +2144,7 @@ Critical rules:
           genBtn.disabled=false; loadEl.style.display='none';
           let raw=data?.content?.[0]?.text||'';
           raw=raw.replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+          if(raw.startsWith('<')){showQStatus('Dev mode — quiz generation is bypassed. Questions appear when installed from the store.','info');return;}
           const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
           if(s===-1||e===-1){showQStatus('Could not find JSON in response','err');return;}
           try{
