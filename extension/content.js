@@ -1059,11 +1059,11 @@
 
     const overlay = document.createElement('div');
     overlay.id = 'ce-ai-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:flex-start;justify-content:center;padding-top:64px;box-sizing:border-box;';
     overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
 
     const pw = Math.min(980, window.innerWidth-40);
-    const ph = Math.min(880, window.innerHeight-40);
+    const ph = Math.min(820, window.innerHeight-84);
     const panel = document.createElement('div');
     panel.style.cssText = `width:${pw}px;height:${ph}px;background:#f1f5f9;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;overflow:hidden;`;
 
@@ -1700,7 +1700,7 @@ if (st.includedLinks.length) {
     const apiKey = GM_getValue('ce_license_key','');
 
     const qst = {
-      topic:'', subject:'general', level:'college', difficulty:'medium',
+      topic:'', subject:'general', difficulty:'medium',
       typeCounts:{ mc:5, tf:3, short:2, essay:0 },
       includeExplanations:true,
       variantsPerQ:1, randomizeGroups:false,
@@ -1713,7 +1713,7 @@ if (st.includedLinks.length) {
     overlay.style.cssText='position:fixed;inset:0;background:transparent;z-index:999999;pointer-events:none;';
 
     const panel=document.createElement('div');
-    panel.style.cssText='position:absolute;top:8px;bottom:8px;left:74px;right:60px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
+    panel.style.cssText='position:absolute;top:60px;bottom:8px;left:74px;right:12px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
 
     // Top bar
     const topBar=document.createElement('div');
@@ -1738,7 +1738,7 @@ if (st.includedLinks.length) {
 
     // 3-column grid
     const cols=document.createElement('div');
-    cols.style.cssText='display:grid;grid-template-columns:280px 1fr 260px;flex:1;min-height:0;overflow:hidden;';
+    cols.style.cssText='display:grid;grid-template-columns:320px 1fr 280px;flex:1;min-height:0;overflow:hidden;';
 
     // ── LEFT COLUMN ────────────────────────────────────────────────────────
     const left=document.createElement('div');
@@ -1818,11 +1818,15 @@ if (st.includedLinks.length) {
 
     // Settings card
     const setCard=qCard(); setCard.appendChild(qSectionLbl('Settings'));
-    setCard.appendChild(qSelField('Subject',[['general','General / Any'],['math','Mathematics'],['science','Science'],['history','History / Social Studies'],['english','English / Language Arts'],['foreign_lang','Foreign Language'],['cs','Computer Science'],['other','Other']],qst.subject,v=>qst.subject=v));
-    setCard.appendChild(qSelField('Level',[['elementary','Elementary (K–5)'],['middle','Middle School (6–8)'],['high','High School (9–12)'],['college','College / University'],['graduate','Graduate Level'],['professional','Professional / Certification']],qst.level,v=>qst.level=v));
-    setCard.appendChild(qSelField('Difficulty',[['easy','Easy'],['medium','Medium'],['hard','Hard'],['mixed','Mixed — variety of difficulties']],qst.difficulty,v=>qst.difficulty=v));
+    const setRow1=document.createElement('div'); setRow1.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+    setRow1.appendChild(qSelField('Subject',[['general','General / Any'],['math','Mathematics'],['science','Science'],['history','History / Social Studies'],['english','English / Language Arts'],['foreign_lang','Foreign Language'],['cs','Computer Science'],['other','Other']],qst.subject,v=>qst.subject=v));
+    setRow1.appendChild(qSelField('Difficulty',[['easy','Easy'],['medium','Medium'],['hard','Hard'],['mixed','Mixed']],qst.difficulty,v=>qst.difficulty=v));
+    setCard.appendChild(setRow1);
     setCard.appendChild(qSelField('Variants per question',[['1','1 — unique questions'],['2','2 — pairs (A & B)'],['3','3 — triplets (A, B & C)']],String(qst.variantsPerQ),v=>{qst.variantsPerQ=parseInt(v);}));
-    setCard.appendChild(qSwitch('Randomize questions','Canvas shows 1 random variant per student (Classic Quizzes)',qst.randomizeGroups,v=>qst.randomizeGroups=v));
+    const setRow2=document.createElement('div'); setRow2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:0;';
+    setRow2.appendChild(qSwitch('Explanations','Include answer explanations',qst.includeExplanations,v=>qst.includeExplanations=v));
+    setRow2.appendChild(qSwitch('Randomize','Show 1 random variant per student',qst.randomizeGroups,v=>qst.randomizeGroups=v));
+    setCard.appendChild(setRow2);
     leftBody.appendChild(setCard);
 
     // Question types card with per-type count steppers
@@ -1836,11 +1840,6 @@ if (st.includedLinks.length) {
     typeCard.appendChild(qCountRow('Essay','Open-ended, manually graded','essay',typeTotalSpan));
     typeCard.appendChild(typeTotalSpan);
     leftBody.appendChild(typeCard);
-
-    // Options card
-    const optsCard=qCard(); optsCard.appendChild(qSectionLbl('Options'));
-    optsCard.appendChild(qSwitch('Include Explanations','Answer explanations on each question',qst.includeExplanations,v=>qst.includeExplanations=v));
-    leftBody.appendChild(optsCard);
 
     const statusEl=document.createElement('div');statusEl.style.display='none';leftBody.appendChild(statusEl);
     function showQStatus(msg,type){
@@ -2076,8 +2075,7 @@ if (st.includedLinks.length) {
       if(!totalQ){showQStatus('Set at least one question type count above zero.','err');return;}
       genBtn.disabled=true; loadEl.style.display='block';
       const typeLabels={mc:'Multiple Choice (4 options A–D, exactly one correct)',tf:'True/False (answer is boolean)',short:'Short Answer (single word, number, or short phrase)',essay:'Essay (open-ended, no answer key)'};
-      const levelMap={elementary:'Elementary (K–5)',middle:'Middle School',high:'High School',college:'College / University',graduate:'Graduate Level',professional:'Professional / Certification'};
-      const diffMap={easy:'easy',medium:'medium difficulty',hard:'challenging/hard',mixed:'a mix of easy, medium, and hard'};
+const diffMap={easy:'easy',medium:'medium difficulty',hard:'challenging/hard',mixed:'a mix of easy, medium, and hard'};
       const useGroups=qst.variantsPerQ>1;
       const typeCountLines=Object.entries(qst.typeCounts).filter(([,n])=>n>0).map(([k,n])=>`${n} ${typeLabels[k]}`).join('\n');
       const qSchema=`{
@@ -2093,7 +2091,6 @@ if (st.includedLinks.length) {
 
 Each group tests the same concept but uses completely different wording, numbers, or scenarios for each variant — designed so different students get equivalent but non-identical questions.
 Subject: ${qst.subject==='general'?'general':qst.subject}
-Level: ${levelMap[qst.level]||'College'}
 Difficulty: ${diffMap[qst.difficulty]||'medium'}
 Variants per group: ${qst.variantsPerQ}
 Question type breakdown (exact counts):
@@ -2122,7 +2119,6 @@ Critical rules:
         :`You are an expert quiz designer for Canvas LMS. Generate questions about: "${qst.topic}"
 
 Subject: ${qst.subject==='general'?'general':qst.subject}
-Level: ${levelMap[qst.level]||'College'}
 Difficulty: ${diffMap[qst.difficulty]||'medium'}
 Question type breakdown (exact counts):
 ${typeCountLines}

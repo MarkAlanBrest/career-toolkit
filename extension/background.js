@@ -47,12 +47,6 @@ async function handleStreamPort(port) {
       const licenseKeys = await getLicenseKeys();
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
-      if (DEV_MODE && !licenseKeys.length) {
-        port.postMessage({ type: 'chunk', text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — No License Key</h2><p style="color:#374151;margin:0;">Enter your owner key in Settings to use live AI.</p></div>' });
-        port.postMessage({ type: 'done' });
-        return;
-      }
-
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -199,10 +193,6 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
   const licenseKeys = await getLicenseKeys();
-
-  if (DEV_MODE && !licenseKeys.length) {
-    return { content: [{ text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — No License Key</h2><p style="color:#374151;margin:0 0 8px;">Enter your owner key in Settings to use live AI.</p><p style="color:#6b7280;font-size:13px;margin:0;">Content would appear here in production.</p></div>' }] };
-  }
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
