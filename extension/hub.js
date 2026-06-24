@@ -160,24 +160,6 @@
         <div class="ce-help-note">⚠ Requires a Canvas API Token in Settings.</div>
       `,
     },
-    assignment: {
-      title: 'Assignment Builder',
-      html: `
-        <p class="ce-help-desc">Generates complete, formatted assignment descriptions with AI — choose an assignment type, describe the topic, and insert a polished draft directly into the Canvas editor.</p>
-        <div class="ce-help-section">
-          <div class="ce-help-sh">How to use</div>
-          <ol>
-            <li>Navigate to a course's <strong>Create Assignment</strong> or <strong>Edit Assignment</strong> page. The Assignment Builder toolbar appears automatically at the top.</li>
-            <li>Click <strong>Assignment Builder</strong> to open the generator.</li>
-            <li>Select an assignment type (Essay, Research Project, Lab, etc.) and enter the topic.</li>
-            <li>Choose a subject area and level, then toggle the sections you want included (rubric, checklist, etc.).</li>
-            <li>Click <strong>Generate Assignment</strong> — the AI drafts the full assignment text.</li>
-            <li>Review the preview on the right, then click <strong>Insert into Editor</strong> to add it to Canvas, or <strong>Replace Editor</strong> to overwrite any existing content.</li>
-          </ol>
-          <div class="ce-help-tip">💡 Be specific with the topic for best results. You can always regenerate or edit the draft in Canvas after inserting.</div>
-        </div>
-      `,
-    },
     announcements: {
       title: 'Announcement Composer',
       html: `
