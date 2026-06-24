@@ -1059,13 +1059,11 @@
 
     const overlay = document.createElement('div');
     overlay.id = 'ce-ai-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;display:flex;align-items:flex-start;justify-content:center;padding-top:64px;box-sizing:border-box;';
-    overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999999;pointer-events:none;';
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
 
-    const pw = Math.min(980, window.innerWidth-40);
-    const ph = Math.min(820, window.innerHeight-84);
     const panel = document.createElement('div');
-    panel.style.cssText = `width:${pw}px;height:${ph}px;background:#f1f5f9;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;overflow:hidden;`;
+    panel.style.cssText = 'position:absolute;top:60px;bottom:8px;left:87px;right:12px;background:#f1f5f9;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;overflow:hidden;pointer-events:auto;';
 
     function render() {
       const prevScroll = panel.querySelector('div[style*="overflow-y:auto"]')?.scrollTop || 0;
@@ -1713,7 +1711,7 @@ if (st.includedLinks.length) {
     overlay.style.cssText='position:fixed;inset:0;background:transparent;z-index:999999;pointer-events:none;';
 
     const panel=document.createElement('div');
-    panel.style.cssText='position:absolute;top:60px;bottom:8px;left:74px;right:12px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
+    panel.style.cssText='position:absolute;top:60px;bottom:8px;left:87px;right:12px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
 
     // Top bar
     const topBar=document.createElement('div');
@@ -2385,8 +2383,16 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     const rowBottom = document.createElement('div'); rowBottom.id = 'ce-row-bottom';
 
     const brand=document.createElement('div');brand.className='ce-studio-brand';
-    brand.innerHTML='<span class="ce-studio-mark">◆</span><span class="ce-studio-copy"><strong>Content Studio</strong><small>RICH CONTENT TOOLS</small></span>';
+    brand.innerHTML='<span class="ce-studio-mark">◆</span><span class="ce-studio-name">Content Studio</span>';
     rowBottom.appendChild(brand);
+
+    const aiBtn=document.createElement('button'); aiBtn.className='ce-btn ce-btn-ai'; aiBtn.type='button';
+    aiBtn.textContent='✨ AI Assist';
+    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
+    rowBottom.appendChild(aiBtn);
+
+    const sep1=document.createElement('div'); sep1.className='ce-sep';
+    rowBottom.appendChild(sep1);
 
     function buildCategoryPanel(keys){
       const panel=document.createElement('div');panel.className='ce-mega-panel';
@@ -2406,18 +2412,12 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     rowBottom.appendChild(makeTopGroup('Insert  ▾',buildCategoryPanel(['headers','callouts','lists','dividers'])));
     rowBottom.appendChild(makeTopGroup('Layouts  ▾',buildCategoryPanel(['layouts','cards'])));
 
-    const aiBtn=document.createElement('button'); aiBtn.className='ce-btn'; aiBtn.type='button';
-    aiBtn.textContent='✨ AI Assist';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
-    rowBottom.insertBefore(aiBtn,rowBottom.children[1]);
-
     const iconsGroup=makeTopGroup('Icons  ▾',buildIconPanel(rowProps));
     rowBottom.appendChild(iconsGroup);
 
-    const gearBtn=document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
-    gearBtn.innerHTML='<span class="ce-icon">⚙</span><span>Settings</span>';
+    const gearBtn=document.createElement('button'); gearBtn.className='ce-btn ce-studio-spacer'; gearBtn.type='button';
+    gearBtn.innerHTML='⚙ Settings';
     gearBtn.title='Settings';
-    gearBtn.classList.add('ce-studio-spacer');
     gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-settings'));};
     globalThis.CECanvasToken?.bindIndicator(gearBtn);
     rowBottom.appendChild(gearBtn);
@@ -2427,7 +2427,7 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     helpBtn.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-help',{detail:'content'}));};
     rowBottom.appendChild(helpBtn);
 
-    const hideBtn=document.createElement('button');hideBtn.className='ce-btn';hideBtn.type='button';hideBtn.textContent='— Hide';
+    const hideBtn=document.createElement('button');hideBtn.className='ce-btn';hideBtn.type='button';hideBtn.textContent='✕';hideBtn.title='Hide toolbar';
     rowBottom.appendChild(hideBtn);
 
     hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.remove();ceReopen.style.display='flex';toolbarHidden=true;};

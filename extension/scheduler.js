@@ -1483,7 +1483,7 @@
     const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
     const st = document.createElement('style');
-    st.textContent = 'body.csch-page-mode #ce-hub{display:none!important}body.csch-page-mode #ce-hub-panel{display:none!important}body.csch-page-mode:not(.csch-toolbar-collapsed){padding-top:52px!important;box-sizing:border-box!important}body.csch-page-mode.csch-toolbar-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#csch-toolbar{left:0!important}}';
+    st.textContent = 'body.csch-page-mode #ce-hub{display:none!important}body.csch-page-mode #ce-hub-panel{display:none!important}body.csch-page-mode:not(.csch-toolbar-collapsed){padding-top:40px!important;box-sizing:border-box!important}body.csch-page-mode.csch-toolbar-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#csch-toolbar{left:0!important}}';
     (document.head || document.documentElement).appendChild(st);
 
     // Collapsed tab (top-right, shows when bar is hidden)
@@ -1499,17 +1499,17 @@
     // Full toolbar bar
     const bar = document.createElement('div');
     bar.id = 'csch-toolbar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:40px;z-index:2147483640;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
     const brand = document.createElement('div');
-    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
-    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Assignment Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">ASSIGNMENT WORKFLOW</small></span>';
+    brand.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px 0 4px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:12px;">◆</span><strong style="font-size:12px;letter-spacing:.2px;font-weight:700;">Assignment Pulse</strong>';
 
     function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.style.cssText = 'height:28px;padding:0 10px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:600;border-radius:5px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:6px;';
       b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
       b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
       return b;

@@ -1,11 +1,12 @@
-/* Canvas Enhancer toolbar — matches the native TinyMCE toolbar below it */
+/* Canvas Enhancer toolbar */
 
 #ce-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 1px;
-  padding: 2px 4px;
+  gap: 2px;
+  padding: 0 8px;
+  height: 40px;
   background: #fff;
   border-bottom: 1px solid #c7cdd1;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -14,10 +15,12 @@
   z-index: 9000;
   position: relative;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .ce-group {
   position: relative;
+  flex-shrink: 0;
 }
 
 .ce-btn {
@@ -26,21 +29,37 @@
   gap: 4px;
   background: none;
   border: none;
-  border-radius: 3px;
-  padding: 4px 7px;
+  border-radius: 4px;
+  padding: 5px 9px;
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
   color: #2d3b45;
   white-space: nowrap;
-  transition: background 0.1s;
+  transition: background 0.12s;
   line-height: 1.4;
+  flex-shrink: 0;
+  height: 30px;
+  box-sizing: border-box;
 }
 
 .ce-btn:hover,
 .ce-btn.ce-open {
-  background: #e8e8e8;
-  color: #2d3b45;
+  background: #e8f0f8;
+  color: #0770B8;
+}
+
+/* AI Assist button gets a distinct tint */
+#ce-toolbar .ce-btn-ai {
+  background: #e8f1fb;
+  color: #0770B8;
+  font-weight: 600;
+  border: 1px solid #c5daf5;
+}
+#ce-toolbar .ce-btn-ai:hover {
+  background: #d0e6f8;
+  color: #055a96;
+  border-color: #a8c8f0;
 }
 
 .ce-icon {
@@ -48,13 +67,41 @@
   font-size: 13px;
 }
 
-/* Separator between button groups */
+/* Vertical separator */
 .ce-sep {
   width: 1px;
-  height: 16px;
-  background: #c7cdd1;
-  margin: 0 3px;
+  height: 20px;
+  background: #dde1e4;
+  margin: 0 4px;
   flex-shrink: 0;
+}
+
+/* Brand mark — compact single line */
+.ce-studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid #dde1e4;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.ce-studio-mark {
+  color: #0770B8;
+  font-size: 14px;
+  line-height: 1;
+}
+.ce-studio-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #394B58;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* Pushes Settings / Help / Hide to the right edge */
+.ce-studio-spacer {
+  margin-left: auto;
 }
 
 .ce-panel {
@@ -65,7 +112,7 @@
   background: #fff;
   border: 1px solid #c7cdd1;
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
   min-width: 180px;
   z-index: 9999;
   overflow: hidden;
@@ -75,6 +122,19 @@
   display: block;
 }
 
+.ce-mega-panel {
+  min-width: 220px;
+}
+
+.ce-menu-section {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  padding: 10px 14px 4px;
+}
+
 .ce-item {
   display: block;
   width: 100%;
@@ -82,7 +142,7 @@
   background: none;
   border: none;
   border-bottom: 1px solid #f0f0f0;
-  padding: 8px 14px;
+  padding: 7px 14px;
   font-size: 13px;
   font-family: inherit;
   color: #2d3b45;
@@ -95,26 +155,52 @@
 }
 
 .ce-item:hover {
-  background: #e8e8e8;
-  color: #2d3b45;
+  background: #e8f0f8;
+  color: #0770B8;
 }
 
-/* Props row (shown below toolbar when an item is selected) */
+/* Props row */
 #ce-row-props {
   display: none;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border-top: 1px solid #e8e8e8;
-  background: #fff;
+  background: #f8fafc;
 }
 
 #ce-row-props.open {
   display: flex;
 }
 
-/* Clipboard fallback notice */
+/* Reopen button */
+.ce-studio-reopen {
+  display: none;
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #394B58;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+.ce-studio-reopen:hover {
+  background: #2d3b45;
+}
+
+/* Notice toast */
 #ce-notice {
   position: fixed;
   bottom: 20px;
