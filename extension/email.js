@@ -2726,11 +2726,12 @@
 
       if (onMessagingPage) {
         // Hide the bar whenever the compose popup is open — it sits above the modal and blocks the close button
-        const shouldShow = !composeOpen && !document.body.classList.contains('ces-inbox-collapsed');
+        const isCollapsed = document.body.classList.contains('ces-inbox-collapsed');
+        const shouldShow = !composeOpen && !isCollapsed;
         bar.style.display = shouldShow ? 'flex' : 'none';
         document.body.classList.toggle('ces-inbox-mode', shouldShow);
         if (!_onInbox) document.body.classList.remove('ces-inbox-collapsed');
-        colTab.style.display = 'none';
+        colTab.style.display = (isCollapsed && !composeOpen) ? 'block' : 'none';
       } else if (!onMessagingPage && _onInbox) {
         document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
         bar.style.display = 'none';

@@ -350,7 +350,7 @@
     .ce-mega-panel { width:280px;padding:7px;max-height:420px;overflow-y:auto; }
     .ce-menu-section { padding:8px 10px 5px;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em; }
     .ce-studio-spacer { margin-left:auto; }
-    .ce-studio-reopen { display:none;position:fixed;bottom:16px;right:16px;z-index:99999;align-items:center;gap:7px;padding:8px 14px;border:1px solid #3d5166;border-radius:20px;background:#172A36;color:#fff;font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35); }
+    .ce-studio-reopen { display:none;position:fixed;top:64px;right:16px;z-index:99999;align-items:center;gap:7px;padding:8px 14px;border:1px solid #3d5166;border-radius:20px;background:#172A36;color:#fff;font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35); }
     .ce-icon-panel { min-width:300px; padding:0; }
     .ce-icon-tabs { display:flex; border-bottom:1px solid #eee; }
     .ce-icon-tab {
@@ -2203,6 +2203,263 @@ Critical rules:
     };
   }
 
+  // ── ASSIGNMENT MAKER ──────────────────────────────────────────────────────────
+  function showAssignmentMaker() {
+    if (document.getElementById('ce-am-overlay')) { document.getElementById('ce-am-overlay').remove(); return; }
+
+    const ast = {
+      topic: '', archetype: 'essay', subject: 'general', level: 'college',
+      includes: { objectives: true, steps: true, checklist: true, rubric: true, integrityNote: false },
+      generatedHTML: '',
+    };
+
+    const ARCHETYPES = [
+      { id: 'essay',    icon: '📄', label: 'Essay',            desc: 'Written argument or reflection' },
+      { id: 'research', icon: '🔬', label: 'Research Project', desc: 'Sources, outline, bibliography' },
+      { id: 'present',  icon: '📊', label: 'Presentation',     desc: 'Slides or oral with rubric' },
+      { id: 'discuss',  icon: '💬', label: 'Discussion Post',  desc: 'Post + reply requirements' },
+      { id: 'lab',      icon: '🧪', label: 'Lab / Hands-On',   desc: 'Procedure, data, conclusion' },
+      { id: 'creative', icon: '🎨', label: 'Creative Work',    desc: 'Portfolio, story, design brief' },
+      { id: 'case',     icon: '📰', label: 'Case Study',       desc: 'Scenario, analysis, recommendation' },
+      { id: 'group',    icon: '👥', label: 'Group Project',    desc: 'Team roles and deliverables' },
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ce-am-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:transparent;z-index:999999;pointer-events:none;';
+
+    const panel = document.createElement('div');
+    panel.style.cssText = 'position:absolute;top:8px;bottom:8px;left:74px;right:60px;background:#F2F4F5;border-radius:6px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(45,59,69,.28);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;font-size:14px;color:#2D3B45;pointer-events:auto;';
+
+    // Top bar
+    const topBar = document.createElement('div');
+    topBar.style.cssText = 'height:52px;background:#394B58;color:#fff;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
+    const topTitle = document.createElement('span'); topTitle.style.cssText = 'font-size:15px;font-weight:700;flex:1;'; topTitle.textContent = '✦ Assignment Builder';
+    const helpPanel = document.createElement('div');
+    helpPanel.style.cssText = 'display:none;padding:11px 18px 13px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.6;flex-shrink:0;';
+    helpPanel.textContent = 'Pick an assignment type, describe the topic, configure what to include, and click Generate. The AI drafts a complete, formatted assignment ready to insert into the Canvas editor.';
+    const helpBtn = document.createElement('button');
+    helpBtn.type = 'button'; helpBtn.textContent = '?'; helpBtn.title = 'How Assignment Builder works';
+    helpBtn.style.cssText = 'width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;transition:background .12s,color .12s;';
+    helpBtn.onclick = () => {
+      const open = helpPanel.style.display !== 'none';
+      helpPanel.style.display = open ? 'none' : 'block';
+      helpBtn.style.background = open ? 'transparent' : 'rgba(255,255,255,.2)';
+      helpBtn.style.color = open ? 'rgba(255,255,255,.82)' : '#fff';
+    };
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:3px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;';
+    closeBtn.textContent = '✕ Close'; closeBtn.onclick = () => overlay.remove();
+    topBar.append(topTitle, helpBtn, closeBtn); panel.append(topBar, helpPanel);
+
+    // 2-column grid
+    const cols = document.createElement('div');
+    cols.style.cssText = 'display:grid;grid-template-columns:300px 1fr;flex:1;min-height:0;overflow:hidden;';
+
+    // ── LEFT COLUMN ────────────────────────────────────────────────────────────
+    const left = document.createElement('div');
+    left.style.cssText = 'overflow-y:auto;background:#fff;border-right:1px solid #C7CDD1;display:flex;flex-direction:column;';
+    const leftHdr = document.createElement('div');
+    leftHdr.style.cssText = 'padding:12px 16px 10px;border-bottom:1px solid #C7CDD1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B7280;background:#fff;position:sticky;top:0;z-index:2;';
+    leftHdr.textContent = 'Builder'; left.appendChild(leftHdr);
+    const leftBody = document.createElement('div'); leftBody.style.cssText = 'padding:14px 16px;';
+
+    function amCard() { const d = document.createElement('div'); d.style.cssText = 'background:#fff;border:1px solid #C7CDD1;border-radius:3px;padding:12px;margin-bottom:12px;'; return d; }
+    function amLbl(txt) { const d = document.createElement('div'); d.style.cssText = 'font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;margin-bottom:8px;'; d.textContent = txt; return d; }
+    function amSel(lbl, opts, val, cb) {
+      const w = document.createElement('div'); w.style.marginBottom = '8px';
+      if (lbl) { const l = document.createElement('div'); l.textContent = lbl; l.style.cssText = 'font-size:12px;color:#6b7280;margin-bottom:4px;'; w.appendChild(l); }
+      const sel = document.createElement('select');
+      sel.style.cssText = 'width:100%;padding:8px 10px;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;box-sizing:border-box;';
+      opts.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === val) o.selected = true; sel.appendChild(o); });
+      sel.onchange = () => cb(sel.value); w.appendChild(sel); return w;
+    }
+    function amSwitch(lbl, desc, checked, cb) {
+      const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;';
+      const info = document.createElement('div');
+      const name = document.createElement('div'); name.textContent = lbl; name.style.cssText = 'font-size:12px;font-weight:500;color:#111827;'; info.appendChild(name);
+      if (desc) { const d = document.createElement('div'); d.textContent = desc; d.style.cssText = 'font-size:11px;color:#9ca3af;'; info.appendChild(d); }
+      let cur = checked;
+      const sw = document.createElement('div');
+      sw.style.cssText = `width:36px;height:20px;border-radius:10px;background:${cur ? '#0770B8' : '#d1d5db'};position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;`;
+      const knob = document.createElement('div');
+      knob.style.cssText = `position:absolute;top:2px;left:${cur ? '18px' : '2px'};width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);`;
+      sw.appendChild(knob);
+      sw.onclick = () => { cur = !cur; sw.style.background = cur ? '#0770B8' : '#d1d5db'; knob.style.left = cur ? '18px' : '2px'; cb(cur); };
+      row.appendChild(info); row.appendChild(sw); return row;
+    }
+
+    // Archetype picker
+    const typeCard = amCard(); typeCard.appendChild(amLbl('Assignment Type'));
+    const typeGrid = document.createElement('div'); typeGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;';
+    function renderArchetypes() {
+      typeGrid.innerHTML = '';
+      ARCHETYPES.forEach(a => {
+        const tile = document.createElement('button'); tile.type = 'button';
+        const active = ast.archetype === a.id;
+        tile.style.cssText = `text-align:left;padding:8px 10px;border-radius:6px;border:2px solid ${active ? '#0770B8' : '#e5e7eb'};background:${active ? '#E8F1F8' : '#f9fafb'};cursor:pointer;font-family:inherit;transition:border-color .12s,background .12s;`;
+        tile.innerHTML = `<div style="font-size:16px;margin-bottom:2px;">${a.icon}</div><div style="font-size:11px;font-weight:700;color:${active ? '#0770B8' : '#111827'};">${a.label}</div><div style="font-size:10px;color:#6b7280;line-height:1.3;">${a.desc}</div>`;
+        tile.onclick = () => { ast.archetype = a.id; renderArchetypes(); };
+        typeGrid.appendChild(tile);
+      });
+    }
+    renderArchetypes();
+    typeCard.appendChild(typeGrid); leftBody.appendChild(typeCard);
+
+    // Topic
+    const topicCard = amCard(); topicCard.appendChild(amLbl('Topic'));
+    const topicTa = document.createElement('textarea');
+    topicTa.rows = 3; topicTa.placeholder = 'e.g. The Water Cycle\ne.g. Supply and Demand\ne.g. Shakespeare\'s Hamlet';
+    topicTa.style.cssText = 'width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;';
+    topicTa.oninput = () => ast.topic = topicTa.value;
+    topicCard.appendChild(topicTa); leftBody.appendChild(topicCard);
+
+    // Settings
+    const setCard = amCard(); setCard.appendChild(amLbl('Settings'));
+    setCard.appendChild(amSel('Subject', [
+      ['general','General / Any'],['math','Mathematics'],['science','Science'],
+      ['history','History / Social Studies'],['english','English / Language Arts'],
+      ['foreign_lang','Foreign Language'],['cs','Computer Science'],['arts','Fine Arts / Music'],['other','Other'],
+    ], ast.subject, v => ast.subject = v));
+    setCard.appendChild(amSel('Level', [
+      ['elementary','Elementary (K–5)'],['middle','Middle School (6–8)'],
+      ['high','High School (9–12)'],['college','College / University'],['graduate','Graduate Level'],
+    ], ast.level, v => ast.level = v));
+    leftBody.appendChild(setCard);
+
+    // Include toggles
+    const inclCard = amCard(); inclCard.appendChild(amLbl('Include'));
+    [
+      ['objectives',    'Learning Objectives',        'What students will learn'],
+      ['steps',         'Step-by-Step Instructions',  'Numbered directions for the task'],
+      ['checklist',     'Submission Checklist',       'What to include before submitting'],
+      ['rubric',        'Grading Rubric',              'Criteria and point breakdown table'],
+      ['integrityNote', 'Academic Integrity Note',    'Reminder about original work'],
+    ].forEach(([k, l, d]) => inclCard.appendChild(amSwitch(l, d, ast.includes[k], v => { ast.includes[k] = v; })));
+    leftBody.appendChild(inclCard);
+
+    const statusEl = document.createElement('div'); statusEl.style.display = 'none'; leftBody.appendChild(statusEl);
+    function showAmStatus(msg, type) {
+      const c = { err:'background:#fef2f2;color:#991b1b;border:1px solid #fca5a5', ok:'background:#f0fdf4;color:#127A1B;border:1px solid #86efac', info:'background:#E8F1F8;color:#0770B8;border:1px solid #C7CDD1' };
+      statusEl.style.cssText = `display:block;padding:10px 12px;border-radius:3px;font-size:12px;margin-bottom:10px;line-height:1.5;${c[type] || c.info}`;
+      statusEl.textContent = msg;
+      if (type !== 'info') setTimeout(() => statusEl.style.display = 'none', 5000);
+    }
+
+    const genBtn = document.createElement('button');
+    genBtn.textContent = '✦ Generate Assignment';
+    genBtn.style.cssText = 'width:100%;padding:12px;background:#0770B8;color:#fff;border:none;border-radius:3px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;';
+    leftBody.appendChild(genBtn);
+
+    const loadEl = document.createElement('div');
+    loadEl.style.cssText = 'display:none;text-align:center;padding:12px;color:#6b7280;font-size:13px;';
+    loadEl.innerHTML = '<div style="display:inline-block;width:16px;height:16px;border:2px solid #C7CDD1;border-top-color:#0770B8;border-radius:50%;animation:ce-spin .7s linear infinite;vertical-align:middle;margin-right:8px;"></div>Generating your assignment…';
+    leftBody.appendChild(loadEl);
+    left.appendChild(leftBody);
+
+    // ── RIGHT COLUMN ────────────────────────────────────────────────────────────
+    const right = document.createElement('div');
+    right.style.cssText = 'overflow-y:auto;background:#F5F5F5;display:flex;flex-direction:column;';
+    const rightHdr = document.createElement('div');
+    rightHdr.style.cssText = 'padding:12px 16px 10px;border-bottom:1px solid #C7CDD1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6B7280;background:#F5F5F5;position:sticky;top:0;z-index:2;';
+    rightHdr.textContent = 'Preview'; right.appendChild(rightHdr);
+    const rightBody = document.createElement('div'); rightBody.style.cssText = 'padding:16px;flex:1;';
+
+    const previewEmpty = document.createElement('div');
+    previewEmpty.style.cssText = 'display:flex;align-items:center;justify-content:center;height:280px;color:#9ca3af;font-size:13px;text-align:center;line-height:1.8;';
+    previewEmpty.innerHTML = 'Configure and generate an assignment<br>on the left to preview it here.';
+    rightBody.appendChild(previewEmpty);
+
+    const previewContent = document.createElement('div'); previewContent.style.display = 'none';
+    const previewFrame = document.createElement('div');
+    previewFrame.style.cssText = 'background:#fff;border:1px solid #C7CDD1;border-radius:6px;padding:20px;margin-bottom:14px;font-size:13px;line-height:1.6;';
+
+    const actionRow = document.createElement('div'); actionRow.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+
+    const insertBtn = document.createElement('button');
+    insertBtn.textContent = '↓ Insert into Editor';
+    insertBtn.style.cssText = 'padding:10px 18px;background:#0770B8;color:#fff;border:none;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    insertBtn.onclick = () => {
+      if (!ast.generatedHTML) return;
+      if (window.tinymce && tinymce.activeEditor) { tinymce.activeEditor.insertContent(ast.generatedHTML); overlay.remove(); }
+      else showAmStatus('Canvas editor not found — try opening the assignment editor first.', 'err');
+    };
+
+    const replaceBtn = document.createElement('button');
+    replaceBtn.textContent = 'Replace Editor';
+    replaceBtn.style.cssText = 'padding:10px 18px;background:#fff;color:#374151;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+    replaceBtn.onclick = () => {
+      if (!ast.generatedHTML) return;
+      if (window.tinymce && tinymce.activeEditor) { tinymce.activeEditor.setContent(ast.generatedHTML); overlay.remove(); }
+      else showAmStatus('Canvas editor not found — try opening the assignment editor first.', 'err');
+    };
+
+    const regenBtn = document.createElement('button');
+    regenBtn.textContent = '↺ Regenerate';
+    regenBtn.style.cssText = 'padding:10px 14px;background:none;color:#6b7280;border:1px solid #C7CDD1;border-radius:3px;font-size:13px;cursor:pointer;font-family:inherit;';
+    regenBtn.onclick = () => genBtn.click();
+
+    actionRow.append(insertBtn, replaceBtn, regenBtn);
+    previewContent.append(previewFrame, actionRow);
+    rightBody.appendChild(previewContent);
+    right.appendChild(rightBody);
+
+    cols.appendChild(left); cols.appendChild(right);
+    panel.appendChild(cols); overlay.appendChild(panel); document.body.appendChild(overlay);
+
+    // ── GENERATE ────────────────────────────────────────────────────────────────
+    genBtn.onclick = () => {
+      if (!ast.topic.trim()) { showAmStatus('Please enter a topic first.', 'err'); return; }
+      genBtn.disabled = true; genBtn.textContent = '✦ Generating…';
+      loadEl.style.display = 'block'; statusEl.style.display = 'none';
+      previewEmpty.style.display = 'flex'; previewContent.style.display = 'none';
+
+      const archetype = ARCHETYPES.find(a => a.id === ast.archetype) || ARCHETYPES[0];
+      const levelMap = { elementary:'Elementary (K–5)', middle:'Middle School (6–8)', high:'High School (9–12)', college:'College / University', graduate:'Graduate Level' };
+      const subjectMap = { general:'General', math:'Mathematics', science:'Science', history:'History / Social Studies', english:'English / Language Arts', foreign_lang:'Foreign Language', cs:'Computer Science', arts:'Fine Arts / Music', other:'Other' };
+
+      const inclList = [];
+      if (ast.includes.objectives)    inclList.push('Learning objectives section at the top');
+      if (ast.includes.steps)         inclList.push('Step-by-step numbered instructions');
+      if (ast.includes.checklist)     inclList.push('Submission checklist (styled checkbox list)');
+      if (ast.includes.rubric)        inclList.push('Grading rubric table with criteria and point values');
+      if (ast.includes.integrityNote) inclList.push('Academic integrity reminder');
+
+      const prompt = `You are an expert curriculum designer for Canvas LMS. Create a complete, polished assignment.
+
+Assignment type: ${archetype.label} — ${archetype.desc}
+Topic: ${ast.topic}
+Subject area: ${subjectMap[ast.subject] || 'General'}
+Level: ${levelMap[ast.level] || 'College'}
+${inclList.length ? `Include these sections:\n${inclList.map(i => '- ' + i).join('\n')}` : ''}
+
+Rules:
+- Return ONLY valid HTML with inline CSS — no <style> tags, no <head>/<body>.
+- Use web-safe fonts (Arial, Georgia, etc.).
+- Make it visually well-organized with clear headings, sections, and spacing.
+- No JavaScript. No external images. No markdown.
+- Ready to paste directly into Canvas Rich Content Editor.
+- Use placeholder values where appropriate (e.g. "[Due Date]", "[Course Name]").`;
+
+      ceGenerate({ model:'claude-sonnet-4-6', max_tokens:8096, messages:[{role:'user',content:prompt}] })
+        .then(data => {
+          genBtn.disabled = false; genBtn.textContent = '✦ Generate Assignment';
+          loadEl.style.display = 'none';
+          let html = data?.content?.[0]?.text || '';
+          html = html.replace(/```html/gi, '').replace(/```/g, '').trim();
+          ast.generatedHTML = html;
+          previewFrame.innerHTML = html;
+          previewEmpty.style.display = 'none'; previewContent.style.display = 'block';
+          showAmStatus('Assignment generated — review and insert into the editor.', 'ok');
+        })
+        .catch(err => {
+          genBtn.disabled = false; genBtn.textContent = '✦ Generate Assignment';
+          loadEl.style.display = 'none';
+          showAmStatus(err.message || 'Error generating assignment — try again.', 'err');
+        });
+    };
+  }
+
   // ── UPGRADE MODAL ─────────────────────────────────────────────────────────────
   function showUpgradeModal(feature) {
     if (document.getElementById('ce-upgrade-overlay')) return;
@@ -2288,9 +2545,21 @@ Critical rules:
   // ── BUILD TOOLBAR ─────────────────────────────────────────────────────────────
   let toolbarHidden = false;
 
+  // Reopen button lives permanently on body — never removed or recreated.
+  const ceReopen = document.createElement('button');
+  ceReopen.id = 'ce-studio-reopen';
+  ceReopen.className = 'ce-studio-reopen';
+  ceReopen.type = 'button';
+  ceReopen.innerHTML = '<span>◆</span><span>Content Studio</span>';
+  ceReopen.addEventListener('click', () => {
+    ceReopen.style.display = 'none';
+    toolbarHidden = false;
+    buildToolbar();
+  });
+  document.body.appendChild(ceReopen);
+
   function buildToolbar() {
     if (document.getElementById('ce-toolbar')) return;
-    document.getElementById('ce-studio-reopen')?.remove();
     const toolbar = document.createElement('div'); toolbar.id = 'ce-toolbar';
 
     // rowProps must exist before rowTop so icon/video handlers can reference it
@@ -2352,10 +2621,7 @@ Critical rules:
     const hideBtn=document.createElement('button');hideBtn.className='ce-btn';hideBtn.type='button';hideBtn.textContent='— Hide';
     rowBottom.appendChild(hideBtn);
 
-    const reopen=document.createElement('button');reopen.id='ce-studio-reopen';reopen.className='ce-studio-reopen';reopen.type='button';
-    reopen.innerHTML='<span>◆</span><span>Content Studio</span>';
-    hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.style.display='none';reopen.style.display='flex';toolbarHidden=true;};
-    reopen.onclick=()=>{reopen.style.display='none';toolbar.style.display='block';toolbarHidden=false;};
+    hideBtn.onclick=e=>{e.stopPropagation();closeAllPanels();toolbar.remove();ceReopen.style.display='flex';toolbarHidden=true;};
 
     toolbar.appendChild(rowBottom);
     toolbar.appendChild(rowProps);
@@ -2369,7 +2635,6 @@ Critical rules:
     const rce = document.querySelector('.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce');
     if (rce) rce.parentNode.insertBefore(toolbar, rce);
     else document.body.appendChild(toolbar);
-    document.body.appendChild(reopen);
   }
 
   // ── QUIZ PAGE TOOLBAR ────────────────────────────────────────────────────────
@@ -2459,10 +2724,103 @@ Critical rules:
     setInterval(updateQuizBar, 1500);
   })();
 
+  // ── ASSIGNMENT PAGE TOOLBAR ──────────────────────────────────────────────────
+  (function installAssignmentToolbar() {
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
+
+    const st = document.createElement('style');
+    st.textContent = 'body.ce-assign-mode:not(.ce-assign-collapsed){padding-top:52px!important;box-sizing:border-box!important}body.ce-assign-mode.ce-assign-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#ce-assign-toolbar{left:0!important}}';
+    (document.head || document.documentElement).appendChild(st);
+
+    const colTab = document.createElement('button');
+    colTab.id = 'ce-assign-tab';
+    colTab.type = 'button';
+    colTab.textContent = 'Assignment Builder  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
+    colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
+    document.body.appendChild(colTab);
+
+    const bar = document.createElement('div');
+    bar.id = 'ce-assign-toolbar';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+
+    const brand = document.createElement('div');
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#0770B8,#10B981);display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px rgba(16,185,129,.25)">✦</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Assignment Builder</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">AI ASSIGNMENT TOOLS</small></span>';
+
+    function amMkBtn(icon, text) {
+      const b = document.createElement('button'); b.type = 'button';
+      b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
+      return b;
+    }
+
+    const assignBtn = amMkBtn('✨', 'Assignment Builder');
+    assignBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-assignment')));
+
+    const settingsBtn = amMkBtn('⚙', 'Settings');
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
+    settingsBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-settings')));
+
+    const helpBtn = amMkBtn('?', 'Help');
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'assignment' })));
+
+    const hideBtn = amMkBtn('—', 'Hide');
+    hideBtn.style.marginLeft = 'auto';
+    hideBtn.addEventListener('click', () => {
+      bar.style.display = 'none';
+      colTab.style.display = 'block';
+      document.body.classList.add('ce-assign-collapsed');
+    });
+
+    colTab.addEventListener('click', () => {
+      colTab.style.display = 'none';
+      bar.style.display = 'flex';
+      document.body.classList.remove('ce-assign-collapsed');
+    });
+
+    bar.append(brand, assignBtn, settingsBtn, helpBtn, hideBtn);
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    let _onPage = false;
+
+    function isAssignmentEditPage() {
+      const p = window.location.pathname;
+      return /\/courses\/\d+\/assignments\/new/.test(p) || /\/courses\/\d+\/assignments\/\d+\/edit/.test(p);
+    }
+
+    function updateAssignBar() {
+      const onPage = isAssignmentEditPage();
+      if (onPage && !_onPage) {
+        document.body.classList.add('ce-assign-mode');
+        document.body.classList.remove('ce-assign-collapsed');
+        bar.style.display = 'flex';
+        colTab.style.display = 'none';
+      } else if (!onPage && _onPage) {
+        document.body.classList.remove('ce-assign-mode', 'ce-assign-collapsed');
+        bar.style.display = 'none';
+        colTab.style.display = 'none';
+      }
+      _onPage = onPage;
+    }
+
+    updateAssignBar();
+    new MutationObserver(() => setTimeout(updateAssignBar, 200)).observe(document.body, { childList: true, subtree: false });
+    setInterval(updateAssignBar, 1500);
+  })();
+
   // ── HUB INTEGRATION ──────────────────────────────────────────────────────────
   document.addEventListener('ce-toggle-quiz', () => {
     const existing = document.getElementById('ce-qm-overlay');
     if (existing) existing.remove(); else showQuizMaker();
+  });
+
+  document.addEventListener('ce-toggle-assignment', () => {
+    const existing = document.getElementById('ce-am-overlay');
+    if (existing) existing.remove(); else showAssignmentMaker();
   });
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
@@ -2474,18 +2832,8 @@ Critical rules:
   const RCE_SEL = '.rce-wrapper, [data-testid="RCEWrapper"], .tox-tinymce';
   if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) buildToolbar();
   new MutationObserver(() => {
-    if (isCanvasCourseEditorPage() && document.querySelector(RCE_SEL)) {
-      const hasToolbar = document.getElementById('ce-toolbar');
-      const hasReopen  = document.getElementById('ce-studio-reopen');
-      if (!hasToolbar && !hasReopen) {
-        buildToolbar();
-        if (toolbarHidden) {
-          const t = document.getElementById('ce-toolbar');
-          const r = document.getElementById('ce-studio-reopen');
-          if (t) t.style.display = 'none';
-          if (r) r.style.display = 'flex';
-        }
-      }
+    if (!toolbarHidden && isCanvasCourseEditorPage() && document.querySelector(RCE_SEL) && !document.getElementById('ce-toolbar')) {
+      buildToolbar();
     }
     insertQuizBuilderPageButton();
   }).observe(document.body, { childList:true, subtree:true });
