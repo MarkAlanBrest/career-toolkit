@@ -124,13 +124,13 @@ export async function DELETE(req: NextRequest) {
   if (!id) return json({ error: 'Missing signup id.' }, 400);
 
   const raw = await redis.lrange<string | RawSignup>('text-signups', 0, -1);
-  const signups = raw.map(normalizeSignup);
-  const target = signups.find(s => String(s.id) === id);
+  const entries = raw.map(value => ({ value, signup: normalizeSignup(value) }));
+  const target = entries.find(entry => String(entry.signup.id) === id);
   if (!target) return json({ error: 'Signup not found.' }, 404);
 
-  await redis.lrem('text-signups', 1, JSON.stringify(target));
-  await redis.del(duplicateKey(target.phone, target.courseId || '-', target.className || '-'));
-  await redis.del(`text-signup-check:${target.phone}:${(target.className || '-').toLowerCase()}`);
+  await redis.lrem('text-signups', 1, typeof target.value === 'string' ? target.value : JSON.stringify(target.value));
+  await redis.del(duplicateKey(target.signup.phone, target.signup.courseId || '-', target.signup.className || '-'));
+  await redis.del(`text-signup-check:${target.signup.phone}:${(target.signup.className || '-').toLowerCase()}`);
 
   return json({ ok: true });
 }

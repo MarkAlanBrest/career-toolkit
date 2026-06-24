@@ -124,10 +124,10 @@
           <ol>
             <li>Click <strong>Bulk Message</strong> to open the batch sender.</li>
             <li>Select a course, then choose which students to message — all students, specific groups, or individuals.</li>
-            <li>Write your subject and message. Use <code>{{firstName}}</code> and <code>{{courseName}}</code> as placeholders.</li>
+            <li>Write your subject and message. Use <code>{{studentName}}</code> and <code>{{courseName}}</code> as placeholders.</li>
             <li>Click <strong>Send</strong> — every student receives a separate, individual message (not a group thread).</li>
           </ol>
-          <div class="ce-help-tip">💡 Placeholders work in both the subject and body. Example: <em>"Hi {{firstName}}, your grade for {{courseName}} has been updated."</em></div>
+          <div class="ce-help-tip">💡 Placeholders work in both the subject and body. Example: <em>"Hi {{studentName}}, your grade for {{courseName}} has been updated."</em></div>
         </div>
         <div class="ce-help-section">
           <div class="ce-help-sh">📋 Templates</div>
@@ -195,7 +195,7 @@
           <ol>
             <li>Open a Canvas page, assignment, or discussion and select <strong>Edit</strong>.</li>
             <li>Use <strong>Insert</strong>, <strong>Layouts</strong>, or <strong>Icons</strong> to add a component at the editor cursor.</li>
-            <li>Select an inserted component to reveal its color, spacing, alignment, and text controls.</li>
+            <li>Configure color and style <em>before</em> inserting — use the props bar that appears after clicking a component in the menu.</li>
             <li>Use Canvas Preview or Student View before publishing to check links, readability, and mobile layout.</li>
           </ol>
         </div>
@@ -847,26 +847,32 @@
     saveBtn.addEventListener('click', async () => {
       saveBtn.disabled = true;
       saveMsg.style.color = DS.muted;
-      const keys = parseKeys(licenseIn.value);
-      saveMsg.textContent = keys.length ? 'Validating licenses…' : 'Saving…';
-      const status = keys.length ? await showAccount(keys) : { valid: false, errors: [] };
-      if (keys.length && (!status?.valid || status.errors?.length)) {
+      try {
+        const keys = parseKeys(licenseIn.value);
+        saveMsg.textContent = keys.length ? 'Validating licenses…' : 'Saving…';
+        const status = keys.length ? await showAccount(keys) : { valid: false, errors: [] };
+        if (keys.length && (!status?.valid || status.errors?.length)) {
+          saveBtn.disabled = false;
+          saveMsg.style.color = '#DC2626';
+          saveMsg.textContent = status?.errors?.join(' ') || 'License key validation failed — check that the key is correct and try again.';
+          return;
+        }
+        chrome.storage.local.set({
+          ce_teacher_name:   nameIn.value.trim(),
+          ce_license_key:    keys.join('\n'),
+          ce_license_keys:   keys,
+        }, () => {
+          chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
+          saveBtn.disabled = false;
+          saveMsg.style.color = DS.green;
+          saveMsg.textContent = '✓ Saved — refresh Canvas to load package changes';
+          setTimeout(() => { saveMsg.textContent = ''; }, 2500);
+        });
+      } catch(e) {
         saveBtn.disabled = false;
         saveMsg.style.color = '#DC2626';
-        saveMsg.textContent = status?.errors?.join(' ') || 'License keys were not saved.';
-        return;
+        saveMsg.textContent = e.message || 'Could not save settings — check your connection and try again.';
       }
-      chrome.storage.local.set({
-        ce_teacher_name:   nameIn.value.trim(),
-        ce_license_key:    keys.join('\n'),
-        ce_license_keys:   keys,
-      }, () => {
-        chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
-        saveBtn.disabled = false;
-        saveMsg.style.color = DS.green;
-        saveMsg.textContent = '✓ Saved — refresh Canvas to load package changes';
-        setTimeout(() => { saveMsg.textContent = ''; }, 2500);
-      });
     });
 
     stack.appendChild(saveBtn);

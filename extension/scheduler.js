@@ -438,6 +438,8 @@
   async function loadCourseData() {
     const courseId = state.selectedCourseId || getCourseId();
     if (!courseId) { setNotice('Select a course from the dropdown above.', 'err'); return; }
+    const token = await new Promise(r => chrome.storage.local.get('ce_canvas_token', s => r(s.ce_canvas_token || '')));
+    if (!token) { setNotice('No Canvas API token found — add one in Canvas Enhancer Settings before loading course data.', 'err'); return; }
     state.loading = true;
     state.courseId = courseId;
     setNotice('Loading course items from Canvas...', 'info');
@@ -450,8 +452,13 @@
       state.modules = modules;
       state.items = buildItems(modules, assignments, quizzes);
       hydrateExistingSchedule();
+      // Remove schedule entries for items that no longer exist in Canvas
+      const liveIds = new Set(state.items.map(i => i.id));
+      Object.keys(state.schedule).forEach(id => { if (!liveIds.has(id)) delete state.schedule[id]; });
       syncGeneratedDates();
-      setNotice(`Loaded ${state.items.length} module items from this course.`, 'ok');
+      const skipped = assignments.length - state.items.length;
+      const skipNote = skipped > 0 ? ` (${skipped} assignment${skipped === 1 ? '' : 's'} not in any module were skipped)` : '';
+      setNotice(`Loaded ${state.items.length} module items from this course.${skipNote}`, 'ok');
     } catch (error) {
       setNotice(`Could not load Canvas data: ${error.message}`, 'err');
     } finally {
@@ -530,6 +537,7 @@
   }
 
   async function publishSchedule() {
+    if (state.saving) return; // prevent double-click
     const scheduledItems = state.items.filter((item) => Boolean(state.schedule[item.id]));
     if (!scheduledItems.length) { setNotice('Drag at least one item onto a date before publishing.', 'err'); return; }
     if (!state.courseId) { setNotice('Open a Canvas course first.', 'err'); return; }
@@ -540,6 +548,10 @@
     if (!confirmed) return;
 
     state.saving = true;
+    try { await _publishScheduleInner(scheduledItems); } finally { state.saving = false; render(); }
+  }
+
+  async function _publishScheduleInner(scheduledItems) {
     setNotice(`Publishing ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'} to Canvas...`, 'info');
     render();
 
@@ -605,9 +617,6 @@
       const more = errors.length > 5 ? `\n...and ${errors.length - 5} more.` : '';
       setNotice(`Updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}. ${errors.length} failed.\n${detail}${more}`, 'err');
     }
-
-    state.saving = false;
-    render();
   }
 
   function handleTileDragStart(itemId, event) {
@@ -1624,6 +1633,5 @@
 
     updateBar();
     new MutationObserver(() => setTimeout(updateBar, 200)).observe(document.body, { childList: true, subtree: false });
-    setInterval(updateBar, 1500);
   })();
 })();

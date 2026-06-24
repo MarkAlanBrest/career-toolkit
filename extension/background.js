@@ -66,9 +66,22 @@ async function handleStreamPort(port) {
       let buffer = '';
       let rawBody = '';
       let gotChunks = false;
+      const STREAM_TIMEOUT_MS = 30000;
+      let timeoutId;
+      const abortController = new AbortController();
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          abortController.abort();
+          reject(new Error('Generation timed out — the server took too long to respond. Please try again.'));
+        }, STREAM_TIMEOUT_MS);
+      });
 
+      try {
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await Promise.race([
+          reader.read(),
+          timeoutPromise.then(() => { throw new Error('unreachable'); }),
+        ]);
         if (done) break;
         const decoded = decoder.decode(value, { stream: true });
         rawBody += decoded;
@@ -87,6 +100,10 @@ async function handleStreamPort(port) {
             }
           } catch { }
         }
+      }
+      } finally {
+        clearTimeout(timeoutId);
+        reader.cancel().catch(() => {});
       }
 
       // Fallback: if no SSE chunks arrived the endpoint returned plain JSON
@@ -308,7 +325,7 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
 
     const text = await res.text();
     let data;
-    try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
+    try { data = JSON.parse(text); } catch { throw new Error(`Could not reach the file URL — the extension may need additional host permissions for this domain (or the server returned an unexpected response: ${res.status})`); }
     if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
     return data;
   }
@@ -321,7 +338,7 @@ async function handleParseFile({ b64, fileUrl, token, filename, mimeType }) {
   });
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); } catch { throw new Error(`Server error ${res.status} — make sure the latest version is deployed to Vercel`); }
+  try { data = JSON.parse(text); } catch { throw new Error(`Could not reach the file URL — the extension may need additional host permissions for this domain (or the server returned an unexpected response: ${res.status})`); }
   if (!res.ok) throw new Error(data?.error || `Parse error ${res.status}`);
   return data;
 }

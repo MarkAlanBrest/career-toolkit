@@ -379,7 +379,8 @@
     const stored = GM_getValue(STORAGE_KEYS.TEACHER_NAME, '');
     if (stored) return stored;
     try {
-      const profile = await canvasGet('/users/self/profile');
+      const raw = await canvasGet('/users/self/profile');
+      const profile = Array.isArray(raw) ? raw[0] : raw;
       const name = profile?.short_name || profile?.name || profile?.sortable_name || '';
       if (name) GM_setValue(STORAGE_KEYS.TEACHER_NAME, name);
       return name;
@@ -429,7 +430,9 @@
         if (GM_getValue(STORAGE_KEYS.TEMPLATE_VERSION, '') !== '4') {
           const migrated = { ...parsed };
           for (const [key, template] of Object.entries(DEFAULT_TEMPLATES)) {
-            migrated[key] = JSON.parse(JSON.stringify(template));
+            if (key.startsWith('auto_') || !migrated[key]) {
+              migrated[key] = JSON.parse(JSON.stringify(template));
+            }
           }
           GM_setValue(STORAGE_KEYS.TEMPLATES, JSON.stringify(migrated));
           GM_setValue(STORAGE_KEYS.TEMPLATE_VERSION, '4');
@@ -989,7 +992,7 @@
     return canvasPost('/conversations', {
       recipients: [String(recipientId)],
       subject,
-      body: bodyForCanvasMessage(body),
+      body: bodyForCanvasHtml(body),
       force_new: true,
       group_conversation: false,
       context_code: 'course_' + courseId,
@@ -1110,18 +1113,22 @@
         const points = Number(s.assignment?.points_possible);
         return Number.isFinite(score) && Number.isFinite(points) && points > 0 && (score / points) * 100 < threshold;
       });
-      for (const sub of lowSubs) {
-        const pct = Math.round((Number(sub.score) / Number(sub.assignment.points_possible)) * 1000) / 10;
-        const vars = {
-          studentName: student.name || student.sortable_name || 'Student',
-          teacherName,
-          courseName,
-          currentGrade: '',
-          currentScore: String(pct),
-          gradeAlertDetail: `${sub.assignment?.name || 'Assignment'} score: ${pct}%\nAlert threshold: ${threshold}%`,
-        };
-        messages.push({ kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:low-assignment:${student.id}:${sub.assignment_id}:below-${threshold}:once`, ...buildMessage(template, vars) });
-      }
+      if (!lowSubs.length) continue;
+      const assignmentIds = lowSubs.map(s => s.assignment_id).sort().join(',');
+      const detailLines = lowSubs.map(s => {
+        const pct = Math.round((Number(s.score) / Number(s.assignment.points_possible)) * 1000) / 10;
+        return `${s.assignment?.name || 'Assignment'}: ${pct}% (threshold: ${threshold}%)`;
+      });
+      const worstPct = Math.min(...lowSubs.map(s => Math.round((Number(s.score) / Number(s.assignment.points_possible)) * 1000) / 10));
+      const vars = {
+        studentName: student.name || student.sortable_name || 'Student',
+        teacherName,
+        courseName,
+        currentGrade: '',
+        currentScore: String(worstPct),
+        gradeAlertDetail: detailLines.join('\n'),
+      };
+      messages.push({ kind: 'message', studentId: student.id, studentName: vars.studentName, dedupeKey: `${automation.id}:low-assignment:${student.id}:${assignmentIds}:below-${threshold}:once`, ...buildMessage(template, vars) });
     }
     return messages;
   }
@@ -1329,12 +1336,15 @@
     });
 
     let selectedType = firstTemplateType;
+    let _generating = false;
     const typeCards = container.querySelectorAll('#ces-type-cards .ces-card');
     const buildMessagesForSelection = async () => {
+      if (_generating) return;
+      _generating = true;
       const visibleCourses = await getVisibleCoursesForSend();
       const selectedCourses = visibleCourses.filter(course => selectedCourseIds.has(String(course.id)));
       const currentTeacherName = await getCurrentTeacherName();
-      if (!selectedCourses.length) { showStatus('Please select at least one class.', 'error'); return; }
+      if (!selectedCourses.length) { _generating = false; showStatus('Please select at least one class.', 'error'); return; }
 
       currentCourseId = selectedCourses[0].id;
       GM_setValue(STORAGE_KEYS.LAST_COURSE, selectedCourses.map(course => course.id).join(','));
@@ -1371,6 +1381,8 @@
       } catch(err) {
         showStatus('Error: ' + err.message, 'error');
         setProgress('Error occurred.', 0);
+      } finally {
+        _generating = false;
       }
       setTimeout(() => { progressArea.style.display = 'none'; }, 2000);
     };
@@ -1678,6 +1690,7 @@
                       .replace(/\{\{missingAssignmentList\}\}/g, '(see your individual message)')
                       .replace(/\{\{currentGrade\}\}/g, '(see your individual message)')
                       .replace(/\{\{currentScore\}\}/g, '(see your individual message)')
+                      .replace(/\{\{gradeAlertDetail\}\}/g, '(see your individual message)')
                       .replace(/\{\{daysForward\}\}/g, String(timing.daysForward))
                       .replace(/\{\{daysBack\}\}/g, String(timing.daysBack))
                       .replace(/\{\{missingSection\}\}/g, '').replace(/\{\{upcomingSection\}\}/g, '')
@@ -1807,6 +1820,7 @@
 
     container.querySelector('#ces-auto-type').addEventListener('change', () => renderAutomationFields(container));
     container.querySelector('#ces-run-all-autos').addEventListener('click', async () => {
+      if (!confirm('Run all active automations now? This will send messages to students who match each automation\'s conditions.')) return;
       const btn = container.querySelector('#ces-run-all-autos');
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span> Checking...';
       try {
@@ -1923,6 +1937,7 @@
     `).join('');
 
     container.querySelectorAll('.ces-run-auto').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Run this automation now? It will send messages to students who match this automation\'s conditions.')) return;
       btn.disabled = true; btn.innerHTML = '<span class="ces-spinner"></span>';
       try {
         const result = await runAutomations(btn.dataset.id);
@@ -2645,6 +2660,14 @@
       return b;
     }
 
+    const quickPostBtn = document.createElement('button');
+    quickPostBtn.type = 'button';
+    quickPostBtn.innerHTML = '<span style="font-size:13px">📢</span><span>Quick Post</span>';
+    quickPostBtn.style.cssText = 'height:34px;padding:0 14px;border:none;border-radius:7px;background:#fff;color:#0770B8;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,box-shadow .12s;letter-spacing:.1px;display:none;align-items:center;gap:7px;box-shadow:0 1px 4px rgba(0,0,0,.18);';
+    quickPostBtn.addEventListener('mouseenter', () => { quickPostBtn.style.background = '#E8F1FB'; quickPostBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,.22)'; });
+    quickPostBtn.addEventListener('mouseleave', () => { quickPostBtn.style.background = '#fff'; quickPostBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)'; });
+    quickPostBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-quick-announcements')));
+
     const messagingWrap = document.createElement('div');
     messagingWrap.style.cssText = 'position:relative;z-index:2;flex-shrink:0;';
     const messagingBtn = mkBtn('📨', 'Messaging  ▾');
@@ -2715,7 +2738,7 @@
       document.body.classList.remove('ces-inbox-collapsed');
     });
 
-    bar.append(brand, messagingWrap, settingsBtn, helpBtn, hideBtn);
+    bar.append(brand, quickPostBtn, messagingWrap, settingsBtn, helpBtn, hideBtn);
     // Insert before all other body children so it's first in document flow
     document.body.insertBefore(bar, document.body.firstChild);
 
@@ -2736,10 +2759,12 @@
         document.body.classList.toggle('ces-inbox-mode', shouldShow);
         if (!_onInbox) document.body.classList.remove('ces-inbox-collapsed');
         colTab.style.display = (isCollapsed && !composeOpen) ? 'block' : 'none';
+        quickPostBtn.style.display = onAnnouncements ? 'flex' : 'none';
       } else if (!onMessagingPage && _onInbox) {
         document.body.classList.remove('ces-inbox-mode', 'ces-inbox-collapsed');
         bar.style.display = 'none';
         colTab.style.display = 'none';
+        quickPostBtn.style.display = 'none';
       }
       _onInbox = onMessagingPage;
     }

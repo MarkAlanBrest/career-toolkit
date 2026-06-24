@@ -35,7 +35,8 @@
   }
 
   const BAKED_VERSION = '2.4';
-  const COMPONENTS_URL = 'https://career-toolkit-21pak9bmo-mark-brests-projects.vercel.app/components.json';
+  const COMPONENTS_URL = 'https://career-toolkit-ruby.vercel.app/components.json';
+  const CE_MODEL = 'claude-sonnet-4-6';
 
   // ── THEME COLORS ─────────────────────────────────────────────────────────────
   const COLORS = [
@@ -236,9 +237,9 @@
           COMPONENTS = { ...parsed.components, ...(BAKED_COMPONENTS.navigation ? { navigation: BAKED_COMPONENTS.navigation } : {}) };
         }
       }
-    } catch(e) {}
+    } catch(e) { console.warn('[CE] Failed to read cached components:', e); }
     fetch(COMPONENTS_URL + '?v=' + Date.now())
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         const curVer = parseFloat(GM_getValue('ce_version', BAKED_VERSION));
         if (parseFloat(data.version) > curVer) {
@@ -249,7 +250,7 @@
           if (t) { t.remove(); buildToolbar(); }
         }
       })
-      .catch(() => {});
+      .catch(e => console.warn('[CE] Could not fetch updated components:', e));
   }
 
   // ── CSS ───────────────────────────────────────────────────────────────────────
@@ -258,18 +259,18 @@
     #ce-toolbar {
       display:block;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      font-size:13px; background:#F8FAFC;
-      border:1px solid #CBD5E1; border-bottom:none;
-      border-radius:10px 10px 0 0; position:relative; z-index:9000; user-select:none;
-      box-shadow:0 -1px 0 rgba(15,23,42,.03);
+      font-size:13px; background:#0770B8;
+      border-bottom:1px solid #055b9a;
+      position:relative; z-index:9000; user-select:none;
+      color:#fff; box-sizing:border-box;
     }
     #ce-row-top {
       display:flex; align-items:center; gap:4px;
       padding:6px 10px; border-bottom:1px solid #e0e0e0; flex-wrap:wrap;
     }
     #ce-row-bottom {
-      min-height:52px;display:flex;align-items:center;gap:6px;
-      padding:0 10px;background:#172A36;flex-wrap:wrap;border-radius:9px 9px 0 0;
+      height:40px;display:flex;align-items:center;gap:2px;
+      padding:0 8px;background:#0770B8;flex-wrap:nowrap;
     }
     #ce-row-props {
       display:none; align-items:center; gap:8px; flex-wrap:wrap;
@@ -317,40 +318,41 @@
     .ce-prop-swatch:hover { transform:scale(1.15); }
     .ce-prop-swatch.active { border-color:#333 !important; box-shadow:0 0 0 1px #fff inset; }
     .ce-prop-sep { width:1px; height:20px; background:#e0e0e0; flex-shrink:0; }
-    .ce-sep { width:1px; height:20px; background:#ddd; margin:0 2px; flex-shrink:0; }
+    .ce-sep { width:1px; height:20px; background:rgba(255,255,255,.28); margin:0 4px; flex-shrink:0; }
     .ce-group { position:relative; }
-    .ce-studio-brand { height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 6px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap; }
-    .ce-studio-mark { width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25); }
-    .ce-studio-copy { display:flex;flex-direction:column;align-items:flex-start;line-height:1.05; }
-    .ce-studio-copy strong { font-size:12px;letter-spacing:.2px; }
-    .ce-studio-copy small { font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px; }
+    .ce-studio-brand { display:flex;align-items:center;gap:6px;padding-right:8px;border-right:1px solid rgba(255,255,255,.28);margin-right:4px;flex-shrink:0;white-space:nowrap; }
+    .ce-studio-mark { color:#fff;font-size:14px;line-height:1; }
+    .ce-studio-name { font-size:12px;font-weight:700;color:#fff;letter-spacing:.01em;white-space:nowrap; }
     .ce-btn {
-      display:flex; align-items:center; gap:5px;
-      height:34px;background:transparent;border:1px solid transparent;border-radius:7px;
-      padding:0 12px;cursor:pointer;font-size:12px;font-weight:650;color:rgba(255,255,255,.78);
-      white-space:nowrap;transition:background .12s,color .12s,border-color .12s;font-family:inherit;
+      display:flex; align-items:center; gap:4px;
+      height:30px;background:transparent;border:1px solid transparent;border-radius:4px;
+      padding:5px 9px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,.92);
+      white-space:nowrap;transition:background .12s, color .12s;font-family:inherit;line-height:1.4;flex-shrink:0;box-sizing:border-box;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:rgba(255,255,255,.1);color:#fff; }
-    .ce-icon { font-style:normal; font-size:14px; }
+    .ce-btn:hover, .ce-btn.ce-open { background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.22);color:#fff; }
+    #ce-toolbar .ce-btn-ai { background:#fff;color:#0770B8;font-weight:700;border:1px solid rgba(255,255,255,.85); }
+    #ce-toolbar .ce-btn-ai:hover { background:#E8F1F8;color:#055a96;border-color:#fff; }
+    .ce-icon { font-style:normal; font-size:13px; }
     .ce-panel {
-      display:none; position:absolute; top:calc(100% + 4px); left:0;
-      background:#fff;border:1px solid #E2E8F0;border-radius:10px;
-      box-shadow:0 12px 30px rgba(15,23,42,.22);min-width:210px;
+      display:none; position:absolute; top:calc(100% + 2px); left:0;
+      background:#fff;border:1px solid #c7cdd1;border-radius:4px;
+      box-shadow:0 4px 16px rgba(0,0,0,.13);min-width:180px;
       z-index:9999; overflow:hidden;
     }
     .ce-panel.ce-open { display:block; }
     .ce-item {
       display:block; width:100%; text-align:left; background:none;
-      border:none;border-radius:7px;
-      padding:9px 11px;font-size:12px;font-weight:600;color:#334155;
+      border:none;border-bottom:1px solid #f0f0f0;border-radius:0;
+      padding:7px 14px;font-size:13px;font-weight:400;color:#2d3b45;
       cursor:pointer; transition:background .1s; font-family:inherit;
     }
     .ce-item:last-child { border-bottom:none; }
-    .ce-item:hover { background:#F1F5F9;color:#0F172A; }
-    .ce-mega-panel { width:280px;padding:7px;max-height:420px;overflow-y:auto; }
-    .ce-menu-section { padding:8px 10px 5px;font-size:10px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.08em; }
+    .ce-item:hover { background:#e8f0f8;color:#0770B8; }
+    .ce-mega-panel { min-width:220px;max-height:420px;overflow-y:auto; }
+    .ce-menu-section { padding:10px 14px 4px;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em; }
     .ce-studio-spacer { margin-left:auto; }
-    .ce-studio-reopen { display:none;position:fixed;top:64px;right:16px;z-index:99999;align-items:center;gap:7px;padding:8px 14px;border:1px solid #3d5166;border-radius:20px;background:#172A36;color:#fff;font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35); }
+    .ce-studio-reopen { display:none;position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:9000;align-items:center;gap:6px;padding:6px 14px;border:none;border-radius:20px;background:#394B58;color:#fff;font:600 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2);white-space:nowrap; }
+    .ce-studio-reopen:hover { background:#2d3b45; }
     .ce-icon-panel { min-width:300px; padding:0; }
     .ce-icon-tabs { display:flex; border-bottom:1px solid #eee; }
     .ce-icon-tab {
@@ -465,7 +467,9 @@
         if (doc && doc.querySelector('body#tinymce')) { doc.execCommand('insertHTML',false,html + '<p><br></p>'); return; }
       } catch(e) {}
     }
-    navigator.clipboard.writeText(html).then(() => showNotice('HTML copied — paste into editor'));
+    navigator.clipboard.writeText(html)
+      .then(() => showNotice('HTML copied — paste into editor'))
+      .catch(() => showNotice('Could not access clipboard — copy the HTML manually'));
   }
 
   function showNotice(msg) {
@@ -700,7 +704,7 @@
 
     buildPropsRow(rowProps, item, (props) => {
       if (item.generate) {
-        const genProps = { ...props, color: props.color.p, n: props.n, rows: props.rows, cols: props.cols, weeks: props.weeks, split: props.split };
+        const genProps = { ...props, color: (props.color?.p ?? props.color ?? '#0770B8'), n: props.n, rows: props.rows, cols: props.cols, weeks: props.weeks, split: props.split };
         let html = GENERATORS[item.generate](genProps);
         if (props.width && props.width !== '100%') {
           html = `<div style="width:${props.width};">${html}</div>`;
@@ -1480,6 +1484,7 @@
       const genBtn=document.createElement('button');
       genBtn.textContent=`✦ Generate ${PAGE_TYPES.find(t=>t.value===st.contentType)?.label||'Content'}`;
       genBtn.style.cssText='width:100%;padding:14px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,.35);margin-bottom:6px;font-family:inherit;';
+      genBtn.dataset.ceCgenbtn='1';
       genBtn.onclick=()=>cbGenerate(st,genBtn,render);
       const actionBar=document.createElement('div');
       actionBar.style.cssText='position:sticky;bottom:0;z-index:4;margin:6px -14px 0;padding:12px 14px;background:rgba(248,250,252,.96);backdrop-filter:blur(8px);border-top:1px solid #E2E8F0;display:flex;gap:10px;align-items:center;';
@@ -1500,7 +1505,7 @@
       if(!st.generatedHTML)return;
       st.view='loading';render();
       const prompt='Revise the following Canvas LMS HTML. '+instruction+' Preserve valid HTML, inline styles, links, accessibility, and the original meaning. Return only the complete revised HTML with no markdown fences.\n\n'+st.generatedHTML;
-      ceGenerate({model:'claude-sonnet-4-6',max_tokens:8096,messages:[{role:'user',content:prompt}]})
+      ceGenerate({model:CE_MODEL,max_tokens:8096,messages:[{role:'user',content:prompt}]})
         .then(data=>{
           let html=data?.content?.[0]?.text||'';
           html=html.replace(/```html\s*/gi,'').replace(/```/g,'').trim();
@@ -1679,7 +1684,7 @@ if (st.includedLinks.length) {
     if (st.textContent.trim()) prompt+=`\nContent:\n${st.textContent}\n`;
     if (st.uploadedFile)       prompt+=`\nUploaded file (${st.uploadedName}):\n${st.uploadedFile}\n`;
     prompt+=`\nRules: Return ONLY HTML. Inline CSS only — no <style> tags, no <head>/<body>. Web-safe fonts only. No JavaScript. No external images. Ready to paste into Canvas Rich Content Editor.`;
-    ceGenerate({ model:'claude-sonnet-4-6', max_tokens:8096, messages:[{role:'user',content:prompt}] })
+    ceGenerate({ model:CE_MODEL, max_tokens:8096, messages:[{role:'user',content:prompt}] })
       .then(data => {
         genBtn.disabled=false; genBtn.textContent='✦ Generate';
         let html=data?.content?.[0]?.text||'';
@@ -1687,7 +1692,10 @@ if (st.includedLinks.length) {
         st.generatedHTML=html; st.view='result'; renderFn();
       })
       .catch(err => {
-        genBtn.disabled=false; genBtn.textContent='✦ Generate'; st.view='build'; renderFn();
+        st.view='build'; renderFn();
+        // Re-query after render in case the original genBtn was detached
+        const liveBtn = document.querySelector('[data-ce-cgenbtn]') || genBtn;
+        liveBtn.disabled=false; liveBtn.textContent='✦ Generate';
         showNotice(err.message||'Error generating content — try again');
       });
   }
@@ -2133,7 +2141,7 @@ Critical rules:
 - Match the exact question type counts listed above
 - Total: exactly ${totalQ} questions`;
 
-      ceGenerate({ model:'claude-sonnet-4-6', max_tokens:12000, messages:[{role:'user',content:prompt}] })
+      ceGenerate({ model:CE_MODEL, max_tokens:12000, messages:[{role:'user',content:prompt}] })
         .then(data => {
           genBtn.disabled=false; loadEl.style.display='none';
           let raw=data?.content?.[0]?.text||'';

@@ -15,7 +15,7 @@
     });
 
     function getToken() { return GM_getValue('ce_canvas_token', ''); }
-    const gradingModel = 'claude-haiku-4-5-20251001';
+    const gradingModel = 'claude-haiku-4-5';
 
     // ── SPEEDGRADER COMMENT TOOLBAR ───────────────────────────────────────────
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';
