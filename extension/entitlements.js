@@ -2,6 +2,8 @@
 (function () {
   'use strict';
 
+  const DEV_MODE = !chrome.runtime.getManifest().update_url;
+
   let statusPromise;
 
   function storedKeys() {
@@ -28,6 +30,7 @@
     status: load,
     refresh: () => load(true),
     async has(packageName) {
+      if (DEV_MODE) return true;
       const status = await load();
       return Boolean(status?.packages?.[packageName]?.valid);
     },

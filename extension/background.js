@@ -3,6 +3,9 @@
 
 const API_BASE = 'https://career-toolkit-ruby.vercel.app';
 
+// True when loaded as an unpacked extension (no update_url = not from Web Store)
+const DEV_MODE = !chrome.runtime.getManifest().update_url;
+
 async function getLicenseKeys() {
   const stored = await chrome.storage.local.get(['ce_license_keys', 'ce_license_key']);
   if (Array.isArray(stored.ce_license_keys) && stored.ce_license_keys.length) return stored.ce_license_keys;
@@ -43,6 +46,12 @@ async function handleStreamPort(port) {
       const { messages, max_tokens, model, usageType } = msg.payload;
       const licenseKeys = await getLicenseKeys();
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
+
+      if (DEV_MODE && !licenseKeys.length) {
+        port.postMessage({ type: 'chunk', text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0;">Running as unpacked extension with no license key. Enter a key in Settings for live AI.</p></div>' });
+        port.postMessage({ type: 'done' });
+        return;
+      }
 
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
@@ -147,6 +156,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
+  if (DEV_MODE) {
+    return { valid: true, dev: true, packages: { creation_tools: { valid: true }, quiz_tools: { valid: true }, grader: { valid: true }, scheduler: { valid: true } } };
+  }
   const keys = licenseKeys || (licenseKey ? [licenseKey] : await getLicenseKeys());
   const res = await fetch(`${API_BASE}/api/validate`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys, force: force === true }),
@@ -187,6 +199,10 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
   const licenseKeys = await getLicenseKeys();
+
+  if (DEV_MODE && !licenseKeys.length) {
+    return { content: [{ text: '<div style="padding:24px;font-family:Arial,sans-serif;background:#f0f7ff;border:2px dashed #0770B8;border-radius:8px;"><h2 style="color:#0770B8;margin:0 0 10px;">Dev Mode — Placeholder Output</h2><p style="color:#374151;margin:0 0 8px;">Running as an unpacked extension with no license key. Enter a key in Settings to use the real AI, or this placeholder will appear instead.</p><p style="color:#6b7280;font-size:13px;margin:0;">Content would appear here in production.</p></div>' }] };
+  }
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
