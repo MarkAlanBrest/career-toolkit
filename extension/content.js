@@ -1104,10 +1104,10 @@
     // ── HEADER ──────────────────────────────────────────────────────────────────
     function cbHeader() {
       const h = document.createElement('div');
-      h.style.cssText = 'background:#172A36;color:#fff;height:52px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-radius:12px 12px 0 0;';
+      h.style.cssText = 'background:#172A36;color:#fff;height:40px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-radius:12px 12px 0 0;';
       const left = document.createElement('div');
       left.style.cssText = 'display:flex;align-items:center;gap:10px;';
-      left.innerHTML = '<div style="width:28px;height:28px;border-radius:7px;background:#0770B8;display:flex;align-items:center;justify-content:center;font-size:15px;">✦</div>';
+      left.innerHTML = '<div style="width:22px;height:22px;border-radius:5px;background:#0770B8;display:flex;align-items:center;justify-content:center;font-size:13px;">✦</div>';
       const t = document.createElement('strong');
       t.style.fontSize = '15px';
       t.textContent = st.view==='setup' ? 'API Setup' : st.view==='result' ? 'Review Content' : 'AI Assist';
@@ -1116,7 +1116,7 @@
       right.style.cssText = 'display:flex;align-items:center;gap:8px;';
       const help = document.createElement('button');
       help.type='button'; help.textContent='?'; help.title='How AI Assist works';
-      help.style.cssText=`width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:${st.helpOpen?'rgba(255,255,255,.2)':'transparent'};color:#fff;font-size:13px;font-weight:750;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;`;
+      help.style.cssText=`width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:${st.helpOpen?'rgba(255,255,255,.2)':'transparent'};color:#fff;font-size:12px;font-weight:750;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;`;
       help.onclick=()=>{st.helpOpen=!st.helpOpen;render();};
       right.appendChild(help);
       const x = document.createElement('button');
@@ -1715,14 +1715,14 @@ if (st.includedLinks.length) {
 
     // Top bar
     const topBar=document.createElement('div');
-    topBar.style.cssText='height:52px;background:#394B58;color:#fff;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;';
+    topBar.style.cssText='height:40px;background:#394B58;color:#fff;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;';
     const topTitle=document.createElement('span'); topTitle.style.cssText='font-size:15px;font-weight:700;flex:1;'; topTitle.textContent='✦ Quiz Maker';
     const helpPanel=document.createElement('div');
     helpPanel.style.cssText='display:none;padding:11px 18px 13px;background:#EBF4FF;border-bottom:2px solid #B3D4F5;font-size:12px;color:#1a407a;line-height:1.6;flex-shrink:0;';
     helpPanel.textContent='Build a quiz by entering a topic, choosing question types and difficulty, then generating questions. Review the results, select the questions you want, and add them to the quiz queue. When the quiz is ready, export it directly to Canvas as a draft so you can review it before publishing.';
     const helpBtn=document.createElement('button');
     helpBtn.type='button'; helpBtn.textContent='?'; helpBtn.title='How Quiz Maker works';
-    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;transition:background .12s,color .12s;';
+    helpBtn.style.cssText='width:24px;height:24px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit;transition:background .12s,color .12s;';
     helpBtn.onclick=()=>{
       const open=helpPanel.style.display!=='none';
       helpPanel.style.display=open?'none':'block';

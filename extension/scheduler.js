@@ -632,15 +632,9 @@
   }
 
   function render() {
-    const status = document.getElementById('csch-toolbar-status');
     const leftBody = document.getElementById('csch-left-body');
     const rightBody = document.getElementById('csch-board');
-    if (!status || !leftBody || !rightBody) return;
-
-    status.className = `csch-toolbar-status csch-toolbar-status-${state.noticeType}`;
-    status.textContent = state.notice || (state.items.length
-      ? `${Object.keys(state.schedule).length} scheduled of ${state.items.length} items`
-      : 'Open a course to load items');
+    if (!leftBody || !rightBody) return;
 
     const unscheduledItems = getUnscheduledItems();
     const grouped = groupItemsByModule(unscheduledItems);
@@ -839,60 +833,60 @@
   app.innerHTML = `
     <div id="csch-shell">
       <div id="csch-topbar">
-        <div id="csch-tb-controls">
-          <div class="csch-tb-group">
-            <div class="csch-tb-label">Course</div>
-            <div class="csch-tb-checks">
-              <label class="csch-cb-lbl"><input type="checkbox" id="csch-cb-published" checked> Published</label>
-              <label class="csch-cb-lbl"><input type="checkbox" id="csch-cb-dashboard" checked> Dashboard</label>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-course-btn">Course ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-course-panel">
+            <div class="csch-dd-row csch-dd-row-checks">
+              <label class="csch-cb-lbl csch-cb-light"><input type="checkbox" id="csch-cb-published" checked> Published</label>
+              <label class="csch-cb-lbl csch-cb-light"><input type="checkbox" id="csch-cb-dashboard" checked> Dashboard</label>
             </div>
-            <select id="csch-course-sel" class="csch-course-sel">
-              <option value="">Loading…</option>
-            </select>
-          </div>
-
-          <div class="csch-tb-divider"></div>
-
-          <span id="csch-toolbar-status" class="csch-toolbar-status csch-toolbar-status-info">Select a course to load items</span>
-
-          <div class="csch-tb-divider"></div>
-
-          <div class="csch-tb-group">
-            <div class="csch-tb-label">Start date</div>
-            <input id="csch-start-date" type="date">
-          </div>
-
-          <div class="csch-tb-group">
-            <div class="csch-tb-label">Due days</div>
-            <div class="csch-weekdays">
-              ${DAY_NAMES.map((day, index) => `<button type="button" class="csch-day-btn" data-weekday="${index}">${day}</button>`).join('')}
-            </div>
-          </div>
-
-          <div class="csch-tb-group">
-            <div class="csch-tb-label">Due time</div>
-            <input id="csch-due-time" type="time">
-          </div>
-
-          <div class="csch-tb-divider"></div>
-
-          <div class="csch-tb-group">
-            <div class="csch-tb-label">Availability window</div>
-            <div class="csch-tb-window">
-              Opens <input id="csch-open-offset" type="number" min="0" step="1" class="csch-num-input"> days before
-              <span class="csch-tb-dot">·</span>
-              Locks <input id="csch-close-offset" type="number" min="0" step="1" class="csch-num-input"> days after
-              <span class="csch-tb-dot">·</span>
-              Answers <input id="csch-answer-offset" type="number" min="0" step="1" class="csch-num-input"> days after
+            <div class="csch-dd-row csch-dd-row-sel">
+              <select id="csch-course-sel" class="csch-course-sel csch-course-sel-light"><option value="">Select a course…</option></select>
             </div>
           </div>
         </div>
-
-        <div id="csch-tb-actions">
-          <button type="button" class="csch-btn" id="csch-more-dates-btn">+ Dates</button>
-          <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
-          <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
+        <div style="flex:1"></div>
+        <div class="csch-tb-sep"></div>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-schedule-btn">Schedule ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-schedule-panel">
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Start date</span>
+              <input id="csch-start-date" type="date" class="csch-dd-input">
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Due days</span>
+              <div class="csch-weekdays">
+                ${DAY_NAMES.map((day, index) => `<button type="button" class="csch-day-btn" data-weekday="${index}">${day}</button>`).join('')}
+              </div>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Due time</span>
+              <input id="csch-due-time" type="time" class="csch-dd-input">
+            </div>
+          </div>
         </div>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-window-btn">Window ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-window-panel">
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Opens</span>
+              <input id="csch-open-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days before</span>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Locks</span>
+              <input id="csch-close-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days after</span>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Answers</span>
+              <input id="csch-answer-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days after</span>
+            </div>
+          </div>
+        </div>
+        <div class="csch-tb-sep"></div>
+        <button type="button" class="csch-btn" id="csch-more-dates-btn">+ Dates</button>
+        <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
+        <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
       </div>
 
       <div id="csch-layout">
@@ -962,6 +956,33 @@
     button.addEventListener('click', () => toggleWeekday(Number(button.getAttribute('data-weekday'))));
   });
 
+  function closeAllDropdowns() {
+    document.querySelectorAll('.csch-dd-panel').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.csch-dd-btn').forEach(b => b.classList.remove('csch-dd-open'));
+  }
+  function toggleDropdown(panelId, btn) {
+    const panel = document.getElementById(panelId);
+    const isOpen = panel.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) { panel.classList.add('open'); btn.classList.add('csch-dd-open'); }
+  }
+  document.getElementById('csch-dd-course-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-course-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-course-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.getElementById('csch-dd-schedule-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-schedule-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-window-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-window-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-schedule-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.getElementById('csch-dd-window-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', closeAllDropdowns);
+
   /* ── Styles ──────────────────────────────────────────────────────────── */
 
   const styleEl = document.createElement('style');
@@ -983,12 +1004,11 @@
 
     #csch-shell {
       position: absolute;
-      top: 8px;
+      top: 48px;
       bottom: 8px;
-      left: 74px;   /* 66px Canvas global nav + 8px gap */
-      right: 68px;  /* 52px CE hub toolbar + 16px gap */
+      left: 94px;
+      right: 8px;
       border-radius: 6px;
-      overflow: hidden;
       display: grid;
       grid-template-rows: auto 1fr;
       background: #F2F4F5;
@@ -997,78 +1017,44 @@
     }
 
     #csch-topbar {
-      padding: 8px 12px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
+      padding: 0 12px;
+      height: 44px;
       background: #394B58;
       color: #fff;
+      border-radius: 6px 6px 0 0;
       border-bottom: 1px solid #2D3B45;
-    }
-
-    .csch-pane-head h2, .csch-pane-head p { margin: 0; }
-
-    #csch-tb-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      flex: 1;
-      min-width: 0;
-    }
-
-    #csch-tb-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      position: relative;
       flex-shrink: 0;
     }
 
-    .csch-tb-divider {
+    .csch-tb-sep {
       width: 1px;
-      height: 28px;
+      height: 20px;
       background: rgba(255,255,255,0.2);
       flex-shrink: 0;
     }
 
-    .csch-tb-group {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .csch-tb-label {
+    .csch-tb-label2 {
       font-size: 10px;
       font-weight: 700;
-      color: rgba(255,255,255,0.65);
+      color: rgba(255,255,255,0.55);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      line-height: 1;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
 
-    .csch-tb-window {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: #fff;
-      font-weight: 500;
-      flex-wrap: wrap;
-    }
-
-    .csch-tb-dot {
-      color: rgba(255,255,255,0.35);
-      font-weight: 400;
-    }
+    .csch-pane-head h2, .csch-pane-head p { margin: 0; }
 
     .csch-num-input {
       width: 42px;
-      border: 1px solid rgba(255,255,255,0.3);
+      border: 1px solid #c7cdd1;
       border-radius: 3px;
-      background: rgba(255,255,255,0.12);
-      color: #fff;
+      background: #fff;
+      color: #2d3b45;
       font: 700 13px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
       text-align: center;
       padding: 3px 4px;
@@ -1076,35 +1062,87 @@
 
     .csch-num-input:focus {
       outline: none;
-      background: rgba(255,255,255,0.22);
-      border-color: rgba(255,255,255,0.55);
+      border-color: #0770B8;
     }
 
-    .csch-toolbar-status {
-      display: inline-flex;
-      align-items: center;
-      min-height: 26px;
-      padding: 4px 10px;
-      border-radius: 3px;
-      font-size: 11px;
-      font-weight: 600;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 260px;
-      background: rgba(255,255,255,0.12);
+    /* ── Dropdown menus ── */
+    .csch-dd-wrap { position: relative; flex-shrink: 0; }
+
+    .csch-dd-btn {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+    }
+    .csch-dd-btn:hover, .csch-dd-btn.csch-dd-open {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.4);
       color: #fff;
-      border: 1px solid rgba(255,255,255,0.18);
     }
 
-    .csch-toolbar-status-info { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.18); }
-    .csch-toolbar-status-ok   { background: rgba(18,122,27,0.35);  color: #d1fae5; border: 1px solid rgba(18,122,27,0.5); }
-    .csch-toolbar-status-err  { background: rgba(188,18,18,0.35);  color: #fee2e2; border: 1px solid rgba(188,18,18,0.5); }
+    .csch-dd-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #d0d5da;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      padding: 10px 14px;
+      z-index: 99999;
+      min-width: 280px;
+    }
+    .csch-dd-panel.open { display: block; }
+
+    .csch-dd-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: #2d3b45;
+    }
+    .csch-dd-row:not(:last-child) { border-bottom: 1px solid #f0f0f0; }
+
+    .csch-dd-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      width: 68px;
+      flex-shrink: 0;
+    }
+
+    .csch-dd-input {
+      border: 1px solid #c7cdd1;
+      border-radius: 3px;
+      padding: 4px 7px;
+      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      color: #2d3b45;
+      background: #fff;
+    }
+    .csch-dd-input:focus { outline: none; border-color: #0770B8; }
+
+    .csch-dd-txt { font-size: 12px; color: #6b7280; white-space: nowrap; }
+
+    .csch-dd-row-checks { gap: 14px; border-bottom: 1px solid #eaeaea; }
+    .csch-dd-row-sel { padding-top: 8px; border-bottom: none; }
+    .csch-cb-light { color: #2d3b45 !important; font-size: 13px; font-weight: 500; }
+    .csch-course-sel-light {
+      background: #fff !important;
+      color: #2d3b45 !important;
+      border-color: #c7cdd1 !important;
+      max-width: 100%;
+      width: 100%;
+      font: 600 13px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+    }
+    .csch-course-sel-light option { background: #fff; color: #2d3b45; }
+
 
     .csch-course-sel {
       display: block;
-      margin-top: 3px;
       padding: 4px 6px;
       border: 1px solid rgba(255,255,255,0.3);
       border-radius: 3px;
@@ -1119,8 +1157,8 @@
     .csch-course-sel:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.2); }
 
     .csch-tb-checks {
-      display: flex;
-      gap: 10px;
+      display: inline-flex;
+      gap: 8px;
     }
 
     .csch-cb-lbl {
@@ -1260,28 +1298,12 @@
 
     .csch-btn:disabled { opacity: 0.5; cursor: default; }
 
-    #csch-tb-controls input[type="date"],
-    #csch-tb-controls input[type="time"] {
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 3px;
-      padding: 4px 6px;
-      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
-      color: #fff;
-      background: rgba(255,255,255,0.12);
-      color-scheme: dark;
-    }
-
-    #csch-tb-controls input[type="date"]:focus,
-    #csch-tb-controls input[type="time"]:focus {
-      outline: none;
-      background: rgba(255,255,255,0.22);
-      border-color: rgba(255,255,255,0.55);
-    }
-
     #csch-layout {
       min-height: 0;
       display: grid;
       grid-template-columns: minmax(240px, 280px) 1fr;
+      overflow: hidden;
+      border-radius: 0 0 6px 6px;
     }
 
     #csch-left, #csch-right {
@@ -1462,11 +1484,8 @@
     .csch-unscheduled { background: #FFFBEB; border: 1px dashed #C7CDD1; }
 
     @media (max-width: 1100px) {
-      #csch-shell { top: 6px; bottom: 6px; left: 74px; right: 68px; }
-      #csch-topbar { align-items: flex-start; }
-      #csch-tb-controls { width: 100%; }
-      .csch-toolbar-status { max-width: 100%; }
-      .csch-tb-window { font-size: 11px; }
+      #csch-shell { top: 48px; bottom: 6px; left: 94px; right: 33px; }
+      #csch-topbar { height: auto; padding: 6px 12px; flex-wrap: wrap; border-radius: 6px 6px 0 0; }
       #csch-layout { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 34%) 1fr; }
       #csch-left { border-right: none; border-bottom: 1px solid #C7CDD1; }
     }
