@@ -3,7 +3,7 @@
 const navy = '#2d3b45';
 const blue = '#0770a3';
 
-export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' | 'cart' }) {
+export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' }) {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
   const linkStyle = (page: string) => ({
     color: active === page ? '#fff' : '#a8bac4',
@@ -19,7 +19,6 @@ export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pr
         <a href="/"         style={linkStyle('home')}>Home</a>
         <a href="/features" style={linkStyle('features')}>Features</a>
         <a href="/pricing"  style={linkStyle('pricing')}>Pricing</a>
-        <a href="/cart"     style={linkStyle('cart')}>Cart</a>
         <a href={extensionUrl} style={{ background: blue, color: '#fff', padding: '7px 16px', borderRadius: 4, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
           Install Free
         </a>

@@ -12,6 +12,14 @@ async function getLicenseKeys() {
   return String(stored.ce_license_key || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
 }
 
+async function getInstallId() {
+  const stored = await chrome.storage.local.get('ce_install_id');
+  if (stored.ce_install_id) return stored.ce_install_id;
+  const id = crypto.randomUUID();
+  await chrome.storage.local.set({ ce_install_id: id });
+  return id;
+}
+
 // ── REMOTE CONFIG ─────────────────────────────────────────────────────────────
 const CONFIG_URL      = 'https://canvasenhancer.com/extension-config.json';
 const CONFIG_CACHE_KEY = 'ce_remote_config';
@@ -179,10 +187,15 @@ async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
   return data;
 }
 
-async function handleCreditCheckout({ pack, licenseKeys }) {
-  const res = await fetch(`${API_BASE}/api/credits/checkout`, {
+async function handleCreditCheckout({ quantity, method } = {}) {
+  const accountId = await getInstallId();
+  const res = await fetch(`${API_BASE}/api/paypal/checkout`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ licenseKeys: licenseKeys || await getLicenseKeys(), pack }),
+    body: JSON.stringify({
+      method: method || 'paypal',
+      accountId,
+      items: [{ key: 'ai_credit_pack', quantity: Math.max(1, Math.min(20, Number(quantity) || 1)) }],
+    }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) throw new Error(data?.error || 'Could not open checkout.');

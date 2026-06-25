@@ -753,7 +753,7 @@
     const dest = target || panelBody;
     try {
     const stored = await new Promise(r =>
-      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name','ce_license_key','ce_license_keys'], r)
+      chrome.storage.local.get(['ce_canvas_token','ce_teacher_name','ces_teacher_name'], r)
     );
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
@@ -770,27 +770,40 @@
     stack.appendChild(head);
 
     const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || stored.ces_teacher_name || '');
-    const savedKeys = Array.isArray(stored.ce_license_keys) && stored.ce_license_keys.length ? stored.ce_license_keys : String(stored.ce_license_key || '').split(/[\n,]+/).filter(Boolean);
-    const licenseIn = input('ce-s-license', 'text', 'Enter one or both license keys', savedKeys.join(', '));
 
     // Focus ring on text inputs
-    for (const inp of [nameIn, licenseIn]) {
+    for (const inp of [nameIn]) {
       inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
 
     stack.appendChild(row('Teacher Name', nameIn));
     if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
-    stack.appendChild(row('Package License Keys', licenseIn, 'Enter both keys, separated by a comma, if you own both packages.'));
 
     const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
     const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
 
     const accountBox = el('div', `padding:12px;border:1px solid ${DS.border};border-radius:4px;background:#F8FAFC;font-size:12px;color:${DS.muted};line-height:1.5;`);
-    accountBox.textContent = savedKeys.length ? 'Checking your packages…' : 'Enter a license key to see your packages and AI usage.';
+    accountBox.textContent = '';
     stack.appendChild(accountBox);
 
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
+    accountBox.append(
+      el('div', 'font-weight:700;margin-bottom:4px;', { textContent: 'AI Credits' }),
+      el('div', `color:${DS.muted};margin-bottom:8px;`, { textContent: 'All non-AI tools are free. AI credits are prepaid and non-transferable.' }),
+      el('div', `color:${DS.muted};`, { textContent: '$20 buys 250 AI credits.' }),
+      el('div', `color:${DS.muted};`, { textContent: 'Grading uses 1 credit. Pages and quizzes use 5 credits.' })
+    );
+    const buyCreditsBtn = btn('Buy AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;width:auto;margin-top:10px;`);
+    buyCreditsBtn.addEventListener('click', async () => {
+      buyCreditsBtn.disabled = true;
+      buyCreditsBtn.textContent = 'Opening checkout...';
+      const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { quantity: 1 } });
+      if (result?.error) { saveMsg.style.color = '#DC2626'; saveMsg.textContent = result.error; }
+      buyCreditsBtn.disabled = false;
+      buyCreditsBtn.textContent = 'Buy AI Credits';
+    });
+    accountBox.appendChild(buyCreditsBtn);
     const parseKeys = value => String(value || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
     async function showAccount(keys) {
       if (!keys.length) {
@@ -848,7 +861,7 @@
       saveBtn.disabled = true;
       saveMsg.style.color = DS.muted;
       try {
-        const keys = parseKeys(licenseIn.value);
+        const keys = [];
         saveMsg.textContent = keys.length ? 'Validating licenses…' : 'Saving…';
         const status = keys.length ? await showAccount(keys) : { valid: false, errors: [] };
         if (keys.length && (!status?.valid || status.errors?.length)) {
@@ -877,7 +890,6 @@
 
     stack.appendChild(saveBtn);
     stack.appendChild(saveMsg);
-    if (savedKeys.length) showAccount(savedKeys);
     stack.appendChild(divider());
 
     if (globalThis.CEDataBackup) {

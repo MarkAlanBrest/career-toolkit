@@ -16,12 +16,6 @@ const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 const blue = '#0770B8';
 const navy = '#2d3b45';
 
-function cycleText(product: Product) {
-  if (product.cycle === 'monthly') return '/ month';
-  if (product.cycle === 'one_time') return ' one time';
-  return '';
-}
-
 export default function AdminPage() {
   const [token, setToken] = useState('');
   const [savedToken, setSavedToken] = useState('');
@@ -55,8 +49,7 @@ export default function AdminPage() {
     setSavedToken(token.trim());
   }
 
-  const subscriptions = (summary?.products || []).filter(product => product.kind === 'subscription');
-  const addons = (summary?.products || []).filter(product => product.kind === 'addon');
+  const creditPacks = summary?.products || [];
 
   return (
     <main style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: font, color: navy }}>
@@ -100,21 +93,8 @@ export default function AdminPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 18 }}>
           <section style={{ background: '#fff', border: '1px solid #d8dde3', borderRadius: 8, padding: 18 }}>
-            <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>Subscriptions</h2>
-            {subscriptions.map(product => (
-              <div key={product.key} style={{ borderTop: '1px solid #edf0f2', padding: '14px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                  <strong>{product.name}</strong>
-                  <span>{formatPrice(product.priceCents)}{cycleText(product)}</span>
-                </div>
-                <div style={{ color: '#6b7780', fontSize: 13, marginTop: 4 }}>{product.description}</div>
-              </div>
-            ))}
-          </section>
-
-          <section style={{ background: '#fff', border: '1px solid #d8dde3', borderRadius: 8, padding: 18 }}>
-            <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>Add-ons</h2>
-            {addons.map(product => (
+            <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>AI Credit Packs</h2>
+            {creditPacks.map(product => (
               <div key={product.key} style={{ borderTop: '1px solid #edf0f2', padding: '14px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                   <strong>{product.name}</strong>

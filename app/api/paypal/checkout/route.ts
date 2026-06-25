@@ -19,6 +19,12 @@ function appUrl(request: NextRequest) {
   return process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
 }
 
+function cleanAccountId(value: unknown) {
+  const accountId = String(value || '').trim();
+  if (!/^[a-zA-Z0-9:_-]{8,80}$/.test(accountId)) throw new Error('Could not identify this browser for AI credits.');
+  return accountId;
+}
+
 function cleanCart(items: CartItem[]) {
   const normalized = items.map(item => {
     const product = productByKey(String(item.key || ''));
@@ -26,13 +32,6 @@ function cleanCart(items: CartItem[]) {
     return product && quantity > 0 ? { product, quantity } : null;
   }).filter(Boolean) as { product: NonNullable<ReturnType<typeof productByKey>>; quantity: number }[];
 
-  const hasCreationBasic = normalized.some(item => item.product.key === 'creation_tools');
-  const hasCreationNoAi = normalized.some(item => item.product.key === 'creation_tools_basic');
-  const hasCreationPro = normalized.some(item => item.product.key === 'creation_tools_pro');
-  const creationPlanCount = [hasCreationNoAi, hasCreationBasic, hasCreationPro].filter(Boolean).length;
-  const teachingPlanCount = normalized.filter(item => item.product.meter === 'teaching' && item.product.kind === 'subscription').length;
-  if (creationPlanCount > 1) throw new Error('Choose one Creation Tools package.');
-  if (teachingPlanCount > 1) throw new Error('Choose one Teaching Tools package.');
   if (!normalized.length) throw new Error('Choose at least one package.');
   return normalized;
 }
@@ -46,6 +45,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const items = cleanCart(Array.isArray(body?.items) ? body.items : []);
     const method: PayMethod = body?.method === 'card' ? 'card' : 'paypal';
+    const accountId = cleanAccountId(body?.accountId);
     const totalCents = items.reduce((sum, item) => sum + item.product.priceCents * item.quantity, 0);
     const checkoutId = randomUUID();
     const baseUrl = appUrl(request);
@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
         landing_page: method === 'card' ? 'BILLING' : 'LOGIN',
         shipping_preference: 'NO_SHIPPING',
         user_action: 'PAY_NOW',
-        return_url: `${baseUrl}/cart?paypal=approved&checkout=${checkoutId}`,
-        cancel_url: `${baseUrl}/cart?paypal=cancelled`,
+        return_url: `${baseUrl}/setup?credits=approved&checkout=${checkoutId}`,
+        cancel_url: `${baseUrl}/setup?credits=cancelled`,
       },
     };
 
@@ -102,6 +102,7 @@ export async function POST(request: NextRequest) {
     await redis.set(`ce:paypal:checkout:${checkoutId}`, {
       checkoutId,
       orderId: data.id,
+      accountId,
       method,
       totalCents,
       items: items.map(item => ({ key: item.product.key, quantity: item.quantity, priceCents: item.product.priceCents })),
