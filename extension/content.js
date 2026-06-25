@@ -2507,23 +2507,24 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     quizBtn.addEventListener('mouseenter', () => { quizBtn.style.background = '#f2f8fd'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#055a96'; });
     quizBtn.addEventListener('mouseleave', () => { quizBtn.style.background = '#fff'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#0770B8'; });
     const quizMenu = document.createElement('div');
-    quizMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;width:190px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22);display:none;flex-direction:column;gap:2px;';
+    quizMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;min-width:220px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.13);display:none;overflow:hidden;';
     function quizMenuItem(label) {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = label;
-      b.style.cssText = 'width:100%;display:flex;align-items:center;padding:10px 11px;border:0;border-radius:7px;background:transparent;color:#334155;font:650 12px/1.2 ' + font + ';text-align:left;cursor:pointer;';
-      b.addEventListener('mouseenter', () => { b.style.background = '#F1F5F9'; b.style.color = '#0F172A'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = '#334155'; });
+      b.style.cssText = 'display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #f0f0f0;border-radius:0;padding:7px 14px;font-size:13px;font-weight:400;color:#2d3b45;cursor:pointer;transition:background .1s,color .1s;font-family:' + font + ';line-height:1.4;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#e8f0f8'; b.style.color = '#0770B8'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = '#2d3b45'; });
       return b;
     }
     const quizOpen = quizMenuItem('Quiz Builder');
     const quizCredits = quizMenuItem('AI Credits');
+    quizCredits.style.borderBottom = 'none';
     quizMenu.append(quizOpen, quizCredits);
     quizWrap.append(quizBtn, quizMenu);
     quizBtn.addEventListener('click', e => {
       e.stopPropagation();
-      quizMenu.style.display = quizMenu.style.display === 'none' ? 'flex' : 'none';
+      quizMenu.style.display = quizMenu.style.display === 'none' ? 'block' : 'none';
     });
     quizMenu.addEventListener('click', e => e.stopPropagation());
     document.addEventListener('click', () => { quizMenu.style.display = 'none'; });

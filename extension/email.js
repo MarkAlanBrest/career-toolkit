@@ -2672,18 +2672,19 @@
     messagingWrap.style.cssText = 'position:relative;z-index:2;flex-shrink:0;';
     const messagingBtn = mkBtn('📨', 'Messaging  ▾');
     const messagingMenu = document.createElement('div');
-    messagingMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;width:210px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22);display:none;flex-direction:column;gap:2px;';
+    messagingMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;min-width:220px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.13);display:none;overflow:hidden;';
     function messagingMenuItem(icon, label) {
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="width:20px;text-align:center;font-size:14px">' + icon + '</span><span>' + label + '</span>';
-      b.style.cssText = 'width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;border:0;border-radius:7px;background:transparent;color:#334155;font:650 12px/1.2 ' + font + ';text-align:left;cursor:pointer;';
-      b.addEventListener('mouseenter', () => { if (b.dataset.available !== 'false') { b.style.background = '#F1F5F9'; b.style.color = '#0F172A'; } });
-      b.addEventListener('mouseleave', () => { if (b.dataset.available !== 'false') { b.style.background = 'transparent'; b.style.color = '#334155'; } });
+      b.style.cssText = 'width:100%;display:flex;align-items:center;gap:10px;padding:7px 14px;border:0;border-bottom:1px solid #f0f0f0;border-radius:0;background:none;color:#2d3b45;font:400 13px/1.4 ' + font + ';text-align:left;cursor:pointer;transition:background .1s,color .1s;';
+      b.addEventListener('mouseenter', () => { if (b.dataset.available !== 'false') { b.style.background = '#e8f0f8'; b.style.color = '#0770B8'; } });
+      b.addEventListener('mouseleave', () => { if (b.dataset.available !== 'false') { b.style.background = 'transparent'; b.style.color = '#2d3b45'; } });
       return b;
     }
     const sendBtn = messagingMenuItem('📨', 'New Outreach');
     const tplBtn  = messagingMenuItem('📄', 'Templates');
+    tplBtn.style.borderBottom = 'none';
     messagingMenu.append(sendBtn, tplBtn);
     function setMenuAvailability(button, available, availableTitle, unavailableTitle) {
       button.dataset.available = String(available);
@@ -2692,12 +2693,12 @@
       button.style.opacity = available ? '1' : '.42';
       button.style.cursor = available ? 'pointer' : 'not-allowed';
       button.style.background = 'transparent';
-      button.style.color = available ? '#334155' : '#64748B';
+      button.style.color = available ? '#2d3b45' : '#64748B';
     }
     messagingWrap.append(messagingBtn, messagingMenu);
     messagingBtn.addEventListener('click', e => {
       e.stopPropagation();
-      messagingMenu.style.display = messagingMenu.style.display === 'none' ? 'flex' : 'none';
+      messagingMenu.style.display = messagingMenu.style.display === 'none' ? 'block' : 'none';
     });
     messagingMenu.addEventListener('click', e => e.stopPropagation());
     document.addEventListener('click', () => { messagingMenu.style.display = 'none'; });

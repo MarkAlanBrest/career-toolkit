@@ -422,12 +422,13 @@
         .ce-sg-btn-ai { background:#fff !important; color:#0770B8 !important; border-color:#fff !important; border-radius:999px !important; box-shadow:0 1px 4px rgba(0,0,0,.18); }
         .ce-sg-btn-ai:hover { background:#f2f8fd !important; color:#055a96 !important; border-color:#fff !important; }
         .ce-sg-menu-wrap { position:relative;z-index:2;flex-shrink:0; }
-        .ce-sg-menu { display:none;position:absolute;left:0;top:40px;z-index:2147483642;width:210px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22); }
-        .ce-sg-menu.ce-open { display:flex;flex-direction:column;gap:2px; }
-        .ce-sg-menu-item { width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid #d7e7f5;border-radius:999px;background:#fff;color:#0770B8;font:700 12px/1.2 inherit;text-align:left;cursor:pointer; }
-        .ce-sg-menu-item:hover { background:#f2f8fd;color:#055a96; }
-        .ce-sg-menu-item-ai { background:#fff;color:#0770B8;border:1px solid #d7e7f5;border-radius:999px; }
-        .ce-sg-menu-item-ai:hover { background:#f2f8fd;color:#055a96; }
+        .ce-sg-menu { display:none;position:absolute;left:0;top:40px;z-index:2147483642;min-width:220px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.13);overflow:hidden; }
+        .ce-sg-menu.ce-open { display:block; }
+        .ce-sg-menu-item { width:100%;display:flex;align-items:center;gap:10px;padding:7px 14px;border:0;border-bottom:1px solid #f0f0f0;border-radius:0;background:none;color:#2d3b45;font-size:13px;font-weight:400;line-height:1.4;font-family:inherit;text-align:left;cursor:pointer;transition:background .1s,color .1s; }
+        .ce-sg-menu-item:last-child { border-bottom:none; }
+        .ce-sg-menu-item:hover { background:#e8f0f8;color:#0770B8; }
+        .ce-sg-menu-item-ai { background:none;color:#2d3b45;border:0;border-radius:0; }
+        .ce-sg-menu-item-ai:hover { background:#e8f0f8;color:#0770B8; }
         .ce-sg-menu-item span:first-child { width:20px;text-align:center;font-size:14px; }
         .ce-sg-collapse { margin-left:auto; }
         #ce-sg-tab { position:relative; margin-left:auto; z-index:10; width:148px; height:28px; border:1px solid #055b9a; border-top:none; border-radius:0 0 0 7px; background:#0770B8; box-shadow:0 2px 8px rgba(0,0,0,.18); color:#fff; font:700 11px/1 inherit; cursor:pointer; display:none; align-items:center; justify-content:center; }
