@@ -146,6 +146,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleCreditCheckout(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'AI_CREDIT_STATUS') {
+    handleCreditStatus().then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
   if (msg.type === 'CANVAS_API') {
     handleCanvasApi(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
@@ -201,6 +205,14 @@ async function handleCreditCheckout({ quantity, method } = {}) {
   if (!res.ok || !data.url) throw new Error(data?.error || 'Could not open checkout.');
   await chrome.tabs.create({ url: data.url });
   return { ok: true };
+}
+
+async function handleCreditStatus() {
+  const accountId = await getInstallId();
+  const res = await fetch(`${API_BASE}/api/credits/status?accountId=${encodeURIComponent(accountId)}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Could not load AI credits.');
+  return data;
 }
 
 async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {

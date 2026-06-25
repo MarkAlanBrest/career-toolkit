@@ -1563,7 +1563,7 @@
     colTab.id = 'csch-toolbar-tab';
     colTab.type = 'button';
     colTab.textContent = 'Assignment Pulse  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => { colTab.style.color = '#fff'; });
     colTab.addEventListener('mouseleave', () => { colTab.style.color = 'rgba(255,255,255,0.85)'; });
     document.body.appendChild(colTab);
@@ -1571,7 +1571,7 @@
     // Full toolbar bar
     const bar = document.createElement('div');
     bar.id = 'csch-toolbar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:40px;z-index:2147483640;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:40px;z-index:2147483640;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
     const brand = document.createElement('div');
     brand.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px 0 4px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
@@ -1581,9 +1581,9 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:28px;padding:0 10px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:600;border-radius:5px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:6px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
+      b.style.cssText = 'height:28px;padding:0 10px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:5px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:6px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
       return b;
     }
 
@@ -1596,7 +1596,7 @@
 
     const helpBtn = document.createElement('button');
     helpBtn.type='button';helpBtn.textContent='?';helpBtn.title='How Assignment Pulse works';
-    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45);background:transparent;color:rgba(255,255,255,.82);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:'+font+';margin-left:2px;';
+    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:'+font+';margin-left:2px;';
     helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'scheduler' })));
 
     const hideBtn = mkBtn('—', 'Hide');

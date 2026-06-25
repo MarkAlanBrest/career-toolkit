@@ -356,9 +356,9 @@
   const toolbar = el('div', `
     position:relative;width:100%;height:${TOOLBAR_H}px;
     z-index:10;
-    background:${DS.navBg};
-    border-bottom:1px solid ${DS.navActive};
-    box-shadow:0 2px 8px rgba(0,0,0,.22);
+    background:${DS.blue};
+    border-bottom:1px solid #055b9a;
+    box-shadow:0 2px 8px rgba(0,0,0,.18);
     display:flex;flex-direction:row;align-items:stretch;
     font-family:${DS.font};
     transition:transform .2s ease;
@@ -415,20 +415,20 @@
 
     const btn = el('button', `
       height:32px;padding:0 16px;flex-shrink:0;
-      border:none;border-radius:4px;
-      background:rgba(255,255,255,0.12);
-      color:rgba(255,255,255,0.85);
+      border:1px solid ${DS.blue};border-radius:4px;
+      background:${DS.blue};
+      color:#fff;
       cursor:pointer;
       font-size:12px;font-weight:700;font-family:${DS.font};
       letter-spacing:.2px;white-space:nowrap;
-      transition:background .12s,color .12s;
+      transition:background .12s,color .12s,border-color .12s;
     `, { type: 'button', title: tool.label, textContent: tool.label });
 
     btn.addEventListener('mouseenter', () => {
-      if (_active !== tool.id) { btn.style.background = 'rgba(255,255,255,0.22)'; btn.style.color = '#fff'; }
+      if (_active !== tool.id) { btn.style.background = '#055f9e'; btn.style.borderColor = '#055f9e'; btn.style.color = '#fff'; }
     });
     btn.addEventListener('mouseleave', () => {
-      if (_active !== tool.id) { btn.style.background = 'rgba(255,255,255,0.12)'; btn.style.color = 'rgba(255,255,255,0.85)'; }
+      if (_active !== tool.id) { btn.style.background = DS.blue; btn.style.borderColor = DS.blue; btn.style.color = '#fff'; }
     });
     btn.addEventListener('click', () => onToolClick(tool));
 
@@ -517,10 +517,10 @@
     position:relative;margin-left:auto;
     z-index:10;
     width:118px;height:26px;
-    border:1px solid ${DS.navActive};border-top:none;
+    border:1px solid #055b9a;border-top:none;
     border-radius:0 0 4px 4px;
-    background:${DS.navBg};
-    box-shadow:0 2px 8px rgba(0,0,0,.22);
+    background:${DS.blue};
+    box-shadow:0 2px 8px rgba(0,0,0,.18);
     cursor:pointer;display:none;
     align-items:center;justify-content:center;
     font-size:11px;color:#fff;font-weight:700;
@@ -615,6 +615,24 @@
   settingsModal.appendChild(settingsBox);
   settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.style.display = 'none'; });
   settingsBox.addEventListener('click', e => e.stopPropagation());
+
+  const creditsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  creditsModal.id = 'ce-ai-credits-modal';
+  const creditsBox = el('div', `background:#fff;width:min(560px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const creditsMHdr = el('div', `height:52px;flex-shrink:0;background:${DS.blue};display:flex;align-items:center;padding:0 16px;gap:10px;`);
+  const creditsMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
+  creditsMTitle.textContent = 'AI Credits';
+  const creditsMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: 'x' });
+  creditsMClose.addEventListener('mouseenter', () => { creditsMClose.style.background = 'rgba(255,255,255,0.15)'; creditsMClose.style.color = '#fff'; });
+  creditsMClose.addEventListener('mouseleave', () => { creditsMClose.style.background = ''; creditsMClose.style.color = 'rgba(255,255,255,0.75)'; });
+  creditsMClose.addEventListener('click', () => { creditsModal.style.display = 'none'; });
+  creditsMHdr.append(creditsMTitle, creditsMClose);
+  const creditsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;`);
+  creditsMBody.id = 'ce-ai-credits-mbody';
+  creditsBox.append(creditsMHdr, creditsMBody);
+  creditsModal.appendChild(creditsBox);
+  creditsModal.addEventListener('click', e => { if (e.target === creditsModal) creditsModal.style.display = 'none'; });
+  creditsBox.addEventListener('click', e => e.stopPropagation());
 
   // ── NOTES MODAL ────────────────────────────────────────────────────────────
   const notesModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
@@ -747,6 +765,58 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
+  function openAICredits() {
+    creditsMBody.innerHTML = '';
+    creditsModal.style.display = 'flex';
+
+    const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
+    const balanceText = el('div', `font-size:28px;font-weight:800;color:${DS.text};line-height:1;`, { textContent: 'Loading...' });
+    const statusText = el('div', `font-size:12px;color:${DS.muted};margin-top:6px;`, { textContent: 'Checking your AI credit balance.' });
+    const buyMsg = el('div', `font-size:12px;min-height:16px;color:${DS.muted};`);
+
+    const balanceCard = el('div', `padding:16px;border:1px solid ${DS.border};border-radius:8px;background:#F8FAFC;`);
+    balanceCard.append(
+      el('div', `font-size:12px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;`, { textContent: 'Current balance' }),
+      balanceText,
+      statusText
+    );
+
+    const pricingCard = el('div', `padding:14px;border:1px solid ${DS.border};border-radius:8px;background:#fff;display:flex;flex-direction:column;gap:8px;`);
+    pricingCard.append(
+      el('div', `font-size:14px;font-weight:800;color:${DS.text};`, { textContent: '$20 = 250 AI credits' }),
+      el('div', `font-size:12px;color:${DS.muted};line-height:1.5;`, { textContent: 'Buy AI credits. Use them for grading, pages, or quizzes. Different AI actions use different credit amounts.' }),
+      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Grading: 1 credit' }),
+      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Page creation: 5 credits' }),
+      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Quiz creation: 5 credits' })
+    );
+
+    const buyCreditsBtn = btn('Buy AI Credits', `background:${DS.blue};color:#fff;border-radius:999px;width:auto;align-self:flex-start;padding:9px 18px;`);
+    buyCreditsBtn.addEventListener('click', async () => {
+      buyCreditsBtn.disabled = true;
+      buyCreditsBtn.textContent = 'Opening checkout...';
+      buyMsg.style.color = DS.muted;
+      buyMsg.textContent = '';
+      const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { quantity: 1 } });
+      if (result?.error) {
+        buyMsg.style.color = '#DC2626';
+        buyMsg.textContent = result.error;
+      }
+      buyCreditsBtn.disabled = false;
+      buyCreditsBtn.textContent = 'Buy AI Credits';
+    });
+
+    creditsMBody.append(balanceCard, pricingCard, buyCreditsBtn, buyMsg);
+
+    sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
+      if (status?.error) throw new Error(status.error);
+      balanceText.textContent = String(Number(status?.balance || 0));
+      statusText.textContent = Number(status?.used || 0) > 0 ? `${Number(status.used)} credits used.` : 'No AI credits used yet.';
+    }).catch(err => {
+      balanceText.textContent = '0';
+      statusText.textContent = err?.message || 'Could not load balance.';
+    });
+  }
+
   let settingsRenderVersion = 0;
   async function renderSettings(target) {
     const renderVersion = ++settingsRenderVersion;
@@ -790,19 +860,10 @@
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
     accountBox.append(
       el('div', 'font-weight:700;margin-bottom:4px;', { textContent: 'AI Credits' }),
-      el('div', `color:${DS.muted};margin-bottom:8px;`, { textContent: 'All non-AI tools are free. AI credits are prepaid and non-transferable.' }),
-      el('div', `color:${DS.muted};`, { textContent: '$20 buys 250 AI credits.' }),
-      el('div', `color:${DS.muted};`, { textContent: 'Grading uses 1 credit. Pages and quizzes use 5 credits.' })
+      el('div', `color:${DS.muted};margin-bottom:8px;`, { textContent: 'View your balance, pricing, and buy prepaid AI credits.' })
     );
-    const buyCreditsBtn = btn('Buy AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;width:auto;margin-top:10px;`);
-    buyCreditsBtn.addEventListener('click', async () => {
-      buyCreditsBtn.disabled = true;
-      buyCreditsBtn.textContent = 'Opening checkout...';
-      const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { quantity: 1 } });
-      if (result?.error) { saveMsg.style.color = '#DC2626'; saveMsg.textContent = result.error; }
-      buyCreditsBtn.disabled = false;
-      buyCreditsBtn.textContent = 'Buy AI Credits';
-    });
+    const buyCreditsBtn = btn('Open AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;width:auto;margin-top:10px;`);
+    buyCreditsBtn.addEventListener('click', openAICredits);
     accountBox.appendChild(buyCreditsBtn);
     const parseKeys = value => String(value || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
     async function showAccount(keys) {
@@ -3392,7 +3453,7 @@
     footer.appendChild(settingsBtn);
     menu.appendChild(footer);
 
-    const launch = el('button', `width:52px;height:52px;border:0;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#14B8A6);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.28);font-size:22px;transition:transform .14s,box-shadow .14s;`, { type:'button', title:'Open AI assistant', textContent:'✦' });
+    const launch = el('button', `height:42px;padding:0 18px;border:1px solid #fff;border-radius:999px;background:#fff;color:${DS.blue};display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.24);font-size:13px;font-weight:800;font-family:${DS.font};transition:transform .14s,box-shadow .14s,background .14s,color .14s;`, { type:'button', title:'Open AI assistant', textContent:'✦ AI' });
     launch.setAttribute('aria-label', 'Open AI assistant menu');
     launch.setAttribute('aria-expanded', 'false');
     launch.addEventListener('mouseenter', () => { launch.style.transform = 'translateY(-2px)'; launch.style.boxShadow = '0 12px 30px rgba(15,23,42,.32)'; });
@@ -3412,12 +3473,14 @@
 
   function setActive(id) {
     if (_active && btnMap[_active]) {
-      btnMap[_active].style.background = 'rgba(255,255,255,0.12)';
-      btnMap[_active].style.color = 'rgba(255,255,255,0.85)';
+      btnMap[_active].style.background = DS.blue;
+      btnMap[_active].style.borderColor = DS.blue;
+      btnMap[_active].style.color = '#fff';
     }
     _active = id;
     if (id && btnMap[id]) {
-      btnMap[id].style.background = 'rgba(255,255,255,0.28)';
+      btnMap[id].style.background = '#055f9e';
+      btnMap[id].style.borderColor = '#055f9e';
       btnMap[id].style.color = '#fff';
     }
   }
@@ -3514,6 +3577,7 @@
   function mount() {
     // Modals must be in the DOM on every page so cross-toolbar events work
     document.body.appendChild(settingsModal);
+    document.body.appendChild(creditsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
     mountAILauncher();
@@ -3542,6 +3606,7 @@
   document.addEventListener('ce-open-chat',    () => openQuickAI());
   document.addEventListener('ce-open-notes',   () => openNotesModal());
   document.addEventListener('ce-open-help',    e => openHelp(e.detail));
+  document.addEventListener('ce-open-ai-credits', () => openAICredits());
   document.addEventListener('ce-open-settings', () => {
     settingsMBody.innerHTML = '';
     settingsModal.style.display = 'flex';

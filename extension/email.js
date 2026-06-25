@@ -2515,9 +2515,9 @@
     sgBtn.type = 'button';
     sgBtn.textContent = 'Insert Comment';
     sgBtn.title = 'Insert a stored comment into the comment box';
-    sgBtn.style.cssText = 'padding:6px 12px;border:1px solid #C7CDD1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2D3B45;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;text-align:center;transition:background .15s;';
-    sgBtn.addEventListener('mouseenter', () => { sgBtn.style.background = '#F5F5F5'; sgBtn.style.borderColor = '#8B969E'; });
-    sgBtn.addEventListener('mouseleave', () => { sgBtn.style.background = '#fff'; sgBtn.style.borderColor = '#C7CDD1'; });
+    sgBtn.style.cssText = 'padding:6px 12px;border:1px solid #0770B8;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#0770B8;color:#fff;font-size:13px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;text-align:center;transition:background .15s,border-color .15s;';
+    sgBtn.addEventListener('mouseenter', () => { sgBtn.style.background = '#055f9e'; sgBtn.style.borderColor = '#055f9e'; });
+    sgBtn.addEventListener('mouseleave', () => { sgBtn.style.background = '#0770B8'; sgBtn.style.borderColor = '#0770B8'; });
 
 
     function insertIntoComment(text) {
@@ -2606,7 +2606,7 @@
       const attached = injectSgBtn();
       if (attached || ++_sgPoll >= 30) {
         if (!attached && !document.getElementById('ces-sg-message-btn')?.isConnected) {
-          sgBtn.style.cssText = 'position:fixed;top:110px;right:60px;z-index:2147483641;width:160px;text-align:center;padding:6px 12px;border:1px solid #C7CDD1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2D3B45;font-size:13px;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s;';
+          sgBtn.style.cssText = 'position:fixed;top:110px;right:60px;z-index:2147483641;width:160px;text-align:center;padding:6px 12px;border:1px solid #0770B8;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#0770B8;color:#fff;font-size:13px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif;cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;';
           document.body.appendChild(sgBtn);
         }
         clearInterval(_sgTimer);
@@ -2636,7 +2636,7 @@
     colTab.id = 'ces-inbox-tab';
     colTab.type = 'button';
     colTab.textContent = 'Message Pulse  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
     colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
     document.body.appendChild(colTab);
@@ -2644,7 +2644,7 @@
     // ── FULL BAR ─────────────────────────────────────────────────────────────
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;height:52px;z-index:2147483640;overflow:visible;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;isolation:isolate;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;height:52px;z-index:2147483640;overflow:visible;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;isolation:isolate;';
 
     const brand = document.createElement('div');
     brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
@@ -2654,18 +2654,18 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
       return b;
     }
 
     const quickPostBtn = document.createElement('button');
     quickPostBtn.type = 'button';
     quickPostBtn.innerHTML = '<span style="font-size:13px">📢</span><span>Quick Post</span>';
-    quickPostBtn.style.cssText = 'height:34px;padding:0 14px;border:none;border-radius:7px;background:#fff;color:#0770B8;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,box-shadow .12s;letter-spacing:.1px;display:none;align-items:center;gap:7px;box-shadow:0 1px 4px rgba(0,0,0,.18);';
-    quickPostBtn.addEventListener('mouseenter', () => { quickPostBtn.style.background = '#E8F1FB'; quickPostBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,.22)'; });
-    quickPostBtn.addEventListener('mouseleave', () => { quickPostBtn.style.background = '#fff'; quickPostBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)'; });
+    quickPostBtn.style.cssText = 'height:34px;padding:0 14px;border:1px solid #0770B8;border-radius:7px;background:#0770B8;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,border-color .12s;letter-spacing:.1px;display:none;align-items:center;gap:7px;';
+    quickPostBtn.addEventListener('mouseenter', () => { quickPostBtn.style.background = '#055f9e'; quickPostBtn.style.borderColor = '#055f9e'; });
+    quickPostBtn.addEventListener('mouseleave', () => { quickPostBtn.style.background = '#0770B8'; quickPostBtn.style.borderColor = '#0770B8'; });
     quickPostBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-quick-announcements')));
 
     const messagingWrap = document.createElement('div');

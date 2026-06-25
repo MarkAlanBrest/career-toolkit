@@ -27,14 +27,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: none;
-  border: none;
+  background: #0770B8;
+  border: 1px solid #0770B8;
   border-radius: 4px;
   padding: 5px 9px;
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
-  color: #2d3b45;
+  color: #fff;
   white-space: nowrap;
   transition: background 0.12s;
   line-height: 1.4;
@@ -45,21 +45,24 @@
 
 .ce-btn:hover,
 .ce-btn.ce-open {
-  background: #e8f0f8;
-  color: #0770B8;
+  background: #055f9e;
+  border-color: #055f9e;
+  color: #fff;
 }
 
-/* AI Assist button gets a distinct tint */
+/* AI actions are white pill buttons */
 #ce-toolbar .ce-btn-ai {
-  background: #e8f1fb;
+  background: #fff;
   color: #0770B8;
-  font-weight: 600;
-  border: 1px solid #c5daf5;
+  font-weight: 800;
+  border: 1px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.16);
 }
 #ce-toolbar .ce-btn-ai:hover {
-  background: #d0e6f8;
+  background: #f2f8fd;
   color: #055a96;
-  border-color: #a8c8f0;
+  border-color: #fff;
 }
 
 .ce-icon {

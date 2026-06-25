@@ -325,13 +325,13 @@
     .ce-studio-name { font-size:12px;font-weight:700;color:#fff;letter-spacing:.01em;white-space:nowrap; }
     .ce-btn {
       display:flex; align-items:center; gap:4px;
-      height:30px;background:transparent;border:1px solid transparent;border-radius:4px;
-      padding:5px 9px;cursor:pointer;font-size:13px;font-weight:500;color:rgba(255,255,255,.92);
-      white-space:nowrap;transition:background .12s, color .12s;font-family:inherit;line-height:1.4;flex-shrink:0;box-sizing:border-box;
+      height:30px;background:#0770B8;border:1px solid #0770B8;border-radius:4px;
+      padding:5px 9px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;
+      white-space:nowrap;transition:background .12s, color .12s, border-color .12s;font-family:inherit;line-height:1.4;flex-shrink:0;box-sizing:border-box;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.22);color:#fff; }
-    #ce-toolbar .ce-btn-ai { background:#fff;color:#0770B8;font-weight:700;border:1px solid rgba(255,255,255,.85); }
-    #ce-toolbar .ce-btn-ai:hover { background:#E8F1F8;color:#055a96;border-color:#fff; }
+    .ce-btn:hover, .ce-btn.ce-open { background:#055f9e;border-color:#055f9e;color:#fff; }
+    #ce-toolbar .ce-btn-ai { background:#fff;color:#0770B8;font-weight:800;border:1px solid #fff;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.16); }
+    #ce-toolbar .ce-btn-ai:hover { background:#f2f8fd;color:#055a96;border-color:#fff; }
     .ce-icon { font-style:normal; font-size:13px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 2px); left:0;
@@ -2394,10 +2394,15 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     brand.innerHTML='<span class="ce-studio-mark">◆</span><span class="ce-studio-name">Content Studio</span>';
     rowBottom.appendChild(brand);
 
-    const aiBtn=document.createElement('button'); aiBtn.className='ce-btn ce-btn-ai'; aiBtn.type='button';
-    aiBtn.textContent='✨ AI Assist';
-    aiBtn.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
-    rowBottom.appendChild(aiBtn);
+    const aiPanel=document.createElement('div'); aiPanel.className='ce-mega-panel';
+    const aiOpen=document.createElement('button'); aiOpen.className='ce-item'; aiOpen.type='button'; aiOpen.textContent='AI Assist';
+    aiOpen.onclick=e=>{e.stopPropagation();closeAllPanels();showContentBuilder();};
+    const aiCredits=document.createElement('button'); aiCredits.className='ce-item'; aiCredits.type='button'; aiCredits.textContent='AI Credits';
+    aiCredits.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-ai-credits'));};
+    aiPanel.append(aiOpen, aiCredits);
+    const aiGroup=makeTopGroup('✨ AI Assist  ▾',aiPanel);
+    aiGroup.querySelector('button')?.classList.add('ce-btn-ai');
+    rowBottom.appendChild(aiGroup);
 
     const sep1=document.createElement('div'); sep1.className='ce-sep';
     rowBottom.appendChild(sep1);
@@ -2468,14 +2473,14 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     colTab.id = 'ce-quiz-tab';
     colTab.type = 'button';
     colTab.textContent = 'Quiz Pulse  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#172A36;border:none;border-left:1px solid #0F1D25;border-bottom:1px solid #0F1D25;border-radius:0 0 0 7px;color:rgba(255,255,255,0.85);font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
     colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
     colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
     document.body.appendChild(colTab);
 
     const bar = document.createElement('div');
     bar.id = 'ce-quiz-toolbar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#172A36;border-bottom:1px solid #0F1D25;box-shadow:0 2px 8px rgba(0,0,0,.22);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
     const brand = document.createElement('div');
     brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
@@ -2485,14 +2490,45 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.78);font-size:12px;font-weight:650;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
-      b.addEventListener('mouseenter', () => { b.style.background = 'rgba(255,255,255,.1)'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = 'rgba(255,255,255,.78)'; });
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
       return b;
     }
 
-    const quizBtn = mkBtn('✨', 'Quiz Builder');
-    quizBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-quiz')));
+    const quizWrap = document.createElement('div');
+    quizWrap.style.cssText = 'position:relative;z-index:2;flex-shrink:0;';
+    const quizBtn = mkBtn('✨', 'Quiz Builder  ▾');
+    quizBtn.style.background = '#fff';
+    quizBtn.style.color = '#0770B8';
+    quizBtn.style.borderColor = '#fff';
+    quizBtn.style.borderRadius = '999px';
+    quizBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)';
+    quizBtn.addEventListener('mouseenter', () => { quizBtn.style.background = '#f2f8fd'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#055a96'; });
+    quizBtn.addEventListener('mouseleave', () => { quizBtn.style.background = '#fff'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#0770B8'; });
+    const quizMenu = document.createElement('div');
+    quizMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;width:190px;padding:7px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.22);display:none;flex-direction:column;gap:2px;';
+    function quizMenuItem(label) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.style.cssText = 'width:100%;display:flex;align-items:center;padding:10px 11px;border:0;border-radius:7px;background:transparent;color:#334155;font:650 12px/1.2 ' + font + ';text-align:left;cursor:pointer;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#F1F5F9'; b.style.color = '#0F172A'; });
+      b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = '#334155'; });
+      return b;
+    }
+    const quizOpen = quizMenuItem('Quiz Builder');
+    const quizCredits = quizMenuItem('AI Credits');
+    quizMenu.append(quizOpen, quizCredits);
+    quizWrap.append(quizBtn, quizMenu);
+    quizBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      quizMenu.style.display = quizMenu.style.display === 'none' ? 'flex' : 'none';
+    });
+    quizMenu.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => { quizMenu.style.display = 'none'; });
+    quizOpen.addEventListener('click', () => { quizMenu.style.display = 'none'; document.dispatchEvent(new CustomEvent('ce-toggle-quiz')); });
+    quizCredits.addEventListener('click', () => { quizMenu.style.display = 'none'; document.dispatchEvent(new CustomEvent('ce-open-ai-credits')); });
 
     const settingsBtn = mkBtn('⚙', 'Settings');
     globalThis.CECanvasToken?.bindIndicator(settingsBtn);
@@ -2516,7 +2552,7 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
       document.body.classList.remove('ce-quiz-collapsed');
     });
 
-    bar.append(brand, quizBtn, settingsBtn, helpBtn, hideBtn);
+    bar.append(brand, quizWrap, settingsBtn, helpBtn, hideBtn);
     document.body.insertBefore(bar, document.body.firstChild);
 
     let _onPage = false;
