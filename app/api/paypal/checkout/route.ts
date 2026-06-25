@@ -27,8 +27,12 @@ function cleanCart(items: CartItem[]) {
   }).filter(Boolean) as { product: NonNullable<ReturnType<typeof productByKey>>; quantity: number }[];
 
   const hasCreationBasic = normalized.some(item => item.product.key === 'creation_tools');
+  const hasCreationNoAi = normalized.some(item => item.product.key === 'creation_tools_basic');
   const hasCreationPro = normalized.some(item => item.product.key === 'creation_tools_pro');
-  if (hasCreationBasic && hasCreationPro) throw new Error('Choose either Creation Tools or Creation Tools Pro, not both.');
+  const creationPlanCount = [hasCreationNoAi, hasCreationBasic, hasCreationPro].filter(Boolean).length;
+  const teachingPlanCount = normalized.filter(item => item.product.meter === 'teaching' && item.product.kind === 'subscription').length;
+  if (creationPlanCount > 1) throw new Error('Choose one Creation Tools package.');
+  if (teachingPlanCount > 1) throw new Error('Choose one Teaching Tools package.');
   if (!normalized.length) throw new Error('Choose at least one package.');
   return normalized;
 }

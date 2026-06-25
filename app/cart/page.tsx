@@ -19,6 +19,7 @@ function cycleText(product: Product) {
 
 function metricText(product: Product, quantity = 1) {
   const total = product.included * quantity;
+  if (total === 0) return 'No AI usage included';
   if (product.meter === 'creation') return `${total} page creations`;
   return `${total} graded papers`;
 }
