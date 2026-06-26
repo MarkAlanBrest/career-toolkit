@@ -1065,35 +1065,48 @@
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
 
-    const grid = el('div', `display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px;align-items:start;`);
+    const grid = el('div', `display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start;`);
 
-    function card(headText) {
-      const wrap = el('div', `border:1px solid ${DS.border};border-radius:6px;overflow:hidden;`);
-      const head = el('div', `background:#F0F4F8;padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:${DS.muted};border-bottom:1px solid ${DS.border};`);
-      head.textContent = headText;
-      const body = el('div', `padding:14px;display:flex;flex-direction:column;gap:10px;`);
+    function card(title, accentColor) {
+      const wrap = el('div', `border:1px solid ${DS.border};border-radius:8px;overflow:hidden;background:#fff;`);
+      const head = el('div', `padding:14px 16px 12px;border-bottom:1px solid ${DS.border};`);
+      const accent = el('div', `width:32px;height:3px;border-radius:2px;background:${accentColor};margin-bottom:8px;`);
+      const titleEl = el('div', `font-size:14px;font-weight:700;color:${DS.text};`);
+      titleEl.textContent = title;
+      head.appendChild(accent);
+      head.appendChild(titleEl);
+      const body = el('div', `padding:16px;display:flex;flex-direction:column;gap:12px;`);
       wrap.appendChild(head);
       wrap.appendChild(body);
       return { wrap, body };
     }
 
-    // ── COLUMN 1: TEACHER PROFILE ──
-    const col1 = card('Teacher Profile');
+    function hint(text) {
+      const d = el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`);
+      d.textContent = text;
+      return d;
+    }
 
-    const nameLabel = el('div', `font-size:11px;font-weight:600;color:${DS.text};margin-bottom:4px;`);
-    nameLabel.textContent = 'Display Name';
-    const nameIn = input('ce-s-name', 'text', 'Your display name', stored.ce_teacher_name || stored.ces_teacher_name || '');
+    function fieldLabel(text) {
+      const d = el('div', `font-size:11px;font-weight:700;color:${DS.text};text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px;`);
+      d.textContent = text;
+      return d;
+    }
+
+    // ── COLUMN 1: TEACHER PROFILE ──
+    const col1 = card('Teacher Profile', DS.blue);
+    col1.body.appendChild(hint('Your name appears in AI-assisted tools and grading reports. Enter it here and click Save.'));
+
+    const nameWrap = el('div', '');
+    nameWrap.appendChild(fieldLabel('Your Name'));
+    const nameIn = input('ce-s-name', 'text', 'e.g. Jane Smith', stored.ce_teacher_name || stored.ces_teacher_name || '');
     nameIn.addEventListener('focus', () => nameIn.style.borderColor = DS.blue);
     nameIn.addEventListener('blur',  () => nameIn.style.borderColor = DS.border);
-    const nameWrap = el('div', '');
-    nameWrap.appendChild(nameLabel);
     nameWrap.appendChild(nameIn);
     col1.body.appendChild(nameWrap);
 
-    if (globalThis.CECanvasToken) col1.body.appendChild(globalThis.CECanvasToken.createControl());
-
     const saveMsg = el('div', `font-size:12px;color:${DS.green};min-height:16px;`);
-    const saveBtn = btn('Save', `background:${DS.blue};color:#fff;`, 'ce-s-save');
+    const saveBtn = btn('Save Name', `background:${DS.blue};color:#fff;`, 'ce-s-save');
     saveBtn.addEventListener('click', () => {
       saveBtn.disabled = true;
       chrome.storage.local.set({ ce_teacher_name: nameIn.value.trim() }, () => {
@@ -1105,33 +1118,35 @@
     });
     col1.body.appendChild(saveBtn);
     col1.body.appendChild(saveMsg);
+
+    if (globalThis.CECanvasToken) col1.body.appendChild(globalThis.CECanvasToken.createControl());
     grid.appendChild(col1.wrap);
 
     // ── COLUMN 2: AI CREDITS ──
-    const col2 = card('AI Credits');
+    const col2 = card('AI Credits', DS.green);
+    col2.body.appendChild(hint('AI Credits are used for AI-assisted grading, page creation, and quiz creation. Buy prepaid packs — credits never expire. 1 credit = $0.01.'));
 
-    const creditsDesc = el('div', `font-size:12px;color:${DS.muted};line-height:1.55;`);
-    creditsDesc.textContent = 'View your balance, buy prepaid credits, and manage teacher accounts.';
-    col2.body.appendChild(creditsDesc);
-
-    const buyBtn = btn('Open AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;`);
+    const buyBtn = btn('View Balance & Buy Credits', `background:${DS.blue};color:#fff;padding:10px;`);
     buyBtn.addEventListener('click', openAICredits);
     col2.body.appendChild(buyBtn);
 
-    const manageBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:8px;`);
+    col2.body.appendChild(hint('School admin? Send credits directly to teachers on your account.'));
+
+    const manageBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:10px;`);
     manageBtn.addEventListener('click', openManageCredits);
     col2.body.appendChild(manageBtn);
     grid.appendChild(col2.wrap);
 
     // ── COLUMN 3: DATA & ABOUT ──
-    const col3 = card('Data & About');
+    const col3 = card('Data & About', DS.muted);
 
     if (globalThis.CEDataBackup) {
+      col3.body.appendChild(hint('Export a backup before switching devices or uninstalling. Use Import to restore your templates, schedules, and settings.'));
       col3.body.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
       if (globalThis.CEDataBackup.createToolSection) {
         col3.body.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
       }
-      col3.body.appendChild(el('div', `border-top:1px solid ${DS.border};margin:2px 0;`));
+      col3.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
     }
 
     const av = el('div', `font-size:13px;font-weight:600;color:${DS.text};`);
@@ -1139,7 +1154,7 @@
     col3.body.appendChild(av);
 
     const updateBtn = el('button', `
-      padding:8px 12px;border-radius:3px;border:1px solid ${DS.border};
+      padding:9px 12px;border-radius:3px;border:1px solid ${DS.border};
       background:#fff;color:${DS.text};font-size:12px;font-weight:600;
       cursor:pointer;font-family:${DS.font};width:100%;text-align:left;
     `, { type: 'button', textContent: 'Check for Updates' });
@@ -1155,7 +1170,7 @@
     col3.body.appendChild(updateBtn);
 
     const uninstallBtn = el('button', `
-      padding:8px 12px;border-radius:3px;border:1px solid #DC2626;
+      padding:9px 12px;border-radius:3px;border:1px solid #DC2626;
       background:#fff;color:#DC2626;font-size:12px;font-weight:600;
       cursor:pointer;font-family:${DS.font};width:100%;text-align:left;
       transition:background .12s,color .12s;
@@ -1163,7 +1178,7 @@
     uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
     uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = '#fff'; });
     uninstallBtn.addEventListener('click', () => {
-      if (confirm('Uninstall the entire Canvas Enhancer extension? Export a backup first if you want to keep settings, templates, criteria, and schedules.')) {
+      if (confirm('Uninstall Canvas Enhancer? Export a backup first to keep your templates, schedules, and settings.')) {
         ceSendMessage({ type: 'UNINSTALL_SELF' }).catch(() => {});
       }
     });
