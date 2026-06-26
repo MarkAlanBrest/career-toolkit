@@ -1,49 +1,68 @@
 'use client';
 
-const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+const serif = 'Georgia,"Times New Roman",serif';
+const display = '"Trebuchet MS",Arial,sans-serif';
 
 export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' }) {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
   const links = [
-    { href: '/', label: 'Overview', key: 'home' },
+    { href: '/', label: 'Home', key: 'home' },
     { href: '/features', label: 'Features', key: 'features' },
     { href: '/pricing', label: 'AI Credits', key: 'pricing' },
+    { href: extensionUrl, label: 'Install', key: 'install' },
   ];
 
   return (
-    <nav style={{
-      borderBottom: '1px solid #d7dde2',
-      background: '#fff',
-      padding: '18px 32px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'baseline',
-      gap: 24,
-      flexWrap: 'wrap',
-      fontFamily: font,
-    }}>
-      <a href="/" style={{ color: '#1f2933', textDecoration: 'none', fontSize: 16, fontWeight: 650 }}>
-        Canvas Enhancer
-      </a>
-      <div style={{ display: 'flex', gap: 22, alignItems: 'center', flexWrap: 'wrap' }}>
-        {links.map(link => (
-          <a
-            key={link.key}
-            href={link.href}
-            style={{
-              color: active === link.key ? '#1f2933' : '#5f6b76',
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: active === link.key ? 650 : 400,
-            }}
-          >
-            {link.label}
-          </a>
-        ))}
-        <a href={extensionUrl} style={{ color: '#1f2933', fontSize: 14, fontWeight: 650, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-          Install
+    <header style={{ width: '100%', padding: '34px 0 24px' }}>
+      <div
+        style={{
+          maxWidth: 960,
+          margin: '0 auto',
+          padding: '0 20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          gap: 28,
+          flexWrap: 'wrap',
+        }}
+      >
+        <a href="/" style={{ textDecoration: 'none', color: '#26315f' }}>
+          <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1, fontWeight: 700 }}>
+            Canvas Enhancer
+          </div>
+          <div style={{ fontFamily: display, fontSize: 12, color: '#777', marginTop: 8, letterSpacing: 0 }}>
+            Practical Canvas tools for teachers
+          </div>
         </a>
+
+        <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} aria-label="Site navigation">
+          {links.map(link => {
+            const isActive = active === link.key;
+
+            return (
+              <a
+                key={link.key}
+                href={link.href}
+                style={{
+                  display: 'inline-block',
+                  minWidth: 92,
+                  padding: '8px 12px',
+                  borderRadius: 3,
+                  textAlign: 'center',
+                  textDecoration: 'none',
+                  color: isActive ? '#fff' : '#6d6f73',
+                  background: isActive ? '#244f98' : 'transparent',
+                  fontFamily: display,
+                  fontSize: 15,
+                  lineHeight: 1,
+                }}
+              >
+                {link.label}
+              </a>
+            );
+          })}
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 }

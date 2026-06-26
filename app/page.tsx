@@ -2,42 +2,27 @@
 
 import SiteNav from './components/SiteNav';
 
-const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
-const text = '#1f2933';
-const muted = '#5f6b76';
-const rule = '#d7dde2';
-const page = '#fbfcfd';
+const serif = 'Georgia,"Times New Roman",serif';
+const display = '"Trebuchet MS",Arial,sans-serif';
+const pageBg = '#e9ecef';
+const paper = '#f8f8f5';
+const text = '#595c60';
+const heading = '#26315f';
+const blue = '#244f98';
+const rule = '#d2d2cc';
 
-const groups = [
+const articles = [
   {
-    title: 'Course content',
-    items: [
-      ['Content Studio', 'Reusable Canvas page structures for headers, callouts, cards, columns, checklists, and common course materials.'],
-      ['Component library', 'A consistent set of content patterns that can be inserted without editing HTML.'],
-    ],
+    title: 'Build Canvas pages with less HTML work',
+    body: 'Content Studio provides reusable page parts for headings, callouts, columns, buttons, checklists, and other common course materials. It is meant to help teachers produce cleaner Canvas pages without turning page design into a technical task.',
   },
   {
-    title: 'Course management',
-    items: [
-      ['Assignment Scheduler', 'Course planning tools for due dates, availability windows, and lock dates.'],
-      ['Date Autofill', 'Reusable date preferences when editing assignments.'],
-      ['Course Vitals', 'Course-level signals for missing work, activity, and students who may need attention.'],
-    ],
+    title: 'Reduce repetitive course setup',
+    body: 'Scheduling, date autofill, course checks, and communication tools are included for everyday Canvas maintenance. These tools are free to use and do not require AI credits.',
   },
   {
-    title: 'Communication',
-    items: [
-      ['Message Pulse', 'Targeted student messaging with course-aware filters and reusable templates.'],
-      ['Announcement Composer', 'Reusable announcement templates for routine course updates.'],
-    ],
-  },
-  {
-    title: 'Assessment',
-    items: [
-      ['Grade Audit', 'A review layer for ungraded work, missing scores, and gradebook inconsistencies.'],
-      ['AI-assisted grading', 'Optional feedback and rubric-score drafting for teacher review.'],
-      ['AI quiz creation', 'Optional question, answer, key, and feedback drafting.'],
-    ],
+    title: 'Use AI only when it helps',
+    body: 'AI-assisted grading, page creation, and quiz creation are optional. Teachers can buy prepaid credits and use them when the task is worth it. The normal Canvas tools remain available without payment.',
   },
 ];
 
@@ -45,62 +30,116 @@ export default function HomePage() {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
 
   return (
-    <main style={{ fontFamily: font, color: text, background: page, minHeight: '100vh' }}>
+    <main style={{ minHeight: '100vh', background: pageBg, color: text, fontFamily: serif }}>
       <SiteNav active="home" />
 
-      <section style={{ maxWidth: 920, margin: '0 auto', padding: '58px 32px 42px' }}>
-        <p style={{ margin: '0 0 18px', color: muted, fontSize: 15, lineHeight: 1.7 }}>
-          Canvas Enhancer is a browser extension for teachers and course teams using Canvas LMS.
-        </p>
-        <h1 style={{ margin: 0, fontSize: 'clamp(32px,5vw,48px)', lineHeight: 1.12, fontWeight: 650, letterSpacing: 0 }}>
-          Practical tools for common Canvas workflows.
-        </h1>
-        <p style={{ margin: '22px 0 0', maxWidth: 720, color: muted, fontSize: 17, lineHeight: 1.75 }}>
-          The extension adds course-building, scheduling, communication, grading review, and optional AI features directly inside Canvas. The non-AI tools are free. AI features use prepaid credits only when a teacher chooses to use them.
-        </p>
-        <div style={{ marginTop: 28, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
-          <a href={extensionUrl} style={{ color: text, fontSize: 15, fontWeight: 650, textDecoration: 'underline', textUnderlineOffset: 4 }}>Install extension</a>
-          <a href="/features" style={{ color: text, fontSize: 15, fontWeight: 650, textDecoration: 'underline', textUnderlineOffset: 4 }}>Read feature details</a>
-          <a href="/pricing" style={{ color: text, fontSize: 15, fontWeight: 650, textDecoration: 'underline', textUnderlineOffset: 4 }}>AI credit information</a>
-        </div>
-      </section>
-
-      <section style={{ borderTop: `1px solid ${rule}`, borderBottom: `1px solid ${rule}`, background: '#fff' }}>
-        <div style={{ maxWidth: 920, margin: '0 auto', padding: '26px 32px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: 22 }}>
-          {[
-            ['Free core tools', 'The standard workflow tools do not require payment.'],
-            ['Optional AI', 'AI grading, page creation, and quiz creation use credits.'],
-            ['Teacher control', 'AI output is reviewed before being applied in Canvas.'],
-            ['School path', 'The model can later support shared organizational credit pools.'],
-          ].map(([title, body]) => (
-            <div key={title}>
-              <div style={{ fontSize: 14, fontWeight: 650 }}>{title}</div>
-              <div style={{ fontSize: 13, lineHeight: 1.65, color: muted, marginTop: 6 }}>{body}</div>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '0 20px 44px' }}>
+        <section
+          style={{
+            background: '#2b3442',
+            border: '1px solid #1d2632',
+            minHeight: 350,
+            padding: '46px 42px',
+            boxShadow: '0 1px 0 #fff',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))',
+            gap: 42,
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <h1 style={{ margin: 0, color: '#fff', fontFamily: serif, fontSize: 'clamp(34px,5vw,48px)', lineHeight: 1.08, fontWeight: 700 }}>
+              Practical tools for teachers working in Canvas.
+            </h1>
+            <p style={{ margin: '22px 0 0', color: '#e7e9ea', fontSize: 15, lineHeight: 1.75, textAlign: 'justify' }}>
+              Canvas Enhancer is a browser extension for teachers and course teams using Canvas LMS. It adds course-building, scheduling, communication, grading review, and optional AI tools inside the Canvas workflow.
+            </p>
+            <p style={{ margin: '18px 0 0', color: '#e7e9ea', fontSize: 15, lineHeight: 1.75, textAlign: 'justify' }}>
+              The standard tools are free. AI credits are separate and are used only for AI-assisted grading, page creation, and quiz creation.
+            </p>
+            <div style={{ marginTop: 28, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              <a href={extensionUrl} style={buttonStyle}>Install Extension</a>
+              <a href="/features" style={secondaryButtonStyle}>Read Features</a>
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      <section style={{ maxWidth: 920, margin: '0 auto', padding: '46px 32px 64px' }}>
-        <h2 style={{ margin: '0 0 22px', fontSize: 24, lineHeight: 1.25, fontWeight: 650 }}>
-          What it includes
-        </h2>
-        <div style={{ display: 'grid', gap: 34 }}>
-          {groups.map(group => (
-            <section key={group.title} style={{ borderTop: `1px solid ${rule}`, paddingTop: 22 }}>
-              <h3 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 650 }}>{group.title}</h3>
-              <div style={{ display: 'grid', gap: 12 }}>
-                {group.items.map(([name, description]) => (
-                  <div key={name} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,180px),1fr))', gap: 10 }}>
-                    <div style={{ fontSize: 14, fontWeight: 650 }}>{name}</div>
-                    <div style={{ fontSize: 14, color: muted, lineHeight: 1.7 }}>{description}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      </section>
+          <aside
+            style={{
+              background: paper,
+              border: '1px solid #d9d9d2',
+              padding: 24,
+              color: text,
+            }}
+          >
+            <h2 style={{ margin: 0, color: heading, fontFamily: serif, fontSize: 22, lineHeight: 1.2 }}>
+              What this is for
+            </h2>
+            <p style={{ margin: '16px 0 0', fontSize: 14, lineHeight: 1.75, textAlign: 'justify' }}>
+              This is not a replacement for Canvas. It is a set of small tools for the work teachers already do: building pages, checking courses, handling dates, preparing messages, and reviewing student submissions.
+            </p>
+            <dl style={{ margin: '22px 0 0', display: 'grid', gap: 13 }}>
+              {[
+                ['Core tools', 'Free'],
+                ['AI tools', 'Prepaid credits'],
+                ['Audience', 'Teachers and course teams'],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 12, borderTop: `1px solid ${rule}`, paddingTop: 10 }}>
+                  <dt style={{ fontFamily: display, fontSize: 12, color: '#777' }}>{label}</dt>
+                  <dd style={{ margin: 0, color: '#30343a', fontSize: 14 }}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </aside>
+        </section>
+
+        <section style={{ marginTop: 34, background: paper, border: '1px solid #d9d9d2', padding: '30px 30px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,250px),1fr))', gap: 28 }}>
+            {articles.map(article => (
+              <article key={article.title}>
+                <h2 style={{ margin: '0 0 13px', color: blue, fontFamily: serif, fontSize: 21, lineHeight: 1.25 }}>
+                  {article.title}
+                </h2>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.8, textAlign: 'justify' }}>
+                  {article.body}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section style={{ marginTop: 28, padding: '8px 2px 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))', gap: 24 }}>
+          <div>
+            <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>A quieter model</h2>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify' }}>
+              The extension can be used without subscriptions. Teachers can use the non-AI tools freely, then purchase AI credits only if they want AI help.
+            </p>
+          </div>
+          <div>
+            <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>For schools</h2>
+            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify' }}>
+              A school or department can later purchase shared AI credit pools for multiple teachers, while individual teachers can still buy credits from inside the app.
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
+
+const buttonStyle = {
+  display: 'inline-block',
+  minWidth: 150,
+  padding: '11px 18px',
+  borderRadius: 3,
+  background: '#2f7c3a',
+  color: '#fff',
+  fontFamily: display,
+  fontSize: 15,
+  textAlign: 'center' as const,
+  textDecoration: 'none',
+};
+
+const secondaryButtonStyle = {
+  ...buttonStyle,
+  background: '#244f98',
+};
