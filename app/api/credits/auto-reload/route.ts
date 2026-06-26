@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (!accountId) return NextResponse.json({ error: 'Invalid account.' }, { status: 400, headers: CORS });
 
     const key = `ce:auto-reload:${accountId}`;
-    const existing = await redis.get<AutoReloadSettings>(key) || {};
+    const existing = (await redis.get<AutoReloadSettings>(key)) ?? {} as AutoReloadSettings;
 
     const updated: AutoReloadSettings = {
       ...existing,
