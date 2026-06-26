@@ -57,8 +57,8 @@ export default function TermsPage() {
 
       <Section title="Contact">
         For billing questions or disputes, email{' '}
-        <a href="mailto:markalanbrest@gmail.com" style={{ color: '#0770B8' }}>
-          markalanbrest@gmail.com
+        <a href="mailto:canvasenhancer@gmail.com" style={{ color: '#0770B8' }}>
+          canvasenhancer@gmail.com
         </a>
         . We will respond within 2 business days.
       </Section>

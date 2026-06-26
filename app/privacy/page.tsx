@@ -134,8 +134,8 @@ export default function PrivacyPage() {
         <p style={{ margin: 0 }}>
           Your credit balance and settings persist in our database until you request deletion.
           To delete your data, email{' '}
-          <a href="mailto:markalanbrest@gmail.com" style={{ color: blue }}>
-            markalanbrest@gmail.com
+          <a href="mailto:canvasenhancer@gmail.com" style={{ color: blue }}>
+            canvasenhancer@gmail.com
           </a>{' '}
           with the subject line &quot;Delete my data.&quot; Because accounts are anonymous,
           you will need to provide your device&apos;s install ID, which can be found by
@@ -177,8 +177,8 @@ export default function PrivacyPage() {
       <Section title="Contact">
         <p style={{ margin: 0 }}>
           Questions about this policy? Email{' '}
-          <a href="mailto:markalanbrest@gmail.com" style={{ color: blue }}>
-            markalanbrest@gmail.com
+          <a href="mailto:canvasenhancer@gmail.com" style={{ color: blue }}>
+            canvasenhancer@gmail.com
           </a>.
         </p>
       </Section>
