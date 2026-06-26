@@ -62,6 +62,11 @@ export default function TermsPage() {
         </a>
         . We will respond within 2 business days.
       </Section>
+
+      <p style={{ fontSize: 13, color: muted, borderTop: '1px solid #E2E8F0', paddingTop: 24, margin: 0 }}>
+        See also:{' '}
+        <a href="/privacy" style={{ color: '#0770B8' }}>Privacy Policy</a>
+      </p>
     </div>
   );
 }

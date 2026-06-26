@@ -62,14 +62,11 @@ function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: 
         />
         <span>
           I agree to the{' '}
-          <a
-            href="https://career-toolkit-ruby.vercel.app/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: blue, textDecoration: 'underline' }}
-          >
-            Terms of Purchase
-          </a>
+          <a href="https://career-toolkit-ruby.vercel.app/terms" target="_blank" rel="noopener noreferrer"
+            style={{ color: blue, textDecoration: 'underline' }}>Terms of Purchase</a>
+          {' '}and{' '}
+          <a href="https://career-toolkit-ruby.vercel.app/privacy" target="_blank" rel="noopener noreferrer"
+            style={{ color: blue, textDecoration: 'underline' }}>Privacy Policy</a>
           . Credits are non-refundable. Auto-reload (if enabled) will charge my card automatically.
         </span>
       </label>
