@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/billing';
 import { stripe, cleanAccountId } from '@/lib/stripe';
+import { getProfile, saveProfile } from '@/lib/teamCredits';
 
 export type TeacherProfile = { name: string; email: string; };
 
@@ -17,7 +17,7 @@ export async function OPTIONS() {
 export async function GET(req: NextRequest) {
   const accountId = cleanAccountId(req.nextUrl.searchParams.get('accountId'));
   if (!accountId) return NextResponse.json({ profile: {} }, { headers: CORS });
-  const profile = await redis.get<TeacherProfile>(`ce:profile:${accountId}`) ?? {};
+  const profile = await getProfile(accountId);
   return NextResponse.json({ profile }, { headers: CORS });
 }
 
@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Name and valid email required.' }, { status: 400, headers: CORS });
     }
 
-    await redis.set(`ce:profile:${accountId}`, { name, email });
+    await saveProfile(accountId, { name, email });
 
     // Keep Stripe customer in sync
+    const { redis } = await import('@/lib/billing');
     const customerId = await redis.get<string>(`ce:stripe-customer:${accountId}`);
     if (customerId) {
       await stripe.customers.update(customerId, { name, email }).catch(() => {});

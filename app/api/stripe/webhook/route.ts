@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { redis } from '@/lib/billing';
+import { enableTeamOwner } from '@/lib/teamCredits';
 
 export const config = { api: { bodyParser: false } };
 
@@ -18,12 +19,18 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'payment_intent.succeeded') {
     const pi = event.data.object as Stripe.PaymentIntent;
-    const { accountId, credits } = pi.metadata || {};
+    const { accountId, credits, creditTarget } = pi.metadata || {};
 
     if (accountId && credits) {
       const creditAmount = Number(credits);
       if (creditAmount > 0) {
-        await redis.incrby(`ce:credits:${accountId}:ai`, creditAmount);
+        if (creditTarget === 'shared') {
+          await enableTeamOwner(accountId);
+          await redis.incrby(`ce:team:${accountId}:credits:ai`, creditAmount);
+        } else {
+          await enableTeamOwner(accountId);
+          await redis.incrby(`ce:credits:${accountId}:ai`, creditAmount);
+        }
       }
 
       // If card was saved for future use, store payment method details for auto-reload

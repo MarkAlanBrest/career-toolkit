@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { redis } from '@/lib/billing';
+import { getOwnedTeamPool, getPersonalPool, isTeamOwner, listSharedPoolsForAccount } from '@/lib/teamCredits';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +22,25 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
   try {
     const accountId = cleanAccountId(request.nextUrl.searchParams.get('accountId'));
-    const [balance, used] = await Promise.all([
-      redis.get<number>(`ce:credits:${accountId}:ai`),
-      redis.get<number>(`ce:credits-used:${accountId}:ai`),
+    const [personal, ownedTeam, ownerEnabled, sharedTeams] = await Promise.all([
+      getPersonalPool(accountId),
+      getOwnedTeamPool(accountId),
+      isTeamOwner(accountId),
+      listSharedPoolsForAccount(accountId),
     ]);
 
     return NextResponse.json({
       accountId,
-      balance: Number(balance || 0),
-      used: Number(used || 0),
+      balance: personal.balance,
+      used: personal.used,
+      personal,
+      ownedTeam: {
+        ownerAccountId: accountId,
+        ownerEnabled,
+        balance: ownedTeam.balance,
+        used: ownedTeam.used,
+      },
+      sharedTeams,
       pack: { priceCents: 1000, credits: 1000 },
       costs: { grading: 1, page: 10, quiz: 10 },
       models: {

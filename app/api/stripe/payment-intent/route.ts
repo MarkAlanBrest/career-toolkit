@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, CREDIT_PACKS, isValidPackKey, cleanAccountId } from '@/lib/stripe';
 import { redis } from '@/lib/billing';
+import { stripe, CREDIT_PACKS, isValidPackKey, cleanAccountId } from '@/lib/stripe';
+import { enableTeamOwner } from '@/lib/teamCredits';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +17,7 @@ async function getOrCreateCustomer(accountId: string): Promise<string> {
   const cacheKey = `ce:stripe-customer:${accountId}`;
   const existing = await redis.get<string>(cacheKey);
   if (existing) return existing;
+
   const customer = await stripe.customers.create({ metadata: { accountId } });
   await redis.set(cacheKey, customer.id);
   return customer.id;
@@ -30,21 +32,23 @@ export async function POST(req: NextRequest) {
     const pack = body?.pack;
     if (!isValidPackKey(pack)) return NextResponse.json({ error: 'Invalid pack.' }, { status: 400, headers: CORS });
 
+    const creditTarget = body?.creditTarget === 'shared' ? 'shared' : 'personal';
     const packConfig = CREDIT_PACKS[pack];
     const saveCard = body?.saveCard === true;
-    const name  = String(body?.name  || '').trim().slice(0, 100);
+    const name = String(body?.name || '').trim().slice(0, 100);
     const email = String(body?.email || '').trim().toLowerCase().slice(0, 200);
     const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     const customerId = await getOrCreateCustomer(accountId);
 
-    // Keep Stripe customer name/email current whenever we have them
     if (name || emailValid) {
       await stripe.customers.update(customerId, {
-        ...(name       && { name }),
+        ...(name && { name }),
         ...(emailValid && { email }),
       }).catch(() => {});
     }
+
+    if (creditTarget === 'shared') await enableTeamOwner(accountId);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: packConfig.priceCents,
@@ -52,8 +56,8 @@ export async function POST(req: NextRequest) {
       customer: customerId,
       receipt_email: emailValid ? email : undefined,
       setup_future_usage: saveCard ? 'off_session' : undefined,
-      metadata: { accountId, credits: String(packConfig.credits), pack },
-      description: `Canvas Enhancer — ${packConfig.description}`,
+      metadata: { accountId, credits: String(packConfig.credits), pack, creditTarget },
+      description: `Canvas Enhancer - ${packConfig.description}${creditTarget === 'shared' ? ' shared department credits' : ''}`,
       automatic_payment_methods: { enabled: true },
     });
 

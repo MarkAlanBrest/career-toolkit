@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/billing';
 import type { AutoReloadSettings } from '@/app/api/credits/auto-reload/route';
 import { stripe } from '@/lib/stripe';
+import { canUseSharedPool, recordUsage } from '@/lib/teamCredits';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
@@ -18,6 +19,42 @@ const CREDIT_COSTS: Record<AllowedModel, Record<string, number>> = {
 function cleanAccountId(value: unknown): string | null {
   const id = String(value || '').trim();
   return /^[a-zA-Z0-9:_-]{8,80}$/.test(id) ? id : null;
+}
+
+async function deductCredits(params: {
+  accountId: string;
+  creditCost: number;
+  meter: string;
+  model: string;
+  pool: 'personal' | 'shared';
+  ownerAccountId?: string | null;
+}) {
+  const { accountId, creditCost, meter, model, pool } = params;
+  const ownerAccountId = pool === 'shared' ? cleanAccountId(params.ownerAccountId) : null;
+
+  if (pool === 'shared') {
+    if (!ownerAccountId) return { ok: false, error: 'Choose a valid shared credit account.' };
+    const allowed = await canUseSharedPool(accountId, ownerAccountId);
+    if (!allowed) return { ok: false, error: 'You do not have access to those shared AI credits.' };
+
+    const balanceKey = `ce:team:${ownerAccountId}:credits:ai`;
+    const usedKey = `ce:team:${ownerAccountId}:credits-used:ai`;
+    const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
+    const result = await redis.eval(script, [balanceKey, usedKey], [creditCost]) as number[];
+    if (!Array.isArray(result) || result[0] < 0) return { ok: false, error: 'Not enough shared AI credits.' };
+
+    await recordUsage({ accountId, ownerAccountId, pool, credits: creditCost, meter, model }).catch(() => {});
+    return { ok: true, pool, ownerAccountId, balanceKey, usedKey };
+  }
+
+  const balanceKey = `ce:credits:${accountId}:ai`;
+  const usedKey = `ce:credits-used:${accountId}:ai`;
+  const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
+  const result = await redis.eval(script, [balanceKey, usedKey], [creditCost]) as number[];
+  if (!Array.isArray(result) || result[0] < 0) return { ok: false, error: 'Not enough AI credits. Buy a pack from the toolbar to continue.' };
+
+  await recordUsage({ accountId, pool, credits: creditCost, meter, model }).catch(() => {});
+  return { ok: true, pool, balanceKey, usedKey, newBalance: result[0] };
 }
 
 export async function POST(req: NextRequest) {
@@ -38,17 +75,23 @@ export async function POST(req: NextRequest) {
 
   // Deduct credits if accountId is provided (new credits system)
   const accountId = cleanAccountId(body.accountId);
+  let deduction: Awaited<ReturnType<typeof deductCredits>> | null = null;
   if (accountId) {
-    const balanceKey = `ce:credits:${accountId}:ai`;
-    const usedKey = `ce:credits-used:${accountId}:ai`;
-    const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
-    const result = await redis.eval(script, [balanceKey, usedKey], [creditCost]) as number[];
-    if (!Array.isArray(result) || result[0] < 0) {
-      return NextResponse.json({ error: 'Not enough AI credits. Buy a pack from the toolbar to continue.' }, { status: 402, headers: CORS });
-    }
+    const pool = body.creditPool === 'shared' ? 'shared' : 'personal';
+    deduction = await deductCredits({
+      accountId,
+      creditCost,
+      meter,
+      model,
+      pool,
+      ownerAccountId: body.sharedAccountId || body.ownerAccountId,
+    });
+    if (!deduction.ok) return NextResponse.json({ error: deduction.error }, { status: 402, headers: CORS });
+
     // Fire-and-forget auto-reload if balance is low
-    const newBalance = result[0];
-    checkAndAutoReload(accountId, newBalance).catch(() => {});
+    if (deduction.pool === 'personal' && typeof deduction.newBalance === 'number') {
+      checkAndAutoReload(accountId, deduction.newBalance).catch(() => {});
+    }
   }
 
   const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -59,9 +102,9 @@ export async function POST(req: NextRequest) {
 
   if (!anthropicRes.ok) {
     // Refund credits on API failure
-    if (accountId) {
-      await redis.incrby(`ce:credits:${accountId}:ai`, creditCost).catch(() => {});
-      await redis.decrby(`ce:credits-used:${accountId}:ai`, creditCost).catch(() => {});
+    if (deduction?.ok) {
+      await redis.incrby(deduction.balanceKey, creditCost).catch(() => {});
+      await redis.decrby(deduction.usedKey, creditCost).catch(() => {});
     }
     const errData = await anthropicRes.json().catch(() => ({}));
     return NextResponse.json({ error: (errData as any)?.error?.message || `Anthropic error ${anthropicRes.status}` }, { status: anthropicRes.status, headers: CORS });

@@ -12,6 +12,32 @@ const PACKS = [
   { key: 'department', label: 'Department', price: '$50', credits: 5000 },
 ] as const;
 type PackKey = typeof PACKS[number]['key'];
+type TeamMember = { email: string; accountId: string | null; name: string };
+type UsageEvent = {
+  accountId?: string;
+  teacherName?: string;
+  teacherEmail?: string;
+  credits?: number;
+  meter?: string;
+  model?: string;
+  createdAt?: string;
+};
+type TeamData = {
+  ownerEnabled: boolean;
+  ownedTeam: {
+    balance: number;
+    used: number;
+    members: TeamMember[];
+    recentUsage: UsageEvent[];
+  };
+  sharedTeams: {
+    id: string;
+    label: string;
+    ownerEmail?: string;
+    balance: number;
+    used: number;
+  }[];
+};
 
 const ink  = '#1B303D';
 const blue = '#0770B8';
@@ -29,6 +55,155 @@ const labelStyle: React.CSSProperties = {
 
 function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function TeamPanel({ accountId, enabledHint }: { accountId: string; enabledHint: boolean }) {
+  const [team, setTeam] = useState<TeamData | null>(null);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const loadTeam = () => {
+    if (!accountId) return;
+    fetch(`/api/credits/team?accountId=${encodeURIComponent(accountId)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) setTeam(data);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(loadTeam, [accountId]);
+
+  const updateMember = async (action: 'add' | 'remove', email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!isValidEmail(cleanEmail)) {
+      setMessage('Enter a valid teacher email.');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/credits/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action, email: cleanEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not update teachers.');
+      setTeam(prev => prev ? { ...prev, ownerEnabled: true, ownedTeam: data.ownedTeam } : prev);
+      setMemberEmail('');
+      setMessage(action === 'add' ? 'Teacher added.' : 'Teacher removed.');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Could not update teachers.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!accountId) return null;
+
+  const ownerEnabled = Boolean(team?.ownerEnabled || enabledHint);
+
+  return (
+    <section style={{ borderTop: `1px solid ${line}`, paddingTop: 16, display: 'grid', gap: 12 }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#526A79', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Department sharing
+        </div>
+        <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.55, color: '#526A79' }}>
+          Add teachers by email. They can use shared department credits and still buy their own personal credits.
+        </div>
+      </div>
+
+      {ownerEnabled ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ border: `1px solid ${line}`, borderRadius: 8, padding: 10 }}>
+              <div style={{ fontSize: 11, color: '#526A79' }}>Shared balance</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: ink }}>{(team?.ownedTeam.balance || 0).toLocaleString()}</div>
+            </div>
+            <div style={{ border: `1px solid ${line}`, borderRadius: 8, padding: 10 }}>
+              <div style={{ fontSize: 11, color: '#526A79' }}>Shared used</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: ink }}>{(team?.ownedTeam.used || 0).toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+            <input
+              type="email"
+              value={memberEmail}
+              onChange={e => setMemberEmail(e.target.value)}
+              placeholder="teacher@school.edu"
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => updateMember('add', memberEmail)}
+              style={{ padding: '0 14px', border: 'none', borderRadius: 8, background: blue, color: '#fff', fontWeight: 800, cursor: loading ? 'wait' : 'pointer' }}
+            >
+              Add
+            </button>
+          </div>
+
+          {!!team?.ownedTeam.members.length && (
+            <div style={{ display: 'grid', gap: 7 }}>
+              {team.ownedTeam.members.map(member => (
+                <div key={member.email} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center', fontSize: 12, color: ink }}>
+                  <div>
+                    <strong>{member.name || member.email}</strong>
+                    {member.name && <span style={{ color: '#526A79' }}> · {member.email}</span>}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => updateMember('remove', member.email)}
+                    style={{ border: `1px solid ${line}`, borderRadius: 7, background: '#fff', color: '#526A79', padding: '5px 8px', cursor: loading ? 'wait' : 'pointer' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!!team?.ownedTeam.recentUsage.length && (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#526A79', textTransform: 'uppercase' }}>Recent shared usage</div>
+              {team.ownedTeam.recentUsage.slice(0, 5).map((event, index) => (
+                <div key={`${event.createdAt || ''}-${index}`} style={{ fontSize: 12, color: '#526A79', lineHeight: 1.45 }}>
+                  {event.teacherName || event.teacherEmail || 'Teacher'} used {Number(event.credits || 0)} credits for {event.meter || 'AI'}.
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div style={{ border: `1px solid ${line}`, borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.55, color: '#526A79', background: '#fff' }}>
+          Buy AI credits to enable department sharing. The buyer becomes the owner and can add or remove teachers.
+        </div>
+      )}
+
+      {!!team?.sharedTeams.length && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#526A79', textTransform: 'uppercase' }}>Shared with me</div>
+          {team.sharedTeams.map(shared => (
+            <div key={shared.id} style={{ fontSize: 12, color: '#526A79', lineHeight: 1.45 }}>
+              {shared.label}: {shared.balance.toLocaleString()} credits available
+            </div>
+          ))}
+        </div>
+      )}
+
+      {message && (
+        <div style={{ fontSize: 12, color: message.includes('Could') || message.includes('valid') || message.includes('Buy') ? '#DC2626' : '#15803D' }}>
+          {message}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
@@ -128,6 +303,7 @@ function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
 export default function BuyCreditsPage() {
   const [accountId, setAccountId] = useState('');
   const [selectedPack, setSelectedPack] = useState<PackKey>('teacher');
+  const [creditTarget, setCreditTarget] = useState<'personal' | 'shared'>('personal');
   const [saveCard, setSaveCard] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -143,6 +319,7 @@ export default function BuyCreditsPage() {
     setAccountId(id);
     const packParam = params.get('pack') as PackKey | null;
     if (packParam && PACKS.find(p => p.key === packParam)) setSelectedPack(packParam);
+    if (params.get('target') === 'shared') setCreditTarget('shared');
     if (params.get('saveCard') === 'true') setSaveCard(true);
 
     if (id) {
@@ -170,7 +347,7 @@ export default function BuyCreditsPage() {
       fetch('/api/stripe/payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, pack: selectedPack, saveCard, name, email }),
+        body: JSON.stringify({ accountId, pack: selectedPack, saveCard, name, email, creditTarget }),
       })
         .then(r => r.json())
         .then(data => {
@@ -186,12 +363,12 @@ export default function BuyCreditsPage() {
     }, delay);
 
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [accountId, selectedPack, saveCard, name, email]);
+  }, [accountId, selectedPack, saveCard, name, email, creditTarget]);
 
   const handleSuccess = () => {
     const pack = PACKS.find(p => p.key === selectedPack)!;
     setSuccess(true);
-    window.parent.postMessage({ type: 'CE_PAYMENT_SUCCESS', credits: pack.credits }, '*');
+    window.parent.postMessage({ type: 'CE_PAYMENT_SUCCESS', credits: pack.credits, creditTarget }, '*');
   };
 
   if (success) {
@@ -202,7 +379,9 @@ export default function BuyCreditsPage() {
         <div style={{ fontSize: 22, fontWeight: 800, color: '#15803D' }}>
           {pack.credits.toLocaleString()} credits added!
         </div>
-        <div style={{ fontSize: 14, color: '#526A79' }}>Your account has been updated.</div>
+        <div style={{ fontSize: 14, color: '#526A79' }}>
+          {creditTarget === 'shared' ? 'Your shared department balance has been updated.' : 'Your personal balance has been updated.'}
+        </div>
         <button
           onClick={() => window.parent.postMessage({ type: 'CE_CLOSE_CHECKOUT' }, '*')}
           style={{ marginTop: 8, padding: '10px 24px', background: blue, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: font }}
@@ -244,6 +423,36 @@ export default function BuyCreditsPage() {
         </div>
       </div>
 
+      {/* Balance target */}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#526A79', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+          Add credits to
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[
+            ['personal', 'My credits', 'Only I use these credits.'],
+            ['shared', 'Department credits', 'Teachers I add can use these credits.'],
+          ].map(([key, label, help]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setCreditTarget(key as 'personal' | 'shared')}
+              style={{
+                padding: '10px 9px',
+                border: `2px solid ${creditTarget === key ? blue : line}`,
+                borderRadius: 8,
+                background: creditTarget === key ? '#EDF5FF' : '#fff',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 800, color: creditTarget === key ? blue : ink }}>{label}</div>
+              <div style={{ fontSize: 11, color: '#526A79', marginTop: 3, lineHeight: 1.35 }}>{help}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Name + Email */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div>
@@ -278,6 +487,8 @@ export default function BuyCreditsPage() {
         />
         Save card for automatic top-ups
       </label>
+
+      <TeamPanel accountId={accountId} enabledHint={creditTarget === 'shared'} />
 
       {/* Error */}
       {secretError && (
