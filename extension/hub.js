@@ -767,6 +767,22 @@
 
   const CE_SITE = 'https://career-toolkit-ruby.vercel.app';
 
+  function openManageCredits() {
+    const win = window.open('about:blank', '_blank');
+    const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
+    sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
+      const accountId = status?.accountId || '';
+      if (!accountId) throw new Error(status?.error || 'Could not identify this account.');
+      win.location.href = `${CE_SITE}/manage-credits?accountId=${encodeURIComponent(accountId)}`;
+    }).catch(err => {
+      if (win) {
+        win.document.body.style.fontFamily = DS.font;
+        win.document.body.style.padding = '24px';
+        win.document.body.textContent = err?.message || 'Could not open teacher credit management.';
+      }
+    });
+  }
+
   function openAICredits() {
     creditsMBody.innerHTML = '';
     creditsModal.style.display = 'flex';
@@ -786,6 +802,9 @@
     const costsList = el('div', `font-size:11px;color:${DS.muted};line-height:1.8;text-align:right;`);
     costsList.innerHTML = 'Grade: 1–4 cr<br>Page: 3–10 cr<br>Quiz: 3–10 cr';
     balanceCard.append(balanceLeft, costsList);
+
+    const manageTeachersBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};border-radius:6px;`);
+    manageTeachersBtn.addEventListener('click', openManageCredits);
 
     // ── Pack selector ─────────────────────────────────────────────────────────
     const PACKS_HUB = [
@@ -829,6 +848,7 @@
       frameWrap.appendChild(checkoutFrame);
       // Switch to checkout view — hide everything else
       balanceCard.style.display = 'none';
+      manageTeachersBtn.style.display = 'none';
       packRow.style.display = 'none';
       saveCardRow.style.display = 'none';
       buyBtn.style.display = 'none';
@@ -840,6 +860,7 @@
       frameWrap.style.display = 'none';
       frameWrap.innerHTML = '';
       balanceCard.style.display = '';
+      manageTeachersBtn.style.display = '';
       packRow.style.display = '';
       saveCardRow.style.display = '';
       buyBtn.style.display = 'block';
@@ -1001,7 +1022,7 @@
     }
 
     // ── Compose the modal body ────────────────────────────────────────────────
-    creditsMBody.append(balanceCard, packRow, saveCardRow, buyBtn, frameWrap, autoReloadSection);
+    creditsMBody.append(balanceCard, manageTeachersBtn, packRow, saveCardRow, buyBtn, frameWrap, autoReloadSection);
 
     // Load balance + accountId
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
@@ -1028,7 +1049,7 @@
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
 
-    const stack = el('div', 'display:flex;flex-direction:column;gap:18px;');
+    const stack = el('div', 'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:22px 28px;align-items:start;');
 
     // Heading
     const head = el('div', '');
@@ -1037,7 +1058,12 @@
     const hs = el('div', `font-size:12px;color:${DS.muted};`);
     hs.textContent = 'Applies to all Canvas Enhancer tools.';
     head.appendChild(ht); head.appendChild(hs);
+    head.style.gridColumn = '1 / -1';
     stack.appendChild(head);
+
+    const primaryCol = el('div', 'display:flex;flex-direction:column;gap:16px;min-width:0;');
+    const secondaryCol = el('div', 'display:flex;flex-direction:column;gap:16px;min-width:0;');
+    stack.append(primaryCol, secondaryCol);
 
     const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || stored.ces_teacher_name || '');
 
@@ -1047,15 +1073,15 @@
       inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
     }
 
-    stack.appendChild(row('Teacher Name', nameIn));
-    if (globalThis.CECanvasToken) stack.appendChild(globalThis.CECanvasToken.createControl());
+    primaryCol.appendChild(row('Teacher Name', nameIn));
+    if (globalThis.CECanvasToken) primaryCol.appendChild(globalThis.CECanvasToken.createControl());
 
     const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
     const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
 
     const accountBox = el('div', `padding:12px;border:1px solid ${DS.border};border-radius:4px;background:#F8FAFC;font-size:12px;color:${DS.muted};line-height:1.5;`);
     accountBox.textContent = '';
-    stack.appendChild(accountBox);
+    primaryCol.appendChild(accountBox);
 
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
     accountBox.append(
@@ -1064,7 +1090,9 @@
     );
     const buyCreditsBtn = btn('Open AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;width:auto;margin-top:10px;`);
     buyCreditsBtn.addEventListener('click', openAICredits);
-    accountBox.appendChild(buyCreditsBtn);
+    const manageTeachersBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:8px;width:auto;margin-top:10px;margin-left:8px;`);
+    manageTeachersBtn.addEventListener('click', openManageCredits);
+    accountBox.append(buyCreditsBtn, manageTeachersBtn);
     const parseKeys = value => String(value || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
     async function showAccount(keys) {
       if (!keys.length) {
@@ -1149,18 +1177,15 @@
       }
     });
 
-    stack.appendChild(saveBtn);
-    stack.appendChild(saveMsg);
-    stack.appendChild(divider());
+    primaryCol.appendChild(saveBtn);
+    primaryCol.appendChild(saveMsg);
 
     if (globalThis.CEDataBackup) {
-      stack.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
-      stack.appendChild(divider());
+      secondaryCol.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
     }
 
     if (globalThis.CEDataBackup?.createToolSection) {
-      stack.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
-      stack.appendChild(divider());
+      secondaryCol.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
     }
 
     // About
@@ -1199,7 +1224,7 @@
       }
     });
     about.appendChild(uninstallBtn);
-    stack.appendChild(about);
+    secondaryCol.appendChild(about);
 
     dest.appendChild(stack);
     } catch(e) {
