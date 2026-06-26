@@ -600,7 +600,7 @@
   // ── SETTINGS MODAL ─────────────────────────────────────────────────────────
   const settingsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   settingsModal.id = 'ce-settings-modal';
-  const settingsBox = el('div', `background:#fff;width:min(620px,calc(100vw - 48px));max-height:min(700px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const settingsBox = el('div', `background:#fff;width:min(1240px,calc(100vw - 48px));max-height:min(920px,calc(100vh - 48px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   const settingsMHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
   const settingsMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
   settingsMTitle.textContent = 'Settings';
@@ -609,7 +609,7 @@
   settingsMClose.addEventListener('mouseleave', () => { settingsMClose.style.background = ''; settingsMClose.style.color = 'rgba(255,255,255,0.65)'; });
   settingsMClose.addEventListener('click', () => { settingsModal.style.display = 'none'; setActive(null); });
   settingsMHdr.append(settingsMTitle, settingsMClose);
-  const settingsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:0;`);
+  const settingsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:28px 36px;display:flex;flex-direction:column;gap:0;`);
   settingsMBody.id = 'ce-settings-mbody';
   settingsBox.append(settingsMHdr, settingsMBody);
   settingsModal.appendChild(settingsBox);
