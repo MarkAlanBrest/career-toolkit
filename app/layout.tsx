@@ -1,7 +1,6 @@
 export const metadata = {
-  title: "Canvas Enhancer — Professional Components for Canvas LMS",
-  description:
-    "Add beautifully styled callouts, headers, tables, layouts, and templates to your Canvas pages with one click. No coding required.",
+  title: 'Canvas Enhancer - Free Canvas Tools with Optional AI Credits',
+  description: 'Free Canvas teaching tools for content, grading workflows, scheduling, messaging, and optional prepaid AI credits.',
 };
 
 export default function RootLayout({

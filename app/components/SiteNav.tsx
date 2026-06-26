@@ -18,7 +18,7 @@ export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pr
       <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
         <a href="/"         style={linkStyle('home')}>Home</a>
         <a href="/features" style={linkStyle('features')}>Features</a>
-        <a href="/pricing"  style={linkStyle('pricing')}>Pricing</a>
+        <a href="/pricing"  style={linkStyle('pricing')}>AI Credits</a>
         <a href={extensionUrl} style={{ background: blue, color: '#fff', padding: '7px 16px', borderRadius: 4, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
           Install Free
         </a>
