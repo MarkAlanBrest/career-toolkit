@@ -52,13 +52,13 @@ async function handleStreamPort(port) {
     if (msg.type !== 'STREAM_GENERATE') return;
     try {
       const { messages, max_tokens, model, usageType } = msg.payload;
-      const licenseKeys = await getLicenseKeys();
+      const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getInstallId()]);
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys }),
+        body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId }),
       });
 
       console.log('[CE-BG] fetch response status:', res.status, res.ok ? 'OK' : 'FAILED');
@@ -234,12 +234,12 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
 
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
-  const licenseKeys = await getLicenseKeys();
+  const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getInstallId()]);
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys }),
+    body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId }),
   });
 
   if (!res.ok) {

@@ -5,7 +5,7 @@
 
     // ── STORAGE SHIM ──────────────────────────────────────────────────────────
     const _store = await new Promise(resolve =>
-      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grader_filter_published', 'ce_grader_filter_dashboard', 'ce_teacher_name'], resolve)
+      chrome.storage.local.get(['ce_canvas_token', 'ce_grader_settings', 'ce_grader_filter_published', 'ce_grader_filter_dashboard', 'ce_teacher_name', 'ce_grading_model'], resolve)
     );
     function GM_getValue(key, def) { return _store[key] ?? def; }
     function GM_setValue(key, val) { _store[key] = val; chrome.storage.local.set({ [key]: val }); }
@@ -15,7 +15,12 @@
     });
 
     function getToken() { return GM_getValue('ce_canvas_token', ''); }
-    const gradingModel = 'claude-haiku-4-5';
+    function getGradingModel() { return GM_getValue('ce_grading_model', 'claude-haiku-4-5'); }
+
+    const GRADING_MODELS = [
+      { id: 'claude-haiku-4-5',  label: 'Haiku',  detail: 'Fast · 1 credit/submission',  recommended: true },
+      { id: 'claude-sonnet-4-6', label: 'Sonnet', detail: 'Richer feedback · 4 credits/submission', recommended: false },
+    ];
 
     // ── SPEEDGRADER COMMENT TOOLBAR ───────────────────────────────────────────
     const _barBtnCss = 'padding:6px 12px;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.12);background:#fff;color:#2d3b45;font-size:13px;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:nowrap;text-align:center;transition:background .15s,color .15s;';
@@ -805,6 +810,32 @@
           const statusEl = document.createElement('div');
           statusEl.className = 'ce-sg-status-text';
 
+          // Model selector
+          const modelWrap = document.createElement('div');
+          modelWrap.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 12px;background:#F4F8FB;border:1px solid #D8E1E8;border-radius:7px;margin-bottom:10px;';
+          const modelLabel = document.createElement('span');
+          modelLabel.style.cssText = 'font-size:12px;font-weight:700;color:#526A79;white-space:nowrap;';
+          modelLabel.textContent = 'AI Model:';
+          const modelSel = document.createElement('select');
+          modelSel.style.cssText = 'flex:1;border:1px solid #D8E1E8;border-radius:5px;padding:4px 8px;font-size:12px;color:#243746;background:#fff;cursor:pointer;';
+          GRADING_MODELS.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.label + (m.recommended ? ' ★' : '') + ' — ' + m.detail;
+            if (m.id === getGradingModel()) opt.selected = true;
+            modelSel.appendChild(opt);
+          });
+          modelSel.addEventListener('change', () => GM_setValue('ce_grading_model', modelSel.value));
+          const modelWarn = document.createElement('span');
+          modelWarn.style.cssText = 'font-size:11px;color:#D97706;display:none;white-space:nowrap;';
+          modelWarn.textContent = '⚠ More credits';
+          modelSel.addEventListener('change', () => {
+            modelWarn.style.display = modelSel.value === 'claude-sonnet-4-6' ? 'inline' : 'none';
+          });
+          if (getGradingModel() === 'claude-sonnet-4-6') modelWarn.style.display = 'inline';
+          modelWrap.append(modelLabel, modelSel, modelWarn);
+          body.appendChild(modelWrap);
+
           const runBtn = mkAbtn('▶ Grade This Assignment', 'ce-sg-abtn-primary');
           const runRow = document.createElement('div');
           runRow.style.cssText = 'display:flex;gap:12px;align-items:center;';
@@ -869,7 +900,7 @@
               statusEl.textContent = 'AI is grading…';
               const noCriteria = !criteriaText?.trim();
               const response = await ceSendMessage(
-                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: gradingModel, usageType: 'teaching' } }
+                { type: 'GENERATE', payload: { messages: [{ role: 'user', content: buildPrompt(c, criteriaText) }], max_tokens: 1500, model: getGradingModel(), usageType: 'teaching' } }
               );
               if (response?.error) throw new Error(response.error);
               const text = response?.content?.[0]?.text || '';

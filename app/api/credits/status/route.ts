@@ -31,8 +31,18 @@ export async function GET(request: NextRequest) {
       accountId,
       balance: Number(balance || 0),
       used: Number(used || 0),
-      pack: { priceCents: 2000, credits: 250 },
-      costs: { grading: 1, page: 5, quiz: 5 },
+      pack: { priceCents: 1000, credits: 1000 },
+      costs: { grading: 1, page: 10, quiz: 10 },
+      models: {
+        grading: [
+          { id: 'claude-haiku-4-5', label: 'Haiku — Fast & Economical', credits: 1, recommended: true },
+          { id: 'claude-sonnet-4-6', label: 'Sonnet — Higher Quality', credits: 4, recommended: false },
+        ],
+        creation: [
+          { id: 'claude-haiku-4-5', label: 'Haiku — Fast & Simple', credits: 3, recommended: false },
+          { id: 'claude-sonnet-4-6', label: 'Sonnet — Best Quality', credits: 10, recommended: true },
+        ],
+      },
     }, { headers: CORS });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not load AI credits.' }, { status: 400, headers: CORS });

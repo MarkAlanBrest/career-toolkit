@@ -71,22 +71,22 @@ const aiFeatures = [
   {
     icon: '🎓',
     title: 'AI-Assisted Grading',
-    cost: '1 credit per submission',
-    desc: 'In SpeedGrader, AI reads your rubric and the student\'s submission, pre-fills rubric scores, and drafts written feedback. You review, adjust if needed, and submit. A class set of 30 goes from 2 hours to 25 minutes.',
+    cost: '1–4 credits per submission',
+    desc: 'In SpeedGrader, AI reads your rubric and the student\'s submission, pre-fills rubric scores, and drafts written feedback. You review, adjust if needed, and submit. A class set of 30 goes from 2 hours to 25 minutes. Pick Haiku (1 credit, fast) or Sonnet (4 credits, richer feedback).',
     quote: '"The feedback is more consistent than what I write at 11pm anyway."',
   },
   {
     icon: '✨',
     title: 'AI Page Builder',
-    cost: '5 credits per page',
-    desc: 'Type a description — "Introduction to photosynthesis for 9th grade, with a key terms section and a Did You Know callout" — and Canvas Enhancer builds the full formatted Canvas page, ready to publish.',
+    cost: '3–10 credits per page',
+    desc: 'Type a description — "Introduction to photosynthesis for 9th grade, with a key terms section and a Did You Know callout" — and Canvas Enhancer builds the full formatted Canvas page, ready to publish. Choose your AI model inside the toolbar.',
     quote: '"I built an entire unit\'s worth of pages in one afternoon. It would have taken two weeks before."',
   },
   {
     icon: '📝',
     title: 'AI Quiz Maker',
-    cost: '5 credits per quiz',
-    desc: 'Describe your topic and question style. Canvas Enhancer generates questions, answer choices, correct keys, point values, and per-question feedback — and builds the quiz directly in Canvas.',
+    cost: '3–10 credits per quiz',
+    desc: 'Describe your topic and question style. Canvas Enhancer generates questions, answer choices, correct keys, point values, and per-question feedback — and builds the quiz directly in Canvas. Haiku is fast; Sonnet writes better distractors.',
     quote: '"The AI wrote better distractor choices than I do."',
   },
 ];
@@ -210,7 +210,7 @@ export default function FeaturesPage() {
 
           <div style={{ background: blue, borderRadius: 10, padding: '24px 28px', display: 'flex', justifyContent: 'space-between', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>$10 = 100 credits &nbsp;·&nbsp; $20 = 250 credits &nbsp;·&nbsp; $50 = 650 credits</div>
+              <div style={{ fontSize: 22, fontWeight: 950, lineHeight: 1 }}>$10 = 1,000 credits &nbsp;·&nbsp; $20 = 2,000 credits &nbsp;·&nbsp; $50 = 5,000 credits</div>
               <div style={{ color: '#D7ECF8', fontSize: 14, marginTop: 8 }}>Prepaid. No expiry. No subscription. Buy from the toolbar in the app.</div>
             </div>
             <a href="/pricing" style={{ background: '#fff', color: blue, textDecoration: 'none', borderRadius: 8, padding: '11px 18px', fontWeight: 950, fontSize: 14, flexShrink: 0 }}>View pricing</a>
@@ -227,7 +227,7 @@ export default function FeaturesPage() {
               {
                 title: 'Grading one assignment (30 students)',
                 before: ['Open each submission one at a time', 'Read through the full response', 'Write feedback from scratch', 'Look up the rubric to assign scores', 'Enter score in gradebook', 'Repeat 29 more times', '⏱ 2–3 hours'],
-                after:  ['AI reads rubric + submission instantly', 'Rubric scores pre-filled', 'Feedback drafted for you', 'Review, adjust if needed, click Submit', 'Move to next — already pre-filled', '✓ Uses 1 AI credit per student', '⏱ 20–30 minutes'],
+                after:  ['AI reads rubric + submission instantly', 'Rubric scores pre-filled', 'Feedback drafted for you', 'Review, adjust if needed, click Submit', 'Move to next — already pre-filled', '✓ 1–4 credits per student (model choice)', '⏱ 20–30 minutes'],
                 ai: true,
               },
               {

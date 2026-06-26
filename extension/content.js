@@ -12,7 +12,7 @@
 
   // ── STORAGE SHIM ─────────────────────────────────────────────────────────────
   // Pre-load all keys used by this script so GM_getValue/GM_setValue work sync.
-  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key'];
+  const STORAGE_KEYS = ['ce_components','ce_version','ce_license_key','ce_content_model'];
   const _store = await new Promise(resolve => {
     chrome.storage.local.get(STORAGE_KEYS, resolve);
   });
@@ -36,7 +36,12 @@
 
   const BAKED_VERSION = '2.4';
   const COMPONENTS_URL = 'https://career-toolkit-ruby.vercel.app/components.json';
-  const CE_MODEL = 'claude-sonnet-4-6';
+  function getContentModel() { return GM_getValue('ce_content_model', 'claude-sonnet-4-6'); }
+
+  const CONTENT_MODELS = [
+    { id: 'claude-sonnet-4-6', label: 'Sonnet ★', detail: 'Best quality · 10 credits', recommended: true },
+    { id: 'claude-haiku-4-5',  label: 'Haiku',    detail: 'Faster & simpler · 3 credits', recommended: false },
+  ];
 
   // ── THEME COLORS ─────────────────────────────────────────────────────────────
   const COLORS = [
@@ -1483,13 +1488,30 @@
       // Generate button
       const genBtn=document.createElement('button');
       genBtn.textContent=`✦ Generate ${PAGE_TYPES.find(t=>t.value===st.contentType)?.label||'Content'}`;
-      genBtn.style.cssText='width:100%;padding:14px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,.35);margin-bottom:6px;font-family:inherit;';
+      genBtn.style.cssText='padding:14px 18px;background:#0770B8;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(7,112,184,.3);font-family:inherit;white-space:nowrap;';
       genBtn.dataset.ceCgenbtn='1';
       genBtn.onclick=()=>cbGenerate(st,genBtn,render);
+
+      // Model selector in action bar
+      const modelSelWrap=document.createElement('div');
+      modelSelWrap.style.cssText='display:flex;align-items:center;gap:6px;flex-shrink:0;';
+      const modelSelLabel=document.createElement('span');
+      modelSelLabel.style.cssText='font-size:11px;font-weight:700;color:#526A79;white-space:nowrap;';
+      modelSelLabel.textContent='Model:';
+      const modelSelEl=document.createElement('select');
+      modelSelEl.style.cssText='border:1px solid #D8E1E8;border-radius:5px;padding:3px 6px;font-size:11px;color:#243746;background:#fff;cursor:pointer;';
+      CONTENT_MODELS.forEach(m=>{
+        const o=document.createElement('option');
+        o.value=m.id; o.textContent=m.label+' — '+m.detail;
+        if(m.id===getContentModel()) o.selected=true;
+        modelSelEl.appendChild(o);
+      });
+      modelSelEl.addEventListener('change',()=>GM_setValue('ce_content_model',modelSelEl.value));
+      modelSelWrap.append(modelSelLabel, modelSelEl);
+
       const actionBar=document.createElement('div');
-      actionBar.style.cssText='position:sticky;bottom:0;z-index:4;margin:6px -14px 0;padding:12px 14px;background:rgba(248,250,252,.96);backdrop-filter:blur(8px);border-top:1px solid #E2E8F0;display:flex;gap:10px;align-items:center;';
-      genBtn.style.marginBottom='0';
-      actionBar.appendChild(genBtn);
+      actionBar.style.cssText='position:sticky;bottom:0;z-index:4;margin:6px -14px 0;padding:12px 14px;background:rgba(248,250,252,.96);backdrop-filter:blur(8px);border-top:1px solid #E2E8F0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;';
+      actionBar.append(genBtn, modelSelWrap);
 
       if (st.generatedHTML) {
         const vb=document.createElement('button'); vb.textContent='View Last Result →';
@@ -1505,7 +1527,7 @@
       if(!st.generatedHTML)return;
       st.view='loading';render();
       const prompt='Revise the following Canvas LMS HTML. '+instruction+' Preserve valid HTML, inline styles, links, accessibility, and the original meaning. Return only the complete revised HTML with no markdown fences.\n\n'+st.generatedHTML;
-      ceGenerate({model:CE_MODEL,max_tokens:8096,messages:[{role:'user',content:prompt}]})
+      ceGenerate({model:getContentModel(),max_tokens:8096,messages:[{role:'user',content:prompt}]})
         .then(data=>{
           let html=data?.content?.[0]?.text||'';
           html=html.replace(/```html\s*/gi,'').replace(/```/g,'').trim();
@@ -1684,7 +1706,7 @@ if (st.includedLinks.length) {
     if (st.textContent.trim()) prompt+=`\nContent:\n${st.textContent}\n`;
     if (st.uploadedFile)       prompt+=`\nUploaded file (${st.uploadedName}):\n${st.uploadedFile}\n`;
     prompt+=`\nRules: Return ONLY HTML. Inline CSS only — no <style> tags, no <head>/<body>. Web-safe fonts only. No JavaScript. No external images. Ready to paste into Canvas Rich Content Editor.`;
-    ceGenerate({ model:CE_MODEL, max_tokens:8096, messages:[{role:'user',content:prompt}] })
+    ceGenerate({ model:getContentModel(), max_tokens:8096, messages:[{role:'user',content:prompt}] })
       .then(data => {
         genBtn.disabled=false; genBtn.textContent='✦ Generate';
         let html=data?.content?.[0]?.text||'';
@@ -1854,6 +1876,24 @@ if (st.includedLinks.length) {
       statusEl.textContent=msg;
       if(type!=='info')setTimeout(()=>statusEl.style.display='none',5000);
     }
+
+    // Quiz model selector
+    const qModelWrap=document.createElement('div');
+    qModelWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 10px;background:#F4F8FB;border:1px solid #D8E1E8;border-radius:5px;margin-bottom:8px;';
+    const qModelLabel=document.createElement('span');
+    qModelLabel.style.cssText='font-size:11px;font-weight:700;color:#526A79;white-space:nowrap;';
+    qModelLabel.textContent='AI Model:';
+    const qModelSel=document.createElement('select');
+    qModelSel.style.cssText='flex:1;border:1px solid #D8E1E8;border-radius:4px;padding:3px 6px;font-size:11px;color:#243746;background:#fff;cursor:pointer;';
+    CONTENT_MODELS.forEach(m=>{
+      const o=document.createElement('option');
+      o.value=m.id; o.textContent=m.label+' — '+m.detail;
+      if(m.id===getContentModel()) o.selected=true;
+      qModelSel.appendChild(o);
+    });
+    qModelSel.addEventListener('change',()=>GM_setValue('ce_content_model',qModelSel.value));
+    qModelWrap.append(qModelLabel, qModelSel);
+    leftBody.appendChild(qModelWrap);
 
     const genBtn=document.createElement('button');
     genBtn.textContent='✦ Generate Questions';
@@ -2141,7 +2181,7 @@ Critical rules:
 - Match the exact question type counts listed above
 - Total: exactly ${totalQ} questions`;
 
-      ceGenerate({ model:CE_MODEL, max_tokens:12000, messages:[{role:'user',content:prompt}] })
+      ceGenerate({ model:getContentModel(), max_tokens:12000, messages:[{role:'user',content:prompt}] })
         .then(data => {
           genBtn.disabled=false; loadEl.style.display='none';
           let raw=data?.content?.[0]?.text||'';

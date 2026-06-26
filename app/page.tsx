@@ -22,15 +22,15 @@ const freeTools = [
 ];
 
 const aiUses = [
-  { icon: '🎓', name: 'Grade a submission',   cost: '1 credit', note: 'AI reads your rubric and drafts feedback. 30 students in 25 minutes.' },
-  { icon: '✨', name: 'Build a Canvas page',   cost: '5 credits', note: 'Type a description. A complete formatted page is generated instantly.' },
-  { icon: '📝', name: 'Create a quiz',         cost: '5 credits', note: 'Questions, answers, keys, and feedback — built directly in Canvas.' },
+  { icon: '🎓', name: 'Grade a submission',   cost: 'from 1 credit', note: 'AI reads your rubric and drafts feedback. 30 students in 25 minutes.' },
+  { icon: '✨', name: 'Build a Canvas page',   cost: 'from 3 credits', note: 'Type a description. A complete formatted page is generated instantly.' },
+  { icon: '📝', name: 'Create a quiz',         cost: 'from 3 credits', note: 'Questions, answers, keys, and feedback — built directly in Canvas.' },
 ];
 
 const packs = [
-  { label: 'Starter',    price: '$10', credits: 100 },
-  { label: 'Teacher',    price: '$20', credits: 250, best: true },
-  { label: 'Department', price: '$50', credits: 650 },
+  { label: 'Starter',    price: '$10', credits: 1000 },
+  { label: 'Teacher',    price: '$20', credits: 2000, best: true },
+  { label: 'Department', price: '$50', credits: 5000 },
 ];
 
 export default function HomePage() {

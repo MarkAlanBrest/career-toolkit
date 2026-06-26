@@ -18,11 +18,11 @@ export const PRODUCTS: Product[] = [
     key: 'ai_credit_pack',
     name: 'AI Credits',
     kind: 'ai_credit',
-    priceCents: 2000,
+    priceCents: 1000,
     cycle: 'one_time',
     meter: 'ai',
-    included: 250,
-    description: '250 non-transferable AI credits for grading, pages, or quizzes',
+    included: 1000,
+    description: '1,000 non-transferable AI credits for grading, pages, or quizzes',
   },
 ];
 

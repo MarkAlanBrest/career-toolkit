@@ -11,15 +11,15 @@ const soft = '#F4F8FB';
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 
 const packs = [
-  { name: 'Starter', price: '$10', credits: 100, best: false, note: 'Good for trying AI grading or a small week of work.' },
-  { name: 'Teacher Pack', price: '$20', credits: 250, best: true, note: 'Best first pack for an active teacher.' },
-  { name: 'Department Pack', price: '$50', credits: 650, best: false, note: 'Better for heavy use or a small team.' },
+  { name: 'Starter', price: '$10', credits: 1000, best: false, note: 'Good for trying AI grading or building a few pages.' },
+  { name: 'Teacher Pack', price: '$20', credits: 2000, best: true, note: 'Best first pack for an active teacher.' },
+  { name: 'Department Pack', price: '$50', credits: 5000, best: false, note: 'Better for heavy use or a small team.' },
 ];
 
 const usage = [
-  { action: 'Grade one assignment submission', credits: 1, examples: '100 credits grades about 100 submissions.' },
-  { action: 'Create one Canvas page', credits: 5, examples: '100 credits creates about 20 pages.' },
-  { action: 'Create one quiz', credits: 5, examples: '100 credits creates about 20 quizzes.' },
+  { action: 'Grade one submission', credits: 1, examples: '1,000 credits grades about 1,000 submissions. Upgrade to Sonnet for richer feedback (4 credits each).' },
+  { action: 'Create one Canvas page', credits: 10, examples: '1,000 credits builds about 100 pages. Switch to Haiku for simpler output (3 credits each).' },
+  { action: 'Create one quiz', credits: 10, examples: '1,000 credits builds about 100 quizzes. Credit cost matches model — pick inside the toolbar.' },
 ];
 
 export default function PricingPage() {
@@ -60,7 +60,7 @@ export default function PricingPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center', borderBottom: `1px solid ${line}`, paddingBottom: 18 }}>
                 <div>
                   <div style={{ fontSize: 12, color: '#607684', fontWeight: 900, textTransform: 'uppercase' }}>Current balance</div>
-                  <div style={{ fontSize: 52, fontWeight: 950, lineHeight: 1, marginTop: 6 }}>250</div>
+                  <div style={{ fontSize: 52, fontWeight: 950, lineHeight: 1, marginTop: 6 }}>2,000</div>
                 </div>
                 <div style={{ background: '#E9F7F6', color: teal, border: '1px solid #BDE7E4', borderRadius: 999, padding: '8px 13px', fontWeight: 950, fontSize: 13 }}>Ready</div>
               </div>
