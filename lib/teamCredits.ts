@@ -11,6 +11,12 @@ export type CreditPool = {
   used: number;
 };
 
+export type ContactTeacher = {
+  email: string;
+  accountId: string | null;
+  name: string;
+};
+
 export type TeacherProfile = {
   name?: string;
   email?: string;
@@ -27,6 +33,12 @@ export function isValidEmail(value: string): boolean {
 export async function saveProfile(accountId: string, profile: Required<TeacherProfile>) {
   await redis.set(`ce:profile:${accountId}`, profile);
   await redis.set(`ce:email-account:${profile.email}`, accountId);
+
+  const pendingCredits = Number(await redis.get<number>(`ce:pending-credits:${profile.email}:ai`) || 0);
+  if (pendingCredits > 0) {
+    await redis.incrby(`ce:credits:${accountId}:ai`, pendingCredits);
+    await redis.del(`ce:pending-credits:${profile.email}:ai`);
+  }
 }
 
 export async function getProfile(accountId: string): Promise<TeacherProfile> {
@@ -54,17 +66,14 @@ export async function isTeamOwner(accountId: string): Promise<boolean> {
 }
 
 export async function addTeamMember(ownerAccountId: string, email: string) {
-  await enableTeamOwner(ownerAccountId);
   await redis.sadd(`ce:team:${ownerAccountId}:member-emails`, email);
-  await redis.sadd(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
 export async function removeTeamMember(ownerAccountId: string, email: string) {
   await redis.srem(`ce:team:${ownerAccountId}:member-emails`, email);
-  await redis.srem(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
-export async function listTeamMembers(ownerAccountId: string) {
+export async function listTeamMembers(ownerAccountId: string): Promise<ContactTeacher[]> {
   const emails = await redis.smembers<string[]>(`ce:team:${ownerAccountId}:member-emails`);
 
   return Promise.all((emails || []).sort().map(async email => {
@@ -76,6 +85,48 @@ export async function listTeamMembers(ownerAccountId: string) {
       name: profile.name || '',
     };
   }));
+}
+
+export async function sendCreditsToTeacher(senderAccountId: string, email: string, amount: number) {
+  const contactEmails = await redis.smembers<string[]>(`ce:team:${senderAccountId}:member-emails`);
+  if (!(contactEmails || []).includes(email)) throw new Error('Add this teacher before sending credits.');
+
+  const balanceKey = `ce:credits:${senderAccountId}:ai`;
+  const sentKey = `ce:credits-sent:${senderAccountId}:ai`;
+  const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
+  const result = await redis.eval(script, [balanceKey, sentKey], [amount]) as number[];
+  if (!Array.isArray(result) || result[0] < 0) throw new Error('Not enough credits to send.');
+
+  const recipientAccountId = await redis.get<string>(`ce:email-account:${email}`);
+  if (recipientAccountId) {
+    await redis.incrby(`ce:credits:${recipientAccountId}:ai`, amount);
+  } else {
+    await redis.incrby(`ce:pending-credits:${email}:ai`, amount);
+  }
+
+  const id = `${Date.now()}:${randomUUID()}`;
+  const senderProfile = await getProfile(senderAccountId);
+  await redis.set(`ce:credit-transfer:${id}`, {
+    id,
+    senderAccountId,
+    senderName: senderProfile.name || '',
+    senderEmail: senderProfile.email || '',
+    recipientAccountId: recipientAccountId || '',
+    recipientEmail: email,
+    credits: amount,
+    createdAt: new Date().toISOString(),
+    status: recipientAccountId ? 'delivered' : 'pending',
+  });
+  await redis.lpush(`ce:credit-transfers:${senderAccountId}`, id);
+  await redis.ltrim(`ce:credit-transfers:${senderAccountId}`, 0, 99);
+
+  return { remainingBalance: result[0], recipientAccountId: recipientAccountId || null };
+}
+
+export async function getCreditTransfers(accountId: string, limit = 50) {
+  const ids = await redis.lrange<string[]>(`ce:credit-transfers:${accountId}`, 0, Math.max(0, limit - 1));
+  const records = await Promise.all((ids || []).map(id => redis.get<Record<string, unknown>>(`ce:credit-transfer:${id}`)));
+  return records.filter(Boolean);
 }
 
 export async function getPersonalPool(accountId: string) {
@@ -141,8 +192,6 @@ export async function canUseSharedPool(accountId: string, ownerAccountId: string
 
 export async function recordUsage(event: {
   accountId: string;
-  pool: 'personal' | 'shared';
-  ownerAccountId?: string;
   credits: number;
   meter: string;
   model: string;
@@ -159,11 +208,6 @@ export async function recordUsage(event: {
   await redis.set(`ce:ai-usage:${id}`, record);
   await redis.lpush(`ce:ai-usage-by-account:${event.accountId}`, id);
   await redis.ltrim(`ce:ai-usage-by-account:${event.accountId}`, 0, 99);
-
-  if (event.pool === 'shared' && event.ownerAccountId) {
-    await redis.lpush(`ce:ai-usage-by-team:${event.ownerAccountId}`, id);
-    await redis.ltrim(`ce:ai-usage-by-team:${event.ownerAccountId}`, 0, 199);
-  }
 }
 
 export async function getTeamUsage(ownerAccountId: string, limit = 50) {
