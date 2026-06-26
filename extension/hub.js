@@ -1064,154 +1064,90 @@
     );
     if (renderVersion !== settingsRenderVersion) return;
     dest.innerHTML = '';
+    dest.style.overflow = 'auto';
+    _panelCleanup = () => { dest.style.overflow = ''; };
 
-    const stack = el('div', 'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:22px 28px;align-items:start;');
+    const stack = el('div', 'display:flex;flex-direction:column;');
 
-    // Heading
-    const head = el('div', '');
+    // ── HEADER ──
     const ht = el('div', `font-size:15px;font-weight:700;color:${DS.text};margin-bottom:3px;`);
-    ht.textContent = 'Global Settings';
-    const hs = el('div', `font-size:12px;color:${DS.muted};`);
+    ht.textContent = 'Settings';
+    const hs = el('div', `font-size:12px;color:${DS.muted};margin-bottom:18px;`);
     hs.textContent = 'Applies to all Canvas Enhancer tools.';
-    head.appendChild(ht); head.appendChild(hs);
-    head.style.gridColumn = '1 / -1';
-    stack.appendChild(head);
+    stack.appendChild(ht);
+    stack.appendChild(hs);
 
-    const primaryCol = el('div', 'display:flex;flex-direction:column;gap:16px;min-width:0;');
-    const secondaryCol = el('div', 'display:flex;flex-direction:column;gap:16px;min-width:0;');
-    stack.append(primaryCol, secondaryCol);
-
-    const nameIn    = input('ce-s-name',    'text',     'Your display name',      stored.ce_teacher_name || stored.ces_teacher_name || '');
-
-    // Focus ring on text inputs
-    for (const inp of [nameIn]) {
-      inp.addEventListener('focus', () => inp.style.borderColor = DS.blue);
-      inp.addEventListener('blur',  () => inp.style.borderColor = DS.border);
+    function sectionHead(text) {
+      const d = el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;`);
+      d.textContent = text;
+      return d;
+    }
+    function section() {
+      return el('div', `border-top:1px solid ${DS.border};padding:16px 0;`);
     }
 
-    primaryCol.appendChild(row('Teacher Name', nameIn));
-    if (globalThis.CECanvasToken) primaryCol.appendChild(globalThis.CECanvasToken.createControl());
+    // ── TEACHER NAME ──
+    const nameSection = section();
+    nameSection.appendChild(sectionHead('Teacher Name'));
 
-    const saveBtn = btn('Save Settings', `background:${DS.blue};color:#fff;`, 'ce-s-save');
-    const saveMsg = el('div', `font-size:12px;text-align:center;color:${DS.green};min-height:16px;`);
+    const nameIn = input('ce-s-name', 'text', 'Your display name', stored.ce_teacher_name || stored.ces_teacher_name || '');
+    nameIn.addEventListener('focus', () => nameIn.style.borderColor = DS.blue);
+    nameIn.addEventListener('blur',  () => nameIn.style.borderColor = DS.border);
 
-    const accountBox = el('div', `padding:12px;border:1px solid ${DS.border};border-radius:4px;background:#F8FAFC;font-size:12px;color:${DS.muted};line-height:1.5;`);
-    accountBox.textContent = '';
-    primaryCol.appendChild(accountBox);
+    const saveMsg = el('div', `font-size:12px;color:${DS.green};min-height:16px;margin-top:6px;`);
+    const saveBtn = btn('Save', `background:${DS.blue};color:#fff;margin-top:8px;`, 'ce-s-save');
 
-    const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
-    accountBox.append(
-      el('div', 'font-weight:700;margin-bottom:4px;', { textContent: 'AI Credits' }),
-      el('div', `color:${DS.muted};margin-bottom:8px;`, { textContent: 'View your balance, pricing, and buy prepaid AI credits.' })
-    );
-    const buyCreditsBtn = btn('Open AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;width:auto;margin-top:10px;`);
-    buyCreditsBtn.addEventListener('click', openAICredits);
-    const manageTeachersBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:8px;width:auto;margin-top:10px;margin-left:8px;`);
-    manageTeachersBtn.addEventListener('click', openManageCredits);
-    accountBox.append(buyCreditsBtn, manageTeachersBtn);
-    const parseKeys = value => String(value || '').split(/[\n,]+/).map(key => key.trim()).filter(Boolean);
-    async function showAccount(keys) {
-      if (!keys.length) {
-        accountBox.textContent = 'Enter a license key to see your packages and AI usage.';
-        return { valid: false };
-      }
-      accountBox.textContent = 'Checking your packages…';
-      const status = await sendRuntime({ type: 'LICENSE_STATUS', payload: { licenseKeys: keys, force: true } });
-      accountBox.innerHTML = '';
-      if (!status?.valid) {
-        accountBox.style.borderColor = '#DC2626';
-        accountBox.style.background = '#FEF2F2';
-        accountBox.style.color = '#991B1B';
-        accountBox.textContent = status?.errors?.join(' ') || 'No active package license was found.';
-        return status || { valid: false };
-      }
-      accountBox.style.borderColor = DS.border;
-      accountBox.style.background = '#F8FAFC';
-      accountBox.style.color = DS.text;
-      const packageConfig = [
-        ['teaching', 'Teaching Tools', 'AI gradings', 'teaching100', 100],
-        ['creation', 'Creation Tools', 'AI generations', 'creation50', 50],
-      ];
-      for (const [id, label, unit, pack, refill] of packageConfig) {
-        const entitlement = status.packages?.[id];
-        const card = el('div', `padding:${accountBox.childNodes.length ? '10px 0 0' : '0'};margin-top:${accountBox.childNodes.length ? '10px' : '0'};border-top:${accountBox.childNodes.length ? `1px solid ${DS.border}` : 'none'};`);
-        if (!entitlement?.valid) {
-          card.appendChild(el('div', `color:${DS.muted};`, { textContent: `${label} — Not purchased` }));
-          accountBox.appendChild(card);
-          continue;
-        }
-        const usage = entitlement.usage || {};
-        card.append(
-          el('div', 'font-weight:700;margin-bottom:3px;', { textContent: `${label} — Active` }),
-          el('div', `color:${DS.muted};`, { textContent: usage.limit === null ? `Unlimited ${unit}` : `${usage.used || 0} of ${usage.limit || 0} monthly ${unit} used` }),
-          el('div', `color:${DS.muted};`, { textContent: `${usage.bonus || 0} purchased credits available` })
-        );
-        if (usage.limit !== null) {
-          const buy = btn(`Buy ${refill} more`, `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:7px;width:auto;margin-top:8px;`);
-          buy.addEventListener('click', async () => {
-            buy.disabled = true; buy.textContent = 'Opening checkout…';
-            const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { pack, licenseKeys: keys } });
-            if (result?.error) { saveMsg.style.color = '#DC2626'; saveMsg.textContent = result.error; }
-            buy.disabled = false; buy.textContent = `Buy ${refill} more`;
-          });
-          card.appendChild(buy);
-        }
-        accountBox.appendChild(card);
-      }
-      if (status.errors?.length) accountBox.appendChild(el('div', 'color:#991B1B;margin-top:8px;', { textContent: status.errors.join(' ') }));
-      return status;
-    }
+    nameSection.appendChild(nameIn);
+    nameSection.appendChild(saveBtn);
+    nameSection.appendChild(saveMsg);
 
-    saveBtn.addEventListener('click', async () => {
+    if (globalThis.CECanvasToken) nameSection.appendChild(globalThis.CECanvasToken.createControl());
+
+    saveBtn.addEventListener('click', () => {
       saveBtn.disabled = true;
-      saveMsg.style.color = DS.muted;
-      try {
-        const keys = [];
-        saveMsg.textContent = keys.length ? 'Validating licenses…' : 'Saving…';
-        const status = keys.length ? await showAccount(keys) : { valid: false, errors: [] };
-        if (keys.length && (!status?.valid || status.errors?.length)) {
-          saveBtn.disabled = false;
-          saveMsg.style.color = '#DC2626';
-          saveMsg.textContent = status?.errors?.join(' ') || 'License key validation failed — check that the key is correct and try again.';
-          return;
-        }
-        chrome.storage.local.set({
-          ce_teacher_name:   nameIn.value.trim(),
-          ce_license_key:    keys.join('\n'),
-          ce_license_keys:   keys,
-        }, () => {
-          chrome.storage.local.remove(['ce_features','ce_quiz_toolbar_disabled','ce_scheduler_toolbar_disabled','ces_inbox_disabled']);
-          saveBtn.disabled = false;
-          saveMsg.style.color = DS.green;
-          saveMsg.textContent = '✓ Saved — refresh Canvas to load package changes';
-          setTimeout(() => { saveMsg.textContent = ''; }, 2500);
-        });
-      } catch(e) {
+      chrome.storage.local.set({ ce_teacher_name: nameIn.value.trim() }, () => {
         saveBtn.disabled = false;
-        saveMsg.style.color = '#DC2626';
-        saveMsg.textContent = e.message || 'Could not save settings — check your connection and try again.';
-      }
+        saveMsg.style.color = DS.green;
+        saveMsg.textContent = '✓ Saved';
+        setTimeout(() => { saveMsg.textContent = ''; }, 2000);
+      });
     });
+    stack.appendChild(nameSection);
 
-    primaryCol.appendChild(saveBtn);
-    primaryCol.appendChild(saveMsg);
+    // ── AI CREDITS ──
+    const creditsSection = section();
+    creditsSection.appendChild(sectionHead('AI Credits'));
+    const creditsDesc = el('div', `font-size:12px;color:${DS.muted};line-height:1.55;margin-bottom:10px;`);
+    creditsDesc.textContent = 'View your balance, pricing, and buy prepaid AI credits.';
+    creditsSection.appendChild(creditsDesc);
+    const buyCreditsBtn = btn('Open AI Credits', `background:#fff;color:${DS.blue};border:1px solid ${DS.blue};padding:8px;`);
+    buyCreditsBtn.addEventListener('click', openAICredits);
+    creditsSection.appendChild(buyCreditsBtn);
+    const manageTeachersBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:8px;margin-top:8px;`);
+    manageTeachersBtn.addEventListener('click', openManageCredits);
+    creditsSection.appendChild(manageTeachersBtn);
+    stack.appendChild(creditsSection);
 
+    // ── DATA & BACKUP ──
     if (globalThis.CEDataBackup) {
-      secondaryCol.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
+      const backupSection = section();
+      backupSection.appendChild(sectionHead('Data & Backup'));
+      backupSection.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
+      if (globalThis.CEDataBackup.createToolSection) {
+        backupSection.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
+      }
+      stack.appendChild(backupSection);
     }
 
-    if (globalThis.CEDataBackup?.createToolSection) {
-      secondaryCol.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
-    }
-
-    // About
-    const about = el('div', `font-size:12px;color:${DS.muted};display:flex;flex-direction:column;gap:8px;`);
-    const av = el('div', `font-weight:600;color:${DS.text};font-size:13px;`);
+    // ── ABOUT ──
+    const aboutSection = section();
+    aboutSection.appendChild(sectionHead('About'));
+    const av = el('div', `font-size:13px;font-weight:600;color:${DS.text};margin-bottom:10px;`);
     av.textContent = `Canvas Enhancer v${chrome.runtime.getManifest().version}`;
-    about.appendChild(av);
+    aboutSection.appendChild(av);
 
     const updateBtn = el('button', `
-      padding:8px 16px;border-radius:3px;border:1px solid ${DS.border};
+      padding:8px 12px;border-radius:3px;border:1px solid ${DS.border};
       background:#fff;color:${DS.text};font-size:12px;font-weight:600;
       cursor:pointer;font-family:${DS.font};width:100%;text-align:left;
     `, { type: 'button', textContent: 'Check for Updates' });
@@ -1224,13 +1160,13 @@
       } catch (_) { updateBtn.textContent = 'Update check unavailable'; }
       setTimeout(() => { updateBtn.textContent = 'Check for Updates'; updateBtn.disabled = false; }, 3500);
     });
-    about.appendChild(updateBtn);
+    aboutSection.appendChild(updateBtn);
 
     const uninstallBtn = el('button', `
-      padding:8px 16px;border-radius:3px;border:1px solid #DC2626;
+      padding:8px 12px;border-radius:3px;border:1px solid #DC2626;
       background:#fff;color:#DC2626;font-size:12px;font-weight:600;
-      cursor:pointer;font-family:${DS.font};width:100%;
-      transition:background .12s,color .12s;text-align:left;
+      cursor:pointer;font-family:${DS.font};width:100%;text-align:left;
+      transition:background .12s,color .12s;margin-top:8px;
     `, { type: 'button', textContent: 'Uninstall Canvas Enhancer…' });
     uninstallBtn.addEventListener('mouseenter', () => { uninstallBtn.style.background = '#FEF2F2'; });
     uninstallBtn.addEventListener('mouseleave', () => { uninstallBtn.style.background = '#fff'; });
@@ -1239,8 +1175,8 @@
         ceSendMessage({ type: 'UNINSTALL_SELF' }).catch(() => {});
       }
     });
-    about.appendChild(uninstallBtn);
-    secondaryCol.appendChild(about);
+    aboutSection.appendChild(uninstallBtn);
+    stack.appendChild(aboutSection);
 
     dest.appendChild(stack);
     } catch(e) {
