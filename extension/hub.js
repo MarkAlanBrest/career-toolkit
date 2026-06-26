@@ -765,52 +765,200 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
+  const CE_SITE = 'https://career-toolkit-ruby.vercel.app';
+
   function openAICredits() {
     creditsMBody.innerHTML = '';
     creditsModal.style.display = 'flex';
 
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
-    const balanceText = el('div', `font-size:28px;font-weight:800;color:${DS.text};line-height:1;`, { textContent: 'Loading...' });
-    const statusText = el('div', `font-size:12px;color:${DS.muted};margin-top:6px;`, { textContent: 'Checking your AI credit balance.' });
-    const buyMsg = el('div', `font-size:12px;min-height:16px;color:${DS.muted};`);
+    let accountId = '';
 
-    const balanceCard = el('div', `padding:16px;border:1px solid ${DS.border};border-radius:8px;background:#F8FAFC;`);
-    balanceCard.append(
-      el('div', `font-size:12px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;`, { textContent: 'Current balance' }),
-      balanceText,
-      statusText
+    // ── Balance card ──────────────────────────────────────────────────────────
+    const balanceText = el('div', `font-size:32px;font-weight:900;color:${DS.text};line-height:1;`, { textContent: '…' });
+    const statusText  = el('div', `font-size:12px;color:${DS.muted};margin-top:4px;`, { textContent: 'Loading balance…' });
+    const balanceCard = el('div', `padding:14px 16px;border:1px solid ${DS.border};border-radius:8px;background:#F8FAFC;display:flex;align-items:center;justify-content:space-between;gap:12px;`);
+    const balanceLeft = el('div','');
+    balanceLeft.append(
+      el('div', `font-size:11px;font-weight:700;color:${DS.muted};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;`, { textContent: 'AI Credit Balance' }),
+      balanceText, statusText
     );
+    const costsList = el('div', `font-size:11px;color:${DS.muted};line-height:1.8;text-align:right;`);
+    costsList.innerHTML = 'Grade: 1–4 cr<br>Page: 3–10 cr<br>Quiz: 3–10 cr';
+    balanceCard.append(balanceLeft, costsList);
 
-    const pricingCard = el('div', `padding:14px;border:1px solid ${DS.border};border-radius:8px;background:#fff;display:flex;flex-direction:column;gap:8px;`);
-    pricingCard.append(
-      el('div', `font-size:14px;font-weight:800;color:${DS.text};`, { textContent: '$20 = 250 AI credits' }),
-      el('div', `font-size:12px;color:${DS.muted};line-height:1.5;`, { textContent: 'Buy AI credits. Use them for grading, pages, or quizzes. Different AI actions use different credit amounts.' }),
-      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Grading: 1 credit' }),
-      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Page creation: 5 credits' }),
-      el('div', `font-size:12px;color:${DS.muted};`, { textContent: 'Quiz creation: 5 credits' })
-    );
+    // ── Pack selector ─────────────────────────────────────────────────────────
+    const PACKS_HUB = [
+      { key: 'starter',    label: 'Starter',    price: '$10', credits: '1,000 cr', saveCard: false },
+      { key: 'teacher',    label: 'Teacher',     price: '$20', credits: '2,000 cr', saveCard: false },
+      { key: 'department', label: 'Department',  price: '$50', credits: '5,000 cr', saveCard: false },
+    ];
+    let selectedPack = 'teacher';
 
-    const buyCreditsBtn = btn('Buy AI Credits', `background:${DS.blue};color:#fff;border-radius:999px;width:auto;align-self:flex-start;padding:9px 18px;`);
-    buyCreditsBtn.addEventListener('click', async () => {
-      buyCreditsBtn.disabled = true;
-      buyCreditsBtn.textContent = 'Opening checkout...';
-      buyMsg.style.color = DS.muted;
-      buyMsg.textContent = '';
-      const result = await sendRuntime({ type: 'CREATE_CREDIT_CHECKOUT', payload: { quantity: 1 } });
-      if (result?.error) {
-        buyMsg.style.color = '#DC2626';
-        buyMsg.textContent = result.error;
-      }
-      buyCreditsBtn.disabled = false;
-      buyCreditsBtn.textContent = 'Buy AI Credits';
+    const packRow = el('div', 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;');
+    function renderPackButtons() {
+      packRow.innerHTML = '';
+      PACKS_HUB.forEach(p => {
+        const b = el('button', `
+          padding:10px 6px;border:2px solid ${selectedPack === p.key ? DS.blue : DS.border};
+          border-radius:7px;background:${selectedPack === p.key ? '#EDF5FF' : '#fff'};
+          cursor:pointer;text-align:center;font-family:${DS.font};transition:all .12s;
+        `, { type: 'button' });
+        b.innerHTML = `<div style="font-size:15px;font-weight:800;color:${selectedPack === p.key ? DS.blue : DS.text};">${p.price}</div><div style="font-size:11px;color:${DS.muted};margin-top:2px;">${p.credits}</div>`;
+        b.addEventListener('click', () => { selectedPack = p.key; renderPackButtons(); });
+        packRow.appendChild(b);
+      });
+    }
+    renderPackButtons();
+
+    // ── Save card toggle ──────────────────────────────────────────────────────
+    let saveCard = false;
+    const saveCardRow = el('label', `display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:${DS.text};`);
+    const saveCardCheck = el('input', '', { type: 'checkbox' });
+    saveCardCheck.addEventListener('change', () => { saveCard = saveCardCheck.checked; });
+    saveCardRow.append(saveCardCheck, document.createTextNode('Save card for automatic top-ups'));
+
+    // ── Checkout iframe container ─────────────────────────────────────────────
+    const frameWrap = el('div', `display:none;border:1px solid ${DS.border};border-radius:8px;overflow:hidden;`);
+    let checkoutFrame = null;
+
+    function showCheckoutFrame() {
+      frameWrap.innerHTML = '';
+      const src = `${CE_SITE}/buy-credits?accountId=${encodeURIComponent(accountId)}&pack=${selectedPack}${saveCard ? '&saveCard=true' : ''}`;
+      checkoutFrame = el('iframe', 'width:100%;height:380px;border:none;display:block;', { src });
+      frameWrap.appendChild(checkoutFrame);
+      frameWrap.style.display = 'block';
+      buyBtn.style.display = 'none';
+    }
+
+    // ── Buy button ────────────────────────────────────────────────────────────
+    const buyBtn = btn('Pay with Card', `background:${DS.blue};color:#fff;border-radius:6px;`);
+    buyBtn.addEventListener('click', () => {
+      if (!accountId) return;
+      showCheckoutFrame();
     });
 
-    creditsMBody.append(balanceCard, pricingCard, buyCreditsBtn, buyMsg);
+    // ── postMessage listener (payment success from iframe) ────────────────────
+    function onPaymentMessage(e) {
+      if (e.origin !== CE_SITE) return;
+      if (e.data?.type === 'CE_PAYMENT_SUCCESS') {
+        window.removeEventListener('message', onPaymentMessage);
+        frameWrap.style.display = 'none';
+        buyBtn.style.display = 'block';
+        const newBalance = Number(e.data?.balance || 0);
+        balanceText.textContent = newBalance.toLocaleString();
+        statusText.textContent = `+${Number(e.data?.credits || 0).toLocaleString()} credits added!`;
+        statusText.style.color = DS.green;
+        setTimeout(() => { statusText.style.color = DS.muted; statusText.textContent = `${newBalance} total credits`; }, 3000);
+        renderAutoReload(); // refresh auto-reload section after purchase
+      }
+      if (e.data?.type === 'CE_CLOSE_CHECKOUT') {
+        window.removeEventListener('message', onPaymentMessage);
+        frameWrap.style.display = 'none';
+        buyBtn.style.display = 'block';
+      }
+    }
+    window.addEventListener('message', onPaymentMessage);
+    // Clean up listener when modal closes
+    creditsModal.addEventListener('click', () => window.removeEventListener('message', onPaymentMessage), { once: true });
 
+    // ── Auto-reload section ───────────────────────────────────────────────────
+    const autoReloadSection = el('div', '');
+    const autoReloadTitle = el('div', `font-size:12px;font-weight:700;color:${DS.text};margin-bottom:10px;padding-top:4px;border-top:1px solid ${DS.border};padding-top:14px;`, { textContent: 'Auto-reload' });
+
+    async function renderAutoReload() {
+      autoReloadSection.innerHTML = '';
+      if (!accountId) return;
+      autoReloadSection.appendChild(autoReloadTitle);
+
+      let settings = {};
+      try {
+        const res = await fetch(`${CE_SITE}/api/credits/auto-reload?accountId=${encodeURIComponent(accountId)}`);
+        const data = await res.json();
+        settings = data?.settings || {};
+      } catch { /* show defaults */ }
+
+      const hasCard = !!settings.paymentMethodId;
+
+      if (!hasCard) {
+        autoReloadSection.appendChild(
+          el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`, { textContent: 'Save a card during checkout to enable automatic top-ups when your balance runs low.' })
+        );
+        return;
+      }
+
+      // Card info
+      const cardInfo = el('div', `font-size:12px;color:${DS.muted};margin-bottom:12px;`, {
+        textContent: `Saved card: ${(settings.cardBrand || 'Card').charAt(0).toUpperCase() + (settings.cardBrand || 'Card').slice(1)} ···· ${settings.cardLast4 || '????'}`
+      });
+
+      // Enable toggle
+      const enableRow = el('label', `display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:${DS.text};margin-bottom:12px;`);
+      const enableCheck = el('input', '', { type: 'checkbox' });
+      enableCheck.checked = !!settings.enabled;
+      enableRow.append(enableCheck, document.createTextNode('Enable auto-reload'));
+
+      // Min balance input
+      const minBalRow = el('div', `display:flex;align-items:center;gap:10px;margin-bottom:10px;`);
+      minBalRow.append(
+        el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Reload when below' }),
+      );
+      const minBalInput = el('input', `width:80px;padding:5px 8px;border:1px solid ${DS.border};border-radius:4px;font-size:12px;font-family:${DS.font};`, { type: 'number', min: '0', max: '10000', value: String(settings.minBalance ?? 100) });
+      minBalRow.append(minBalInput);
+      minBalRow.append(el('span', `font-size:12px;color:${DS.muted};`, { textContent: 'credits' }));
+
+      // Reload amount selector
+      const reloadRow = el('div', `display:flex;align-items:center;gap:10px;margin-bottom:14px;`);
+      reloadRow.append(el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Add' }));
+      const reloadSel = el('select', `padding:5px 8px;border:1px solid ${DS.border};border-radius:4px;font-size:12px;font-family:${DS.font};`);
+      [{ v: 1000, l: '1,000 credits ($10)' }, { v: 2000, l: '2,000 credits ($20)' }, { v: 5000, l: '5,000 credits ($50)' }].forEach(({ v, l }) => {
+        const o = el('option', '', { value: String(v), textContent: l });
+        if (v === (settings.reloadAmount ?? 1000)) o.selected = true;
+        reloadSel.appendChild(o);
+      });
+      reloadRow.append(reloadSel);
+
+      const failedMsg = settings.failedAt ? el('div', `font-size:12px;color:#DC2626;margin-bottom:8px;`, { textContent: 'Last auto-reload failed. Re-save to retry.' }) : null;
+
+      const saveAutoBtn = btn('Save Auto-reload Settings', `background:${DS.blue};color:#fff;border-radius:5px;font-size:12px;padding:8px;`);
+      const saveAutoMsg = el('div', `font-size:12px;min-height:14px;color:${DS.green};text-align:center;`);
+      saveAutoBtn.addEventListener('click', async () => {
+        saveAutoBtn.disabled = true;
+        saveAutoBtn.textContent = 'Saving…';
+        try {
+          const res = await fetch(`${CE_SITE}/api/credits/auto-reload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId, enabled: enableCheck.checked, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
+          });
+          if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+          saveAutoMsg.textContent = 'Saved!';
+          setTimeout(() => { saveAutoMsg.textContent = ''; }, 2500);
+        } catch (err) {
+          saveAutoMsg.style.color = '#DC2626';
+          saveAutoMsg.textContent = err?.message || 'Save failed.';
+        } finally {
+          saveAutoBtn.disabled = false;
+          saveAutoBtn.textContent = 'Save Auto-reload Settings';
+        }
+      });
+
+      autoReloadSection.append(cardInfo, enableRow, minBalRow, reloadRow);
+      if (failedMsg) autoReloadSection.appendChild(failedMsg);
+      autoReloadSection.append(saveAutoBtn, saveAutoMsg);
+    }
+
+    // ── Compose the modal body ────────────────────────────────────────────────
+    creditsMBody.append(balanceCard, packRow, saveCardRow, buyBtn, frameWrap, autoReloadSection);
+
+    // Load balance + accountId
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
+      accountId = status?.accountId || '';
       if (status?.error) throw new Error(status.error);
-      balanceText.textContent = String(Number(status?.balance || 0));
-      statusText.textContent = Number(status?.used || 0) > 0 ? `${Number(status.used)} credits used.` : 'No AI credits used yet.';
+      const bal = Number(status?.balance || 0);
+      balanceText.textContent = bal.toLocaleString();
+      statusText.textContent = Number(status?.used || 0) > 0 ? `${Number(status.used).toLocaleString()} credits used` : 'No AI credits used yet.';
+      renderAutoReload();
     }).catch(err => {
       balanceText.textContent = '0';
       statusText.textContent = err?.message || 'Could not load balance.';

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/billing';
+import type { AutoReloadSettings } from '@/app/api/credits/auto-reload/route';
+import { stripe } from '@/lib/stripe';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
@@ -39,11 +41,14 @@ export async function POST(req: NextRequest) {
   if (accountId) {
     const balanceKey = `ce:credits:${accountId}:ai`;
     const usedKey = `ce:credits-used:${accountId}:ai`;
-    const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return 'insufficient' end redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return 'ok'`;
-    const result = await redis.eval(script, [balanceKey, usedKey], [creditCost]) as string;
-    if (result !== 'ok') {
+    const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
+    const result = await redis.eval(script, [balanceKey, usedKey], [creditCost]) as number[];
+    if (!Array.isArray(result) || result[0] < 0) {
       return NextResponse.json({ error: 'Not enough AI credits. Buy a pack from the toolbar to continue.' }, { status: 402, headers: CORS });
     }
+    // Fire-and-forget auto-reload if balance is low
+    const newBalance = result[0];
+    checkAndAutoReload(accountId, newBalance).catch(() => {});
   }
 
   const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -65,4 +70,32 @@ export async function POST(req: NextRequest) {
   return new NextResponse(anthropicRes.body, { status: 200, headers: {
     ...CORS, 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
   } });
+}
+
+async function checkAndAutoReload(accountId: string, currentBalance: number) {
+  const key = `ce:auto-reload:${accountId}`;
+  const settings = await redis.get<AutoReloadSettings>(key);
+  if (!settings?.enabled || !settings.paymentMethodId || !settings.stripeCustomerId) return;
+  if (currentBalance > settings.minBalance) return;
+  if (settings.failedAt) return; // don't retry after a failure — user must re-enable
+
+  const reloadAmount = settings.reloadAmount ?? 1000;
+  const packCents = reloadAmount === 5000 ? 5000 : reloadAmount === 2000 ? 2000 : 1000;
+
+  try {
+    // Credits are added by the webhook (payment_intent.succeeded) — don't add here to avoid double-counting
+    await stripe.paymentIntents.create({
+      amount: packCents,
+      currency: 'usd',
+      customer: settings.stripeCustomerId,
+      payment_method: settings.paymentMethodId,
+      off_session: true,
+      confirm: true,
+      metadata: { accountId, credits: String(reloadAmount), pack: 'auto-reload' },
+      description: `Canvas Enhancer auto-reload — ${reloadAmount.toLocaleString()} credits`,
+    });
+  } catch {
+    // Mark as failed so we don't keep retrying every generation
+    await redis.set(key, { ...settings, failedAt: new Date().toISOString() });
+  }
 }

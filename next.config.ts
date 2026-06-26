@@ -12,6 +12,14 @@ const config: NextConfig = {
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
         ],
       },
+      {
+        // Allow buy-credits page to be embedded in the extension iframe
+        source: '/buy-credits',
+        headers: [
+          { key: 'X-Frame-Options', value: 'ALLOWALL' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+        ],
+      },
     ];
   },
 };
