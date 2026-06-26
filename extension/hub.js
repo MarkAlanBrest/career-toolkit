@@ -845,11 +845,13 @@
         window.removeEventListener('message', onPaymentMessage);
         frameWrap.style.display = 'none';
         buyBtn.style.display = 'block';
-        const newBalance = Number(e.data?.balance || 0);
+        const added = Number(e.data?.credits || 0);
+        const current = Number(balanceText.textContent.replace(/,/g, '') || 0);
+        const newBalance = current + added;
         balanceText.textContent = newBalance.toLocaleString();
-        statusText.textContent = `+${Number(e.data?.credits || 0).toLocaleString()} credits added!`;
+        statusText.textContent = `+${added.toLocaleString()} credits added!`;
         statusText.style.color = DS.green;
-        setTimeout(() => { statusText.style.color = DS.muted; statusText.textContent = `${newBalance} total credits`; }, 3000);
+        setTimeout(() => { statusText.style.color = DS.muted; statusText.textContent = `${newBalance.toLocaleString()} total credits`; }, 3000);
         renderAutoReload(); // refresh auto-reload section after purchase
       }
       if (e.data?.type === 'CE_CLOSE_CHECKOUT') {
