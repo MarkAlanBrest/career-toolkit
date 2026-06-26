@@ -28,10 +28,10 @@ export default function PricingPage() {
 
   const faqs = [
     ['Is there a monthly subscription?', 'No. The Canvas tools are free. AI credits are prepaid and optional.'],
-    ['Do credits expire?', 'The current plan is that teacher credits do not expire. We can add school rules later if needed.'],
-    ['Can credits be transferred?', 'No. Credits are non-transferable. They stay with the teacher or account that bought them.'],
-    ['Can a school buy credits for multiple teachers?', 'That is the next layer: a school credit pool, admin controls, and optional auto-refill.'],
-    ['Can teachers set auto-refill?', 'Yes, later. Stripe can save a payment method and refill when the balance drops below a limit.'],
+    ['Do credits expire?', 'No. Prepaid credits never expire. Buy a pack when you need one and use it at your own pace.'],
+    ['Can credits be transferred?', 'No. Credits are non-transferable. They stay with the teacher account that bought them.'],
+    ['Can a school buy credits for multiple teachers?', 'School-wide credit pools with admin controls are on the roadmap. Individual teacher packs are available now.'],
+    ['Can teachers set auto-refill?', 'Auto-refill via saved payment method is planned. For now, buy a new pack from the toolbar whenever your balance runs low.'],
   ];
 
   return (
@@ -81,7 +81,7 @@ export default function PricingPage() {
         <div style={{ maxWidth: 1080, margin: '0 auto' }}>
           <div style={{ maxWidth: 680, marginBottom: 34 }}>
             <h2 style={{ margin: 0, fontSize: 'clamp(30px,4vw,46px)', lineHeight: 1.06 }}>Simple credit packs</h2>
-            <p style={{ margin: '14px 0 0', color: '#607684', fontSize: 16, lineHeight: 1.7 }}>The exact credit amount can change after final AI cost testing. The structure stays simple.</p>
+            <p style={{ margin: '14px 0 0', color: '#607684', fontSize: 16, lineHeight: 1.7 }}>Prepaid, one-time. No subscription. Buy from the AI dropdown inside the toolbar — credits land on your account immediately.</p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
             {packs.map(pack => (
