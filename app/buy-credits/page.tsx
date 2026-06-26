@@ -102,7 +102,18 @@ function TeamPanel({ accountId, enabledHint }: { accountId: string; enabledHint:
     }
   };
 
-  if (!accountId) return null;
+  if (!accountId) {
+    return (
+      <section style={{ borderTop: `1px solid ${line}`, paddingTop: 16, display: 'grid', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#526A79', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Department sharing
+        </div>
+        <div style={{ border: `1px solid ${line}`, borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.55, color: '#526A79', background: '#fff' }}>
+          Open AI Credits from the Canvas Enhancer toolbar to manage teachers. The toolbar sends the account ID this screen needs.
+        </div>
+      </section>
+    );
+  }
 
   const ownerEnabled = Boolean(team?.ownerEnabled || enabledHint);
 
@@ -182,7 +193,7 @@ function TeamPanel({ accountId, enabledHint }: { accountId: string; enabledHint:
         </>
       ) : (
         <div style={{ border: `1px solid ${line}`, borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.55, color: '#526A79', background: '#fff' }}>
-          Buy AI credits to enable department sharing. The buyer becomes the owner and can add or remove teachers.
+          Select Department credits above or buy AI credits to enable teacher management. The buyer becomes the owner and can add or remove teachers.
         </div>
       )}
 
@@ -450,6 +461,9 @@ export default function BuyCreditsPage() {
               <div style={{ fontSize: 11, color: '#526A79', marginTop: 3, lineHeight: 1.35 }}>{help}</div>
             </button>
           ))}
+        </div>
+        <div style={{ marginTop: 7, fontSize: 11, color: '#526A79', lineHeight: 1.45 }}>
+          Choose Department credits to manage teachers and share one AI credit pool.
         </div>
       </div>
 
