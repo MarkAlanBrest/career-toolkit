@@ -618,7 +618,7 @@
 
   const creditsModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   creditsModal.id = 'ce-ai-credits-modal';
-  const creditsBox = el('div', `background:#fff;width:min(560px,calc(100vw - 48px));max-height:min(680px,calc(100vh - 80px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const creditsBox = el('div', `background:#fff;width:min(580px,calc(100vw - 32px));max-height:min(820px,calc(100vh - 40px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
   const creditsMHdr = el('div', `height:52px;flex-shrink:0;background:${DS.blue};display:flex;align-items:center;padding:0 16px;gap:10px;`);
   const creditsMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
   creditsMTitle.textContent = 'AI Credits';
@@ -825,10 +825,25 @@
     function showCheckoutFrame() {
       frameWrap.innerHTML = '';
       const src = `${CE_SITE}/buy-credits?accountId=${encodeURIComponent(accountId)}&pack=${selectedPack}${saveCard ? '&saveCard=true' : ''}`;
-      checkoutFrame = el('iframe', 'width:100%;height:380px;border:none;display:block;', { src });
+      checkoutFrame = el('iframe', 'width:100%;height:580px;border:none;display:block;', { src });
       frameWrap.appendChild(checkoutFrame);
-      frameWrap.style.display = 'block';
+      // Switch to checkout view — hide everything else
+      balanceCard.style.display = 'none';
+      packRow.style.display = 'none';
+      saveCardRow.style.display = 'none';
       buyBtn.style.display = 'none';
+      autoReloadSection.style.display = 'none';
+      frameWrap.style.display = 'block';
+    }
+
+    function hideCheckoutFrame() {
+      frameWrap.style.display = 'none';
+      frameWrap.innerHTML = '';
+      balanceCard.style.display = '';
+      packRow.style.display = '';
+      saveCardRow.style.display = '';
+      buyBtn.style.display = 'block';
+      autoReloadSection.style.display = '';
     }
 
     // ── Buy button ────────────────────────────────────────────────────────────
@@ -843,8 +858,7 @@
       if (e.origin !== CE_SITE) return;
       if (e.data?.type === 'CE_PAYMENT_SUCCESS') {
         window.removeEventListener('message', onPaymentMessage);
-        frameWrap.style.display = 'none';
-        buyBtn.style.display = 'block';
+        hideCheckoutFrame();
         const added = Number(e.data?.credits || 0);
         const current = Number(balanceText.textContent.replace(/,/g, '') || 0);
         const newBalance = current + added;
@@ -852,12 +866,11 @@
         statusText.textContent = `+${added.toLocaleString()} credits added!`;
         statusText.style.color = DS.green;
         setTimeout(() => { statusText.style.color = DS.muted; statusText.textContent = `${newBalance.toLocaleString()} total credits`; }, 3000);
-        renderAutoReload(); // refresh auto-reload section after purchase
+        renderAutoReload();
       }
       if (e.data?.type === 'CE_CLOSE_CHECKOUT') {
         window.removeEventListener('message', onPaymentMessage);
-        frameWrap.style.display = 'none';
-        buyBtn.style.display = 'block';
+        hideCheckoutFrame();
       }
     }
     window.addEventListener('message', onPaymentMessage);
