@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getOwnedTeamPool, getPersonalPool, isTeamOwner, listSharedPoolsForAccount } from '@/lib/teamCredits';
+import { getCreditTransfers, getPersonalPool, listTeamMembers } from '@/lib/teamCredits';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +22,10 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
   try {
     const accountId = cleanAccountId(request.nextUrl.searchParams.get('accountId'));
-    const [personal, ownedTeam, ownerEnabled, sharedTeams] = await Promise.all([
+    const [personal, teachers, transfers] = await Promise.all([
       getPersonalPool(accountId),
-      getOwnedTeamPool(accountId),
-      isTeamOwner(accountId),
-      listSharedPoolsForAccount(accountId),
+      listTeamMembers(accountId),
+      getCreditTransfers(accountId, 20),
     ]);
 
     return NextResponse.json({
@@ -34,13 +33,8 @@ export async function GET(request: NextRequest) {
       balance: personal.balance,
       used: personal.used,
       personal,
-      ownedTeam: {
-        ownerAccountId: accountId,
-        ownerEnabled,
-        balance: ownedTeam.balance,
-        used: ownedTeam.used,
-      },
-      sharedTeams,
+      teachers,
+      transfers,
       pack: { priceCents: 1000, credits: 1000 },
       costs: { grading: 1, page: 10, quiz: 10 },
       models: {
