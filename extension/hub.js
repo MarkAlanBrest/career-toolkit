@@ -634,6 +634,23 @@
   creditsModal.addEventListener('click', e => { if (e.target === creditsModal) creditsModal.style.display = 'none'; });
   creditsBox.addEventListener('click', e => e.stopPropagation());
 
+  const manageCreditsModal = el('div', `position:fixed;inset:0;z-index:2147483649;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
+  manageCreditsModal.id = 'ce-manage-credits-modal';
+  const manageCreditsBox = el('div', `background:#fff;width:min(760px,calc(100vw - 40px));height:min(820px,calc(100vh - 40px));border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden;`);
+  const manageCreditsHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
+  const manageCreditsTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
+  manageCreditsTitle.textContent = 'Manage Teachers & Send Credits';
+  const manageCreditsClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: 'x' });
+  manageCreditsClose.addEventListener('mouseenter', () => { manageCreditsClose.style.background = 'rgba(255,255,255,0.15)'; manageCreditsClose.style.color = '#fff'; });
+  manageCreditsClose.addEventListener('mouseleave', () => { manageCreditsClose.style.background = ''; manageCreditsClose.style.color = 'rgba(255,255,255,0.75)'; });
+  manageCreditsClose.addEventListener('click', () => { manageCreditsModal.style.display = 'none'; manageCreditsMBody.innerHTML = ''; });
+  manageCreditsHdr.append(manageCreditsTitle, manageCreditsClose);
+  const manageCreditsMBody = el('div', `flex:1;min-height:0;overflow:hidden;background:#F3F7FA;`);
+  manageCreditsBox.append(manageCreditsHdr, manageCreditsMBody);
+  manageCreditsModal.appendChild(manageCreditsBox);
+  manageCreditsModal.addEventListener('click', e => { if (e.target === manageCreditsModal) { manageCreditsModal.style.display = 'none'; manageCreditsMBody.innerHTML = ''; } });
+  manageCreditsBox.addEventListener('click', e => e.stopPropagation());
+
   // ── NOTES MODAL ────────────────────────────────────────────────────────────
   const notesModal = el('div', `position:fixed;inset:0;z-index:2147483648;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
   notesModal.id = 'ce-notes-modal';
@@ -768,18 +785,17 @@
   const CE_SITE = 'https://career-toolkit-ruby.vercel.app';
 
   function openManageCredits() {
-    const win = window.open('about:blank', '_blank');
+    manageCreditsMBody.innerHTML = `<div style="padding:24px;font-size:13px;color:${DS.muted};">Loading teacher credit manager...</div>`;
+    manageCreditsModal.style.display = 'flex';
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
       const accountId = status?.accountId || '';
       if (!accountId) throw new Error(status?.error || 'Could not identify this account.');
-      win.location.href = `${CE_SITE}/manage-credits?accountId=${encodeURIComponent(accountId)}`;
+      const src = `${CE_SITE}/manage-credits?accountId=${encodeURIComponent(accountId)}`;
+      manageCreditsMBody.innerHTML = '';
+      manageCreditsMBody.appendChild(el('iframe', 'width:100%;height:100%;border:none;display:block;background:#F3F7FA;', { src }));
     }).catch(err => {
-      if (win) {
-        win.document.body.style.fontFamily = DS.font;
-        win.document.body.style.padding = '24px';
-        win.document.body.textContent = err?.message || 'Could not open teacher credit management.';
-      }
+      manageCreditsMBody.innerHTML = `<div style="padding:24px;font-size:13px;color:#BC1212;">${err?.message || 'Could not open teacher credit management.'}</div>`;
     });
   }
 
@@ -3803,6 +3819,7 @@
     // Modals must be in the DOM on every page so cross-toolbar events work
     document.body.appendChild(settingsModal);
     document.body.appendChild(creditsModal);
+    document.body.appendChild(manageCreditsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
     mountAILauncher();
