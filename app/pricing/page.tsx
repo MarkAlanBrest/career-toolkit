@@ -3,151 +3,117 @@
 import { useState } from 'react';
 import SiteNav from '../components/SiteNav';
 
-const ink = '#243746';
-const blue = '#0770B8';
-const teal = '#0F8F8C';
-const line = '#D8E1E8';
-const soft = '#F4F8FB';
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+const ink = '#243746';
+const muted = '#5F7280';
+const blue = '#0770B8';
+const rule = '#DDE7EE';
+const wash = '#F6F9FB';
 
 const packs = [
-  { name: 'Starter', price: '$10', credits: 1000, best: false, note: 'Good for trying AI grading or building a few pages.' },
-  { name: 'Teacher Pack', price: '$20', credits: 2000, best: true, note: 'Best first pack for an active teacher.' },
-  { name: 'Department Pack', price: '$50', credits: 5000, best: false, note: 'Better for heavy use or a small team.' },
+  ['Starter', '$10', '1,000 credits', 'For occasional AI use.'],
+  ['Teacher', '$20', '2,000 credits', 'A reasonable starting balance for an active teacher.'],
+  ['Department', '$50', '5,000 credits', 'For heavier use or a small instructional team.'],
 ];
 
 const usage = [
-  { action: 'Grade one submission', credits: 1, examples: '1,000 credits grades about 1,000 submissions. Upgrade to Sonnet for richer feedback (4 credits each).' },
-  { action: 'Create one Canvas page', credits: 10, examples: '1,000 credits builds about 100 pages. Switch to Haiku for simpler output (3 credits each).' },
-  { action: 'Create one quiz', credits: 10, examples: '1,000 credits builds about 100 quizzes. Credit cost matches model — pick inside the toolbar.' },
+  ['AI-assisted grading', '1 credit+', 'Draft feedback and rubric support for teacher review.'],
+  ['AI page creation', '10 credits+', 'Generate a structured Canvas page draft.'],
+  ['AI quiz creation', '10 credits+', 'Draft questions, answers, keys, and feedback.'],
 ];
 
 export default function PricingPage() {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
-  const faqs = [
-    ['Is there a monthly subscription?', 'No. The Canvas tools are free. AI credits are prepaid and optional.'],
-    ['Do credits expire?', 'No. Prepaid credits never expire. Buy a pack when you need one and use it at your own pace.'],
-    ['Can credits be transferred?', 'No. Credits are non-transferable. They stay with the teacher account that bought them.'],
-    ['Can a school buy credits for multiple teachers?', 'School-wide credit pools with admin controls are on the roadmap. Individual teacher packs are available now.'],
-    ['Can teachers set auto-refill?', 'Auto-refill via saved payment method is planned. For now, buy a new pack from the toolbar whenever your balance runs low.'],
+  const faqs: [string, string][] = [
+    ['Is there a subscription?', 'No. The core tools are free. AI credits are optional prepaid purchases.'],
+    ['Why use credits?', 'Credits give teachers a simple way to understand AI usage without asking them to think about tokens.'],
+    ['Do credits expire?', 'The intended teacher model is that credits do not expire.'],
+    ['Can organizations buy credits?', 'That is the planned next step: shared school or department balances with administrative controls.'],
   ];
 
   return (
     <main style={{ fontFamily: font, color: ink, background: '#fff' }}>
       <SiteNav active="pricing" />
 
-      <section style={{ background: '#EAF2F7', borderBottom: `1px solid ${line}`, padding: '74px 32px 64px' }}>
-        <div style={{ maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,320px),1fr))', gap: 36, alignItems: 'center' }}>
-          <div>
-            <div style={{ display: 'inline-flex', padding: '7px 12px', border: `1px solid ${line}`, background: '#fff', color: blue, borderRadius: 999, fontSize: 12, fontWeight: 950, marginBottom: 20 }}>
-              Free toolkit. Paid AI only.
-            </div>
-            <h1 style={{ margin: 0, fontSize: 'clamp(40px,6vw,68px)', lineHeight: 0.98, letterSpacing: 0 }}>AI credits, without a subscription maze.</h1>
-            <p style={{ margin: '22px 0 0', color: '#526A79', fontSize: 18, lineHeight: 1.65 }}>
-              Teachers use Canvas Enhancer for free. When they want AI grading, page creation, or quiz creation, they buy credits.
+      <section style={{ background: wash, borderBottom: `1px solid ${rule}` }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', padding: '72px 28px' }}>
+          <div style={{ maxWidth: 700 }}>
+            <div style={{ color: blue, fontSize: 13, fontWeight: 800, marginBottom: 14 }}>AI Credits</div>
+            <h1 style={{ margin: 0, fontSize: 'clamp(36px,5vw,58px)', lineHeight: 1.06, fontWeight: 850 }}>
+              Optional AI usage, priced separately from the free toolkit.
+            </h1>
+            <p style={{ color: muted, fontSize: 18, lineHeight: 1.7, margin: '20px 0 0' }}>
+              Canvas Enhancer’s core tools remain free. AI credits are used only for AI-assisted grading, page creation, and quiz creation.
             </p>
-            <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <a href={extensionUrl} style={{ background: blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 950, padding: '13px 20px', borderRadius: 8 }}>Install Free</a>
-              <a href="#packs" style={{ background: '#fff', color: ink, border: `1px solid ${line}`, textDecoration: 'none', fontSize: 15, fontWeight: 950, padding: '13px 20px', borderRadius: 8 }}>See credit packs</a>
-            </div>
-          </div>
-
-          <div style={{ background: '#fff', border: `1px solid ${line}`, borderRadius: 10, boxShadow: '0 22px 70px rgba(36,55,70,.14)', overflow: 'hidden' }}>
-            <div style={{ background: blue, color: '#fff', padding: 18, fontWeight: 950 }}>AI Credit Balance</div>
-            <div style={{ padding: 22 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center', borderBottom: `1px solid ${line}`, paddingBottom: 18 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: '#607684', fontWeight: 900, textTransform: 'uppercase' }}>Current balance</div>
-                  <div style={{ fontSize: 52, fontWeight: 950, lineHeight: 1, marginTop: 6 }}>2,000</div>
-                </div>
-                <div style={{ background: '#E9F7F6', color: teal, border: '1px solid #BDE7E4', borderRadius: 999, padding: '8px 13px', fontWeight: 950, fontSize: 13 }}>Ready</div>
-              </div>
-              <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
-                {usage.map(item => (
-                  <div key={item.action} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center', fontSize: 14 }}>
-                    <span style={{ color: '#526A79' }}>{item.action}</span>
-                    <span style={{ color: ink, fontWeight: 950 }}>{item.credits} credit{item.credits > 1 ? 's' : ''}</span>
-                  </div>
-                ))}
-              </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 28 }}>
+              <a href={extensionUrl} style={{ background: blue, color: '#fff', textDecoration: 'none', fontSize: 15, fontWeight: 800, padding: '12px 18px', borderRadius: 7 }}>Install Free</a>
+              <a href="#packs" style={{ background: '#fff', color: ink, border: `1px solid ${rule}`, textDecoration: 'none', fontSize: 15, fontWeight: 800, padding: '12px 18px', borderRadius: 7 }}>View Credit Packs</a>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="packs" style={{ padding: '74px 32px', background: '#fff' }}>
-        <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-          <div style={{ maxWidth: 680, marginBottom: 34 }}>
-            <h2 style={{ margin: 0, fontSize: 'clamp(30px,4vw,46px)', lineHeight: 1.06 }}>Simple credit packs</h2>
-            <p style={{ margin: '14px 0 0', color: '#607684', fontSize: 16, lineHeight: 1.7 }}>Prepaid, one-time. No subscription. Buy from the AI dropdown inside the toolbar — credits land on your account immediately.</p>
+      <section id="packs" style={{ background: '#fff', padding: '70px 28px' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto' }}>
+          <div style={{ maxWidth: 660, marginBottom: 30 }}>
+            <h2 style={{ margin: 0, fontSize: 'clamp(28px,4vw,40px)', lineHeight: 1.12, fontWeight: 850 }}>Credit packs</h2>
+            <p style={{ color: muted, fontSize: 16, lineHeight: 1.7, margin: '13px 0 0' }}>
+              These are one-time purchases. Teachers buy them from the AI Credits screen inside Canvas Enhancer.
+            </p>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
-            {packs.map(pack => (
-              <div key={pack.name} style={{ position: 'relative', border: pack.best ? `2px solid ${blue}` : `1px solid ${line}`, borderRadius: 10, padding: 24, background: pack.best ? '#F8FCFF' : soft }}>
-                {pack.best && <div style={{ position: 'absolute', right: 18, top: 18, background: blue, color: '#fff', borderRadius: 999, padding: '5px 9px', fontSize: 11, fontWeight: 950 }}>Best first pack</div>}
-                <div style={{ fontSize: 14, fontWeight: 950, color: ink }}>{pack.name}</div>
-                <div style={{ marginTop: 18, display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                  <span style={{ fontSize: 48, fontWeight: 950, lineHeight: .9 }}>{pack.price}</span>
-                  <span style={{ color: '#607684', fontSize: 14, marginBottom: 4 }}>one time</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 14 }}>
+            {packs.map(([name, price, credits, note]) => (
+              <div key={name} style={{ border: `1px solid ${rule}`, borderRadius: 8, background: name === 'Teacher' ? '#F8FCFF' : '#fff', padding: 22 }}>
+                <div style={{ fontSize: 15, fontWeight: 850, color: ink }}>{name}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 18 }}>
+                  <span style={{ fontSize: 42, lineHeight: .95, fontWeight: 850 }}>{price}</span>
+                  <span style={{ color: muted, fontSize: 14, marginBottom: 4 }}>one time</span>
                 </div>
-                <div style={{ marginTop: 14, color: blue, fontSize: 20, fontWeight: 950 }}>{pack.credits} AI credits</div>
-                <p style={{ margin: '12px 0 22px', color: '#607684', fontSize: 14, lineHeight: 1.6 }}>{pack.note}</p>
-                <button type="button" style={{ width: '100%', background: pack.best ? blue : '#fff', color: pack.best ? '#fff' : ink, border: pack.best ? `1px solid ${blue}` : `1px solid ${line}`, borderRadius: 8, padding: '12px 14px', fontSize: 14, fontWeight: 950, cursor: 'pointer' }}>
-                  Buy in the app
-                </button>
+                <div style={{ color: blue, fontSize: 18, fontWeight: 850, marginTop: 13 }}>{credits}</div>
+                <div style={{ color: muted, fontSize: 14, lineHeight: 1.6, marginTop: 10 }}>{note}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section style={{ background: soft, padding: '74px 32px' }}>
-        <div style={{ maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,320px),1fr))', gap: 28 }}>
+      <section style={{ background: wash, padding: '70px 28px' }}>
+        <div style={{ maxWidth: 1060, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,320px),1fr))', gap: 30 }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 'clamp(28px,4vw,42px)', lineHeight: 1.08 }}>What credits buy</h2>
-            <p style={{ color: '#607684', fontSize: 16, lineHeight: 1.7, marginTop: 14 }}>Credits make unlike AI actions feel understandable. A quick grading pass costs less than a full page or quiz build.</p>
+            <h2 style={{ margin: 0, fontSize: 'clamp(28px,4vw,40px)', lineHeight: 1.12, fontWeight: 850 }}>How credits are used</h2>
+            <p style={{ color: muted, fontSize: 16, lineHeight: 1.7, marginTop: 13 }}>
+              Different AI tasks use different credit amounts because grading, page creation, and quiz creation do not have the same AI cost.
+            </p>
           </div>
           <div style={{ display: 'grid', gap: 12 }}>
-            {usage.map(item => (
-              <div key={item.action} style={{ background: '#fff', border: `1px solid ${line}`, borderRadius: 8, padding: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center' }}>
-                  <div style={{ fontSize: 16, fontWeight: 950 }}>{item.action}</div>
-                  <div style={{ background: '#E9F7F6', color: teal, border: '1px solid #BDE7E4', borderRadius: 999, padding: '7px 11px', fontWeight: 950, fontSize: 13 }}>{item.credits}</div>
+            {usage.map(([name, cost, desc]) => (
+              <div key={name} style={{ border: `1px solid ${rule}`, borderRadius: 8, background: '#fff', padding: 18, display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 850 }}>{name}</div>
+                  <div style={{ color: muted, fontSize: 14, lineHeight: 1.6, marginTop: 6 }}>{desc}</div>
                 </div>
-                <div style={{ color: '#607684', fontSize: 13, marginTop: 9 }}>{item.examples}</div>
+                <div style={{ color: blue, fontSize: 13, fontWeight: 850 }}>{cost}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section style={{ background: '#102533', color: '#fff', padding: '74px 32px' }}>
-        <div style={{ maxWidth: 1040, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 18 }}>
-          {[
-            ['Teacher purchases', 'Buy credits from the AI dropdown in the toolbar. Credits land on that teacher account.'],
-            ['School purchases', 'Later, schools can buy a shared pool and assign credits to multiple teachers.'],
-            ['Auto-refill', 'Later, a teacher or school can set a low-balance refill using Stripe.'],
-          ].map(([title, text]) => (
-            <div key={title} style={{ border: '1px solid rgba(255,255,255,.16)', borderRadius: 8, padding: 22, background: 'rgba(255,255,255,.04)' }}>
-              <div style={{ fontSize: 18, fontWeight: 950 }}>{title}</div>
-              <div style={{ color: '#BCD0DA', fontSize: 14, lineHeight: 1.7, marginTop: 10 }}>{text}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section style={{ background: '#fff', padding: '70px 32px' }}>
-        <div style={{ maxWidth: 820, margin: '0 auto' }}>
-          <h2 style={{ margin: '0 0 22px', fontSize: 32, lineHeight: 1.1 }}>Pricing questions</h2>
+      <section style={{ background: '#fff', padding: '70px 28px' }}>
+        <div style={{ maxWidth: 760, margin: '0 auto' }}>
+          <h2 style={{ margin: '0 0 22px', fontSize: 30, lineHeight: 1.15, fontWeight: 850 }}>Questions</h2>
           {faqs.map(([q, a], idx) => (
-            <div key={q} style={{ borderTop: `1px solid ${line}` }}>
-              <button onClick={() => setOpenFaq(openFaq === idx ? null : idx)} style={{ width: '100%', padding: '18px 0', background: 'transparent', border: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: 16, textAlign: 'left', color: ink }}>
-                <span style={{ fontSize: 16, fontWeight: 900 }}>{q}</span>
-                <span style={{ color: blue, fontWeight: 950 }}>{openFaq === idx ? '-' : '+'}</span>
+            <div key={q} style={{ borderTop: `1px solid ${rule}` }}>
+              <button
+                onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
+                style={{ width: '100%', padding: '18px 0', background: 'transparent', border: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: 16, textAlign: 'left', color: ink, fontFamily: font }}
+              >
+                <span style={{ fontSize: 16, fontWeight: 800 }}>{q}</span>
+                <span style={{ color: blue, fontWeight: 800 }}>{openFaq === idx ? '-' : '+'}</span>
               </button>
-              {openFaq === idx && <div style={{ color: '#607684', lineHeight: 1.7, fontSize: 15, padding: '0 0 20px' }}>{a}</div>}
+              {openFaq === idx && <div style={{ color: muted, lineHeight: 1.75, fontSize: 15, padding: '0 0 20px' }}>{a}</div>}
             </div>
           ))}
         </div>

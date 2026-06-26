@@ -4,47 +4,56 @@ const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 
 export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' }) {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
+  const links = [
+    { href: '/', label: 'Home', key: 'home' },
+    { href: '/features', label: 'Features', key: 'features' },
+    { href: '/pricing', label: 'AI Credits', key: 'pricing' },
+  ];
 
   return (
     <nav style={{
-      background: '#fff',
-      borderBottom: '1px solid #E5E7EB',
-      padding: '0 40px',
+      background: 'rgba(255,255,255,.94)',
+      borderBottom: '1px solid #DDE7EE',
+      padding: '0 28px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      height: 60,
+      minHeight: 64,
       position: 'sticky',
       top: 0,
       zIndex: 100,
       fontFamily: font,
+      backdropFilter: 'blur(14px)',
+      gap: 18,
+      flexWrap: 'wrap',
     }}>
-      <a href="/" style={{ color: '#111827', fontWeight: 600, fontSize: 15, textDecoration: 'none', letterSpacing: '-0.2px' }}>
+      <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#203342', fontWeight: 900, fontSize: 16, textDecoration: 'none', letterSpacing: 0 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 8, background: '#0770B8', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 950 }}>CE</span>
         Canvas Enhancer
       </a>
-      <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-        {[
-          { href: '/',         label: 'Home',       key: 'home' },
-          { href: '/features', label: 'Features',   key: 'features' },
-          { href: '/pricing',  label: 'Pricing',    key: 'pricing' },
-        ].map(link => (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        {links.map(link => (
           <a key={link.key} href={link.href} style={{
-            color: active === link.key ? '#111827' : '#6B7280',
+            color: active === link.key ? '#0770B8' : '#5F7280',
+            background: active === link.key ? '#EAF5FC' : 'transparent',
             fontSize: 14,
             textDecoration: 'none',
-            fontWeight: active === link.key ? 600 : 400,
+            fontWeight: 800,
+            padding: '8px 11px',
+            borderRadius: 999,
           }}>
             {link.label}
           </a>
         ))}
         <a href={extensionUrl} style={{
-          background: '#0770B8',
+          background: '#203342',
           color: '#fff',
-          padding: '8px 18px',
-          borderRadius: 6,
+          padding: '9px 15px',
+          borderRadius: 999,
           fontSize: 13,
-          fontWeight: 600,
+          fontWeight: 900,
           textDecoration: 'none',
+          boxShadow: '0 10px 24px rgba(32,51,66,.18)',
         }}>
           Install Free
         </a>
