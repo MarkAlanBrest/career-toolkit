@@ -879,12 +879,10 @@
 
     // ── Auto-reload section ───────────────────────────────────────────────────
     const autoReloadSection = el('div', '');
-    const autoReloadTitle = el('div', `font-size:12px;font-weight:700;color:${DS.text};margin-bottom:10px;padding-top:4px;border-top:1px solid ${DS.border};padding-top:14px;`, { textContent: 'Auto-reload' });
 
     async function renderAutoReload() {
       autoReloadSection.innerHTML = '';
       if (!accountId) return;
-      autoReloadSection.appendChild(autoReloadTitle);
 
       let settings = {};
       try {
@@ -894,59 +892,102 @@
       } catch { /* show defaults */ }
 
       const hasCard = !!settings.paymentMethodId;
+      let isEnabled = !!settings.enabled;
 
+      // ── Section header row with toggle switch ──────────────────────────────
+      const sectionHead = el('div', `display:flex;align-items:center;justify-content:space-between;border-top:1px solid ${DS.border};padding-top:14px;margin-bottom:12px;`);
+      sectionHead.appendChild(el('div', `font-size:12px;font-weight:700;color:${DS.text};`, { textContent: 'Auto-reload' }));
+
+      // Toggle switch (track + knob)
+      const toggleTrack = el('div', `width:40px;height:22px;border-radius:11px;background:${isEnabled ? DS.blue : '#CBD5E1'};position:relative;cursor:${hasCard ? 'pointer' : 'not-allowed'};transition:background .18s;flex-shrink:0;opacity:${hasCard ? '1' : '0.5'};`);
+      const toggleKnob  = el('div', `position:absolute;top:3px;left:${isEnabled ? '19px' : '3px'};width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .18s;`);
+      const toggleLabel = el('span', `font-size:12px;font-weight:600;color:${isEnabled ? DS.green : DS.muted};min-width:22px;text-align:right;`, { textContent: isEnabled ? 'On' : 'Off' });
+      toggleTrack.appendChild(toggleKnob);
+      const toggleWrap = el('div', 'display:flex;align-items:center;gap:7px;');
+      toggleWrap.append(toggleLabel, toggleTrack);
+      sectionHead.appendChild(toggleWrap);
+      autoReloadSection.appendChild(sectionHead);
+
+      // ── No card saved message ──────────────────────────────────────────────
       if (!hasCard) {
         autoReloadSection.appendChild(
-          el('div', `font-size:12px;color:${DS.muted};line-height:1.6;`, { textContent: 'Save a card during checkout to enable automatic top-ups when your balance runs low.' })
+          el('div', `font-size:12px;color:${DS.muted};line-height:1.6;padding:8px 12px;background:#F8FAFC;border:1px solid ${DS.border};border-radius:6px;`,
+            { textContent: 'No card saved. Check "Save card for automatic top-ups" when making your next purchase to enable this feature.' })
         );
         return;
       }
 
-      // Card info
-      const cardInfo = el('div', `font-size:12px;color:${DS.muted};margin-bottom:12px;`, {
-        textContent: `Saved card: ${(settings.cardBrand || 'Card').charAt(0).toUpperCase() + (settings.cardBrand || 'Card').slice(1)} ···· ${settings.cardLast4 || '????'}`
-      });
+      // ── Settings panel (visible when enabled) ─────────────────────────────
+      const cardBrand = (settings.cardBrand || 'card').charAt(0).toUpperCase() + (settings.cardBrand || 'card').slice(1);
+      const settingsPanel = el('div', `display:${isEnabled ? 'flex' : 'none'};flex-direction:column;gap:10px;`);
 
-      // Enable toggle
-      const enableRow = el('label', `display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12px;color:${DS.text};margin-bottom:12px;`);
-      const enableCheck = el('input', '', { type: 'checkbox' });
-      enableCheck.checked = !!settings.enabled;
-      enableRow.append(enableCheck, document.createTextNode('Enable auto-reload'));
-
-      // Min balance input
-      const minBalRow = el('div', `display:flex;align-items:center;gap:10px;margin-bottom:10px;`);
-      minBalRow.append(
-        el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Reload when below' }),
+      settingsPanel.appendChild(
+        el('div', `font-size:12px;color:${DS.muted};`, { textContent: `Saved card: ${cardBrand} ···· ${settings.cardLast4 || '????'}` })
       );
-      const minBalInput = el('input', `width:80px;padding:5px 8px;border:1px solid ${DS.border};border-radius:4px;font-size:12px;font-family:${DS.font};`, { type: 'number', min: '0', max: '10000', value: String(settings.minBalance ?? 100) });
-      minBalRow.append(minBalInput);
-      minBalRow.append(el('span', `font-size:12px;color:${DS.muted};`, { textContent: 'credits' }));
 
-      // Reload amount selector
-      const reloadRow = el('div', `display:flex;align-items:center;gap:10px;margin-bottom:14px;`);
-      reloadRow.append(el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Add' }));
+      // Min balance row
+      const minBalRow = el('div', `display:flex;align-items:center;gap:8px;flex-wrap:wrap;`);
+      minBalRow.appendChild(el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Reload when below' }));
+      const minBalInput = el('input', `width:72px;padding:5px 8px;border:1px solid ${DS.border};border-radius:4px;font-size:12px;font-family:${DS.font};`,
+        { type: 'number', min: '0', max: '10000', value: String(settings.minBalance ?? 100) });
+      minBalRow.append(minBalInput, el('span', `font-size:12px;color:${DS.muted};`, { textContent: 'credits' }));
+
+      // Reload amount row
+      const reloadRow = el('div', `display:flex;align-items:center;gap:8px;flex-wrap:wrap;`);
+      reloadRow.appendChild(el('span', `font-size:12px;color:${DS.text};white-space:nowrap;`, { textContent: 'Top up' }));
       const reloadSel = el('select', `padding:5px 8px;border:1px solid ${DS.border};border-radius:4px;font-size:12px;font-family:${DS.font};`);
       [{ v: 1000, l: '1,000 credits ($10)' }, { v: 2000, l: '2,000 credits ($20)' }, { v: 5000, l: '5,000 credits ($50)' }].forEach(({ v, l }) => {
         const o = el('option', '', { value: String(v), textContent: l });
         if (v === (settings.reloadAmount ?? 1000)) o.selected = true;
         reloadSel.appendChild(o);
       });
-      reloadRow.append(reloadSel);
+      reloadRow.appendChild(reloadSel);
 
-      const failedMsg = settings.failedAt ? el('div', `font-size:12px;color:#DC2626;margin-bottom:8px;`, { textContent: 'Last auto-reload failed. Re-save to retry.' }) : null;
+      if (settings.failedAt) {
+        settingsPanel.appendChild(
+          el('div', `font-size:12px;color:#DC2626;padding:6px 10px;background:#FEF2F2;border-radius:4px;`,
+            { textContent: 'Last auto-reload failed. Check your card and save settings to retry.' })
+        );
+      }
 
-      const saveAutoBtn = btn('Save Auto-reload Settings', `background:${DS.blue};color:#fff;border-radius:5px;font-size:12px;padding:8px;`);
-      const saveAutoMsg = el('div', `font-size:12px;min-height:14px;color:${DS.green};text-align:center;`);
+      const saveRow = el('div', `display:flex;align-items:center;gap:10px;`);
+      const saveAutoBtn = btn('Save Settings', `background:${DS.blue};color:#fff;border-radius:5px;font-size:12px;padding:7px 14px;`);
+      const saveAutoMsg = el('span', `font-size:12px;color:${DS.green};`);
+      saveRow.append(saveAutoBtn, saveAutoMsg);
+
+      settingsPanel.append(minBalRow, reloadRow, saveRow);
+      autoReloadSection.appendChild(settingsPanel);
+
+      // ── Toggle click — instant on/off save ────────────────────────────────
+      toggleTrack.addEventListener('click', async () => {
+        isEnabled = !isEnabled;
+        toggleTrack.style.background = isEnabled ? DS.blue : '#CBD5E1';
+        toggleKnob.style.left = isEnabled ? '19px' : '3px';
+        toggleLabel.textContent = isEnabled ? 'On' : 'Off';
+        toggleLabel.style.color = isEnabled ? DS.green : DS.muted;
+        settingsPanel.style.display = isEnabled ? 'flex' : 'none';
+        try {
+          await fetch(`${CE_SITE}/api/credits/auto-reload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
+          });
+        } catch { /* silent */ }
+      });
+
+      // ── Save button — updates thresholds ──────────────────────────────────
       saveAutoBtn.addEventListener('click', async () => {
         saveAutoBtn.disabled = true;
         saveAutoBtn.textContent = 'Saving…';
+        saveAutoMsg.textContent = '';
         try {
           const res = await fetch(`${CE_SITE}/api/credits/auto-reload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId, enabled: enableCheck.checked, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
+            body: JSON.stringify({ accountId, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
           });
           if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
+          saveAutoMsg.style.color = DS.green;
           saveAutoMsg.textContent = 'Saved!';
           setTimeout(() => { saveAutoMsg.textContent = ''; }, 2500);
         } catch (err) {
@@ -954,13 +995,9 @@
           saveAutoMsg.textContent = err?.message || 'Save failed.';
         } finally {
           saveAutoBtn.disabled = false;
-          saveAutoBtn.textContent = 'Save Auto-reload Settings';
+          saveAutoBtn.textContent = 'Save Settings';
         }
       });
-
-      autoReloadSection.append(cardInfo, enableRow, minBalRow, reloadRow);
-      if (failedMsg) autoReloadSection.appendChild(failedMsg);
-      autoReloadSection.append(saveAutoBtn, saveAutoMsg);
     }
 
     // ── Compose the modal body ────────────────────────────────────────────────

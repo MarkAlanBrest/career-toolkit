@@ -23,6 +23,7 @@ function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: 
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState('');
+  const [agreed, setAgreed] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +53,26 @@ function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PaymentElement options={{ layout: 'tabs' }} />
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 12, color: '#526A79', lineHeight: 1.55 }}>
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={e => setAgreed(e.target.checked)}
+          style={{ width: 14, height: 14, marginTop: 2, cursor: 'pointer', flexShrink: 0 }}
+        />
+        <span>
+          I agree to the{' '}
+          <a
+            href="https://career-toolkit-ruby.vercel.app/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: blue, textDecoration: 'underline' }}
+          >
+            Terms of Purchase
+          </a>
+          . Credits are non-refundable. Auto-reload (if enabled) will charge my card automatically.
+        </span>
+      </label>
       {errMsg && (
         <div style={{ fontSize: 13, color: '#DC2626', padding: '8px 10px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6 }}>
           {errMsg}
@@ -59,7 +80,7 @@ function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: 
       )}
       <button
         type="submit"
-        disabled={!stripe || !elements || loading}
+        disabled={!stripe || !elements || loading || !agreed}
         style={{
           padding: '13px 0',
           background: loading ? '#94a3b8' : blue,
