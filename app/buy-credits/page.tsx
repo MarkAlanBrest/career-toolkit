@@ -18,18 +18,46 @@ const blue = '#0770B8';
 const line = '#D8E1E8';
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 
-function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: () => void }) {
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '9px 11px', border: `1px solid ${line}`, borderRadius: 6,
+  fontSize: 13, fontFamily: font, color: ink, boxSizing: 'border-box', outline: 'none',
+};
+const labelStyle: React.CSSProperties = {
+  display: 'block', fontSize: 11, fontWeight: 700, color: '#526A79',
+  textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5,
+};
+
+function isValidEmail(v: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
+  packPrice: string; accountId: string; name: string; email: string; onSuccess: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
-  const [errMsg, setErrMsg] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stripe || !elements || loading) return;
+
+    if (!name.trim() || !isValidEmail(email)) {
+      setErrMsg('Please enter your name and a valid email address above.');
+      return;
+    }
+
     setLoading(true);
     setErrMsg('');
+
+    // Save profile (non-blocking — don't delay payment if this fails)
+    fetch('/api/credits/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId, name: name.trim(), email: email.trim() }),
+    }).catch(() => {});
 
     const { error, paymentIntent } = await stripe.confirmPayment({
       elements,
@@ -79,16 +107,9 @@ function CheckoutForm({ packPrice, onSuccess }: { packPrice: string; onSuccess: 
         type="submit"
         disabled={!stripe || !elements || loading || !agreed}
         style={{
-          padding: '13px 0',
-          background: loading ? '#94a3b8' : blue,
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          fontSize: 15,
-          fontWeight: 700,
-          cursor: loading ? 'wait' : 'pointer',
-          fontFamily: font,
-          transition: 'background .15s',
+          padding: '13px 0', background: loading ? '#94a3b8' : blue, color: '#fff',
+          border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 700,
+          cursor: loading ? 'wait' : 'pointer', fontFamily: font, transition: 'background .15s',
         }}
       >
         {loading ? 'Processing…' : `Pay ${packPrice}`}
@@ -108,12 +129,14 @@ export default function BuyCreditsPage() {
   const [accountId, setAccountId] = useState('');
   const [selectedPack, setSelectedPack] = useState<PackKey>('teacher');
   const [saveCard, setSaveCard] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadingSecret, setLoadingSecret] = useState(false);
   const [secretError, setSecretError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  // Read URL params once on mount
+  // Read URL params on mount, then load saved profile
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('accountId') || '';
@@ -121,38 +144,53 @@ export default function BuyCreditsPage() {
     const packParam = params.get('pack') as PackKey | null;
     if (packParam && PACKS.find(p => p.key === packParam)) setSelectedPack(packParam);
     if (params.get('saveCard') === 'true') setSaveCard(true);
+
+    if (id) {
+      fetch(`/api/credits/profile?accountId=${encodeURIComponent(id)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.profile?.name)  setName(data.profile.name);
+          if (data.profile?.email) setEmail(data.profile.email);
+        })
+        .catch(() => {});
+    }
   }, []);
 
-  // Auto-fetch PaymentIntent whenever accountId, pack, or saveCard changes
+  // Auto-fetch PaymentIntent; debounce when name/email change to avoid
+  // creating a new PI on every keystroke
   useEffect(() => {
     if (!accountId) return;
     let cancelled = false;
-    setLoadingSecret(true);
-    setSecretError('');
-    setClientSecret(null);
-    fetch('/api/stripe/payment-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId, pack: selectedPack, saveCard }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-        if (!data.clientSecret) throw new Error(data.error || 'Could not start checkout.');
-        setClientSecret(data.clientSecret);
+
+    const delay = name || email ? 700 : 0;
+    const timer = setTimeout(() => {
+      setLoadingSecret(true);
+      setSecretError('');
+      setClientSecret(null);
+      fetch('/api/stripe/payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, pack: selectedPack, saveCard, name, email }),
       })
-      .catch(err => {
-        if (cancelled) return;
-        setSecretError(err instanceof Error ? err.message : 'Could not start checkout.');
-      })
-      .finally(() => { if (!cancelled) setLoadingSecret(false); });
-    return () => { cancelled = true; };
-  }, [accountId, selectedPack, saveCard]);
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return;
+          if (!data.clientSecret) throw new Error(data.error || 'Could not start checkout.');
+          setClientSecret(data.clientSecret);
+        })
+        .catch(err => {
+          if (cancelled) return;
+          setSecretError(err instanceof Error ? err.message : 'Could not start checkout.');
+        })
+        .finally(() => { if (!cancelled) setLoadingSecret(false); });
+    }, delay);
+
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [accountId, selectedPack, saveCard, name, email]);
 
   const handleSuccess = () => {
     const pack = PACKS.find(p => p.key === selectedPack)!;
     setSuccess(true);
-    // Post credits added back to hub — hub updates balance optimistically
     window.parent.postMessage({ type: 'CE_PAYMENT_SUCCESS', credits: pack.credits }, '*');
   };
 
@@ -194,19 +232,39 @@ export default function BuyCreditsPage() {
               type="button"
               onClick={() => setSelectedPack(pack.key)}
               style={{
-                padding: '10px 6px',
-                border: `2px solid ${selectedPack === pack.key ? blue : line}`,
-                borderRadius: 8,
-                background: selectedPack === pack.key ? '#EDF5FF' : '#fff',
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all .12s',
+                padding: '10px 6px', border: `2px solid ${selectedPack === pack.key ? blue : line}`,
+                borderRadius: 8, background: selectedPack === pack.key ? '#EDF5FF' : '#fff',
+                cursor: 'pointer', textAlign: 'center', transition: 'all .12s',
               }}
             >
               <div style={{ fontSize: 16, fontWeight: 800, color: selectedPack === pack.key ? blue : ink }}>{pack.price}</div>
               <div style={{ fontSize: 11, color: '#526A79', marginTop: 2 }}>{pack.credits.toLocaleString()} cr</div>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Name + Email */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={labelStyle}>Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Jane Smith"
+            style={inputStyle}
+          />
+        </div>
+        <div>
+          <label style={labelStyle}>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="jane@school.edu"
+            style={inputStyle}
+          />
         </div>
       </div>
 
@@ -228,7 +286,7 @@ export default function BuyCreditsPage() {
         </div>
       )}
 
-      {/* Payment form — loads automatically */}
+      {/* Payment form */}
       {loadingSecret && (
         <div style={{ textAlign: 'center', padding: '24px 0', color: '#526A79', fontSize: 13 }}>
           Loading checkout…
@@ -236,7 +294,13 @@ export default function BuyCreditsPage() {
       )}
       {clientSecret && (
         <Elements stripe={stripePromise} options={elementsOptions}>
-          <CheckoutForm packPrice={currentPack.price} onSuccess={handleSuccess} />
+          <CheckoutForm
+            packPrice={currentPack.price}
+            accountId={accountId}
+            name={name}
+            email={email}
+            onSuccess={handleSuccess}
+          />
         </Elements>
       )}
     </div>

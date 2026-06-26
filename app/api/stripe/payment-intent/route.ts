@@ -32,12 +32,25 @@ export async function POST(req: NextRequest) {
 
     const packConfig = CREDIT_PACKS[pack];
     const saveCard = body?.saveCard === true;
+    const name  = String(body?.name  || '').trim().slice(0, 100);
+    const email = String(body?.email || '').trim().toLowerCase().slice(0, 200);
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
     const customerId = await getOrCreateCustomer(accountId);
+
+    // Keep Stripe customer name/email current whenever we have them
+    if (name || emailValid) {
+      await stripe.customers.update(customerId, {
+        ...(name       && { name }),
+        ...(emailValid && { email }),
+      }).catch(() => {});
+    }
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: packConfig.priceCents,
       currency: 'usd',
       customer: customerId,
+      receipt_email: emailValid ? email : undefined,
       setup_future_usage: saveCard ? 'off_session' : undefined,
       metadata: { accountId, credits: String(packConfig.credits), pack },
       description: `Canvas Enhancer — ${packConfig.description}`,
