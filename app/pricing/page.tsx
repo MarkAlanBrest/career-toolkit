@@ -65,6 +65,9 @@ export default function PricingPage() {
           <p style={{ margin: '18px 0 0', fontSize: 13, lineHeight: 1.8, textAlign: 'justify' }}>
             These rates can be adjusted as real AI costs are measured. The goal is to keep the model simple: buy credits, use them for the AI tools that need them, and keep the non-AI tools free.
           </p>
+          <p style={{ margin: '14px 0 0', fontFamily: display, fontSize: 13 }}>
+            <a href="/departments" style={{ color: blue }}>Buying for a department or school?</a>
+          </p>
         </section>
 
         <section style={{ marginTop: 26, background: paper, border: '1px solid #d9d9d2', padding: '30px 34px' }}>

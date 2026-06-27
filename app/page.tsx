@@ -117,7 +117,10 @@ export default function HomePage() {
           <div>
             <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>For schools</h2>
             <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify' }}>
-              A school or department can later purchase shared AI credit pools for multiple teachers, while individual teachers can still buy credits from inside the app.
+              A department chair or school lead can buy AI credits and send chosen amounts to teachers. Individual teachers can also buy or send credits themselves.
+            </p>
+            <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.6 }}>
+              <a href="/departments" style={{ color: blue }}>Read about department credit distribution</a>
             </p>
           </div>
         </section>

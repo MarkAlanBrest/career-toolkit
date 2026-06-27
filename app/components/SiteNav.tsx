@@ -3,12 +3,13 @@
 const serif = 'Georgia,"Times New Roman",serif';
 const display = '"Trebuchet MS",Arial,sans-serif';
 
-export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' }) {
+export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' | 'departments' }) {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
   const links = [
     { href: '/', label: 'Home', key: 'home' },
     { href: '/features', label: 'Features', key: 'features' },
     { href: '/pricing', label: 'AI Credits', key: 'pricing' },
+    { href: '/departments', label: 'Departments', key: 'departments' },
     { href: extensionUrl, label: 'Install', key: 'install' },
   ];
 
