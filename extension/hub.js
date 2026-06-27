@@ -32,14 +32,6 @@
   const SPEEDGRADER = /speed_grader/.test(window.location.href);
   const TOP_OFFSET  = SPEEDGRADER ? 60 : 0;
 
-  const AI_PROVIDERS = [
-    { id: 'claude',      label: 'Claude (claude.ai)',     url: 'https://claude.ai/new' },
-    { id: 'chatgpt',     label: 'ChatGPT (chatgpt.com)',  url: 'https://chatgpt.com/' },
-    { id: 'gemini',      label: 'Gemini (Google)',        url: 'https://gemini.google.com/app' },
-    { id: 'copilot',     label: 'Microsoft Copilot',      url: 'https://copilot.microsoft.com/' },
-    { id: 'perplexity',  label: 'Perplexity',             url: 'https://www.perplexity.ai/' },
-  ];
-
   const TOOLS = [
     // ── Dashboard Toolbar ─────────────────────────────────────────────────────
     { _section: 'db', label: 'Dashboard' },
@@ -3648,7 +3640,6 @@
       document.dispatchEvent(new CustomEvent('ce-toggle-quiz'));
       return;
     }
-    if (tool.noPanel) { openQuickAI(); return; }
     if (tool.id === 'scheduler') {
       closePanel();
       closeAllExternal();
@@ -3658,94 +3649,6 @@
     if (_active === tool.id) { closePanel(); return; }
     closeAllExternal();
     openPanel(tool);
-  }
-
-  function openAIProvider(provider) {
-    if (!provider) return;
-    chrome.storage.local.set({ ce_ai_provider: provider.id });
-    ceSendMessage({
-      type: 'OPEN_CLAUDE_SPLIT',
-      payload: {
-        url:         provider.url,
-        screenWidth:  window.screen.availWidth,
-        screenHeight: window.screen.availHeight,
-        screenTop:    window.screen.availTop  || 0,
-        screenLeft:   window.screen.availLeft || 0,
-      },
-    }).catch(e => { if (e.message === 'reload-needed') ceShowReloadBanner(); });
-  }
-
-  function openQuickAI() {
-    chrome.storage.local.get('ce_ai_provider', ({ ce_ai_provider }) => {
-      const provider = AI_PROVIDERS.find(p => p.id === ce_ai_provider) || AI_PROVIDERS[0];
-      openAIProvider(provider);
-    });
-  }
-
-  function mountAILauncher() {
-    if (document.getElementById('ce-ai-launcher')) return;
-    const root = el('div', `position:fixed;right:20px;bottom:20px;z-index:2147483639;font-family:${DS.font};`);
-    root.id = 'ce-ai-launcher';
-
-    const menu = el('div', `position:absolute;right:0;bottom:64px;width:260px;padding:8px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.25);display:none;flex-direction:column;gap:2px;`);
-    const head = el('div', `padding:10px 11px 9px;border-bottom:1px solid #F1F5F9;margin-bottom:4px;`);
-    const title = el('div', `font-size:13px;font-weight:750;color:#0F172A;`); title.textContent = 'Open an AI assistant';
-    const sub = el('div', `font-size:11px;color:#64748B;margin-top:3px;line-height:1.4;`); sub.textContent = 'Opens beside Canvas in a companion window.';
-    head.append(title, sub);
-    menu.appendChild(head);
-
-    const providerMeta = {
-      claude:     ['C', '#D97757'],
-      chatgpt:    ['✦', '#10A37F'],
-      gemini:     ['✦', '#4F7DF3'],
-      copilot:    ['C', '#2563EB'],
-      perplexity: ['P', '#20808D'],
-    };
-    for (const provider of AI_PROVIDERS) {
-      const item = el('button', `width:100%;display:flex;align-items:center;gap:11px;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#334155;text-align:left;cursor:pointer;font-family:${DS.font};`, { type:'button' });
-      const meta = providerMeta[provider.id] || ['AI', '#475569'];
-      const mark = el('span', `width:30px;height:30px;border-radius:9px;background:${meta[1]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;`); mark.textContent = meta[0];
-      const copy = el('span', `display:flex;flex-direction:column;min-width:0;`);
-      const name = el('span', `font-size:12px;font-weight:700;color:#1E293B;`); name.textContent = provider.label.replace(/\s*\([^)]*\)\s*$/, '');
-      const domain = el('span', `font-size:10px;color:#94A3B8;margin-top:2px;`); domain.textContent = new URL(provider.url).hostname.replace(/^www\./, '');
-      copy.append(name, domain);
-      item.append(mark, copy);
-      item.addEventListener('mouseenter', () => item.style.background = '#F1F5F9');
-      item.addEventListener('mouseleave', () => item.style.background = 'transparent');
-      item.addEventListener('click', () => { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); openAIProvider(provider); });
-      menu.appendChild(item);
-    }
-
-    const footer = el('div', `border-top:1px solid #F1F5F9;margin-top:5px;padding:7px 4px 1px;`);
-    const settingsBtn = el('button', `width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#475569;text-align:left;cursor:pointer;font-size:11px;font-weight:700;font-family:${DS.font};`, { type:'button' });
-    settingsBtn.innerHTML = '<span style="width:20px;text-align:center">⚙</span><span>Canvas Enhancer Settings</span>';
-    settingsBtn.addEventListener('mouseenter', () => { settingsBtn.style.background = '#F1F5F9'; settingsBtn.style.color = '#0F172A'; });
-    settingsBtn.addEventListener('mouseleave', () => { settingsBtn.style.background = 'transparent'; settingsBtn.style.color = '#475569'; });
-    settingsBtn.addEventListener('click', () => {
-      menu.style.display = 'none';
-      launch.setAttribute('aria-expanded', 'false');
-      document.dispatchEvent(new CustomEvent('ce-open-settings'));
-    });
-    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
-    footer.appendChild(settingsBtn);
-    menu.appendChild(footer);
-
-    const launch = el('button', `height:42px;padding:0 18px;border:1px solid #fff;border-radius:999px;background:#fff;color:${DS.blue};display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;box-shadow:0 8px 24px rgba(15,23,42,.24);font-size:13px;font-weight:800;font-family:${DS.font};transition:transform .14s,box-shadow .14s,background .14s,color .14s;`, { type:'button', title:'Open AI assistant', textContent:'✦ AI' });
-    launch.setAttribute('aria-label', 'Open AI assistant menu');
-    launch.setAttribute('aria-expanded', 'false');
-    launch.addEventListener('mouseenter', () => { launch.style.transform = 'translateY(-2px)'; launch.style.boxShadow = '0 12px 30px rgba(15,23,42,.32)'; });
-    launch.addEventListener('mouseleave', () => { launch.style.transform = ''; launch.style.boxShadow = '0 8px 24px rgba(15,23,42,.28)'; });
-    launch.addEventListener('click', e => {
-      e.stopPropagation();
-      const open = menu.style.display === 'flex';
-      menu.style.display = open ? 'none' : 'flex';
-      launch.setAttribute('aria-expanded', String(!open));
-    });
-    menu.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', () => { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') { menu.style.display = 'none'; launch.setAttribute('aria-expanded', 'false'); } });
-    root.append(menu, launch);
-    document.body.appendChild(root);
   }
 
   function setActive(id) {
@@ -3858,7 +3761,6 @@
     document.body.appendChild(manageCreditsModal);
     document.body.appendChild(notesModal);
     document.body.appendChild(helpModal);
-    mountAILauncher();
 
     // Push Canvas identity to background SW so accountId = canvasUserId@canvasDomain
     if (window.ENV?.current_user_id) {
@@ -3911,7 +3813,6 @@
   // Legacy dashboard toolbar remains disabled.
   function updateDashboardMode() { /* toolbar hidden; hub.js runs for modals/events only */ }
 
-  document.addEventListener('ce-open-chat',    () => openQuickAI());
   document.addEventListener('ce-open-notes',   () => openNotesModal());
   document.addEventListener('ce-open-help',    e => openHelp(e.detail));
   document.addEventListener('ce-open-ai-credits', () => openAICredits());

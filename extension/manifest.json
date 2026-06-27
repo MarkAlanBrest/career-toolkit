@@ -13,14 +13,7 @@
     "https://*.instructure.com/*",
     "https://*.canvas.com/*",
     "https://*.canvaslms.com/*",
-    "https://*.vercel.app/*",
     "https://canvasenhancer.com/*",
-    "http://localhost:3000/*",
-    "https://claude.ai/*",
-    "https://chatgpt.com/*",
-    "https://gemini.google.com/*",
-    "https://copilot.microsoft.com/*",
-    "https://www.perplexity.ai/*",
     "https://*.amazonaws.com/*"
   ],
   "background": {

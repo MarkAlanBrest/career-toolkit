@@ -170,10 +170,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleWebSearch(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
-  if (msg.type === 'OPEN_CLAUDE_SPLIT') {
-    handleOpenClaudeSplit(msg.payload, sender).then(sendResponse).catch(err => sendResponse({ error: err.message }));
-    return true;
-  }
   if (msg.type === 'UNINSTALL_SELF') {
     chrome.management.uninstallSelf({ showConfirmDialog: false });
     return false;
@@ -232,22 +228,6 @@ async function handleCreditStatus() {
   return data;
 }
 
-async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop, screenLeft }, sender) {
-  const sl  = screenLeft || 0;
-  const st  = screenTop  || 0;
-  const aiW = 460;
-  const edgeGap = 32;
-
-  // Open AI chat as a narrow companion window on the right.
-  await chrome.windows.create({
-    url:    url || 'https://claude.ai/new',
-    left:   sl + screenWidth - aiW - edgeGap,
-    top:    st + 8,
-    width:  aiW,
-    height: screenHeight - 16,
-    type:   'normal',
-  });
-}
 
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
