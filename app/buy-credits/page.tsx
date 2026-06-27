@@ -47,9 +47,10 @@ function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
-function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
+function CheckoutForm({ packPrice, accountId, accountToken, name, email, onSuccess }: {
   packPrice: string;
   accountId: string;
+  accountToken: string;
   name: string;
   email: string;
   onSuccess: () => void;
@@ -75,7 +76,7 @@ function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
     fetch('/api/credits/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId, name: name.trim(), email: email.trim() }),
+      body: JSON.stringify({ accountId, accountToken, name: name.trim(), email: email.trim() }),
     }).catch(() => {});
 
     const { error, paymentIntent } = await stripe.confirmPayment({
@@ -152,7 +153,11 @@ export default function BuyCreditsPage() {
   }, []);
 
   useEffect(() => {
-    if (!accountId || !accountToken) return;
+    if (!accountId) return;
+    if (!accountToken) {
+      setSecretError('Reopen this screen from the Canvas Enhancer toolbar so it can verify your credit account.');
+      return;
+    }
     let cancelled = false;
 
     const delay = name || email ? 700 : 0;
@@ -250,6 +255,7 @@ export default function BuyCreditsPage() {
             <CheckoutForm
               packPrice={currentPack.price}
               accountId={accountId}
+              accountToken={accountToken}
               name={name}
               email={email}
               onSuccess={() => {

@@ -783,8 +783,10 @@
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
       const accountId = status?.accountId || '';
+      const accountToken = status?.accountToken || '';
       if (!accountId) throw new Error(status?.error || 'Could not identify this account.');
-      const src = `${CE_SITE}/manage-credits?accountId=${encodeURIComponent(accountId)}`;
+      if (!accountToken) throw new Error('Could not verify this credit account.');
+      const src = `${CE_SITE}/manage-credits?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`;
       manageCreditsMBody.innerHTML = '';
       manageCreditsMBody.appendChild(el('iframe', 'width:100%;height:100%;border:none;display:block;background:#F3F7FA;', { src }));
     }).catch(err => {
@@ -798,6 +800,7 @@
 
     const sendRuntime = message => new Promise(resolve => chrome.runtime.sendMessage(message, resolve));
     let accountId = '';
+    let accountToken = '';
 
     // ── Balance card ──────────────────────────────────────────────────────────
     const balanceText = el('div', `font-size:32px;font-weight:900;color:${DS.text};line-height:1;`, { textContent: '…' });
@@ -855,7 +858,7 @@
 
     function showCheckoutFrame() {
       frameWrap.innerHTML = '';
-      const src = `${CE_SITE}/buy-credits?accountId=${encodeURIComponent(accountId)}&pack=${selectedPack}${saveCard ? '&saveCard=true' : ''}`;
+      const src = `${CE_SITE}/buy-credits?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}&pack=${selectedPack}${saveCard ? '&saveCard=true' : ''}`;
       checkoutFrame = el('iframe', 'width:100%;height:580px;border:none;display:block;', { src });
       frameWrap.appendChild(checkoutFrame);
       // Switch to checkout view — hide everything else
@@ -882,7 +885,7 @@
     // ── Buy button ────────────────────────────────────────────────────────────
     const buyBtn = btn('Pay with Card', `background:${DS.blue};color:#fff;border-radius:6px;`);
     buyBtn.addEventListener('click', () => {
-      if (!accountId) return;
+      if (!accountId || !accountToken) return;
       showCheckoutFrame();
     });
 
@@ -922,7 +925,7 @@
 
       let settings = {};
       try {
-        const res = await fetch(`${CE_SITE}/api/credits/auto-reload?accountId=${encodeURIComponent(accountId)}`);
+        const res = await fetch(`${CE_SITE}/api/credits/auto-reload?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`);
         const data = await res.json();
         settings = data?.settings || {};
       } catch { /* show defaults */ }
@@ -1006,7 +1009,7 @@
           await fetch(`${CE_SITE}/api/credits/auto-reload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
+            body: JSON.stringify({ accountId, accountToken, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
           });
         } catch { /* silent */ }
       });
@@ -1020,7 +1023,7 @@
           const res = await fetch(`${CE_SITE}/api/credits/auto-reload`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
+            body: JSON.stringify({ accountId, accountToken, enabled: isEnabled, minBalance: Number(minBalInput.value), reloadAmount: Number(reloadSel.value) }),
           });
           if (!res.ok) throw new Error((await res.json()).error || 'Save failed');
           saveAutoMsg.style.color = DS.green;
@@ -1042,6 +1045,7 @@
     // Load balance + accountId
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {
       accountId = status?.accountId || '';
+      accountToken = status?.accountToken || '';
       if (status?.error) throw new Error(status.error);
       const bal = Number(status?.balance || 0);
       balanceText.textContent = bal.toLocaleString();
@@ -1066,12 +1070,13 @@
     dest.innerHTML = '';
 
     const accountId = statusMsg?.accountId || '';
+    const accountToken = statusMsg?.accountToken || '';
 
     // Fetch any existing server profile (name/email already registered)
     let serverProfile = { name: '', email: '' };
     if (accountId) {
       try {
-        const res = await fetch(`${CE_SITE}/api/credits/profile?accountId=${encodeURIComponent(accountId)}`);
+        const res = await fetch(`${CE_SITE}/api/credits/profile?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`);
         const data = await res.json();
         serverProfile = data.profile || {};
       } catch (_) {}
@@ -1203,6 +1208,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accountId,
+            accountToken,
             name,
             email,
             canvasUserId: String(window.ENV?.current_user_id || ''),
@@ -3784,12 +3790,14 @@
     chrome.storage.local.get(['ce_teacher_name'], stored => {
       chrome.runtime.sendMessage({ type: 'AI_CREDIT_STATUS' }, status => {
         const accountId = status?.accountId;
+        const accountToken = status?.accountToken;
         if (!accountId) return;
         fetch(`${CE_SITE}/api/credits/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accountId,
+            accountToken,
             name: stored.ce_teacher_name || '',
             canvasUserId: String(window.ENV?.current_user_id || ''),
             canvasDomain: window.location.hostname,
