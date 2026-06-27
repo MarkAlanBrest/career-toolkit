@@ -63,33 +63,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          <aside
-            style={{
-              background: paper,
-              border: '1px solid #d9d9d2',
-              padding: 24,
-              color: text,
-            }}
-          >
-            <h2 style={{ margin: 0, color: heading, fontFamily: serif, fontSize: 22, lineHeight: 1.2 }}>
-              What this is for
-            </h2>
-            <p style={{ margin: '16px 0 0', fontSize: 14, lineHeight: 1.75, textAlign: 'justify' }}>
-              This is not a replacement for Canvas. It is a set of small tools for the work teachers already do: building pages, checking courses, handling dates, preparing messages, and reviewing student submissions.
-            </p>
-            <dl style={{ margin: '22px 0 0', display: 'grid', gap: 13 }}>
-              {[
-                ['Core tools', 'Free'],
-                ['AI tools', 'Prepaid credits'],
-                ['Audience', 'Teachers and course teams'],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 12, borderTop: `1px solid ${rule}`, paddingTop: 10 }}>
-                  <dt style={{ fontFamily: display, fontSize: 12, color: '#777' }}>{label}</dt>
-                  <dd style={{ margin: 0, color: '#30343a', fontSize: 14 }}>{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </aside>
+          <img
+            src="/screenshots/07_feature_overview.png"
+            alt="Canvas Enhancer — AI SpeedGrader, Smart Messaging, Assignment Scheduler, AI Page Designer, and more"
+            style={{ width: '100%', display: 'block', borderRadius: 6 }}
+          />
         </section>
 
         <section style={{ marginTop: 34, background: paper, border: '1px solid #d9d9d2', padding: '30px 30px 24px' }}>
@@ -123,15 +101,6 @@ export default function HomePage() {
               <a href="/departments" style={{ color: blue }}>Read about department credit distribution</a>
             </p>
           </div>
-        </section>
-
-        {/* Feature overview image */}
-        <section style={{ marginTop: 28 }}>
-          <img
-            src="/screenshots/07_feature_overview.png"
-            alt="Canvas Enhancer feature overview — AI SpeedGrader, Smart Messaging, Assignment Scheduler, AI Page Designer, and more"
-            style={{ width: '100%', display: 'block', borderRadius: 4, border: '1px solid #d9d9d2' }}
-          />
         </section>
 
         {/* Before/after AI page creation */}

@@ -15,6 +15,8 @@ const sections = [
   {
     title: 'Course content',
     summary: 'Tools for creating structured Canvas pages without requiring teachers to write HTML.',
+    image: '/screenshots/02_prompt_to_finished_page.png',
+    imageAlt: 'From one prompt to a finished Canvas page',
     items: [
       ['Content Studio', 'Reusable blocks for headings, callouts, cards, columns, checklists, buttons, and common instructional page sections.'],
       ['Component library', 'A consistent set of page patterns that can be reused across courses and modules.'],
@@ -24,6 +26,8 @@ const sections = [
   {
     title: 'Assessment and grading',
     summary: 'Tools for reviewing student work, checking the gradebook, and drafting assessment materials.',
+    image: '/screenshots/06_speedgrader_ai.png',
+    imageAlt: 'AI-powered SpeedGrader grading assistant',
     items: [
       ['AI-assisted grading', 'Drafts rubric-aligned feedback and score suggestions for teacher review in SpeedGrader.'],
       ['AI quiz creation', 'Drafts quiz questions, choices, answer keys, and feedback.'],
@@ -33,6 +37,8 @@ const sections = [
   {
     title: 'Course operations',
     summary: 'Tools for repetitive setup and maintenance tasks inside Canvas.',
+    image: '/screenshots/05_quiz_and_scheduler.png',
+    imageAlt: 'Quiz maker and assignment scheduler tools',
     items: [
       ['Assignment Scheduler', 'Applies timing rules across assignments, including due dates and availability windows.'],
       ['Date Autofill', 'Reuses date preferences while editing Canvas assignments.'],
@@ -42,10 +48,11 @@ const sections = [
   {
     title: 'Communication',
     summary: 'Tools for routine messages and recurring course communication.',
+    image: '/screenshots/04_student_communication.png',
+    imageAlt: 'Bulk messaging and announcement templates',
     items: [
       ['Message Pulse', 'Supports targeted course messaging and reusable message templates.'],
       ['Announcement Composer', 'Provides reusable announcement templates for recurring course updates.'],
-      ['AI launcher', 'Opens external AI assistants in a side window. This does not use Canvas Enhancer credits.'],
     ],
   },
 ];
@@ -96,6 +103,12 @@ export default function FeaturesPage() {
                   ))}
                 </div>
               </div>
+
+              <img
+                src={section.image}
+                alt={section.imageAlt}
+                style={{ width: '100%', display: 'block', marginTop: 24, borderRadius: 4, border: `1px solid ${rule}` }}
+              />
             </section>
           ))}
         </section>
