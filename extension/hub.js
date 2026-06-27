@@ -614,16 +614,16 @@
   const creditsMHdr = el('div', `height:52px;flex-shrink:0;background:${DS.blue};display:flex;align-items:center;padding:0 16px;gap:10px;`);
   const creditsMTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
   creditsMTitle.textContent = 'AI Credits';
-  const creditsMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: 'x' });
+  const creditsMClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
   creditsMClose.addEventListener('mouseenter', () => { creditsMClose.style.background = 'rgba(255,255,255,0.15)'; creditsMClose.style.color = '#fff'; });
   creditsMClose.addEventListener('mouseleave', () => { creditsMClose.style.background = ''; creditsMClose.style.color = 'rgba(255,255,255,0.75)'; });
-  creditsMClose.addEventListener('click', () => { creditsModal.style.display = 'none'; });
+  creditsMClose.addEventListener('click', () => { if (paymentMessageHandler) { window.removeEventListener('message', paymentMessageHandler); paymentMessageHandler = null; } creditsModal.style.display = 'none'; });
   creditsMHdr.append(creditsMTitle, creditsMClose);
   const creditsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;`);
   creditsMBody.id = 'ce-ai-credits-mbody';
   creditsBox.append(creditsMHdr, creditsMBody);
   creditsModal.appendChild(creditsBox);
-  creditsModal.addEventListener('click', e => { if (e.target === creditsModal) creditsModal.style.display = 'none'; });
+  creditsModal.addEventListener('click', e => { if (e.target === creditsModal) { if (paymentMessageHandler) { window.removeEventListener('message', paymentMessageHandler); paymentMessageHandler = null; } creditsModal.style.display = 'none'; } });
   creditsBox.addEventListener('click', e => e.stopPropagation());
 
   const manageCreditsModal = el('div', `position:fixed;inset:0;z-index:2147483649;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;font-family:${DS.font};`);
@@ -632,7 +632,7 @@
   const manageCreditsHdr = el('div', `height:52px;flex-shrink:0;background:#1B303D;display:flex;align-items:center;padding:0 16px;gap:10px;`);
   const manageCreditsTitle = el('h2', `flex:1;margin:0;font-size:15px;font-weight:700;color:#fff;font-family:${DS.font};`);
   manageCreditsTitle.textContent = 'Manage Teachers & Send Credits';
-  const manageCreditsClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: 'x' });
+  const manageCreditsClose = el('button', `width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:rgba(255,255,255,0.75);font-size:22px;cursor:pointer;border-radius:4px;transition:background .12s,color .12s;font-family:${DS.font};padding:0;`, { type: 'button', textContent: '×' });
   manageCreditsClose.addEventListener('mouseenter', () => { manageCreditsClose.style.background = 'rgba(255,255,255,0.15)'; manageCreditsClose.style.color = '#fff'; });
   manageCreditsClose.addEventListener('mouseleave', () => { manageCreditsClose.style.background = ''; manageCreditsClose.style.color = 'rgba(255,255,255,0.75)'; });
   manageCreditsClose.addEventListener('click', () => { manageCreditsModal.style.display = 'none'; manageCreditsMBody.innerHTML = ''; });
@@ -774,7 +774,8 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
-  const CE_SITE = 'https://career-toolkit-ruby.vercel.app';
+  const CE_SITE = 'https://canvasenhancer.com';
+  let paymentMessageHandler = null;
 
   function openManageCredits() {
     manageCreditsMBody.innerHTML = `<div style="padding:24px;font-size:13px;color:${DS.muted};">Loading teacher credit manager...</div>`;
@@ -838,6 +839,8 @@
       });
     }
     renderPackButtons();
+    const schoolHint = el('div', `font-size:11px;color:${DS.muted};line-height:1.6;padding:6px 2px 0;`, { textContent: 'School pack credits go to your balance — use Manage Teachers to distribute them to staff.' });
+    schoolHint.id = 'ce-school-hint';
 
     // ── Save card toggle ──────────────────────────────────────────────────────
     let saveCard = false;
@@ -888,6 +891,7 @@
       if (e.origin !== CE_SITE) return;
       if (e.data?.type === 'CE_PAYMENT_SUCCESS') {
         window.removeEventListener('message', onPaymentMessage);
+        paymentMessageHandler = null;
         hideCheckoutFrame();
         const added = Number(e.data?.credits || 0);
         const current = Number(balanceText.textContent.replace(/,/g, '') || 0);
@@ -900,12 +904,14 @@
       }
       if (e.data?.type === 'CE_CLOSE_CHECKOUT') {
         window.removeEventListener('message', onPaymentMessage);
+        paymentMessageHandler = null;
         hideCheckoutFrame();
       }
     }
+    // Remove any previously registered handler before adding a new one (prevents accumulation on repeated opens)
+    if (paymentMessageHandler) window.removeEventListener('message', paymentMessageHandler);
+    paymentMessageHandler = onPaymentMessage;
     window.addEventListener('message', onPaymentMessage);
-    // Clean up listener when modal closes
-    creditsModal.addEventListener('click', () => window.removeEventListener('message', onPaymentMessage), { once: true });
 
     // ── Auto-reload section ───────────────────────────────────────────────────
     const autoReloadSection = el('div', '');
@@ -1031,7 +1037,7 @@
     }
 
     // ── Compose the modal body ────────────────────────────────────────────────
-    creditsMBody.append(balanceCard, manageTeachersBtn, packRow, saveCardRow, buyBtn, frameWrap, autoReloadSection);
+    creditsMBody.append(balanceCard, manageTeachersBtn, packRow, schoolHint, saveCardRow, buyBtn, frameWrap, autoReloadSection);
 
     // Load balance + accountId
     sendRuntime({ type: 'AI_CREDIT_STATUS' }).then(status => {

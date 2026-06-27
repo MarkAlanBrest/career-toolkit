@@ -72,10 +72,12 @@ export async function isTeamOwner(accountId: string): Promise<boolean> {
 
 export async function addTeamMember(ownerAccountId: string, email: string) {
   await redis.sadd(`ce:team:${ownerAccountId}:member-emails`, email);
+  await redis.sadd(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
 export async function removeTeamMember(ownerAccountId: string, email: string) {
   await redis.srem(`ce:team:${ownerAccountId}:member-emails`, email);
+  await redis.srem(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
 export async function listTeamMembers(ownerAccountId: string): Promise<ContactTeacher[]> {
@@ -108,7 +110,7 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
   const sentKey = `ce:credits-sent:${senderAccountId}:ai`;
   const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) redis.call('INCRBY',KEYS[3],ARGV[1]) return {nb,bal}`;
   const result = await redis.eval(script, [balanceKey, sentKey, creditKey], [amount]) as number[];
-  if (!Array.isArray(result) || result[0] < 0) throw new Error('Not enough credits to send.');
+  if (!Array.isArray(result) || result[0] === -1) throw new Error('Not enough credits to send.');
 
   const id = `${Date.now()}:${randomUUID()}`;
   const senderProfile = await getProfile(senderAccountId);

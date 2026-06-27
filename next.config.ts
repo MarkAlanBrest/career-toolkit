@@ -20,6 +20,14 @@ const config: NextConfig = {
           { key: 'Content-Security-Policy', value: "frame-ancestors *" },
         ],
       },
+      {
+        // Allow manage-credits page to be embedded in the extension iframe
+        source: '/manage-credits',
+        headers: [
+          { key: 'X-Frame-Options', value: 'ALLOWALL' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors *" },
+        ],
+      },
     ];
   },
 };

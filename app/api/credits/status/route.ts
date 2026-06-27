@@ -31,8 +31,6 @@ export async function GET(request: NextRequest) {
       personal,
       teachers,
       transfers,
-      pack: { priceCents: 1000, credits: 1000 },
-      costs: { grading: 1, page: 10, quiz: 10 },
       models: {
         grading: [
           { id: 'claude-haiku-4-5', label: 'Haiku — Fast & Economical', credits: 1, recommended: true },

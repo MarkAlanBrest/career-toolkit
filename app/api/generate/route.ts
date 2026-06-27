@@ -96,7 +96,12 @@ async function checkAndAutoReload(accountId: string, currentBalance: number) {
   if (settings.failedAt) return; // don't retry after a failure — user must re-enable
 
   const reloadAmount = settings.reloadAmount ?? 1000;
-  const packCents = reloadAmount === 5000 ? 5000 : reloadAmount === 2000 ? 2000 : 1000;
+  const matchedPack = Object.values(CREDIT_PACKS).find(p => p.credits === reloadAmount);
+  if (!matchedPack) {
+    await redis.set(key, { ...settings, failedAt: new Date().toISOString() });
+    return;
+  }
+  const packCents = matchedPack.priceCents;
 
   try {
     // Credits are added by the webhook (payment_intent.succeeded) — don't add here to avoid double-counting
