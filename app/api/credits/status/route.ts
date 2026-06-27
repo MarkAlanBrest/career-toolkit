@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
       transfers,
       models: {
         grading: [
-          { id: 'claude-haiku-4-5', label: 'Haiku — Fast & Economical', credits: 1, recommended: true },
-          { id: 'claude-sonnet-4-6', label: 'Sonnet — Higher Quality', credits: 4, recommended: false },
+          { id: 'claude-haiku-4-5', label: 'Haiku - Fast & Economical', credits: 1, recommended: true },
+          { id: 'claude-sonnet-4-6', label: 'Sonnet - Higher Quality', credits: 4, recommended: false },
         ],
         creation: [
-          { id: 'claude-haiku-4-5', label: 'Haiku — Fast & Simple', credits: 3, recommended: false },
-          { id: 'claude-sonnet-4-6', label: 'Sonnet — Best Quality', credits: 10, recommended: true },
+          { id: 'claude-haiku-4-5', label: 'Haiku - Fast & Simple', credits: 3, recommended: false },
+          { id: 'claude-sonnet-4-6', label: 'Sonnet - Best Quality', credits: 10, recommended: true },
         ],
       },
     }, { headers: CORS });

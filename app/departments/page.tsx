@@ -19,7 +19,7 @@ const steps = [
 ];
 
 const examples = [
-  ['Small department', 'A department chair buys the School Pack (25,000 credits, $250) and sends 5,000 credits to each of five teachers — enough for a full semester each.'],
+  ['Small department', 'A department chair buys the School Pack (25,000 credits, $250) and sends 5,000 credits to each of five teachers - enough for a full semester each.'],
   ['Shared support', 'A teacher with extra credits can send any amount to a colleague who needs more for grading or page creation. No admin approval needed.'],
   ['No contract required', 'The school can support a team without subscriptions, purchase orders, or a formal service agreement. Buy when needed, distribute as needed.'],
 ];

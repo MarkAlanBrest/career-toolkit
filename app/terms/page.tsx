@@ -15,7 +15,7 @@ export default function TermsPage() {
   return (
     <div style={{ fontFamily: font, color: ink, maxWidth: 640, margin: '40px auto', padding: '0 24px 60px' }}>
       <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6, marginTop: 0 }}>
-        Canvas Enhancer — AI Credits Terms of Purchase
+        Canvas Enhancer - AI Credits Terms of Purchase
       </h1>
       <p style={{ fontSize: 13, color: muted, marginBottom: 36, marginTop: 0 }}>Last updated: June 2026</p>
 
@@ -37,16 +37,17 @@ export default function TermsPage() {
         All payments are processed securely by{' '}
         <a href="https://stripe.com" target="_blank" rel="noopener noreferrer"
           style={{ color: '#0770B8' }}>Stripe</a>.
-        Canvas Enhancer does not store your full card number — only the last 4 digits and card
+        Canvas Enhancer does not store your full card number - only the last 4 digits and card
         brand are retained for display purposes. By purchasing you also agree to{' '}
         <a href="https://stripe.com/legal" target="_blank" rel="noopener noreferrer"
           style={{ color: '#0770B8' }}>Stripe&apos;s Terms of Service</a>.
       </Section>
 
       <Section title="Fair use">
-        AI credits are for use within Canvas Enhancer only. Credits may not be resold,
-        transferred, or used outside of the Canvas Enhancer extension. Abuse of the service
-        may result in account suspension without refund.
+        AI credits are for use within Canvas Enhancer only. Credits may be sent to other
+        teachers only through the Canvas Enhancer credit sharing feature. Credits may not be
+        resold, converted to cash, or used outside of the Canvas Enhancer extension. Abuse of
+        the service may result in account suspension without refund.
       </Section>
 
       <Section title="Service availability">

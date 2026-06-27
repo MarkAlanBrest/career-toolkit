@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/billing';
 import type { AutoReloadSettings } from '@/app/api/credits/auto-reload/route';
-import { stripe, cleanAccountId } from '@/lib/stripe';
+import { CREDIT_PACKS, stripe, cleanAccountId } from '@/lib/stripe';
 import { recordUsage } from '@/lib/teamCredits';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -93,7 +93,7 @@ async function checkAndAutoReload(accountId: string, currentBalance: number) {
   const settings = await redis.get<AutoReloadSettings>(key);
   if (!settings?.enabled || !settings.paymentMethodId || !settings.stripeCustomerId) return;
   if (currentBalance > settings.minBalance) return;
-  if (settings.failedAt) return; // don't retry after a failure — user must re-enable
+  if (settings.failedAt) return; // don't retry after a failure - user must re-enable
 
   const reloadAmount = settings.reloadAmount ?? 1000;
   const matchedPack = Object.values(CREDIT_PACKS).find(p => p.credits === reloadAmount);
@@ -104,7 +104,7 @@ async function checkAndAutoReload(accountId: string, currentBalance: number) {
   const packCents = matchedPack.priceCents;
 
   try {
-    // Credits are added by the webhook (payment_intent.succeeded) — don't add here to avoid double-counting
+    // Credits are added by the webhook (payment_intent.succeeded) - don't add here to avoid double-counting
     await stripe.paymentIntents.create({
       amount: packCents,
       currency: 'usd',
@@ -113,7 +113,7 @@ async function checkAndAutoReload(accountId: string, currentBalance: number) {
       off_session: true,
       confirm: true,
       metadata: { accountId, credits: String(reloadAmount), pack: 'auto-reload' },
-      description: `Canvas Enhancer auto-reload — ${reloadAmount.toLocaleString()} credits`,
+      description: `Canvas Enhancer auto-reload - ${reloadAmount.toLocaleString()} credits`,
     });
   } catch {
     // Mark as failed so we don't keep retrying every generation

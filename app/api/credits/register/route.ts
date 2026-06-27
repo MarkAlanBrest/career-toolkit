@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Ensure the email→accountId reverse lookup exists so this teacher is findable by email.
+    // Ensure the email-to-accountId reverse lookup exists so this teacher is findable by email.
     // saveProfile writes it on profile save, but teachers who only auto-register need it too.
     if (existing.email) {
       await redis.set(`ce:email-account:${existing.email}`, accountId);
