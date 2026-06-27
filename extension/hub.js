@@ -3860,6 +3860,17 @@
     document.body.appendChild(helpModal);
     mountAILauncher();
 
+    // Push Canvas identity to background SW so accountId = canvasUserId@canvasDomain
+    if (window.ENV?.current_user_id) {
+      chrome.runtime.sendMessage({
+        type: 'SET_CANVAS_IDENTITY',
+        payload: {
+          canvasUserId: String(window.ENV.current_user_id),
+          canvasDomain: window.location.hostname,
+        },
+      });
+    }
+
     // Auto-register this device so teachers appear in the DB even without a purchase
     chrome.storage.local.get(['ce_teacher_name'], stored => {
       chrome.runtime.sendMessage({ type: 'AI_CREDIT_STATUS' }, status => {

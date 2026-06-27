@@ -72,19 +72,17 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
     }
   };
 
-  const handleSend = async (email: string, credits: number, isNew: boolean) => {
+  const handleSend = async (email: string, credits: number) => {
     if (!credits || credits <= 0) { setMessage('Enter a valid credit amount.'); return; }
     setSending(true);
     setMessage('');
     try {
-      if (isNew) {
-        // Add then send in sequence
-        await fetch('/api/credits/team', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId, action: 'add', email }),
-        });
-      }
+      // Always ensure teacher is in the team before sending (SADD is idempotent)
+      await fetch('/api/credits/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId, action: 'add', email }),
+      });
       const res = await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,7 +200,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                   <button
                     type="button"
                     disabled={sending || !creditAmount}
-                    onClick={() => handleSend(searchedEmail, creditAmount, false)}
+                    onClick={() => handleSend(searchedEmail, creditAmount)}
                     style={greenButton}
                   >
                     {sending ? 'Sending…' : 'Send'}
@@ -232,7 +230,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                   <button
                     type="button"
                     disabled={sending || !creditAmount}
-                    onClick={() => handleSend(searchedEmail, creditAmount, true)}
+                    onClick={() => handleSend(searchedEmail, creditAmount)}
                     style={{ ...blueButton, background: '#526A79' }}
                   >
                     {sending ? 'Sending…' : 'Send Anyway'}

@@ -20,6 +20,14 @@ async function getInstallId() {
   return id;
 }
 
+// Returns the Canvas-based account ID (userId@domain) when available, falls back to device UUID.
+// The Canvas ID is the same for a teacher on any device or browser session.
+async function getAccountId() {
+  const stored = await chrome.storage.local.get(['ce_canvas_account_id', 'ce_install_id']);
+  if (stored.ce_canvas_account_id) return stored.ce_canvas_account_id;
+  return getInstallId();
+}
+
 // ── REMOTE CONFIG ─────────────────────────────────────────────────────────────
 const CONFIG_URL      = 'https://canvasenhancer.com/extension-config.json';
 const CONFIG_CACHE_KEY = 'ce_remote_config';
@@ -52,7 +60,7 @@ async function handleStreamPort(port) {
     if (msg.type !== 'STREAM_GENERATE') return;
     try {
       const { messages, max_tokens, model, usageType } = msg.payload;
-      const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getInstallId()]);
+      const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getAccountId()]);
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
       const res = await fetch(`${API_BASE}/api/generate`, {
@@ -170,6 +178,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.management.uninstallSelf({ showConfirmDialog: false });
     return false;
   }
+  if (msg.type === 'SET_CANVAS_IDENTITY') {
+    const { canvasUserId, canvasDomain } = msg.payload || {};
+    if (canvasUserId && canvasDomain) {
+      const canvasAccountId = `${canvasUserId}@${canvasDomain}`;
+      chrome.storage.local.set({ ce_canvas_account_id: canvasAccountId });
+    }
+    sendResponse({ ok: true });
+    return false;
+  }
   if (msg.type === 'REFRESH_CONFIG') {
     chrome.storage.local.remove(CONFIG_CACHE_KEY, () => {
       fetchRemoteConfig().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
@@ -192,7 +209,7 @@ async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
 }
 
 async function handleCreditCheckout({ quantity, method } = {}) {
-  const accountId = await getInstallId();
+  const accountId = await getAccountId();
   const res = await fetch(`${API_BASE}/api/paypal/checkout`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -208,7 +225,7 @@ async function handleCreditCheckout({ quantity, method } = {}) {
 }
 
 async function handleCreditStatus() {
-  const accountId = await getInstallId();
+  const accountId = await getAccountId();
   const res = await fetch(`${API_BASE}/api/credits/status?accountId=${encodeURIComponent(accountId)}`, { cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || 'Could not load AI credits.');
@@ -234,7 +251,7 @@ async function handleOpenClaudeSplit({ url, screenWidth, screenHeight, screenTop
 
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
-  const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getInstallId()]);
+  const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getAccountId()]);
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
