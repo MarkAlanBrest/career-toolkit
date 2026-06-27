@@ -19,17 +19,23 @@ export async function POST(req: NextRequest) {
     const accountId = cleanAccountId(body?.accountId);
     if (!accountId) return NextResponse.json({ ok: false }, { headers: CORS });
 
-    const name = String(body?.name || '').trim().slice(0, 100);
+    const name         = String(body?.name         || '').trim().slice(0, 100);
+    const canvasUserId = String(body?.canvasUserId || '').trim().slice(0, 50);
+    const canvasDomain = String(body?.canvasDomain || '').trim().slice(0, 200);
     const existing = await getProfile(accountId);
 
-    // Only write if new (no profile yet) or name changed
-    if (!existing.name && !existing.email) {
+    const needsWrite = !existing.name && !existing.email;
+    const nameChanged = name && !existing.name;
+    const canvasChanged = canvasUserId && !(existing as Record<string, unknown>).canvasUserId;
+
+    if (needsWrite || nameChanged || canvasChanged) {
       await redis.set(`ce:profile:${accountId}`, {
-        name: name || '',
-        registeredAt: new Date().toISOString(),
+        ...existing,
+        ...(name && { name }),
+        ...(canvasUserId && { canvasUserId }),
+        ...(canvasDomain && { canvasDomain }),
+        ...(!existing.name && !existing.email && { registeredAt: new Date().toISOString() }),
       });
-    } else if (name && !existing.name) {
-      await redis.set(`ce:profile:${accountId}`, { ...existing, name });
     }
 
     return NextResponse.json({ ok: true }, { headers: CORS });

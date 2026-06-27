@@ -20,6 +20,9 @@ export type ContactTeacher = {
 export type TeacherProfile = {
   name?: string;
   email?: string;
+  canvasUserId?: string;
+  canvasDomain?: string;
+  registeredAt?: string;
 };
 
 export function normalizeEmail(value: unknown): string {
@@ -30,7 +33,7 @@ export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-export async function saveProfile(accountId: string, profile: Required<TeacherProfile>) {
+export async function saveProfile(accountId: string, profile: TeacherProfile & { name: string; email: string }) {
   await redis.set(`ce:profile:${accountId}`, profile);
   await redis.set(`ce:email-account:${profile.email}`, accountId);
 

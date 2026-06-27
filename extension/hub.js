@@ -1136,26 +1136,40 @@
     col1.body.appendChild(saveMsg);
 
     if (globalThis.CECanvasToken) col1.body.appendChild(globalThis.CECanvasToken.createControl());
+    grid.appendChild(col1.wrap);
+
+    // ── COLUMN 2: AI CREDITS ──
+    const col2 = card('AI Credits', DS.green);
+    col2.body.appendChild(hint('AI Credits power AI-assisted grading, page creation, and quiz creation. Buy prepaid packs — credits never expire. 1 credit = $0.01.'));
+
+    const buyBtn = btn('View Balance & Buy Credits', `background:${DS.blue};color:#fff;padding:10px;`);
+    buyBtn.addEventListener('click', openAICredits);
+    col2.body.appendChild(buyBtn);
+
+    col2.body.appendChild(hint('School admin? Buy credits in bulk and send them directly to teachers on your staff.'));
+
+    const manageBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:10px;`);
+    manageBtn.addEventListener('click', openManageCredits);
+    col2.body.appendChild(manageBtn);
 
     // ── REGISTER TO RECEIVE CREDITS ──
-    col1.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
+    col2.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
 
-    const regTitle = el('div', `font-size:13px;font-weight:700;color:${DS.text};margin-bottom:4px;`);
+    const regTitle = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
     regTitle.textContent = 'Register to Receive Credits';
-    col1.body.appendChild(regTitle);
+    col2.body.appendChild(regTitle);
 
-    // Status badge
-    const regStatus = el('div', `font-size:12px;padding:6px 10px;border-radius:5px;margin-bottom:2px;`);
+    const regStatus = el('div', `font-size:12px;padding:6px 10px;border-radius:5px;`);
     if (serverProfile.email) {
       regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;`;
       regStatus.textContent = `✓ Registered as ${serverProfile.email}`;
     } else {
       regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#FEF9C3;border:1px solid #FDE047;color:#854D0E;`;
-      regStatus.textContent = 'Not registered — your school admin cannot send you credits yet.';
+      regStatus.textContent = 'Not registered — your admin cannot send you credits yet.';
     }
-    col1.body.appendChild(regStatus);
+    col2.body.appendChild(regStatus);
 
-    col1.body.appendChild(hint('Register once with your name and school email. Your admin or a colleague can then find you and send AI credits directly to your account — even if you have never purchased any.'));
+    col2.body.appendChild(hint('Enter your name and school email once. Your admin or a colleague can then search for you by email and send AI credits directly to your account — even if you have never purchased any yourself.'));
 
     const regNameWrap = el('div', '');
     regNameWrap.appendChild(fieldLabel('Full Name'));
@@ -1163,7 +1177,7 @@
     regNameIn.addEventListener('focus', () => regNameIn.style.borderColor = DS.blue);
     regNameIn.addEventListener('blur',  () => regNameIn.style.borderColor = DS.border);
     regNameWrap.appendChild(regNameIn);
-    col1.body.appendChild(regNameWrap);
+    col2.body.appendChild(regNameWrap);
 
     const regEmailWrap = el('div', '');
     regEmailWrap.appendChild(fieldLabel('School Email'));
@@ -1171,15 +1185,15 @@
     regEmailIn.addEventListener('focus', () => regEmailIn.style.borderColor = DS.blue);
     regEmailIn.addEventListener('blur',  () => regEmailIn.style.borderColor = DS.border);
     regEmailWrap.appendChild(regEmailIn);
-    col1.body.appendChild(regEmailWrap);
+    col2.body.appendChild(regEmailWrap);
 
     const regMsg = el('div', `font-size:12px;min-height:16px;`);
     const regBtn = btn(serverProfile.email ? 'Update Registration' : 'Register Now', `background:${DS.green};color:#fff;`);
     regBtn.addEventListener('click', async () => {
       const name = regNameIn.value.trim();
       const email = regEmailIn.value.trim().toLowerCase();
-      if (!name) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter your name.'; return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter a valid school email.'; return; }
+      if (!name) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter your full name.'; return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter a valid school email address.'; return; }
       if (!accountId) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Could not identify this device. Try reopening Settings.'; return; }
       regBtn.disabled = true;
       regMsg.style.color = DS.muted;
@@ -1188,43 +1202,32 @@
         const res = await fetch(`${CE_SITE}/api/credits/profile`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId, name, email }),
+          body: JSON.stringify({
+            accountId,
+            name,
+            email,
+            canvasUserId: String(window.ENV?.current_user_id || ''),
+            canvasDomain: window.location.hostname,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed.');
         regMsg.style.color = DS.green;
-        regMsg.textContent = '✓ Registered! You can now receive credits from your admin or colleagues.';
+        regMsg.textContent = '✓ Registered! Your admin or colleagues can now find you and send you credits.';
         regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;`;
         regStatus.textContent = `✓ Registered as ${email}`;
         regBtn.textContent = 'Update Registration';
-        // Also save the name to toolbar storage
         chrome.storage.local.set({ ce_teacher_name: name });
         nameIn.value = name;
       } catch (err) {
         regMsg.style.color = '#DC2626';
-        regMsg.textContent = err.message || 'Registration failed. Check your connection.';
+        regMsg.textContent = err.message || 'Registration failed. Check your connection and try again.';
       } finally {
         regBtn.disabled = false;
       }
     });
-    col1.body.appendChild(regBtn);
-    col1.body.appendChild(regMsg);
-
-    grid.appendChild(col1.wrap);
-
-    // ── COLUMN 2: AI CREDITS ──
-    const col2 = card('AI Credits', DS.green);
-    col2.body.appendChild(hint('AI Credits are used for AI-assisted grading, page creation, and quiz creation. Buy prepaid packs — credits never expire. 1 credit = $0.01.'));
-
-    const buyBtn = btn('View Balance & Buy Credits', `background:${DS.blue};color:#fff;padding:10px;`);
-    buyBtn.addEventListener('click', openAICredits);
-    col2.body.appendChild(buyBtn);
-
-    col2.body.appendChild(hint('School admin? Send credits directly to teachers on your account.'));
-
-    const manageBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:10px;`);
-    manageBtn.addEventListener('click', openManageCredits);
-    col2.body.appendChild(manageBtn);
+    col2.body.appendChild(regBtn);
+    col2.body.appendChild(regMsg);
     grid.appendChild(col2.wrap);
 
     // ── COLUMN 3: DATA & ABOUT ──
@@ -3865,7 +3868,12 @@
         fetch(`${CE_SITE}/api/credits/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accountId, name: stored.ce_teacher_name || '' }),
+          body: JSON.stringify({
+            accountId,
+            name: stored.ce_teacher_name || '',
+            canvasUserId: String(window.ENV?.current_user_id || ''),
+            canvasDomain: window.location.hostname,
+          }),
         }).catch(() => {});
       });
     });

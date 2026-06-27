@@ -27,13 +27,15 @@ export async function POST(req: NextRequest) {
     const accountId = cleanAccountId(body?.accountId);
     if (!accountId) return NextResponse.json({ error: 'Invalid account.' }, { status: 400, headers: CORS });
 
-    const name  = String(body?.name  || '').trim().slice(0, 100);
-    const email = String(body?.email || '').trim().toLowerCase().slice(0, 200);
+    const name          = String(body?.name         || '').trim().slice(0, 100);
+    const email         = String(body?.email        || '').trim().toLowerCase().slice(0, 200);
+    const canvasUserId  = String(body?.canvasUserId || '').trim().slice(0, 50);
+    const canvasDomain  = String(body?.canvasDomain || '').trim().slice(0, 200);
     if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Name and valid email required.' }, { status: 400, headers: CORS });
     }
 
-    await saveProfile(accountId, { name, email });
+    await saveProfile(accountId, { name, email, canvasUserId, canvasDomain });
 
     // Keep Stripe customer in sync
     const { redis } = await import('@/lib/billing');
