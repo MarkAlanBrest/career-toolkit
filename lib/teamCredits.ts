@@ -1,16 +1,6 @@
 import { redis } from '@/lib/billing';
 import { randomUUID } from 'crypto';
 
-export type CreditPool = {
-  id: string;
-  label: string;
-  ownerAccountId: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  balance: number;
-  used: number;
-};
-
 export type ContactTeacher = {
   email: string;
   accountId: string | null;
@@ -34,14 +24,19 @@ export function isValidEmail(value: string): boolean {
 }
 
 export async function saveProfile(accountId: string, profile: TeacherProfile & { name: string; email: string }) {
-  await redis.set(`ce:profile:${accountId}`, profile);
-  await redis.set(`ce:email-account:${profile.email}`, accountId);
+  const email = normalizeEmail(profile.email);
+  const existing = await getProfile(accountId);
+  const oldEmail = normalizeEmail(existing.email);
 
-  // Atomic: read pending, delete pending key, credit balance — all in one script.
+  await redis.set(`ce:profile:${accountId}`, { ...profile, email });
+  if (oldEmail && oldEmail !== email) await redis.del(`ce:email-account:${oldEmail}`);
+  await redis.set(`ce:email-account:${email}`, accountId);
+
+  // Atomic: read pending, delete pending key, credit balance - all in one script.
   // Prevents double-credit if the server crashes between incrby and del.
   const pendingScript = `local p=tonumber(redis.call('GET',KEYS[1]) or '0') if p>0 then redis.call('DEL',KEYS[1]) redis.call('INCRBY',KEYS[2],p) end return p`;
   await redis.eval(pendingScript, [
-    `ce:pending-credits:${profile.email}:ai`,
+    `ce:pending-credits:${email}:ai`,
     `ce:credits:${accountId}:ai`,
   ], []);
 }
@@ -50,34 +45,12 @@ export async function getProfile(accountId: string): Promise<TeacherProfile> {
   return (await redis.get<TeacherProfile>(`ce:profile:${accountId}`)) ?? {};
 }
 
-export async function enableTeamOwner(accountId: string) {
-  await redis.set(`ce:team-owner:${accountId}`, '1');
-}
-
-export async function isTeamOwner(accountId: string): Promise<boolean> {
-  const [flag, personalBalance, personalUsed, sharedBalance, sharedUsed] = await Promise.all([
-    redis.get<string>(`ce:team-owner:${accountId}`),
-    redis.get<number>(`ce:credits:${accountId}:ai`),
-    redis.get<number>(`ce:credits-used:${accountId}:ai`),
-    redis.get<number>(`ce:team:${accountId}:credits:ai`),
-    redis.get<number>(`ce:team:${accountId}:credits-used:ai`),
-  ]);
-
-  return Boolean(flag) ||
-    Number(personalBalance || 0) > 0 ||
-    Number(personalUsed || 0) > 0 ||
-    Number(sharedBalance || 0) > 0 ||
-    Number(sharedUsed || 0) > 0;
-}
-
 export async function addTeamMember(ownerAccountId: string, email: string) {
   await redis.sadd(`ce:team:${ownerAccountId}:member-emails`, email);
-  await redis.sadd(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
 export async function removeTeamMember(ownerAccountId: string, email: string) {
   await redis.srem(`ce:team:${ownerAccountId}:member-emails`, email);
-  await redis.srem(`ce:teams-for-email:${email}`, ownerAccountId);
 }
 
 export async function listTeamMembers(ownerAccountId: string): Promise<ContactTeacher[]> {
@@ -99,9 +72,16 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
   if (!(contactEmails || []).includes(email)) throw new Error('Add this teacher before sending credits.');
 
   // Look up recipient before the Lua script so we can include the credit key atomically.
-  // This way the deduct and credit happen in one script — no crash window where sender
+  // This way the deduct and credit happen in one script - no crash window where sender
   // loses credits but recipient never receives them.
-  const recipientAccountId = await redis.get<string>(`ce:email-account:${email}`);
+  const [senderProfile, recipientAccountId] = await Promise.all([
+    getProfile(senderAccountId),
+    redis.get<string>(`ce:email-account:${email}`),
+  ]);
+  if (recipientAccountId === senderAccountId || normalizeEmail(senderProfile.email) === email) {
+    throw new Error('You cannot send credits to yourself.');
+  }
+
   const creditKey = recipientAccountId
     ? `ce:credits:${recipientAccountId}:ai`
     : `ce:pending-credits:${email}:ai`;
@@ -113,7 +93,6 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
   if (!Array.isArray(result) || result[0] === -1) throw new Error('Not enough credits to send.');
 
   const id = `${Date.now()}:${randomUUID()}`;
-  const senderProfile = await getProfile(senderAccountId);
   await redis.set(`ce:credit-transfer:${id}`, {
     id,
     senderAccountId,
@@ -149,55 +128,6 @@ export async function getPersonalPool(accountId: string) {
   };
 }
 
-export async function getOwnedTeamPool(ownerAccountId: string) {
-  const [balance, used] = await Promise.all([
-    redis.get<number>(`ce:team:${ownerAccountId}:credits:ai`),
-    redis.get<number>(`ce:team:${ownerAccountId}:credits-used:ai`),
-  ]);
-
-  return {
-    balance: Number(balance || 0),
-    used: Number(used || 0),
-  };
-}
-
-export async function listSharedPoolsForAccount(accountId: string): Promise<CreditPool[]> {
-  const profile = await getProfile(accountId);
-  const email = normalizeEmail(profile.email);
-  if (!isValidEmail(email)) return [];
-
-  const ownerIds = await redis.smembers<string[]>(`ce:teams-for-email:${email}`);
-  const uniqueOwnerIds = [...new Set(ownerIds || [])].filter(ownerId => ownerId !== accountId);
-
-  return Promise.all(uniqueOwnerIds.map(async ownerAccountId => {
-    const [ownerProfile, pool] = await Promise.all([
-      getProfile(ownerAccountId),
-      getOwnedTeamPool(ownerAccountId),
-    ]);
-
-    return {
-      id: ownerAccountId,
-      label: ownerProfile.name ? `${ownerProfile.name}'s shared credits` : 'Shared department credits',
-      ownerAccountId,
-      ownerName: ownerProfile.name,
-      ownerEmail: ownerProfile.email,
-      balance: pool.balance,
-      used: pool.used,
-    };
-  }));
-}
-
-export async function canUseSharedPool(accountId: string, ownerAccountId: string): Promise<boolean> {
-  if (accountId === ownerAccountId) return true;
-
-  const profile = await getProfile(accountId);
-  const email = normalizeEmail(profile.email);
-  if (!isValidEmail(email)) return false;
-
-  const ownerIds = await redis.smembers<string[]>(`ce:teams-for-email:${email}`);
-  return (ownerIds || []).includes(ownerAccountId);
-}
-
 export async function recordUsage(event: {
   accountId: string;
   credits: number;
@@ -216,11 +146,4 @@ export async function recordUsage(event: {
   await redis.set(`ce:ai-usage:${id}`, record);
   await redis.lpush(`ce:ai-usage-by-account:${event.accountId}`, id);
   await redis.ltrim(`ce:ai-usage-by-account:${event.accountId}`, 0, 99);
-}
-
-export async function getTeamUsage(ownerAccountId: string, limit = 50) {
-  const ids = await redis.lrange<string>(`ce:ai-usage-by-team:${ownerAccountId}`, 0, Math.max(0, limit - 1));
-  const records = await Promise.all((ids || []).map(id => redis.get<Record<string, unknown>>(`ce:ai-usage:${id}`)));
-
-  return records.filter(Boolean);
 }

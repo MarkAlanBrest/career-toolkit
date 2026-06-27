@@ -57,7 +57,7 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <h1 style={{ fontSize: 24, lineHeight: 1.2, margin: 0 }}>Canvas Enhancer Admin</h1>
-            <div style={{ fontSize: 13, opacity: 0.88, marginTop: 4 }}>PayPal billing, Canvas-based access, no app passwords.</div>
+            <div style={{ fontSize: 13, opacity: 0.88, marginTop: 4 }}>Stripe credit packs, Canvas-based access, no app passwords.</div>
           </div>
           <a href="/pricing" style={{ color: '#fff', textDecoration: 'none', fontWeight: 700, fontSize: 14 }}>Pricing</a>
         </div>
@@ -108,8 +108,8 @@ export default function AdminPage() {
           <section style={{ background: '#fff', border: '1px solid #d8dde3', borderRadius: 8, padding: 18 }}>
             <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>Billing Setup</h2>
             <div style={{ fontSize: 14, lineHeight: 1.7 }}>
-              Provider: <strong>{summary?.billingProvider || 'paypal'}</strong><br />
-              Account model: <strong>{summary?.accountModel || 'canvas_identity_plus_license'}</strong><br />
+              Provider: <strong>{summary?.billingProvider || 'stripe'}</strong><br />
+              Account model: <strong>{summary?.accountModel || 'canvas_identity_plus_credits'}</strong><br />
               Last refresh: <strong>{summary?.generatedAt ? new Date(summary.generatedAt).toLocaleString() : 'Not loaded'}</strong>
             </div>
           </section>

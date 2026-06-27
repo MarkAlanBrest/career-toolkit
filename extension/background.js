@@ -150,10 +150,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleLicenseStatus(msg.payload).then(sendResponse).catch(err => sendResponse({ valid: false, error: err.message }));
     return true;
   }
-  if (msg.type === 'CREATE_CREDIT_CHECKOUT') {
-    handleCreditCheckout(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
-    return true;
-  }
   if (msg.type === 'AI_CREDIT_STATUS') {
     handleCreditStatus().then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
@@ -202,22 +198,6 @@ async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
   return data;
-}
-
-async function handleCreditCheckout({ quantity, method } = {}) {
-  const accountId = await getAccountId();
-  const res = await fetch(`${API_BASE}/api/paypal/checkout`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      method: method || 'paypal',
-      accountId,
-      items: [{ key: 'ai_credit_pack', quantity: Math.max(1, Math.min(20, Number(quantity) || 1)) }],
-    }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.url) throw new Error(data?.error || 'Could not open checkout.');
-  await chrome.tabs.create({ url: data.url });
-  return { ok: true };
 }
 
 async function handleCreditStatus() {

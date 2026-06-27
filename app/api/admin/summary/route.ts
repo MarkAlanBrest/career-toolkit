@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         customerLinks,
       },
       billingProvider: 'stripe',
-      accountModel: 'canvas_identity_plus_license',
+      accountModel: 'canvas_identity_plus_credits',
       generatedAt: new Date().toISOString(),
     }, { headers: CORS });
   } catch (error) {

@@ -94,7 +94,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
       setSearchEmail('');
       setSearchResult(null);
       setSendAmount('');
-      setMessage(`✓ Sent ${credits.toLocaleString()} credits to ${email}.`);
+      setMessage(`Sent ${credits.toLocaleString()} credits to ${email}.`);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not send credits.');
     } finally {
@@ -115,7 +115,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
       if (!res.ok) throw new Error(result.error || 'Action failed.');
       setData(result);
       setExistingAmounts(prev => ({ ...prev, [email]: '' }));
-      setMessage(action === 'send' ? `✓ Sent credits to ${email}.` : 'Teacher removed.');
+      setMessage(action === 'send' ? `Sent credits to ${email}.` : 'Teacher removed.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Action failed.');
     } finally {
@@ -133,6 +133,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
 
   const creditAmount = Math.floor(Number(sendAmount || 0));
   const searchedEmail = searchEmail.trim().toLowerCase();
+  const isSuccessMessage = message.startsWith('Sent ') || message === 'Teacher removed.';
 
   return (
     <div style={{ display: 'grid', gap: 20, fontFamily: font }}>
@@ -159,7 +160,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
             style={inputStyle}
           />
           <button type="button" disabled={searching} onClick={handleSearch} style={blueButton}>
-            {searching ? 'Searching…' : 'Find'}
+            {searching ? 'Searching...' : 'Find'}
           </button>
         </div>
 
@@ -176,7 +177,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
             {searchResult.found && searchResult.teacher ? (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 15, color: green }}>✓</span>
+                  <span style={{ fontSize: 15, color: green }}>OK</span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: ink }}>
                       {searchResult.teacher.name || searchedEmail}
@@ -185,7 +186,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                       <div style={{ fontSize: 12, color: '#526A79' }}>{searchResult.teacher.email}</div>
                     )}
                     <div style={{ fontSize: 12, color: '#526A79' }}>
-                      Canvas Enhancer installed — {searchResult.teacher.balance.toLocaleString()} credits on account
+                      Canvas Enhancer installed - {searchResult.teacher.balance.toLocaleString()} credits on account
                     </div>
                   </div>
                 </div>
@@ -203,19 +204,19 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                     onClick={() => handleSend(searchedEmail, creditAmount)}
                     style={greenButton}
                   >
-                    {sending ? 'Sending…' : 'Send'}
+                    {sending ? 'Sending...' : 'Send'}
                   </button>
                 </div>
               </>
             ) : (
               <>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ fontSize: 15, color: '#DC2626' }}>✗</span>
+                  <span style={{ fontSize: 15, color: '#DC2626' }}>No</span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: ink }}>Teacher not found</div>
                     <div style={{ fontSize: 12, color: '#526A79', lineHeight: 1.55, marginTop: 3 }}>
                       <strong>{searchedEmail}</strong> has not set up Canvas Enhancer yet.
-                      You can still send — credits will be held and applied automatically when they install and add their email.
+                      You can still send credits. They will be held and applied automatically when the teacher installs Canvas Enhancer and adds this email.
                     </div>
                   </div>
                 </div>
@@ -233,7 +234,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                     onClick={() => handleSend(searchedEmail, creditAmount)}
                     style={{ ...blueButton, background: '#526A79' }}
                   >
-                    {sending ? 'Sending…' : 'Send Anyway'}
+                    {sending ? 'Sending...' : 'Send Anyway'}
                   </button>
                 </div>
               </>
@@ -255,7 +256,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
                     <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>{teacher.name || teacher.email}</div>
                     {teacher.name && <div style={{ fontSize: 12, color: '#526A79' }}>{teacher.email}</div>}
                     <div style={{ fontSize: 11, color: teacher.accountId ? green : '#526A79', marginTop: 2 }}>
-                      {teacher.accountId ? '✓ Installed' : 'Not installed yet — credits will wait'}
+                      {teacher.accountId ? 'Installed' : 'Not installed yet - credits will wait'}
                     </div>
                   </div>
                   <button type="button" disabled={existingLoading} onClick={() => handleExistingAction('remove', teacher.email)} style={removeButton}>
@@ -293,7 +294,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
             <div key={t.id || i} style={{ fontSize: 12, color: '#526A79', lineHeight: 1.5, padding: '6px 0', borderTop: `1px solid ${line}` }}>
               Sent <strong>{Number(t.credits || 0).toLocaleString()}</strong> credits to {t.recipientEmail || 'teacher'}
               {' '}<span style={{ color: t.status === 'delivered' ? green : '#526A79' }}>
-                ({t.status === 'delivered' ? 'delivered' : 'pending — will apply on install'})
+                ({t.status === 'delivered' ? 'delivered' : 'pending - will apply on install'})
               </span>
             </div>
           ))}
@@ -304,10 +305,10 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
         <div style={{
           fontSize: 13,
           fontWeight: 600,
-          color: message.startsWith('✓') ? green : '#DC2626',
+          color: isSuccessMessage ? green : '#DC2626',
           padding: '8px 10px',
-          background: message.startsWith('✓') ? '#F0FDF4' : '#FEF2F2',
-          border: `1px solid ${message.startsWith('✓') ? '#86EFAC' : '#FECACA'}`,
+          background: isSuccessMessage ? '#F0FDF4' : '#FEF2F2',
+          border: `1px solid ${isSuccessMessage ? '#86EFAC' : '#FECACA'}`,
           borderRadius: 6,
         }}>
           {message}
