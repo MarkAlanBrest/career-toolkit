@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unauthorizedCreditAccount, validateAccountToken } from '@/lib/accountAuth';
 import { redis } from '@/lib/billing';
+import { cleanAccountId } from '@/lib/stripe';
 import { getProfile, getPersonalPool, normalizeEmail, isValidEmail } from '@/lib/teamCredits';
 
 const CORS = {
@@ -19,7 +21,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Extract the searcher's Canvas domain from their accountId ({userId}@{domain}).
-  const searcherAccountId = String(req.nextUrl.searchParams.get('accountId') || '');
+  const searcherAccountId = cleanAccountId(req.nextUrl.searchParams.get('accountId'));
+  if (!searcherAccountId) {
+    return NextResponse.json({ error: 'Invalid account.' }, { status: 400, headers: CORS });
+  }
+  const verified = await validateAccountToken(searcherAccountId, req.nextUrl.searchParams.get('accountToken'));
+  if (!verified) return NextResponse.json(unauthorizedCreditAccount, { status: 403, headers: CORS });
+
   const atIdx = searcherAccountId.indexOf('@');
   const searcherDomain = atIdx > 0 ? searcherAccountId.slice(atIdx + 1) : '';
 

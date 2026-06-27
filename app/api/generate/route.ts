@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/billing';
+import { validateAccountToken } from '@/lib/accountAuth';
 import type { AutoReloadSettings } from '@/app/api/credits/auto-reload/route';
 import { CREDIT_PACKS, stripe, cleanAccountId } from '@/lib/stripe';
 import { recordUsage } from '@/lib/teamCredits';
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
   const accountId = cleanAccountId(body.accountId);
   let deduction: Awaited<ReturnType<typeof deductCredits>> | null = null;
   if (accountId) {
+    const verified = await validateAccountToken(accountId, body.accountToken);
+    if (!verified) return NextResponse.json({ error: 'Could not verify this credit account. Reopen Canvas Enhancer and try again.' }, { status: 403, headers: CORS });
+
     deduction = await deductCredits({
       accountId,
       creditCost,

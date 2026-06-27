@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unauthorizedCreditAccount, validateAccountToken } from '@/lib/accountAuth';
 import { cleanAccountId } from '@/lib/stripe';
 import {
   addTeamMember,
@@ -27,6 +28,8 @@ export async function GET(req: NextRequest) {
   try {
     const accountId = cleanAccountId(req.nextUrl.searchParams.get('accountId'));
     if (!accountId) return NextResponse.json({ error: 'Invalid account.' }, { status: 400, headers: CORS });
+    const verified = await validateAccountToken(accountId, req.nextUrl.searchParams.get('accountToken'));
+    if (!verified) return NextResponse.json(unauthorizedCreditAccount, { status: 403, headers: CORS });
 
     const [credits, teachers, transfers] = await Promise.all([
       getPersonalPool(accountId),
@@ -50,6 +53,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const accountId = cleanAccountId(body?.accountId);
     if (!accountId) return NextResponse.json({ error: 'Invalid account.' }, { status: 400, headers: CORS });
+    const verified = await validateAccountToken(accountId, body?.accountToken);
+    if (!verified) return NextResponse.json(unauthorizedCreditAccount, { status: 403, headers: CORS });
 
     const action = String(body?.action || '').trim();
     const email = normalizeEmail(body?.email);

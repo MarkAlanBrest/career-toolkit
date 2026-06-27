@@ -7,10 +7,12 @@ const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 
 export default function ManageCreditsPage() {
   const [accountId, setAccountId] = useState('');
+  const [accountToken, setAccountToken] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setAccountId(params.get('accountId') || '');
+    setAccountToken(params.get('accountToken') || '');
   }, []);
 
   return (
@@ -22,7 +24,7 @@ export default function ManageCreditsPage() {
         <p style={{ margin: '0 0 18px', color: '#526A79', fontSize: 13, lineHeight: 1.6 }}>
           Add teachers by email, then send them credits from your balance.
         </p>
-        <TeacherCreditPanel accountId={accountId} standalone />
+        <TeacherCreditPanel accountId={accountId} accountToken={accountToken} standalone />
       </section>
     </main>
   );

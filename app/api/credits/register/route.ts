@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unauthorizedCreditAccount, validateAccountToken } from '@/lib/accountAuth';
 import { redis } from '@/lib/billing';
 import { cleanAccountId } from '@/lib/stripe';
 import { getProfile } from '@/lib/teamCredits';
@@ -18,6 +19,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const accountId = cleanAccountId(body?.accountId);
     if (!accountId) return NextResponse.json({ ok: false }, { headers: CORS });
+    const verified = await validateAccountToken(accountId, body?.accountToken);
+    if (!verified) return NextResponse.json(unauthorizedCreditAccount, { status: 403, headers: CORS });
 
     const name         = String(body?.name         || '').trim().slice(0, 100);
     const canvasUserId = String(body?.canvasUserId || '').trim().slice(0, 50);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unauthorizedCreditAccount, validateAccountToken } from '@/lib/accountAuth';
 import { cleanAccountId } from '@/lib/stripe';
 import { getCreditTransfers, getPersonalPool, listTeamMembers } from '@/lib/teamCredits';
 
@@ -18,6 +19,9 @@ export async function GET(request: NextRequest) {
   try {
     const accountId = cleanAccountId(request.nextUrl.searchParams.get('accountId'));
     if (!accountId) throw new Error('Could not identify this browser for AI credits.');
+    const verified = await validateAccountToken(accountId, request.nextUrl.searchParams.get('accountToken'));
+    if (!verified) return NextResponse.json(unauthorizedCreditAccount, { status: 403, headers: CORS });
+
     const [personal, teachers, transfers] = await Promise.all([
       getPersonalPool(accountId),
       listTeamMembers(accountId),

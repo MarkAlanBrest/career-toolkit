@@ -33,7 +33,7 @@ function isValidEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
-export function TeacherCreditPanel({ accountId, standalone = false }: { accountId: string; standalone?: boolean }) {
+export function TeacherCreditPanel({ accountId, accountToken = '', standalone = false }: { accountId: string; accountToken?: string; standalone?: boolean }) {
   const [data, setData] = useState<TeacherData | null>(null);
   const [searchEmail, setSearchEmail] = useState('');
   const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
@@ -45,14 +45,14 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
   const [existingLoading, setExistingLoading] = useState(false);
 
   const load = () => {
-    if (!accountId) return;
-    fetch(`/api/credits/team?accountId=${encodeURIComponent(accountId)}`)
+    if (!accountId || !accountToken) return;
+    fetch(`/api/credits/team?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`)
       .then(r => r.json())
       .then(result => { if (!result.error) setData(result); })
       .catch(() => {});
   };
 
-  useEffect(load, [accountId]);
+  useEffect(load, [accountId, accountToken]);
 
   const handleSearch = async () => {
     const email = searchEmail.trim().toLowerCase();
@@ -62,7 +62,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
     setMessage('');
     setSendAmount('');
     try {
-      const res = await fetch(`/api/credits/search?email=${encodeURIComponent(email)}&accountId=${encodeURIComponent(accountId)}`);
+      const res = await fetch(`/api/credits/search?email=${encodeURIComponent(email)}&accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`);
       const result = await res.json();
       setSearchResult(result);
     } catch {
@@ -81,12 +81,12 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
       await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, action: 'add', email }),
+        body: JSON.stringify({ accountId, accountToken, action: 'add', email }),
       });
       const res = await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, action: 'send', email, credits }),
+        body: JSON.stringify({ accountId, accountToken, action: 'send', email, credits }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Could not send credits.');
@@ -109,7 +109,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
       const res = await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, action, email, credits }),
+        body: JSON.stringify({ accountId, accountToken, action, email, credits }),
       });
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Action failed.');
@@ -127,6 +127,14 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
     return (
       <div style={{ padding: 16, fontSize: 13, color: '#526A79', border: `1px solid ${line}`, borderRadius: 8 }}>
         Open this screen from the Canvas Enhancer toolbar so it knows which credit account to manage.
+      </div>
+    );
+  }
+
+  if (!accountToken) {
+    return (
+      <div style={{ padding: 16, fontSize: 13, color: '#526A79', border: `1px solid ${line}`, borderRadius: 8 }}>
+        Reopen this screen from the Canvas Enhancer toolbar so it can verify your credit account.
       </div>
     );
   }

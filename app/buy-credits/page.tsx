@@ -120,6 +120,7 @@ function CheckoutForm({ packPrice, accountId, name, email, onSuccess }: {
 
 export default function BuyCreditsPage() {
   const [accountId, setAccountId] = useState('');
+  const [accountToken, setAccountToken] = useState('');
   const [selectedPack, setSelectedPack] = useState<PackKey>('teacher');
   const [saveCard, setSaveCard] = useState(false);
   const [name, setName] = useState('');
@@ -132,13 +133,15 @@ export default function BuyCreditsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('accountId') || '';
+    const token = params.get('accountToken') || '';
     const packParam = params.get('pack') as PackKey | null;
     setAccountId(id);
+    setAccountToken(token);
     if (packParam && PACKS.find(p => p.key === packParam)) setSelectedPack(packParam);
     if (params.get('saveCard') === 'true') setSaveCard(true);
 
     if (id) {
-      fetch(`/api/credits/profile?accountId=${encodeURIComponent(id)}`)
+      fetch(`/api/credits/profile?accountId=${encodeURIComponent(id)}&accountToken=${encodeURIComponent(token)}`)
         .then(r => r.json())
         .then(data => {
           if (data.profile?.name) setName(data.profile.name);
@@ -149,7 +152,7 @@ export default function BuyCreditsPage() {
   }, []);
 
   useEffect(() => {
-    if (!accountId) return;
+    if (!accountId || !accountToken) return;
     let cancelled = false;
 
     const delay = name || email ? 700 : 0;
@@ -160,7 +163,7 @@ export default function BuyCreditsPage() {
       fetch('/api/stripe/payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId, pack: selectedPack, saveCard, name, email }),
+        body: JSON.stringify({ accountId, accountToken, pack: selectedPack, saveCard, name, email }),
       })
         .then(r => r.json())
         .then(data => {
@@ -180,7 +183,7 @@ export default function BuyCreditsPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [accountId, selectedPack, saveCard, name, email]);
+  }, [accountId, accountToken, selectedPack, saveCard, name, email]);
 
   const currentPack = PACKS.find(p => p.key === selectedPack)!;
   const elementsOptions: StripeElementsOptions = clientSecret
