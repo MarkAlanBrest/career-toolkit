@@ -816,13 +816,14 @@
 
     // ── Pack selector ─────────────────────────────────────────────────────────
     const PACKS_HUB = [
-      { key: 'starter',    label: 'Starter',    price: '$10', credits: '1,000 cr', saveCard: false },
-      { key: 'teacher',    label: 'Teacher',     price: '$20', credits: '2,000 cr', saveCard: false },
-      { key: 'department', label: 'Department',  price: '$50', credits: '5,000 cr', saveCard: false },
+      { key: 'starter', label: 'Starter',    price: '$10',  credits: '1,000 cr'  },
+      { key: 'teacher', label: 'Teacher',    price: '$20',  credits: '2,000 cr'  },
+      { key: 'power',   label: 'Power User', price: '$50',  credits: '5,000 cr'  },
+      { key: 'school',  label: 'School',     price: '$250', credits: '25,000 cr' },
     ];
     let selectedPack = 'teacher';
 
-    const packRow = el('div', 'display:grid;grid-template-columns:repeat(3,1fr);gap:8px;');
+    const packRow = el('div', 'display:grid;grid-template-columns:repeat(2,1fr);gap:8px;');
     function renderPackButtons() {
       packRow.innerHTML = '';
       PACKS_HUB.forEach(p => {

@@ -12,9 +12,10 @@ const blue = '#244f98';
 const rule = '#d2d2cc';
 
 const packs = [
-  ['Starter', '$10', '1,000 credits'],
-  ['Teacher', '$20', '2,000 credits'],
-  ['Department', '$50', '5,000 credits'],
+  ['Starter',    '$10',  '1,000 credits',  'Good for trying AI grading and page creation.'],
+  ['Teacher',    '$20',  '2,000 credits',  'Most popular. Covers a full semester of regular use.'],
+  ['Power User', '$50',  '5,000 credits',  'For teachers who use AI tools heavily across many classes.'],
+  ['School',     '$250', '25,000 credits', 'Best for departments and schools. Credits can be distributed to any teacher on staff.'],
 ];
 
 const usage = [
@@ -43,12 +44,12 @@ export default function PricingPage() {
             Credit packs
           </h2>
           <div style={{ borderTop: `1px solid ${rule}` }}>
-            {packs.map(([name, price, credits]) => (
+            {packs.map(([name, price, credits, description]) => (
               <div
                 key={name}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,170px),1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,160px),1fr))',
                   gap: 12,
                   borderBottom: `1px solid ${rule}`,
                   padding: '14px 0',
@@ -59,14 +60,12 @@ export default function PricingPage() {
                 <strong style={{ color: heading, fontFamily: serif }}>{name}</strong>
                 <span>{price}</span>
                 <span>{credits}</span>
+                <span style={{ fontSize: 13, color: '#666', lineHeight: 1.7 }}>{description}</span>
               </div>
             ))}
           </div>
           <p style={{ margin: '18px 0 0', fontSize: 13, lineHeight: 1.8, textAlign: 'justify' }}>
-            These rates can be adjusted as real AI costs are measured. The goal is to keep the model simple: buy credits, use them for the AI tools that need them, and keep the non-AI tools free.
-          </p>
-          <p style={{ margin: '14px 0 0', fontFamily: display, fontSize: 13 }}>
-            <a href="/departments" style={{ color: blue }}>Buying for a department or school?</a>
+            Credits never expire. The School pack is designed for department chairs or school leads who want to buy in bulk and distribute credits to individual teachers. See <a href="/departments" style={{ color: blue }}>how department distribution works</a>.
           </p>
         </section>
 

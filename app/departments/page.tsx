@@ -19,9 +19,9 @@ const steps = [
 ];
 
 const examples = [
-  ['Small department', 'A department chair buys 10,000 credits and sends 2,000 credits to each of five teachers.'],
-  ['Shared support', 'A teacher with extra credits can send 500 credits to another teacher who needs more for grading or page creation.'],
-  ['No contract required', 'The school can support a team without subscriptions, purchase orders, or a formal service agreement.'],
+  ['Small department', 'A department chair buys the School Pack (25,000 credits, $250) and sends 5,000 credits to each of five teachers — enough for a full semester each.'],
+  ['Shared support', 'A teacher with extra credits can send any amount to a colleague who needs more for grading or page creation. No admin approval needed.'],
+  ['No contract required', 'The school can support a team without subscriptions, purchase orders, or a formal service agreement. Buy when needed, distribute as needed.'],
 ];
 
 export default function DepartmentsPage() {
@@ -35,7 +35,7 @@ export default function DepartmentsPage() {
             AI credits can be purchased for a department or school.
           </h1>
           <p style={{ margin: '20px 0 0', maxWidth: 780, fontSize: 15, lineHeight: 1.8, textAlign: 'justify' }}>
-            Canvas Enhancer does not require a school contract or subscription. One person can buy AI credits, add teachers by email, and distribute credits to team members in the amounts they choose.
+            Canvas Enhancer does not require a school contract or subscription. One person can buy the School Pack ($250 for 25,000 credits), add teachers by email, and distribute credits to team members in the amounts they choose. Credits never expire and can be sent at any time.
           </p>
         </section>
 

@@ -7,9 +7,10 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const PACKS = [
-  { key: 'starter', label: 'Starter', price: '$10', credits: 1000 },
-  { key: 'teacher', label: 'Teacher', price: '$20', credits: 2000 },
-  { key: 'department', label: 'Department', price: '$50', credits: 5000 },
+  { key: 'starter', label: 'Starter',    price: '$10',  credits: 1000  },
+  { key: 'teacher', label: 'Teacher',    price: '$20',  credits: 2000  },
+  { key: 'power',   label: 'Power User', price: '$50',  credits: 5000  },
+  { key: 'school',  label: 'School',     price: '$250', credits: 25000 },
 ] as const;
 
 type PackKey = typeof PACKS[number]['key'];
@@ -201,7 +202,7 @@ export default function BuyCreditsPage() {
       <section style={{ display: 'grid', gap: 14 }}>
         <div>
           <div style={sectionLabel}>Buy credits</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
             {PACKS.map(pack => (
               <button
                 key={pack.key}
