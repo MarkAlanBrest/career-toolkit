@@ -18,6 +18,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Valid email required.' }, { status: 400, headers: CORS });
   }
 
+  // Extract the searcher's Canvas domain from their accountId ({userId}@{domain}).
+  const searcherAccountId = String(req.nextUrl.searchParams.get('accountId') || '');
+  const atIdx = searcherAccountId.indexOf('@');
+  const searcherDomain = atIdx > 0 ? searcherAccountId.slice(atIdx + 1) : '';
+
   const accountId = await redis.get<string>(`ce:email-account:${email}`);
   if (!accountId) {
     return NextResponse.json({ found: false }, { headers: CORS });
@@ -27,6 +32,11 @@ export async function GET(req: NextRequest) {
     getProfile(accountId),
     getPersonalPool(accountId),
   ]);
+
+  // Only return teachers from the same Canvas domain.
+  if (searcherDomain && profile.canvasDomain && profile.canvasDomain !== searcherDomain) {
+    return NextResponse.json({ found: false }, { headers: CORS });
+  }
 
   return NextResponse.json({
     found: true,

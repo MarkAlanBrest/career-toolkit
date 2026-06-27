@@ -62,7 +62,7 @@ export function TeacherCreditPanel({ accountId, standalone = false }: { accountI
     setMessage('');
     setSendAmount('');
     try {
-      const res = await fetch(`/api/credits/search?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/credits/search?email=${encodeURIComponent(email)}&accountId=${encodeURIComponent(accountId)}`);
       const result = await res.json();
       setSearchResult(result);
     } catch {
