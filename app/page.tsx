@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import SiteNav from './components/SiteNav';
 
 const serif = 'Georgia,"Times New Roman",serif';
@@ -26,8 +27,14 @@ const articles = [
   },
 ];
 
+const heroImages = [
+  { src: '/screenshots/01_before_after.png',    alt: 'Turn plain Canvas pages into professional lessons with AI' },
+  { src: '/screenshots/07_feature_overview.png', alt: 'Canvas Enhancer feature overview — every tool at a glance' },
+];
+
 export default function HomePage() {
   const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   return (
     <main style={{ minHeight: '100vh', background: pageBg, color: text, fontFamily: serif }}>
@@ -63,11 +70,29 @@ export default function HomePage() {
             </div>
           </div>
 
-          <img
-            src="/screenshots/01_before_after.png"
-            alt="Turn plain Canvas pages into professional lessons with AI"
-            style={{ width: '100%', display: 'block', borderRadius: 6 }}
-          />
+          {/* Stacked clickable images */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {heroImages.map(img => (
+              <button
+                key={img.src}
+                type="button"
+                onClick={() => setLightbox(img.src)}
+                style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', borderRadius: 6, overflow: 'hidden' }}
+                title="Click to enlarge"
+              >
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  style={{ width: '100%', display: 'block', borderRadius: 6, transition: 'opacity .15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.opacity = '0.88')}
+                  onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+                />
+              </button>
+            ))}
+            <p style={{ margin: 0, textAlign: 'center', fontSize: 11, color: '#8a9db5', letterSpacing: '0.3px' }}>
+              Click images to enlarge
+            </p>
+          </div>
         </section>
 
         <section style={{ marginTop: 34, background: paper, border: '1px solid #d9d9d2', padding: '30px 30px 24px' }}>
@@ -102,16 +127,38 @@ export default function HomePage() {
             </p>
           </div>
         </section>
-
-        {/* Feature overview */}
-        <section style={{ marginTop: 16 }}>
-          <img
-            src="/screenshots/07_feature_overview.png"
-            alt="Canvas Enhancer feature overview — AI SpeedGrader, Smart Messaging, Assignment Scheduler, AI Page Designer, and more"
-            style={{ width: '100%', display: 'block', borderRadius: 4, border: '1px solid #d9d9d2' }}
-          />
-        </section>
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24, cursor: 'zoom-out',
+          }}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            style={{
+              position: 'absolute', top: 18, right: 22,
+              background: 'none', border: 'none', color: '#fff',
+              fontSize: 32, lineHeight: 1, cursor: 'pointer', opacity: 0.8,
+            }}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <img
+            src={lightbox}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 8, boxShadow: '0 24px 64px rgba(0,0,0,0.6)', cursor: 'default' }}
+          />
+        </div>
+      )}
     </main>
   );
 }
