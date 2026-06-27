@@ -28,6 +28,14 @@ async function getAccountId() {
   return getInstallId();
 }
 
+async function getAccountToken() {
+  const stored = await chrome.storage.local.get('ce_account_token');
+  if (stored.ce_account_token) return stored.ce_account_token;
+  const token = crypto.randomUUID();
+  await chrome.storage.local.set({ ce_account_token: token });
+  return token;
+}
+
 // ── REMOTE CONFIG ─────────────────────────────────────────────────────────────
 const CONFIG_URL      = 'https://canvasenhancer.com/extension-config.json';
 const CONFIG_CACHE_KEY = 'ce_remote_config';
@@ -60,13 +68,13 @@ async function handleStreamPort(port) {
     if (msg.type !== 'STREAM_GENERATE') return;
     try {
       const { messages, max_tokens, model, usageType } = msg.payload;
-      const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getAccountId()]);
+      const [licenseKeys, accountId, accountToken] = await Promise.all([getLicenseKeys(), getAccountId(), getAccountToken()]);
       console.log('[CE-BG] STREAM_GENERATE received. model:', model, 'license present:', !!licenseKeys.length, 'msg count:', messages?.length);
 
       const res = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId }),
+        body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId, accountToken }),
       });
 
       console.log('[CE-BG] fetch response status:', res.status, res.ok ? 'OK' : 'FAILED');
@@ -201,22 +209,22 @@ async function handleLicenseStatus({ licenseKeys, licenseKey, force } = {}) {
 }
 
 async function handleCreditStatus() {
-  const accountId = await getAccountId();
-  const res = await fetch(`${API_BASE}/api/credits/status?accountId=${encodeURIComponent(accountId)}`, { cache: 'no-store' });
+  const [accountId, accountToken] = await Promise.all([getAccountId(), getAccountToken()]);
+  const res = await fetch(`${API_BASE}/api/credits/status?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`, { cache: 'no-store' });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || 'Could not load AI credits.');
-  return data;
+  return { ...data, accountToken };
 }
 
 
 async function handleGenerate(payload) {
   const { messages, max_tokens, model, usageType } = payload;
-  const [licenseKeys, accountId] = await Promise.all([getLicenseKeys(), getAccountId()]);
+  const [licenseKeys, accountId, accountToken] = await Promise.all([getLicenseKeys(), getAccountId(), getAccountToken()]);
 
   const res = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId }),
+    body: JSON.stringify({ messages, max_tokens, model, usageType: usageType || (model?.includes('haiku') ? 'teaching' : 'creation'), licenseKeys, accountId, accountToken }),
   });
 
   if (!res.ok) {
