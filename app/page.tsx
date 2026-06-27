@@ -124,6 +124,24 @@ export default function HomePage() {
             </p>
           </div>
         </section>
+
+        {/* Feature overview image */}
+        <section style={{ marginTop: 28 }}>
+          <img
+            src="/screenshots/07_feature_overview.png"
+            alt="Canvas Enhancer feature overview — AI SpeedGrader, Smart Messaging, Assignment Scheduler, AI Page Designer, and more"
+            style={{ width: '100%', display: 'block', borderRadius: 4, border: '1px solid #d9d9d2' }}
+          />
+        </section>
+
+        {/* Before/after AI page creation */}
+        <section style={{ marginTop: 16 }}>
+          <img
+            src="/screenshots/01_before_after.png"
+            alt="Turn plain Canvas pages into professional lessons with AI"
+            style={{ width: '100%', display: 'block', borderRadius: 4, border: '1px solid #d9d9d2' }}
+          />
+        </section>
       </div>
     </main>
   );
