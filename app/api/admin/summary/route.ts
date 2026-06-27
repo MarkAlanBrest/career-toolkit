@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         bonusKeys,
         customerLinks,
       },
-      billingProvider: 'paypal',
+      billingProvider: 'stripe',
       accountModel: 'canvas_identity_plus_license',
       generatedAt: new Date().toISOString(),
     }, { headers: CORS });

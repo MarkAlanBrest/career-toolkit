@@ -37,11 +37,13 @@ export async function saveProfile(accountId: string, profile: TeacherProfile & {
   await redis.set(`ce:profile:${accountId}`, profile);
   await redis.set(`ce:email-account:${profile.email}`, accountId);
 
-  const pendingCredits = Number(await redis.get<number>(`ce:pending-credits:${profile.email}:ai`) || 0);
-  if (pendingCredits > 0) {
-    await redis.incrby(`ce:credits:${accountId}:ai`, pendingCredits);
-    await redis.del(`ce:pending-credits:${profile.email}:ai`);
-  }
+  // Atomic: read pending, delete pending key, credit balance — all in one script.
+  // Prevents double-credit if the server crashes between incrby and del.
+  const pendingScript = `local p=tonumber(redis.call('GET',KEYS[1]) or '0') if p>0 then redis.call('DEL',KEYS[1]) redis.call('INCRBY',KEYS[2],p) end return p`;
+  await redis.eval(pendingScript, [
+    `ce:pending-credits:${profile.email}:ai`,
+    `ce:credits:${accountId}:ai`,
+  ], []);
 }
 
 export async function getProfile(accountId: string): Promise<TeacherProfile> {
@@ -94,18 +96,19 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
   const contactEmails = await redis.smembers<string[]>(`ce:team:${senderAccountId}:member-emails`);
   if (!(contactEmails || []).includes(email)) throw new Error('Add this teacher before sending credits.');
 
+  // Look up recipient before the Lua script so we can include the credit key atomically.
+  // This way the deduct and credit happen in one script — no crash window where sender
+  // loses credits but recipient never receives them.
+  const recipientAccountId = await redis.get<string>(`ce:email-account:${email}`);
+  const creditKey = recipientAccountId
+    ? `ce:credits:${recipientAccountId}:ai`
+    : `ce:pending-credits:${email}:ai`;
+
   const balanceKey = `ce:credits:${senderAccountId}:ai`;
   const sentKey = `ce:credits-sent:${senderAccountId}:ai`;
-  const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) return {nb,bal}`;
-  const result = await redis.eval(script, [balanceKey, sentKey], [amount]) as number[];
+  const script = `local bal=tonumber(redis.call('GET',KEYS[1]) or '0') if bal<tonumber(ARGV[1]) then return {-1,-1} end local nb=redis.call('DECRBY',KEYS[1],ARGV[1]) redis.call('INCRBY',KEYS[2],ARGV[1]) redis.call('INCRBY',KEYS[3],ARGV[1]) return {nb,bal}`;
+  const result = await redis.eval(script, [balanceKey, sentKey, creditKey], [amount]) as number[];
   if (!Array.isArray(result) || result[0] < 0) throw new Error('Not enough credits to send.');
-
-  const recipientAccountId = await redis.get<string>(`ce:email-account:${email}`);
-  if (recipientAccountId) {
-    await redis.incrby(`ce:credits:${recipientAccountId}:ai`, amount);
-  } else {
-    await redis.incrby(`ce:pending-credits:${email}:ai`, amount);
-  }
 
   const id = `${Date.now()}:${randomUUID()}`;
   const senderProfile = await getProfile(senderAccountId);

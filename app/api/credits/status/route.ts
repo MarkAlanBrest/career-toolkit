@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cleanAccountId } from '@/lib/stripe';
 import { getCreditTransfers, getPersonalPool, listTeamMembers } from '@/lib/teamCredits';
 
 export const dynamic = 'force-dynamic';
@@ -9,12 +10,6 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-function cleanAccountId(value: unknown) {
-  const accountId = String(value || '').trim();
-  if (!/^[a-zA-Z0-9:_-]{8,80}$/.test(accountId)) throw new Error('Could not identify this browser for AI credits.');
-  return accountId;
-}
-
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
@@ -22,6 +17,7 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
   try {
     const accountId = cleanAccountId(request.nextUrl.searchParams.get('accountId'));
+    if (!accountId) throw new Error('Could not identify this browser for AI credits.');
     const [personal, teachers, transfers] = await Promise.all([
       getPersonalPool(accountId),
       listTeamMembers(accountId),

@@ -18,6 +18,7 @@ export function isValidPackKey(k: unknown): k is PackKey {
 
 function cleanAccountId(value: unknown): string | null {
   const id = String(value || '').trim();
-  return /^[a-zA-Z0-9:_-]{8,80}$/.test(id) ? id : null;
+  // Accepts both legacy UUIDs and Canvas-format IDs: {userId}@{domain}
+  return /^[a-zA-Z0-9:@._-]{8,120}$/.test(id) ? id : null;
 }
 export { cleanAccountId };

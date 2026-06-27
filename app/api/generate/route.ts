@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/billing';
 import type { AutoReloadSettings } from '@/app/api/credits/auto-reload/route';
-import { stripe } from '@/lib/stripe';
+import { stripe, cleanAccountId } from '@/lib/stripe';
 import { recordUsage } from '@/lib/teamCredits';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -15,11 +15,6 @@ const CREDIT_COSTS: Record<AllowedModel, Record<string, number>> = {
   'claude-haiku-4-5': { teaching: 1, creation: 3 },
   'claude-sonnet-4-6': { teaching: 4, creation: 10 },
 };
-
-function cleanAccountId(value: unknown): string | null {
-  const id = String(value || '').trim();
-  return /^[a-zA-Z0-9:_-]{8,80}$/.test(id) ? id : null;
-}
 
 async function deductCredits(params: {
   accountId: string;
