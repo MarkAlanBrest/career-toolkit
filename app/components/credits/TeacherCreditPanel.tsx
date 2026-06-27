@@ -64,6 +64,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
     try {
       const res = await fetch(`/api/credits/search?email=${encodeURIComponent(email)}&accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`);
       const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Search failed.');
       setSearchResult(result);
     } catch {
       setMessage('Search failed. Check your connection.');
@@ -77,12 +78,16 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
     setSending(true);
     setMessage('');
     try {
-      // Always ensure teacher is in the team before sending (SADD is idempotent)
-      await fetch('/api/credits/team', {
+      // Always ensure teacher is in the list before sending. The server only allows
+      // registered teachers in the same Canvas organization.
+      const addRes = await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountId, accountToken, action: 'add', email }),
       });
+      const addResult = await addRes.json();
+      if (!addRes.ok) throw new Error(addResult.error || 'Could not add this teacher.');
+
       const res = await fetch('/api/credits/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,7 +161,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
       <div style={{ display: 'grid', gap: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: ink }}>Find a teacher</div>
         <div style={{ fontSize: 12, color: '#526A79', lineHeight: 1.55 }}>
-          Enter their email to check if they have Canvas Enhancer installed, then send credits directly.
+          Enter their email to find registered teachers in your Canvas organization.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
           <input
@@ -194,7 +199,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
                       <div style={{ fontSize: 12, color: '#526A79' }}>{searchResult.teacher.email}</div>
                     )}
                     <div style={{ fontSize: 12, color: '#526A79' }}>
-                      Canvas Enhancer installed - {searchResult.teacher.balance.toLocaleString()} credits on account
+                      Registered in your organization - {searchResult.teacher.balance.toLocaleString()} credits on account
                     </div>
                   </div>
                 </div>
@@ -223,27 +228,10 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: ink }}>Teacher not found</div>
                     <div style={{ fontSize: 12, color: '#526A79', lineHeight: 1.55, marginTop: 3 }}>
-                      <strong>{searchedEmail}</strong> has not set up Canvas Enhancer yet.
-                      You can still send credits. They will be held and applied automatically when the teacher installs Canvas Enhancer and adds this email.
+                      <strong>{searchedEmail}</strong> is not registered in your Canvas organization yet.
+                      Ask the teacher to open Canvas Enhancer Settings and use Register to Receive Credits.
                     </div>
                   </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
-                  <input
-                    type="number" min="1" step="1"
-                    value={sendAmount}
-                    onChange={e => setSendAmount(e.target.value)}
-                    placeholder="Credits to hold for them"
-                    style={inputStyle}
-                  />
-                  <button
-                    type="button"
-                    disabled={sending || !creditAmount}
-                    onClick={() => handleSend(searchedEmail, creditAmount)}
-                    style={{ ...blueButton, background: '#526A79' }}
-                  >
-                    {sending ? 'Sending...' : 'Send Anyway'}
-                  </button>
                 </div>
               </>
             )}
@@ -264,7 +252,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
                     <div style={{ fontSize: 13, fontWeight: 600, color: ink }}>{teacher.name || teacher.email}</div>
                     {teacher.name && <div style={{ fontSize: 12, color: '#526A79' }}>{teacher.email}</div>}
                     <div style={{ fontSize: 11, color: teacher.accountId ? green : '#526A79', marginTop: 2 }}>
-                      {teacher.accountId ? 'Installed' : 'Not installed yet - credits will wait'}
+                      {teacher.accountId ? 'Registered' : 'Not registered - remove and ask them to register'}
                     </div>
                   </div>
                   <button type="button" disabled={existingLoading} onClick={() => handleExistingAction('remove', teacher.email)} style={removeButton}>
@@ -281,7 +269,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
                   />
                   <button
                     type="button"
-                    disabled={existingLoading || !Math.floor(Number(amount || 0))}
+                    disabled={existingLoading || !teacher.accountId || !Math.floor(Number(amount || 0))}
                     onClick={() => handleExistingAction('send', teacher.email, Math.floor(Number(amount || 0)))}
                     style={greenButton}
                   >
@@ -302,7 +290,7 @@ export function TeacherCreditPanel({ accountId, accountToken = '', standalone = 
             <div key={t.id || i} style={{ fontSize: 12, color: '#526A79', lineHeight: 1.5, padding: '6px 0', borderTop: `1px solid ${line}` }}>
               Sent <strong>{Number(t.credits || 0).toLocaleString()}</strong> credits to {t.recipientEmail || 'teacher'}
               {' '}<span style={{ color: t.status === 'delivered' ? green : '#526A79' }}>
-                ({t.status === 'delivered' ? 'delivered' : 'pending - will apply on install'})
+                ({t.status === 'delivered' ? 'delivered' : 'not delivered'})
               </span>
             </div>
           ))}

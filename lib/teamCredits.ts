@@ -31,14 +31,6 @@ export async function saveProfile(accountId: string, profile: TeacherProfile & {
   await redis.set(`ce:profile:${accountId}`, { ...profile, email });
   if (oldEmail && oldEmail !== email) await redis.del(`ce:email-account:${oldEmail}`);
   await redis.set(`ce:email-account:${email}`, accountId);
-
-  // Atomic: read pending, delete pending key, credit balance - all in one script.
-  // Prevents double-credit if the server crashes between incrby and del.
-  const pendingScript = `local p=tonumber(redis.call('GET',KEYS[1]) or '0') if p>0 then redis.call('DEL',KEYS[1]) redis.call('INCRBY',KEYS[2],p) end return p`;
-  await redis.eval(pendingScript, [
-    `ce:pending-credits:${email}:ai`,
-    `ce:credits:${accountId}:ai`,
-  ], []);
 }
 
 export async function getProfile(accountId: string): Promise<TeacherProfile> {
@@ -67,6 +59,31 @@ export async function listTeamMembers(ownerAccountId: string): Promise<ContactTe
   }));
 }
 
+function accountDomain(accountId: string): string {
+  const atIdx = accountId.indexOf('@');
+  return atIdx > 0 ? accountId.slice(atIdx + 1).toLowerCase() : '';
+}
+
+export async function assertRegisteredTeacherInOrganization(senderAccountId: string, email: string) {
+  const recipientAccountId = await redis.get<string>(`ce:email-account:${email}`);
+  if (!recipientAccountId) {
+    throw new Error('This teacher must register in Canvas Enhancer before you can send credits.');
+  }
+
+  const profile = await getProfile(recipientAccountId);
+  if (normalizeEmail(profile.email) !== email) {
+    throw new Error('This teacher must register in Canvas Enhancer before you can send credits.');
+  }
+
+  const senderDomain = accountDomain(senderAccountId);
+  const recipientDomain = String(profile.canvasDomain || accountDomain(recipientAccountId)).toLowerCase();
+  if (!senderDomain || !recipientDomain || senderDomain !== recipientDomain) {
+    throw new Error('You can only send credits to registered teachers in your Canvas organization.');
+  }
+
+  return { recipientAccountId, profile };
+}
+
 export async function sendCreditsToTeacher(senderAccountId: string, email: string, amount: number) {
   const contactEmails = await redis.smembers<string[]>(`ce:team:${senderAccountId}:member-emails`);
   if (!(contactEmails || []).includes(email)) throw new Error('Add this teacher before sending credits.');
@@ -74,17 +91,16 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
   // Look up recipient before the Lua script so we can include the credit key atomically.
   // This way the deduct and credit happen in one script - no crash window where sender
   // loses credits but recipient never receives them.
-  const [senderProfile, recipientAccountId] = await Promise.all([
+  const [senderProfile, recipient] = await Promise.all([
     getProfile(senderAccountId),
-    redis.get<string>(`ce:email-account:${email}`),
+    assertRegisteredTeacherInOrganization(senderAccountId, email),
   ]);
+  const recipientAccountId = recipient.recipientAccountId;
   if (recipientAccountId === senderAccountId || normalizeEmail(senderProfile.email) === email) {
     throw new Error('You cannot send credits to yourself.');
   }
 
-  const creditKey = recipientAccountId
-    ? `ce:credits:${recipientAccountId}:ai`
-    : `ce:pending-credits:${email}:ai`;
+  const creditKey = `ce:credits:${recipientAccountId}:ai`;
 
   const balanceKey = `ce:credits:${senderAccountId}:ai`;
   const sentKey = `ce:credits-sent:${senderAccountId}:ai`;
@@ -98,16 +114,16 @@ export async function sendCreditsToTeacher(senderAccountId: string, email: strin
     senderAccountId,
     senderName: senderProfile.name || '',
     senderEmail: senderProfile.email || '',
-    recipientAccountId: recipientAccountId || '',
+    recipientAccountId,
     recipientEmail: email,
     credits: amount,
     createdAt: new Date().toISOString(),
-    status: recipientAccountId ? 'delivered' : 'pending',
+    status: 'delivered',
   });
   await redis.lpush(`ce:credit-transfers:${senderAccountId}`, id);
   await redis.ltrim(`ce:credit-transfers:${senderAccountId}`, 0, 99);
 
-  return { remainingBalance: result[0], recipientAccountId: recipientAccountId || null };
+  return { remainingBalance: result[0], recipientAccountId };
 }
 
 export async function getCreditTransfers(accountId: string, limit = 50) {

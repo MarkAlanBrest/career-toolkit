@@ -3,6 +3,7 @@ import { unauthorizedCreditAccount, validateAccountToken } from '@/lib/accountAu
 import { cleanAccountId } from '@/lib/stripe';
 import {
   addTeamMember,
+  assertRegisteredTeacherInOrganization,
   getCreditTransfers,
   getPersonalPool,
   isValidEmail,
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
     if (!isValidEmail(email)) return NextResponse.json({ error: 'Enter a valid teacher email.' }, { status: 400, headers: CORS });
 
     if (action === 'add') {
+      await assertRegisteredTeacherInOrganization(accountId, email);
       await addTeamMember(accountId, email);
     } else if (action === 'remove') {
       await removeTeamMember(accountId, email);
