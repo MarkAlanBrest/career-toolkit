@@ -774,7 +774,7 @@
     return el('hr', `border:none;border-top:1px solid ${DS.border};margin:4px 0;`);
   }
 
-  const CE_SITE = 'https://canvasenhancer.com';
+  const CE_SITE = 'https://career-toolkit-ruby.vercel.app';
   let paymentMessageHandler = null;
 
   function openManageCredits() {

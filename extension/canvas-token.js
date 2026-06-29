@@ -58,7 +58,7 @@
         <input class="ce-token-input" type="password" autocomplete="off" placeholder="Paste your Canvas access token" aria-label="Canvas API access token">
         <button class="ce-token-show" type="button">Show</button>
       </div>
-      <label class="ce-token-label" style="margin-top:10px;">School email <span style="font-weight:400;color:#6B7280;">(optional — lets your admin send you AI credits)</span></label>
+      <label class="ce-token-label" style="margin-top:10px;">School email</label>
       <div class="ce-token-input-row">
         <input class="ce-token-input ce-token-email" type="email" autocomplete="off" placeholder="jane@school.edu" aria-label="School email">
       </div>
