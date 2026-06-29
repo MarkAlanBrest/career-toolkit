@@ -1111,6 +1111,19 @@
       return d;
     }
 
+    // ── REGISTRATION STATUS (shared between Teacher Profile setup and AI Credits) ──
+    const regStatus = el('div', `font-size:12px;padding:6px 10px;border-radius:5px;`);
+    function paintRegStatus(profile) {
+      if (profile.email) {
+        regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;`;
+        regStatus.textContent = `✓ Registered as ${profile.email}`;
+      } else {
+        regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#FEF9C3;border:1px solid #FDE047;color:#854D0E;`;
+        regStatus.textContent = 'Not registered — your admin cannot send you credits yet.';
+      }
+    }
+    paintRegStatus(serverProfile);
+
     // ── COLUMN 1: TEACHER PROFILE ──
     const col1 = card('Teacher Profile', DS.blue);
 
@@ -1139,7 +1152,35 @@
     col1.body.appendChild(saveBtn);
     col1.body.appendChild(saveMsg);
 
-    if (globalThis.CECanvasToken) col1.body.appendChild(globalThis.CECanvasToken.createControl());
+    if (globalThis.CECanvasToken) {
+      col1.body.appendChild(globalThis.CECanvasToken.createControl({
+        email: serverProfile.email || '',
+        onSetup: async (token, email) => {
+          if (!email) return;
+          if (!accountId) throw new Error('Could not identify this device. Try reopening Settings.');
+          const name = nameIn.value.trim() || serverProfile.name || stored.ce_teacher_name || stored.ces_teacher_name || '';
+          if (!name) throw new Error('Enter your toolbar display name above first.');
+          const res = await fetch(`${CE_SITE}/api/credits/profile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              accountId,
+              accountToken,
+              name,
+              email,
+              canvasUserId: String(window.ENV?.current_user_id || ''),
+              canvasDomain: window.location.hostname,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Registration failed.');
+          serverProfile = { name, email };
+          chrome.storage.local.set({ ce_teacher_name: name });
+          nameIn.value = name;
+          paintRegStatus(serverProfile);
+        },
+      }));
+    }
     grid.appendChild(col1.wrap);
 
     // ── COLUMN 2: AI CREDITS ──
@@ -1156,83 +1197,9 @@
     manageBtn.addEventListener('click', openManageCredits);
     col2.body.appendChild(manageBtn);
 
-    // ── REGISTER TO RECEIVE CREDITS ──
     col2.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
-
-    const regTitle = el('div', `font-size:13px;font-weight:700;color:${DS.text};`);
-    regTitle.textContent = 'Register to Receive Credits';
-    col2.body.appendChild(regTitle);
-
-    const regStatus = el('div', `font-size:12px;padding:6px 10px;border-radius:5px;`);
-    if (serverProfile.email) {
-      regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;`;
-      regStatus.textContent = `✓ Registered as ${serverProfile.email}`;
-    } else {
-      regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#FEF9C3;border:1px solid #FDE047;color:#854D0E;`;
-      regStatus.textContent = 'Not registered — your admin cannot send you credits yet.';
-    }
     col2.body.appendChild(regStatus);
-
-    col2.body.appendChild(hint('Enter your name and school email once. Your admin or a colleague can then search for you by email and send AI credits directly to your account — even if you have never purchased any yourself.'));
-
-    const regNameWrap = el('div', '');
-    regNameWrap.appendChild(fieldLabel('Full Name'));
-    const regNameIn = input('ce-s-regname', 'text', 'e.g. Jane Smith', serverProfile.name || stored.ce_teacher_name || stored.ces_teacher_name || '');
-    regNameIn.addEventListener('focus', () => regNameIn.style.borderColor = DS.blue);
-    regNameIn.addEventListener('blur',  () => regNameIn.style.borderColor = DS.border);
-    regNameWrap.appendChild(regNameIn);
-    col2.body.appendChild(regNameWrap);
-
-    const regEmailWrap = el('div', '');
-    regEmailWrap.appendChild(fieldLabel('School Email'));
-    const regEmailIn = input('ce-s-regemail', 'email', 'e.g. jane@school.edu', serverProfile.email || '');
-    regEmailIn.addEventListener('focus', () => regEmailIn.style.borderColor = DS.blue);
-    regEmailIn.addEventListener('blur',  () => regEmailIn.style.borderColor = DS.border);
-    regEmailWrap.appendChild(regEmailIn);
-    col2.body.appendChild(regEmailWrap);
-
-    const regMsg = el('div', `font-size:12px;min-height:16px;`);
-    const regBtn = btn(serverProfile.email ? 'Update Registration' : 'Register Now', `background:${DS.green};color:#fff;`);
-    regBtn.addEventListener('click', async () => {
-      const name = regNameIn.value.trim();
-      const email = regEmailIn.value.trim().toLowerCase();
-      if (!name) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter your full name.'; return; }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Enter a valid school email address.'; return; }
-      if (!accountId) { regMsg.style.color = '#DC2626'; regMsg.textContent = 'Could not identify this device. Try reopening Settings.'; return; }
-      regBtn.disabled = true;
-      regMsg.style.color = DS.muted;
-      regMsg.textContent = 'Registering…';
-      try {
-        const res = await fetch(`${CE_SITE}/api/credits/profile`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            accountId,
-            accountToken,
-            name,
-            email,
-            canvasUserId: String(window.ENV?.current_user_id || ''),
-            canvasDomain: window.location.hostname,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed.');
-        regMsg.style.color = DS.green;
-        regMsg.textContent = '✓ Registered! Your admin or colleagues can now find you and send you credits.';
-        regStatus.style.cssText = `font-size:12px;padding:6px 10px;border-radius:5px;background:#F0FDF4;border:1px solid #86EFAC;color:#166534;`;
-        regStatus.textContent = `✓ Registered as ${email}`;
-        regBtn.textContent = 'Update Registration';
-        chrome.storage.local.set({ ce_teacher_name: name });
-        nameIn.value = name;
-      } catch (err) {
-        regMsg.style.color = '#DC2626';
-        regMsg.textContent = err.message || 'Registration failed. Check your connection and try again.';
-      } finally {
-        regBtn.disabled = false;
-      }
-    });
-    col2.body.appendChild(regBtn);
-    col2.body.appendChild(regMsg);
+    col2.body.appendChild(hint('Add your school email under Canvas API Token in Teacher Profile to let your admin send you AI credits directly.'));
     grid.appendChild(col2.wrap);
 
     // ── COLUMN 3: DATA & ABOUT ──

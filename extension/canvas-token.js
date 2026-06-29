@@ -57,14 +57,18 @@
       <div class="ce-token-input-row">
         <input class="ce-token-input" type="password" autocomplete="off" placeholder="Paste your Canvas access token" aria-label="Canvas API access token">
         <button class="ce-token-show" type="button">Show</button>
-        <button class="ce-token-save" type="button">Save Token</button>
       </div>
+      <label class="ce-token-label" style="margin-top:10px;">School email <span style="font-weight:400;color:#6B7280;">(optional — lets your admin send you AI credits)</span></label>
+      <div class="ce-token-input-row">
+        <input class="ce-token-input ce-token-email" type="email" autocomplete="off" placeholder="jane@school.edu" aria-label="School email">
+      </div>
+      <button class="ce-token-save" type="button" style="margin-top:10px;width:100%;">Setup</button>
       <div class="ce-token-status" aria-live="polite"></div>
       <ol class="ce-token-steps">
         <li>In Canvas, select <strong>Account</strong> in the global navigation, then <strong>Settings</strong>.</li>
         <li>Scroll to <strong>Approved Integrations</strong> and select <strong>+ New Access Token</strong>.</li>
         <li>Enter a purpose such as “Canvas Enhancer.” Add an expiration date if your school requires one, then select <strong>Generate Token</strong>.</li>
-        <li>Copy the token immediately—Canvas may show it only once—paste it above, and select <strong>Save Token</strong>.</li>
+        <li>Copy the token immediately—Canvas may show it only once—paste it above, add your school email if you'd like to receive credits from your admin, and select <strong>Setup</strong>.</li>
       </ol>
       <div class="ce-token-privacy">Treat this token like a password. It is stored only in this browser’s extension storage. If your school disables access tokens or you do not see “New Access Token,” contact your Canvas administrator.</div>
     `;
@@ -73,25 +77,51 @@
     const control = {
       element,
       input: element.querySelector('.ce-token-input'),
+      emailInput: element.querySelector('.ce-token-email'),
       alert: element.querySelector('.ce-token-alert'),
       status: element.querySelector('.ce-token-status'),
     };
     controls.add(control);
+    control.emailInput.value = options.email || '';
 
     element.querySelector('.ce-token-show').addEventListener('click', event => {
       const showing = control.input.type === 'text';
       control.input.type = showing ? 'password' : 'text';
       event.currentTarget.textContent = showing ? 'Show' : 'Hide';
     });
-    element.querySelector('.ce-token-save').addEventListener('click', () => {
+
+    const setupBtn = element.querySelector('.ce-token-save');
+    setupBtn.addEventListener('click', async () => {
       const token = control.input.value.trim();
-      chrome.storage.local.set({ [STORAGE_KEY]: token }, () => {
-        refreshAll(token);
-        control.status.style.color = token ? '#127A1B' : '#991B1B';
-        control.status.textContent = token ? '✓ Token saved and shared with every toolbar.' : 'Token cleared. Canvas data tools are not configured.';
-        setTimeout(() => { control.status.textContent = ''; }, 4000);
-      });
+      const email = control.emailInput.value.trim().toLowerCase();
+      if (!token) {
+        control.status.style.color = '#991B1B';
+        control.status.textContent = 'Paste your Canvas access token first.';
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        control.status.style.color = '#991B1B';
+        control.status.textContent = 'Enter a valid email address, or leave it blank.';
+        return;
+      }
+      setupBtn.disabled = true;
+      control.status.style.color = '#6B7280';
+      control.status.textContent = 'Saving…';
+      await new Promise(resolve => chrome.storage.local.set({ [STORAGE_KEY]: token }, resolve));
+      refreshAll(token);
+      try {
+        if (typeof options.onSetup === 'function') await options.onSetup(token, email);
+        control.status.style.color = '#127A1B';
+        control.status.textContent = email ? `✓ Token saved and registered as ${email}.` : '✓ Token saved.';
+      } catch (err) {
+        control.status.style.color = '#991B1B';
+        control.status.textContent = err?.message || 'Token saved, but registration failed.';
+      } finally {
+        setupBtn.disabled = false;
+        setTimeout(() => { control.status.textContent = ''; }, 5000);
+      }
     });
+
     readToken().then(token => updateControl(control, token, false));
     return element;
   }
