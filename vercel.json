@@ -1,6 +1,8 @@
 {
   "functions": {
     "app/api/generate/route.ts": { "maxDuration": 60 },
-    "app/api/parse-file/route.ts": { "maxDuration": 30 }
+    "app/api/parse-file/route.ts": { "maxDuration": 30 },
+    "app/api/build-a-class/submit/route.ts": { "maxDuration": 30 },
+    "app/api/build-a-class/upload/route.ts": { "maxDuration": 30 }
   }
 }

@@ -1273,10 +1273,32 @@
     const col3 = card('Data & About', DS.muted, 'backup');
 
     if (globalThis.CEDataBackup) {
-      col3.body.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
+      let backupOpen = false;
+      const backupToggle = el('button', `
+        display:flex;align-items:center;justify-content:space-between;
+        width:100%;padding:0;border:none;background:none;cursor:pointer;
+        font-size:13px;font-weight:600;color:${DS.text};font-family:${DS.font};
+        text-align:left;
+      `, { type: 'button' });
+      const backupToggleLabel = el('span', ''); backupToggleLabel.textContent = 'Backup & Restore';
+      const backupChevron = el('span', `font-size:11px;color:${DS.muted};transition:transform .15s;`); backupChevron.textContent = '▸';
+      backupToggle.append(backupToggleLabel, backupChevron);
+
+      const backupBody = el('div', `display:none;display:flex;flex-direction:column;gap:6px;`);
+      backupBody.style.display = 'none';
+      backupBody.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
       if (globalThis.CEDataBackup.createToolSection) {
-        col3.body.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
+        backupBody.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
       }
+
+      backupToggle.addEventListener('click', () => {
+        backupOpen = !backupOpen;
+        backupBody.style.display = backupOpen ? 'flex' : 'none';
+        backupChevron.style.transform = backupOpen ? 'rotate(90deg)' : '';
+      });
+
+      col3.body.appendChild(backupToggle);
+      col3.body.appendChild(backupBody);
       col3.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
     }
 
