@@ -75,64 +75,74 @@
     return count;
   }
 
+  function makeRow(accent) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;background:#F8FAFC;box-sizing:border-box;';
+    return row;
+  }
+
+  function makeBtnStyle(accent, primary) {
+    return primary
+      ? `padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:0;background:${accent};color:#fff;`
+      : 'padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;border:1px solid #CBD5E1;background:#fff;color:#334155;';
+  }
+
   function createSection(options = {}) {
     const accent = options.accent || '#0770B8';
-    const section = document.createElement('section');
-    section.style.cssText = 'display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #E2E8F0;border-radius:9px;background:#F8FAFC;box-sizing:border-box;';
 
-    const heading = document.createElement('div');
-    heading.innerHTML = '<div style="font-size:13px;font-weight:750;color:#172A36;margin-bottom:3px;">Backup &amp; Restore</div><div style="font-size:11px;color:#64748B;line-height:1.45;">Save all Canvas Enhancer preferences, templates, criteria, schedules, notes, and other stored app data to one file.</div>';
+    const row = makeRow(accent);
+
+    const nameEl = document.createElement('span');
+    nameEl.style.cssText = 'font-size:13px;font-weight:600;color:#172A36;flex:1;min-width:0;';
+    nameEl.textContent = 'All Data';
 
     const sensitiveLabel = document.createElement('label');
-    sensitiveLabel.style.cssText = 'display:flex;align-items:flex-start;gap:7px;font-size:11px;color:#64748B;cursor:pointer;line-height:1.35;';
+    sensitiveLabel.style.cssText = 'display:flex;align-items:center;gap:4px;font-size:11px;color:#64748B;cursor:pointer;white-space:nowrap;';
     const sensitive = document.createElement('input');
-    sensitive.type = 'checkbox'; sensitive.style.cssText = `margin-top:1px;accent-color:${accent};`;
-    const sensitiveText = document.createElement('span');
-    sensitiveText.textContent = 'Include Canvas token and license key (keep the backup file private).';
+    sensitive.type = 'checkbox'; sensitive.style.cssText = `accent-color:${accent};`;
+    const sensitiveText = document.createElement('span'); sensitiveText.textContent = 'Incl. token';
     sensitiveLabel.append(sensitive, sensitiveText);
 
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
-    const buttonStyle = 'flex:1;min-width:130px;height:36px;padding:0 12px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;';
+    const status = document.createElement('span');
+    status.style.cssText = 'font-size:11px;color:#64748B;flex:1;min-width:0;text-align:center;';
+
     const backupBtn = document.createElement('button');
-    backupBtn.type = 'button'; backupBtn.textContent = '↓ Download Backup';
-    backupBtn.style.cssText = `${buttonStyle}border:0;background:${accent};color:#fff;`;
+    backupBtn.type = 'button'; backupBtn.textContent = '↓ Backup';
+    backupBtn.style.cssText = makeBtnStyle(accent, true);
+
     const restoreBtn = document.createElement('button');
-    restoreBtn.type = 'button'; restoreBtn.textContent = '↑ Restore Backup';
-    restoreBtn.style.cssText = `${buttonStyle}border:1px solid #CBD5E1;background:#fff;color:#334155;`;
+    restoreBtn.type = 'button'; restoreBtn.textContent = '↑ Restore';
+    restoreBtn.style.cssText = makeBtnStyle(accent, false);
+
     const fileInput = document.createElement('input');
     fileInput.type = 'file'; fileInput.accept = '.json,application/json'; fileInput.style.display = 'none';
-    const status = document.createElement('div');
-    status.style.cssText = 'min-height:15px;font-size:11px;color:#64748B;line-height:1.35;';
 
     backupBtn.addEventListener('click', async () => {
-      backupBtn.disabled = true; status.style.color = '#64748B'; status.textContent = 'Creating backup…';
+      backupBtn.disabled = true; status.style.color = '#64748B'; status.textContent = 'Saving…';
       try {
         const count = await downloadBackup(sensitive.checked);
-        status.style.color = '#15803D'; status.textContent = `✓ Backup downloaded (${count} saved items).`;
-      } catch (error) {
-        status.style.color = '#B91C1C'; status.textContent = error.message || 'Backup failed.';
-      } finally { backupBtn.disabled = false; }
+        status.style.color = '#15803D'; status.textContent = `✓ ${count} items backed up`;
+      } catch (err) {
+        status.style.color = '#B91C1C'; status.textContent = err.message || 'Backup failed.';
+      } finally { backupBtn.disabled = false; setTimeout(() => { status.textContent = ''; }, 3500); }
     });
 
     restoreBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', async () => {
-      const file = fileInput.files && fileInput.files[0];
-      fileInput.value = '';
+      const file = fileInput.files && fileInput.files[0]; fileInput.value = '';
       if (!file) return;
       if (!confirm('Restore this backup? Matching saved settings and app data will be overwritten.')) return;
-      restoreBtn.disabled = true; status.style.color = '#64748B'; status.textContent = 'Restoring backup…';
+      restoreBtn.disabled = true; status.style.color = '#64748B'; status.textContent = 'Restoring…';
       try {
         const count = await restoreFile(file);
-        status.style.color = '#15803D'; status.textContent = `✓ Restored ${count} saved items. Reload Canvas to apply everything.`;
-      } catch (error) {
-        status.style.color = '#B91C1C'; status.textContent = error.message || 'Restore failed.';
-      } finally { restoreBtn.disabled = false; }
+        status.style.color = '#15803D'; status.textContent = `✓ Restored. Reload Canvas to apply.`;
+      } catch (err) {
+        status.style.color = '#B91C1C'; status.textContent = err.message || 'Restore failed.';
+      } finally { restoreBtn.disabled = false; setTimeout(() => { status.textContent = ''; }, 4000); }
     });
 
-    actions.append(backupBtn, restoreBtn);
-    section.append(heading, sensitiveLabel, actions, fileInput, status);
-    return section;
+    row.append(nameEl, sensitiveLabel, status, backupBtn, restoreBtn, fileInput);
+    return row;
   }
 
   const TOOLS = [
@@ -176,13 +186,8 @@
     const section = document.createElement('div');
     section.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
-    const heading = document.createElement('div');
-    heading.innerHTML = `<div style="font-size:15px;font-weight:700;color:#172A36;margin-bottom:3px;">Tool Backups</div><div style="font-size:12px;color:#64748B;line-height:1.45;">Back up or restore saved data for individual tools — templates, schedules, criteria, and settings.</div>`;
-    section.appendChild(heading);
-
     for (const tool of TOOLS) {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;background:#F8FAFC;box-sizing:border-box;';
+      const row = makeRow(accent);
 
       const name = document.createElement('span');
       name.style.cssText = 'font-size:13px;font-weight:600;color:#172A36;flex:1;min-width:0;';
@@ -191,15 +196,13 @@
       const status = document.createElement('span');
       status.style.cssText = 'font-size:11px;color:#64748B;flex:1;min-width:0;text-align:center;';
 
-      const btnStyle = 'padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;';
-
       const backupBtn = document.createElement('button');
       backupBtn.type = 'button'; backupBtn.textContent = '↓ Backup';
-      backupBtn.style.cssText = `${btnStyle}border:0;background:${accent};color:#fff;`;
+      backupBtn.style.cssText = makeBtnStyle(accent, true);
 
       const restoreBtn = document.createElement('button');
       restoreBtn.type = 'button'; restoreBtn.textContent = '↑ Restore';
-      restoreBtn.style.cssText = `${btnStyle}border:1px solid #CBD5E1;background:#fff;color:#334155;`;
+      restoreBtn.style.cssText = makeBtnStyle(accent, false);
 
       const fileInput = document.createElement('input');
       fileInput.type = 'file'; fileInput.accept = '.json,application/json'; fileInput.style.display = 'none';

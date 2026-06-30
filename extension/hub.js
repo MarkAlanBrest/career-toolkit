@@ -76,6 +76,92 @@
 
   // ── HELP CONTENT ───────────────────────────────────────────────────────────
   const HELP_CONTENT = {
+    settings: {
+      title: 'Settings — Setup Guide',
+      html: `
+        <div class="ce-help-section">
+          <div class="ce-help-sh">🔑 Canvas API Token</div>
+          <ol>
+            <li>In Canvas, select <strong>Account</strong> in the global navigation, then <strong>Settings</strong>.</li>
+            <li>Scroll to <strong>Approved Integrations</strong> and select <strong>+ New Access Token</strong>.</li>
+            <li>Enter a purpose such as "Canvas Enhancer." Add an expiration date if your school requires one, then select <strong>Generate Token</strong>.</li>
+            <li>Copy the token immediately — Canvas may show it only once — and paste it into the Access token field.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Treat this token like a password. It is stored only in this browser's extension storage and is never sent anywhere except directly to Canvas.</div>
+          <div class="ce-help-note">If you do not see <strong>+ New Access Token</strong>, your school may have disabled personal access tokens. Contact your Canvas administrator.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">👤 Full Name &amp; School Email</div>
+          <ol>
+            <li>Enter your full name — it appears in AI grading tools and reports on your screen.</li>
+            <li>Enter your school email so your admin or colleagues can find you and send AI credits directly to your account.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Click <strong>Setup</strong> once to save your token, name, and email together.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">💳 AI Credits</div>
+          <ol>
+            <li>AI Credits power AI-assisted grading, page creation, and quiz creation. 1 credit = $0.01.</li>
+            <li>Buy a prepaid pack from <strong>View Balance &amp; Buy Credits</strong> — credits never expire.</li>
+            <li>School admins can buy credits in bulk and send them directly to teachers by email.</li>
+          </ol>
+        </div>
+      `,
+    },
+    'ai-credits': {
+      title: 'AI Credits — How It Works',
+      html: `
+        <div class="ce-help-section">
+          <div class="ce-help-sh">💳 Buying Credits</div>
+          <ol>
+            <li>Click <strong>View Balance &amp; Buy Credits</strong> to see your current balance and purchase a prepaid pack.</li>
+            <li>Choose a pack — $10 for 1,000 credits, $20 for 2,000, or $50 for 5,000. Credits never expire.</li>
+            <li>Payment is handled securely inside the extension. You never leave Canvas.</li>
+          </ol>
+          <div class="ce-help-tip">💡 1 credit = $0.01. Most AI actions cost between 1 and 10 credits depending on the tool and model used.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">🏫 Admin: Sending Credits to Teachers</div>
+          <ol>
+            <li>Click <strong>Manage Teachers &amp; Send Credits</strong> to search for teachers by name or school email.</li>
+            <li>Buy a bulk pack and send credits directly to any registered teacher's account.</li>
+            <li>Teachers must have their school email registered (set up in Teacher Profile) to receive credits this way.</li>
+          </ol>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">📊 Registration Status</div>
+          <p>The status badge shows whether your school email is registered. A registered account lets your admin or colleagues send you AI credits directly — even if you have never purchased any yourself.</p>
+          <p>To register, fill in your name and school email in the <strong>Teacher Profile</strong> card and click <strong>Setup</strong>.</p>
+        </div>
+      `,
+    },
+    backup: {
+      title: 'Data & Backup — How It Works',
+      html: `
+        <div class="ce-help-section">
+          <div class="ce-help-sh">💾 Export (Backup)</div>
+          <ol>
+            <li>Click <strong>Export</strong> to download a backup file containing all your Canvas Enhancer data.</li>
+            <li>The backup includes your saved templates, schedules, AI criteria, and settings.</li>
+            <li>Store the file somewhere safe — on your desktop, Google Drive, or school network.</li>
+          </ol>
+          <div class="ce-help-tip">💡 Always export a backup before switching computers, reinstalling the extension, or uninstalling.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">📂 Import (Restore)</div>
+          <ol>
+            <li>Click <strong>Import</strong> and select your previously exported backup file.</li>
+            <li>Your templates, schedules, and settings will be restored immediately.</li>
+          </ol>
+          <div class="ce-help-note">Importing overwrites your current data. Export first if you want to keep what you have.</div>
+        </div>
+        <div class="ce-help-section">
+          <div class="ce-help-sh">🔄 Updates &amp; Uninstall</div>
+          <p><strong>Check for Updates</strong> — manually checks the extension store for a newer version. Updates usually apply automatically.</p>
+          <p><strong>Uninstall</strong> — removes Canvas Enhancer from your browser. Export a backup first to preserve your data.</p>
+        </div>
+      `,
+    },
     dashboard: {
       title: 'Canvas Enhancer — Overview',
       html: `
@@ -600,7 +686,11 @@
   settingsMClose.addEventListener('mouseenter', () => { settingsMClose.style.background = 'rgba(255,255,255,0.15)'; settingsMClose.style.color = '#fff'; });
   settingsMClose.addEventListener('mouseleave', () => { settingsMClose.style.background = ''; settingsMClose.style.color = 'rgba(255,255,255,0.65)'; });
   settingsMClose.addEventListener('click', () => { settingsModal.style.display = 'none'; setActive(null); });
-  settingsMHdr.append(settingsMTitle, settingsMClose);
+  const settingsMHelp = el('button', `height:28px;padding:0 12px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);background:none;color:rgba(255,255,255,0.8);font-size:12px;font-weight:700;cursor:pointer;font-family:${DS.font};transition:background .12s,color .12s;`, { type: 'button', textContent: '? Help' });
+  settingsMHelp.addEventListener('mouseenter', () => { settingsMHelp.style.background = 'rgba(255,255,255,0.15)'; settingsMHelp.style.color = '#fff'; });
+  settingsMHelp.addEventListener('mouseleave', () => { settingsMHelp.style.background = ''; settingsMHelp.style.color = 'rgba(255,255,255,0.8)'; });
+  settingsMHelp.addEventListener('click', () => openHelp('settings'));
+  settingsMHdr.append(settingsMTitle, settingsMHelp, settingsMClose);
   const settingsMBody = el('div', `flex:1;min-height:0;overflow-y:auto;padding:28px 36px;display:flex;flex-direction:column;gap:0;`);
   settingsMBody.id = 'ce-settings-mbody';
   settingsBox.append(settingsMHdr, settingsMBody);
@@ -1072,27 +1162,35 @@
     const accountId = statusMsg?.accountId || '';
     const accountToken = statusMsg?.accountToken || '';
 
-    // Fetch any existing server profile (name/email already registered)
+    // Fetch server profile and validate Canvas token in parallel
     let serverProfile = { name: '', email: '' };
-    if (accountId) {
-      try {
-        const res = await fetch(`${CE_SITE}/api/credits/profile?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`);
-        const data = await res.json();
-        serverProfile = data.profile || {};
-      } catch (_) {}
-    }
+    let tokenValid = null;
+    await Promise.all([
+      accountId ? fetch(`${CE_SITE}/api/credits/profile?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`)
+        .then(r => r.json()).then(d => { serverProfile = d.profile || {}; }).catch(() => {}) : Promise.resolve(),
+      stored.ce_canvas_token ? fetch(`${window.location.origin}/api/v1/users/self/profile`, {
+        headers: { Authorization: `Bearer ${stored.ce_canvas_token}` }, credentials: 'same-origin',
+      }).then(r => { tokenValid = r.ok; }).catch(() => {}) : Promise.resolve(),
+    ]);
     if (renderVersion !== settingsRenderVersion) return;
 
     const grid = el('div', `display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start;`);
 
-    function card(title, accentColor) {
+    function card(title, accentColor, helpKey) {
       const wrap = el('div', `border:1px solid ${DS.border};border-radius:8px;overflow:hidden;background:#fff;`);
       const head = el('div', `padding:14px 16px 12px;border-bottom:1px solid ${DS.border};`);
       const accent = el('div', `width:32px;height:3px;border-radius:2px;background:${accentColor};margin-bottom:8px;`);
+      const titleRow = el('div', `display:flex;align-items:center;justify-content:space-between;`);
       const titleEl = el('div', `font-size:14px;font-weight:700;color:${DS.text};`);
       titleEl.textContent = title;
+      titleRow.appendChild(titleEl);
+      if (helpKey) {
+        const helpBtn = el('button', `border:none;background:none;color:${DS.blue};font-size:11px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px;font-family:${DS.font};`, { type: 'button', textContent: '? Help' });
+        helpBtn.addEventListener('click', () => openHelp(helpKey));
+        titleRow.appendChild(helpBtn);
+      }
       head.appendChild(accent);
-      head.appendChild(titleEl);
+      head.appendChild(titleRow);
       const body = el('div', `padding:16px;display:flex;flex-direction:column;gap:12px;`);
       wrap.appendChild(head);
       wrap.appendChild(body);
@@ -1127,39 +1225,13 @@
     // ── COLUMN 1: TEACHER PROFILE ──
     const col1 = card('Teacher Profile', DS.blue);
 
-    // Display name (toolbar only)
-    const nameWrap = el('div', '');
-    nameWrap.appendChild(fieldLabel('Toolbar Display Name'));
-    const nameHint = hint('This name appears in AI grading tools on your screen only.');
-    col1.body.appendChild(nameHint);
-    const nameIn = input('ce-s-name', 'text', 'e.g. Jane Smith', stored.ce_teacher_name || stored.ces_teacher_name || '');
-    nameIn.addEventListener('focus', () => nameIn.style.borderColor = DS.blue);
-    nameIn.addEventListener('blur',  () => nameIn.style.borderColor = DS.border);
-    nameWrap.appendChild(nameIn);
-    col1.body.appendChild(nameWrap);
-
-    const saveMsg = el('div', `font-size:12px;color:${DS.green};min-height:16px;`);
-    const saveBtn = btn('Save Name', `background:${DS.blue};color:#fff;`, 'ce-s-save');
-    saveBtn.addEventListener('click', () => {
-      saveBtn.disabled = true;
-      chrome.storage.local.set({ ce_teacher_name: nameIn.value.trim() }, () => {
-        saveBtn.disabled = false;
-        saveMsg.style.color = DS.green;
-        saveMsg.textContent = '✓ Saved';
-        setTimeout(() => { saveMsg.textContent = ''; }, 2000);
-      });
-    });
-    col1.body.appendChild(saveBtn);
-    col1.body.appendChild(saveMsg);
-
     if (globalThis.CECanvasToken) {
       col1.body.appendChild(globalThis.CECanvasToken.createControl({
+        name: serverProfile.name || stored.ce_teacher_name || stored.ces_teacher_name || '',
         email: serverProfile.email || '',
-        onSetup: async (token, email) => {
-          if (!email) return;
+        tokenValid,
+        onSetup: async (token, name, email) => {
           if (!accountId) throw new Error('Could not identify this device. Try reopening Settings.');
-          const name = nameIn.value.trim() || serverProfile.name || stored.ce_teacher_name || stored.ces_teacher_name || '';
-          if (!name) throw new Error('Enter your toolbar display name above first.');
           const res = await fetch(`${CE_SITE}/api/credits/profile`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1176,7 +1248,6 @@
           if (!res.ok) throw new Error(data.error || 'Registration failed.');
           serverProfile = { name, email };
           chrome.storage.local.set({ ce_teacher_name: name });
-          nameIn.value = name;
           paintRegStatus(serverProfile);
         },
       }));
@@ -1184,14 +1255,11 @@
     grid.appendChild(col1.wrap);
 
     // ── COLUMN 2: AI CREDITS ──
-    const col2 = card('AI Credits', DS.green);
-    col2.body.appendChild(hint('AI Credits power AI-assisted grading, page creation, and quiz creation. Buy prepaid packs — credits never expire. 1 credit = $0.01.'));
+    const col2 = card('AI Credits', DS.green, 'ai-credits');
 
     const buyBtn = btn('View Balance & Buy Credits', `background:${DS.blue};color:#fff;padding:10px;`);
     buyBtn.addEventListener('click', openAICredits);
     col2.body.appendChild(buyBtn);
-
-    col2.body.appendChild(hint('School admin? Buy credits in bulk and send them directly to teachers on your staff.'));
 
     const manageBtn = btn('Manage Teachers & Send Credits', `background:#fff;color:${DS.green};border:1px solid ${DS.green};padding:10px;`);
     manageBtn.addEventListener('click', openManageCredits);
@@ -1199,14 +1267,12 @@
 
     col2.body.appendChild(el('div', `border-top:1px solid ${DS.border};`));
     col2.body.appendChild(regStatus);
-    col2.body.appendChild(hint('Add your school email under Canvas API Token in Teacher Profile to let your admin send you AI credits directly.'));
     grid.appendChild(col2.wrap);
 
     // ── COLUMN 3: DATA & ABOUT ──
-    const col3 = card('Data & About', DS.muted);
+    const col3 = card('Data & About', DS.muted, 'backup');
 
     if (globalThis.CEDataBackup) {
-      col3.body.appendChild(hint('Export a backup before switching devices or uninstalling. Use Import to restore your templates, schedules, and settings.'));
       col3.body.appendChild(globalThis.CEDataBackup.createSection({ accent: DS.blue }));
       if (globalThis.CEDataBackup.createToolSection) {
         col3.body.appendChild(globalThis.CEDataBackup.createToolSection({ accent: DS.blue }));
