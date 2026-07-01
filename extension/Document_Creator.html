@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Document Creator</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #F0F4F8;
+  overflow: hidden;
+}
+
+/* ── TOPBAR ─────────────────────────────────────── */
+#topbar {
+  height: 40px;
+  background: #fff;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-shrink: 0;
+  z-index: 10;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1E293B;
+}
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.tb-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #CBD5E1;
+  background: #fff;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.tb-btn:hover { background: #F1F5F9; }
+.tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.tb-btn:disabled:hover { background: #fff; }
+.tb-divider { width: 1px; height: 20px; background: #E2E8F0; }
+
+/* ── LAYOUT ─────────────────────────────────────── */
+#layout { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ─────────────────────────────────────── */
+#sidebar {
+  width: 264px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 12px 16px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #94A3B8;
+  border-bottom: 1px solid #F1F5F9;
+  flex-shrink: 0;
+}
+
+/* Type list */
+#type-list { flex: 1; overflow-y: auto; padding: 8px; }
+.type-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+.type-item:hover { background: #F5F3FF; border-color: #DDD6FE; }
+.type-item.active { background: #F5F3FF; border-color: #7C3AED; }
+.type-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.type-label { font-size: 13px; font-weight: 700; color: #1E293B; }
+.type-desc { font-size: 11px; color: #64748B; margin-top: 2px; line-height: 1.4; }
+
+/* Typing indicator dots */
+.typing-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#94A3B8; margin:0 2px; animation:tdot 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay:0.2s; }
+.typing-dot:nth-child(3) { animation-delay:0.4s; }
+@keyframes tdot { 0%,80%,100%{transform:scale(0.7);opacity:0.5} 40%{transform:scale(1);opacity:1} }
+
+/* ── MAIN AREA ───────────────────────────────────── */
+#main { flex: 1; overflow-y: auto; padding: 32px; }
+
+#placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  text-align: center;
+  color: #94A3B8;
+  padding: 60px 40px;
+}
+#placeholder .ph-icon { font-size: 60px; margin-bottom: 16px; opacity: 0.4; }
+#placeholder h2 { font-size: 20px; color: #64748B; font-weight: 600; margin-bottom: 8px; }
+#placeholder p { font-size: 14px; color: #94A3B8; max-width: 300px; line-height: 1.6; }
+
+#loading {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 420px;
+  gap: 16px;
+  color: #64748B;
+}
+.spinner {
+  width: 40px; height: 40px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #7C3AED;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loading-text { font-size: 14px; font-weight: 500; }
+
+#doc-wrap { display: none; width: 100%; max-width: 870px; margin: 0 auto; }
+#doc-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#doc-paper {
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+
+/* ── PRINT ───────────────────────────────────────── */
+@media print {
+  #topbar, #sidebar { display: none !important; }
+  body { overflow: visible; height: auto; background: #fff; }
+  #layout { display: block; }
+  #main { overflow: visible; padding: 0; background: #fff; }
+  #doc-wrap { display: block !important; max-width: 100%; margin: 0; }
+  #doc-actions { display: none !important; }
+  #doc-paper { box-shadow: none; border-radius: 0; }
+  #placeholder, #loading { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH LOADING OVERLAY -->
+<div id="auth-overlay" style="position:fixed;inset:0;background:#F0F4F8;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+  <span style="font-size:48px;">🗂️</span>
+  <div style="font-size:15px;color:#1E293B;font-weight:600;">Document Creator</div>
+  <div style="font-size:13px;color:#64748B;">Loading...</div>
+</div>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="topbar-brand">
+    <span style="font-size:18px;">🗂️</span>
+    Document Creator
+  </div>
+  <div class="topbar-actions">
+    <button class="tb-btn" id="btn-pdf" disabled title="Open print dialog — save as PDF from there. Enable 'Print background graphics' for full color.">🖨️ Print / PDF</button>
+    <button class="tb-btn" id="btn-word" disabled>⬇ Word (.doc)</button>
+    <div class="tb-divider"></div>
+    <button class="tb-btn" id="btn-admin">⚙ School Settings</button>
+    <div class="tb-divider"></div>
+    <span id="credit-display" style="font-size:12px;color:#64748B;white-space:nowrap;cursor:pointer;" title="Click to buy more credits">⚡ — credits</span>
+    <div class="tb-divider"></div>
+    <span id="user-name-display" style="font-size:12px;color:#64748B;white-space:nowrap;"></span>
+    <span id="admin-link" style="display:none;"><a href="/document-creator/admin" style="font-size:12px;color:#1E4D8C;text-decoration:none;white-space:nowrap;">Admin Panel</a></span>
+    <button id="btn-signout" class="tb-btn" style="display:none;">Sign Out</button>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sidebar-header">Create Document</div>
+    <div id="type-list"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="main">
+    <div id="placeholder">
+      <div class="ph-icon">🗂️</div>
+      <h2>No document yet</h2>
+      <p>Choose a document type from the sidebar and Claude will guide you through building it.</p>
+    </div>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <div id="loading-text">Generating document…</div>
+    </div>
+
+    <div id="doc-wrap">
+      <div id="doc-actions">
+        <button class="tb-btn" id="btn-regen">↺ Regenerate</button>
+        <button class="tb-btn" id="btn-copy">⎘ Copy HTML</button>
+      </div>
+      <div id="doc-paper"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DESCRIBE MODAL -->
+<div id="chat-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;">
+  <div id="chat-modal" style="background:#fff;border-radius:16px;width:640px;max-width:calc(100vw - 48px);max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
+    <div id="chat-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="chat-icon" style="font-size:22px;"></span>
+        <div>
+          <div id="chat-title" style="font-size:14px;font-weight:700;color:#1E293B;"></div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:1px;">AI document builder</div>
+        </div>
+      </div>
+      <button id="chat-close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
+    </div>
+    <div style="padding:24px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
+      <p style="margin:0;font-size:13px;color:#475569;line-height:1.6;background:#F8FAFC;border-left:3px solid #CBD5E1;padding:12px 16px;border-radius:0 8px 8px 0;">
+        Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong>
+        Include the course name, topics, question types, timeline, or any specific requirements.
+      </p>
+      <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional</label>
+        <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById('doc-file-input').click()">
+          <span style="font-size:20px;">📎</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#334155;">Add photos or documents</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:2px;">Images, .txt, .html, .csv — hold Ctrl/Cmd to select multiple</div>
+          </div>
+        </div>
+        <input type="file" id="doc-file-input" accept="image/*,.txt,.html,.htm,.md,.csv" multiple style="display:none;">
+        <div id="file-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </div>
+    <div style="padding:16px 24px;border-top:1px solid #E2E8F0;flex-shrink:0;">
+      <button id="chat-gen-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Generate Document</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN OVERLAY -->
+<div id="admin-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.65);backdrop-filter:blur(4px);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:32px 20px;">
+  <div style="background:#fff;border-radius:16px;width:680px;max-width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#1E293B,#334155);padding:20px 28px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#fff;">⚙ School Settings</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:2px;">Set school-wide policies that automatically appear in every generated document</div>
+      </div>
+      <button id="admin-close" style="background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;font-size:13px;">Close</button>
+    </div>
+    <div style="padding:24px 28px;max-height:75vh;overflow-y:auto;" id="admin-body"></div>
+    <div style="padding:16px 28px;border-top:1px solid #E2E8F0;display:flex;justify-content:flex-end;gap:10px;">
+      <button id="admin-cancel" style="padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;">Cancel</button>
+      <button id="admin-save" style="padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:#1E293B;color:#fff;">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DOCUMENT TYPE DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+var DOC_TYPES_DEFAULT = [
+  { id:"syllabus",       label:"Syllabus",                  icon:"📋", color:"#1E3A5F", desc:"Course overview, schedule, grading, and policies" },
+  { id:"worksheet",      label:"Worksheet",                 icon:"📝", color:"#1E4D8C", desc:"Practice questions, problems, and exercises" },
+  { id:"projectguide",   label:"Project Guide",             icon:"🏗️", color:"#14532D", desc:"Step-by-step guide for a hands-on project" },
+  { id:"research",       label:"Research Project",          icon:"🔬", color:"#78350F", desc:"Research paper requirements, timeline, and rubric" },
+  { id:"lessonplan",     label:"Lesson Plan",               icon:"📚", color:"#312E81", desc:"Instructor-facing plan with objectives and activities" },
+  { id:"rubric",         label:"Rubric",                    icon:"📊", color:"#7F1D1D", desc:"Grading rubric with criteria and performance levels" },
+  { id:"studyguide",     label:"Study Guide",               icon:"📖", color:"#155E75", desc:"Organized review material for a test or exam" },
+  { id:"test",           label:"Test / Exam",               icon:"✏️", color:"#1E293B", desc:"Formal assessment with scored sections and optional answer key" },
+  { id:"safetycontract", label:"Safety Agreement",          icon:"🦺", color:"#065F46", desc:"Lab safety rules with student and instructor sign-off" },
+  { id:"missingwork",    label:"Missing Work Request",      icon:"📩", color:"#3B1F5C", desc:"Student request form for late or makeup credit" },
+  { id:"obschecklist",   label:"Observation Checklist",     icon:"✅", color:"#1C3557", desc:"Skill-by-skill performance checklist for hands-on tasks" },
+  { id:"incident",       label:"Incident Report",           icon:"⚠️", color:"#7B2D00", desc:"Formal documentation of a safety or conduct incident" },
+  { id:"custom",         label:"Custom Document",           icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" }
+];
+
+var DOC_TYPES = (function(){
+  try {
+    var s = localStorage.getItem("doc_creator_types");
+    if (!s) return DOC_TYPES_DEFAULT.slice();
+    var saved = JSON.parse(s);
+    // Merge any new built-in defaults not yet in the saved list
+    DOC_TYPES_DEFAULT.forEach(function(d) {
+      if (!saved.find(function(t) { return t.id === d.id; })) saved.push(d);
+    });
+    return saved;
+  } catch(e) { return DOC_TYPES_DEFAULT.slice(); }
+})();
+
+function saveDocTypes() {
+  try { localStorage.setItem("doc_creator_types", JSON.stringify(DOC_TYPES)); } catch(e) {}
+}
+
+var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","#155E75","#1E293B","#3B1F5C","#065F46","#831843","#1C3557"];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+// ── Admin settings ──
+var ADMIN_DEFAULTS = {
+  schoolName: "Riverside Technical College",
+  syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
+  worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
+  projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
+  research:     { notes: "Minimum 5 peer-reviewed sources. Citation style: APA 7th edition. Academic integrity policy: plagiarism or AI-generated submissions result in a zero and referral to Dean of Students." },
+  lessonplan:   { notes: "Align objectives to NOCTI Electrical Occupations standards and Texas CTE TEKS. Reference applicable NEC articles where appropriate." },
+  rubric:       { notes: "Grading scale: 90-100 A, 80-89 B, 70-79 C, 60-69 D, below 60 F. Minimum passing score for the course is 70." },
+  studyguide:   { notes: "Include a self-test section at the end. Students should be able to cover each section and test themselves. Direct students to office hours for remaining questions." },
+  test:         { notes: "Closed book, closed notes. Calculators permitted. One instructor-provided formula sheet allowed. Make-up exams require prior approval and documentation, must be completed within 5 school days. Academic integrity violation: zero on exam and disciplinary referral." },
+  safetycontract: { notes: "Include all PPE requirements for the lab. Include a list of prohibited items and behaviors. Include consequences for violations (removal from lab, grade reduction, disciplinary referral). Require signature lines for: student, parent/guardian if under 18, and instructor. Include date field. Include a statement that the student has read and understands all rules." },
+  missingwork:  { notes: "Include fields for: student name, date, course, instructor, original assignment name, original due date, reason for missing work, proposed completion date. Instructor must sign to approve. Include a notes section for any conditions or requirements attached to the approval." },
+  obschecklist: { notes: "Include fields for: student name, date, instructor name, task or skill being observed. Each checklist item must have three options: Pass / Needs Improvement / Not Observed. Include an overall assessment section (Satisfactory / Unsatisfactory). Require instructor signature and date at the bottom." },
+  incident:     { notes: "Include fields for: date, time, location, type of incident (injury / safety violation / conduct / property damage / other). Include a detailed description section. Include a witnesses section. Include immediate action taken. Include a follow-up required section with checkboxes. Require signatures from: reporting instructor, student (if applicable), and administrator. Mark as confidential." },
+  custom:       { notes: "" }
+};
+
+var adminSettings = (function(){
+  try {
+    var s = localStorage.getItem("doc_creator_admin");
+    if (!s) return JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
+    var saved = JSON.parse(s);
+    var out = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
+    if (saved.schoolName) out.schoolName = saved.schoolName;
+    DOC_TYPES.forEach(function(t) {
+      if (!out[t.id]) out[t.id] = { notes: "" };
+      if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
+    });
+    return out;
+  } catch(e) { return JSON.parse(JSON.stringify(ADMIN_DEFAULTS)); }
+})();
+
+// Per-type templates stored as { typeId: { name, isImage, mediaType?, data?, text? } }
+var _adminTemplates = (function(){
+  try { var t = localStorage.getItem("doc_creator_templates"); return t ? JSON.parse(t) : {}; }
+  catch(e) { return {}; }
+})();
+
+function saveAdminSettings(){ try { localStorage.setItem("doc_creator_admin", JSON.stringify(adminSettings)); } catch(e){} }
+function saveAdminTemplates(){ try { localStorage.setItem("doc_creator_templates", JSON.stringify(_adminTemplates)); } catch(e){} }
+
+var state = {
+  selectedType: null,
+  generatedHTML: "",
+  isGenerating: false
+};
+
+// Credentials come from the server session — set during initAuth()
+var _accountId = "";
+var _accountToken = "";
+var _userSession = null;
+
+var chatState = { typeId: null };
+var _pendingFiles = [];
+
+function renderFileList() {
+  var list = document.getElementById("file-list");
+  if (!list) return;
+  list.innerHTML = _pendingFiles.map(function(f, i) {
+    var thumb = f.isImage
+      ? '<img src="data:' + f.mediaType + ';base64,' + f.data + '" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">'
+      : '<span style="font-size:20px;flex-shrink:0;">📄</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;background:#F1F5F9;padding:7px 10px;border-radius:8px;">'
+      + thumb
+      + '<span style="flex:1;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</span>'
+      + '<button onclick="removeFile(' + i + ')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeFile(index) {
+  _pendingFiles.splice(index, 1);
+  renderFileList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+
+// ═══════════════════════════════════════════════════════════
+// CLAUDE API
+// ═══════════════════════════════════════════════════════════
+async function callClaude(promptOrMessages, onChunk) {
+  var resp = await fetch("https://career-toolkit-ruby.vercel.app/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8000,
+      usageType: "creation",
+      accountId: _accountId,
+      accountToken: _accountToken,
+      messages: Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }]
+    })
+  });
+  if (!resp.ok) {
+    var err = {}; try { err = await resp.json(); } catch(e) {}
+    var msg = (typeof err.error === 'string') ? err.error : (err.error && err.error.message) ? err.error.message : ("API error " + resp.status);
+    if (resp.status === 402) msg += "\n\nPurchase credits at:\nhttps://career-toolkit-ruby.vercel.app/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken);
+    throw new Error(msg);
+  }
+  var reader = resp.body.getReader();
+  var decoder = new TextDecoder();
+  var fullText = "";
+  var buffer = "";
+  while (true) {
+    var result = await reader.read();
+    if (result.done) break;
+    buffer += decoder.decode(result.value, {stream: true});
+    var lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (!line.startsWith('data: ')) continue;
+      var data = line.slice(6).trim();
+      if (data === '[DONE]') continue;
+      try {
+        var parsed = JSON.parse(data);
+        if (parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.type === 'text_delta') {
+          fullText += parsed.delta.text;
+          if (onChunk) onChunk(fullText);
+        }
+      } catch(e) {}
+    }
+  }
+  return fullText;
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// PROMPT BUILDERS
+// ═══════════════════════════════════════════════════════════
+function buildPromptFromInput(typeId, description) {
+  var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
+  var color = type ? type.color : "#1E293B";
+
+  var base = "You are a senior curriculum specialist producing institutional-grade documents for a professional trade school or college.\n"
+    + "VOICE & TONE: Formal, authoritative, and precise — no filler, no motivational fluff, no watered-down language.\n"
+    + "LANGUAGE REGISTER: Discipline-appropriate vocabulary for adult learners.\n"
+    + "STRICTLY AVOID: emojis, exclamation points, 'Let's explore!', 'Great job!', 'Fun Fact!', or any student-cheerleading language.\n"
+    + "FORMAT: Return ONLY valid HTML body content — no <html>/<head>/<body> tags. No markdown code fences.\n"
+    + "Use ONLY inline CSS — no <style> blocks. Every tag must be properly closed.\n"
+    + "PRIMARY COLOR: " + color + " — header backgrounds, section heading borders, table headers, accent elements.\n"
+    + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n\n";
+
+  var schoolBlock = adminSettings.schoolName
+    ? "SCHOOL: " + adminSettings.schoolName + "\n\n"
+    : "";
+
+  var adminNotes = adminSettings[typeId] && adminSettings[typeId].notes && adminSettings[typeId].notes.trim();
+  var adminBlock = adminNotes
+    ? "ADMIN REQUIREMENTS — these take full priority over teacher input. Follow every item exactly:\n" + adminNotes + "\n\n"
+    : "";
+
+  var teacherBlock = description
+    ? "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
+    : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
+
+  return base + schoolBlock + adminBlock + teacherBlock
+    + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
+    + getLayoutInstructions(typeId, color);
+}
+
+function getLayoutInstructions(typeId, color) {
+  if (typeId === "syllabus") return "LAYOUT:\n"
+    + "1. Full-width header — background:" + color + "; padding:44px 48px; — Course title (Georgia 36px #fff bold), level/term subtitle\n"
+    + "2. Content area: padding:44px 48px; font-family:Arial,sans-serif;\n"
+    + "3. Section headings: Georgia 18px bold; color:" + color + "; border-bottom:2px solid " + color + "; padding-bottom:8px; margin:32px 0 14px;\n"
+    + "4. COURSE DESCRIPTION — paragraph\n5. LEARNING OUTCOMES — 4–6 measurable outcomes with action verbs\n6. REQUIRED MATERIALS — bulleted list\n"
+    + "7. COURSE SCHEDULE — table (Week/Unit | Topic | Activities). Header: background:" + color + "; color:#fff; Rows: alternating #fff/#F8FAFC;\n"
+    + "8. GRADING BREAKDOWN — table with categories and percentages\n9. COURSE POLICIES — all provided policies clearly labeled\n10. Footer — small gray text\n";
+
+  if (typeId === "worksheet") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 28px #fff bold), Name/Date/Class info line\n"
+    + "2. INSTRUCTIONS — one concise paragraph\n"
+    + "3. QUESTIONS — each numbered, bold question text + appropriate response space (lines, boxes, options). Match the format discussed.\n"
+    + "   Multiple Choice: A–D options. Short Answer: 3 ruled lines. True/False: T / F before statement. Calculations: Given/Find/Work/Answer with bordered box.\n"
+    + "4. Score footer — 'Score: _______ / [total]' centered\n";
+
+  if (typeId === "projectguide") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:40px 48px; — Project title (Georgia 34px #fff bold), course + level subtitle\n"
+    + "2. PROJECT OVERVIEW — what students will build or accomplish\n3. LEARNING OBJECTIVES — 3–5 measurable outcomes\n"
+    + "4. MATERIALS & TOOLS — checklist with ☐ prefix\n5. PHASE TIMELINE — table (Phase | Activities | Duration | Due Date)\n"
+    + "6. STEP-BY-STEP INSTRUCTIONS — numbered imperative steps\n7. DELIVERABLES — bulleted list of what to submit\n"
+    + "8. TIPS FOR SUCCESS — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:16px 20px;\n9. GRADING — assessment criteria table\n";
+
+  if (typeId === "research") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:40px 48px; — Assignment title (Georgia 32px #fff bold)\n"
+    + "2. OVERVIEW — purpose and expectations\n"
+    + "3. RESEARCH QUESTION — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 20px;\n"
+    + "4. LEARNING OBJECTIVES — 3–4 research skills\n5. PAPER REQUIREMENTS — length, citation style, formatting\n"
+    + "6. SOURCE REQUIREMENTS — types and minimum count\n"
+    + "7. TIMELINE / MILESTONES — table (Milestone | Due Date | Description)\n"
+    + "8. GRADING BREAKDOWN — table distributing points\n9. SUBMISSION CHECKLIST — ☐ items\n";
+
+  if (typeId === "lessonplan") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:36px 48px; — Lesson title (Georgia 32px #fff bold), Subject | Level | Duration\n"
+    + "2. AT A GLANCE — 3-cell grid (Duration | Level | Materials): background:#F8FAFC; border:1px solid #E2E8F0; padding:14px 18px; text-align:center;\n"
+    + "3. LEARNING OBJECTIVES — numbered with action verbs (Bloom's taxonomy)\n4. MATERIALS & PREPARATION — checklist + prep notes\n"
+    + "5. LESSON TIMELINE — table: Time | Phase | Instructor Activity | Student Activity (Opening/Hook, Direct Instruction, Guided Practice, Independent Practice, Closure)\n"
+    + "6. INSTRUCTIONAL NOTES — key questions and strategies per phase\n7. DIFFERENTIATION — two columns: Accommodations | Extensions\n"
+    + "8. ASSESSMENT — formative check + summative connection\n9. REFLECTION — blank dashed box: border:1px dashed #CBD5E1; min-height:80px;\n";
+
+  if (typeId === "rubric") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:32px 48px; — Assignment name (Georgia 30px #fff bold)\n"
+    + "2. RUBRIC TABLE — Columns: Criteria | Excellent | Proficient | Developing | Beginning | Points\n"
+    + "   Header row: background:" + color + "; color:#fff; font-size:12px; font-weight:700;\n"
+    + "   Write SPECIFIC, CONCRETE descriptors for every cell. Distribute total points across criteria.\n"
+    + "   Alternating rows: #fff/#F8FAFC; vertical-align:top; font-size:13px;\n"
+    + "3. TOTAL ROW — bold totals, background:" + color + "20;\n4. GRADING SCALE — points to letter grade table\n";
+
+  if (typeId === "studyguide") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:36px 48px; — Topic (Georgia 32px #fff bold), course subtitle\n"
+    + "2. KEY CONCEPTS — for each concept: H3 (Georgia 18px color:" + color + "; border-bottom:1px solid #E2E8F0), definition, formula callout (background:#F1F5F9; border-left:4px solid " + color + "; font-family:Courier New; font-size:13px), example\n"
+    + "3. VOCABULARY TABLE — two-column Term | Definition. Header: background:" + color + "; color:#fff;\n"
+    + "4. COMMON MISTAKES — callout: background:#FFF7ED; border-left:4px solid #F59E0B; padding:16px 20px;\n"
+    + "5. QUICK REFERENCE — bullet list of critical facts/formulas\n"
+    + "6. PRACTICE QUESTIONS — 5 questions with hidden answers: <details><summary>Show Answers</summary>…</details>\n";
+
+  if (typeId === "test") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:32px 48px; — Test title (Georgia 30px #fff bold), Course | Level | Time row\n"
+    + "2. Student info bar — Name / Date / Period with ruled lines\n3. GENERAL INSTRUCTIONS — 2–3 formal sentences\n"
+    + "4. QUESTION SECTIONS — each section has a header: background:#F1F5F9; border-left:4px solid " + color + "; padding:10px 16px; Georgia bold 15px; includes point value per question.\n"
+    + "   Multiple Choice: A–D, one correct. Short Answer: 3 ruled lines. True/False: T/F before statement. Calculations: Given/Find/Work/Answer box.\n"
+    + "   All questions substantive and specific to the topics discussed.\n"
+    + "5. ANSWER KEY (if requested) — page-break section: header background:" + color + "; answers by number with model answers for open-ended items.\n";
+
+  if (typeId === "safetycontract") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:36px 48px; — Title (Georgia 30px #fff bold: 'Laboratory Safety Agreement'), course/lab name subtitle\n"
+    + "2. INTRODUCTION — 2-sentence formal statement of purpose and expectation\n"
+    + "3. SAFETY RULES — numbered list, bold rule title + one-sentence explanation each. Minimum 8 rules.\n"
+    + "4. PPE REQUIREMENTS — bulleted list with ☐ checkbox prefix for each item\n"
+    + "5. PROHIBITED ITEMS & BEHAVIORS — bulleted list\n"
+    + "6. CONSEQUENCES — callout box: background:#FFF7ED; border-left:4px solid " + color + "; padding:14px 18px;\n"
+    + "7. ACKNOWLEDGMENT — formal paragraph: 'By signing below, I confirm that I have read, understand, and agree to abide by all rules stated in this agreement.'\n"
+    + "8. SIGNATURE BLOCK — table: Student Name (print) | Signature | Date, then Parent/Guardian (if under 18) row, then Instructor row. Ruled lines for each field.\n";
+
+  if (typeId === "missingwork") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Missing Work Request'), school name subtitle\n"
+    + "2. STUDENT INFORMATION — two-column table: Student Name | Date Submitted, Course | Period, Instructor | Date of Absence/Missed Work\n"
+    + "3. ASSIGNMENT INFORMATION — Assignment Name, Original Due Date, Point Value — ruled line fields\n"
+    + "4. REASON FOR MISSING WORK — checkboxes for common reasons (Absence / Personal Emergency / Misunderstood Assignment / Other) + open lines for explanation\n"
+    + "5. STUDENT STATEMENT — open lined area: 'Describe what happened and what steps you will take to complete this work:'\n"
+    + "6. PROPOSED COMPLETION DATE — ruled line with note: 'Final date is at instructor discretion.'\n"
+    + "7. INSTRUCTOR DECISION — callout box: ☐ Approved  ☐ Denied  ☐ Partial Credit Only. Conditions/Notes: ruled lines. Instructor Signature + Date.\n";
+
+  if (typeId === "obschecklist") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Performance Observation Checklist'), task/skill name subtitle\n"
+    + "2. SESSION INFO — two-column table: Student Name | Date, Instructor | Course\n"
+    + "3. SKILLS CHECKLIST TABLE — Columns: # | Skill / Step | Pass | Needs Improvement | Not Observed\n"
+    + "   Header: background:" + color + "; color:#fff; font-size:12px font-weight:700;\n"
+    + "   Each row: numbered skill, ☐ in each status column. Alternating #fff/#F8FAFC. Minimum 10 skill rows based on task.\n"
+    + "4. OVERALL ASSESSMENT — callout: ☐ Satisfactory — student demonstrated all required skills  ☐ Unsatisfactory — see notes below\n"
+    + "5. INSTRUCTOR NOTES — ruled lines area\n"
+    + "6. SIGNATURES — Instructor Signature + Date, Student Signature + Date (ruled lines)\n";
+
+  if (typeId === "incident") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Incident Report'), 'CONFIDENTIAL' in small caps top-right\n"
+    + "2. INCIDENT DETAILS — table: Date | Time | Location, Type of Incident checkboxes: ☐ Injury ☐ Safety Violation ☐ Conduct ☐ Property Damage ☐ Other\n"
+    + "3. PERSONS INVOLVED — fields: Name(s) of student(s), Grade/Level, Reporting Instructor\n"
+    + "4. DESCRIPTION OF INCIDENT — large lined area with label: 'Provide a factual, chronological account of what occurred:'\n"
+    + "5. WITNESSES — table: Name | Role | Contact. Minimum 3 blank rows.\n"
+    + "6. IMMEDIATE ACTION TAKEN — lined area\n"
+    + "7. FOLLOW-UP REQUIRED — checkboxes: ☐ Parent/Guardian Notification ☐ Administrative Review ☐ Medical Attention ☐ Disciplinary Referral ☐ No Further Action\n"
+    + "8. SIGNATURE BLOCK — table rows: Reporting Instructor (signature + date), Administrator (signature + date), Student Acknowledgment (signature + date, labeled optional)\n";
+
+  if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for any headers or accent elements. Make it complete and professional.\n";
+
+  return "Generate a complete, professional document using all the information provided.\n";
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI — TYPE LIST
+// ═══════════════════════════════════════════════════════════
+function renderTypeList() {
+  var list = document.getElementById("type-list");
+  list.innerHTML = "";
+  DOC_TYPES.forEach(function(type) {
+    var el = document.createElement("div");
+    el.className = "type-item" + (state.selectedType === type.id ? " active" : "");
+    el.innerHTML = '<span class="type-icon">' + type.icon + '</span>'
+      + '<div><div class="type-label">' + esc(type.label) + '</div>'
+      + '<div class="type-desc">' + esc(type.desc) + '</div></div>';
+    el.addEventListener("click", function() { openChat(type.id); });
+    list.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DESCRIBE MODAL UI
+// ═══════════════════════════════════════════════════════════
+function openChat(typeId) {
+  var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
+  if (!type) return;
+  state.selectedType = typeId;
+  chatState.typeId = typeId;
+  document.getElementById("chat-icon").textContent = type.icon;
+  document.getElementById("chat-title").textContent = type.label;
+  document.getElementById("chat-input").value = "";
+  document.getElementById("doc-file-input").value = "";
+  _pendingFiles = [];
+  renderFileList();
+  document.getElementById("chat-overlay").style.display = "flex";
+  document.getElementById("chat-input").focus();
+  renderTypeList();
+}
+
+function closeChat() {
+  document.getElementById("chat-overlay").style.display = "none";
+}
+
+function clearFile() {
+  _pendingFiles = [];
+  document.getElementById("doc-file-input").value = "";
+  renderFileList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE TRANSITIONS
+// ═══════════════════════════════════════════════════════════
+function selectType(typeId) { openChat(typeId); }
+
+function setMainState(which) {
+  document.getElementById("placeholder").style.display = which === "placeholder" ? "flex" : "none";
+  document.getElementById("loading").style.display = which === "loading" ? "flex" : "none";
+  document.getElementById("doc-wrap").style.display = which === "doc" ? "block" : "none";
+  var hasDoc = which === "doc";
+  document.getElementById("btn-pdf").disabled = !hasDoc;
+  document.getElementById("btn-word").disabled = !hasDoc;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GENERATE
+// ═══════════════════════════════════════════════════════════
+function stripFences(s) {
+  return s.replace(/^```(?:html)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+}
+
+async function generate() {
+  if (!state.selectedType) return;
+  var description = document.getElementById("chat-input").value.trim();
+  closeChat();
+  state.isGenerating = true;
+  setMainState("loading");
+  var paperEl = document.getElementById("doc-paper");
+  var streaming = false;
+  var prompt = buildPromptFromInput(state.selectedType, description);
+  var adminTmpl = _adminTemplates[state.selectedType] || null;
+  // Append text files to prompt
+  if (adminTmpl && !adminTmpl.isImage && adminTmpl.text) {
+    prompt += "\n\nADMIN TEMPLATE (match this document's exact style, structure, and visual layout):\n\n" + adminTmpl.text;
+  }
+  // Append text files to prompt
+  _pendingFiles.forEach(function(f) {
+    if (!f.isImage && f.text) {
+      prompt += "\n\nTEACHER-ATTACHED FILE — " + f.name + " (use as content reference, subject to admin requirements):\n\n" + f.text;
+    }
+  });
+  // Build content parts — admin template image first, then teacher images, then prompt text
+  var parts = [];
+  if (adminTmpl && adminTmpl.isImage) {
+    parts.push({ type: "image", source: { type: "base64", media_type: adminTmpl.mediaType, data: adminTmpl.data } });
+  }
+  _pendingFiles.forEach(function(f) {
+    if (f.isImage) parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
+  });
+  var imageNote = "";
+  if (adminTmpl && adminTmpl.isImage) imageNote += " The first image is the admin template — match its visual style exactly.";
+  var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; });
+  if (teacherImages.length) imageNote += " The teacher attached " + teacherImages.length + " image(s) — use them as content references, subject to admin requirements.";
+  parts.push({ type: "text", text: prompt + imageNote });
+  var messages = [{ role: "user", content: parts.length === 1 ? parts[0].text : parts }];
+  _pendingFiles = [];
+  try {
+    var html = await callClaude(messages, function(partial) {
+      if (!streaming) { setMainState("doc"); streaming = true; }
+      paperEl.innerHTML = stripFences(partial);
+    });
+    state.generatedHTML = stripFences(html);
+    paperEl.innerHTML = state.generatedHTML;
+    setMainState("doc");
+    loadCreditBalance();
+  } catch (err) {
+    setMainState(state.generatedHTML ? "doc" : "placeholder");
+    alert("Generation error: " + err.message);
+  } finally {
+    state.isGenerating = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// DOWNLOADS
+// ═══════════════════════════════════════════════════════════
+function downloadPDF() { window.print(); }
+
+function downloadWord() {
+  if (!state.generatedHTML) return;
+  var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
+  var name = (type ? type.label : "Document").replace(/\s+/g, "_");
+  var wrapped = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' "
+    + "xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>"
+    + "<head><meta charset='utf-8'><title>" + esc(name) + "</title>"
+    + "<style>body{font-family:Arial,sans-serif;font-size:11pt;}table{border-collapse:collapse;width:100%;}td,th{border:1pt solid #ccc;padding:6pt 10pt;}</style>"
+    + "</head><body>" + state.generatedHTML + "</body></html>";
+  var blob = new Blob([wrapped], { type: "application/msword" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name + ".doc";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN UI
+// ═══════════════════════════════════════════════════════════
+function tmplBlock(typeId) {
+  var tmpl = _adminTemplates[typeId];
+  if (tmpl) {
+    return '<div style="display:flex;align-items:center;gap:10px;background:#F1F5F9;border-radius:8px;padding:9px 13px;">'
+      + '<span style="font-size:15px;">📄</span>'
+      + '<span style="flex:1;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(tmpl.name) + '</span>'
+      + '<button onclick="event.stopPropagation();clearAdminTemplate(\'' + typeId + '\')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
+      + '</div>';
+  }
+  return '<div style="border:1.5px dashed #CBD5E1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById(\'tmpl-' + typeId + '\').click()">'
+    + '<span style="font-size:17px;">📎</span>'
+    + '<div><div style="font-size:12px;font-weight:600;color:#334155;">Upload example template</div>'
+    + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">Image, .html, or .txt</div></div>'
+    + '</div>';
+}
+
+function renderAdminUI() {
+  var h = '<div style="margin-bottom:28px;">'
+    + '<div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid #1E293B;">School Information</div>'
+    + '<div style="margin-bottom:10px;">'
+    + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">School / Institution Name</label>'
+    + '<input type="text" id="adm-schoolName" value="' + esc(adminSettings.schoolName) + '" placeholder="e.g. Riverside Technical College" style="width:100%;padding:7px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;">'
+    + '</div></div>';
+
+  DOC_TYPES.forEach(function(type) {
+    var notes = (adminSettings[type.id] || {}).notes || "";
+    h += '<details style="margin-bottom:10px;border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;">'
+      + '<summary style="background:#F8FAFC;padding:11px 14px;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;">'
+      + '<span style="width:10px;height:10px;border-radius:50%;background:' + type.color + ';flex-shrink:0;display:inline-block;"></span>'
+      + '<span style="font-size:13px;font-weight:700;color:#1E293B;flex:1;">' + type.icon + ' ' + esc(type.label) + '</span>'
+      + '<button onclick="event.stopPropagation();deleteDocType(\'' + type.id + '\')" title="Remove this document type" style="background:none;border:1px solid #E2E8F0;border-radius:5px;cursor:pointer;color:#94A3B8;font-size:11px;padding:2px 8px;flex-shrink:0;">Remove</button>'
+      + '</summary>'
+      + '<div style="padding:14px;display:flex;flex-direction:column;gap:12px;">'
+      + '<div>'
+      + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Admin Notes &amp; Requirements</label>'
+      + '<p style="font-size:11px;color:#94A3B8;margin:0 0 5px;">What to include, exclude, or require — AI follows these exactly and they override the teacher.</p>'
+      + '<textarea id="adm-notes-' + type.id + '" rows="4" placeholder="e.g. Always include the attendance policy. Require OSHA PPE language. Do not include a grading scale..." style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;line-height:1.5;">' + esc(notes) + '</textarea>'
+      + '</div>'
+      + '<div>'
+      + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Example Template</label>'
+      + '<p style="font-size:11px;color:#94A3B8;margin:0 0 5px;">AI will match this document\'s style and format.</p>'
+      + tmplBlock(type.id)
+      + '<input type="file" id="tmpl-' + type.id + '" accept="image/*,.txt,.html,.htm" data-typeid="' + type.id + '" style="display:none;">'
+      + '</div>'
+      + '</div></details>';
+  });
+
+  // Add Document Type form
+  h += '<div style="margin-top:20px;padding-top:20px;border-top:2px solid #E2E8F0;">'
+    + '<div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Add Document Type</div>'
+    + '<div style="display:flex;flex-direction:column;gap:8px;">'
+    + '<input id="new-type-name" type="text" placeholder="Document type name (e.g. Missing Work Form)" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;">'
+    + '<input id="new-type-desc" type="text" placeholder="Short description — shown under the name in the sidebar (optional)" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;">'
+    + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+    + '<span style="font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;">Color:</span>'
+    + TYPE_COLORS.map(function(c) {
+        return '<span onclick="selectNewTypeColor(\'' + c + '\')" data-color="' + c + '" style="width:20px;height:20px;border-radius:50%;background:' + c + ';cursor:pointer;display:inline-block;border:2px solid transparent;" title="' + c + '"></span>';
+      }).join('')
+    + '</div>'
+    + '<button onclick="addDocTypeFromAdmin()" style="padding:9px 20px;background:#1E293B;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;align-self:flex-start;">Add Document Type</button>'
+    + '</div></div>';
+
+  document.getElementById("admin-body").innerHTML = h;
+
+  // Default color selection — first swatch
+  var firstSwatch = document.querySelector("#admin-body [data-color]");
+  if (firstSwatch) selectNewTypeColor(firstSwatch.dataset.color);
+
+  // Wire all template file inputs
+  DOC_TYPES.forEach(function(type) {
+    var input = document.getElementById("tmpl-" + type.id);
+    if (!input) return;
+    input.addEventListener("change", function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var tid = e.target.dataset.typeid;
+      var isImage = file.type.startsWith("image/");
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        if (isImage) {
+          var d = ev.target.result, comma = d.indexOf(",");
+          _adminTemplates[tid] = { name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1) };
+        } else {
+          _adminTemplates[tid] = { name: file.name, isImage: false, text: ev.target.result };
+        }
+        saveAdminTemplates();
+        renderAdminUI();
+      };
+      isImage ? reader.readAsDataURL(file) : reader.readAsText(file);
+    });
+  });
+}
+
+var _newTypeColor = TYPE_COLORS[0];
+function selectNewTypeColor(color) {
+  _newTypeColor = color;
+  document.querySelectorAll("#admin-body [data-color]").forEach(function(el) {
+    el.style.border = el.dataset.color === color ? "2px solid #1E293B" : "2px solid transparent";
+  });
+}
+
+function addDocTypeFromAdmin() {
+  var nameEl = document.getElementById("new-type-name");
+  var descEl = document.getElementById("new-type-desc");
+  var name = nameEl ? nameEl.value.trim() : "";
+  if (!name) { if (nameEl) nameEl.focus(); return; }
+  var baseId = name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  var id = baseId, n = 2;
+  while (DOC_TYPES.find(function(t) { return t.id === id; })) { id = baseId + "_" + (n++); }
+  var desc = descEl && descEl.value.trim() ? descEl.value.trim() : name;
+  DOC_TYPES.push({ id: id, label: name, icon: "📄", color: _newTypeColor, desc: desc });
+  if (!adminSettings[id]) adminSettings[id] = { notes: "" };
+  saveDocTypes();
+  saveAdminSettings();
+  saveSettingsToServer();
+  renderAdminUI();
+  renderTypeList();
+}
+
+function deleteDocType(typeId) {
+  if (!confirm("Remove \"" + (DOC_TYPES.find(function(t){return t.id===typeId;})||{}).label + "\"? Its admin notes and template will also be deleted.")) return;
+  DOC_TYPES = DOC_TYPES.filter(function(t) { return t.id !== typeId; });
+  delete adminSettings[typeId];
+  delete _adminTemplates[typeId];
+  if (state.selectedType === typeId) state.selectedType = null;
+  saveDocTypes();
+  saveAdminSettings();
+  saveAdminTemplates();
+  saveSettingsToServer();
+  renderAdminUI();
+  renderTypeList();
+}
+
+function clearAdminTemplate(typeId) {
+  delete _adminTemplates[typeId];
+  saveAdminTemplates();
+  renderAdminUI();
+}
+
+function openAdmin() {
+  renderAdminUI();
+  document.getElementById("admin-overlay").style.display = "flex";
+}
+
+function closeAdmin() {
+  document.getElementById("admin-overlay").style.display = "none";
+}
+
+function saveAdmin() {
+  adminSettings.schoolName = document.getElementById("adm-schoolName").value.trim();
+  DOC_TYPES.forEach(function(type) {
+    var el = document.getElementById("adm-notes-" + type.id);
+    if (el) {
+      if (!adminSettings[type.id]) adminSettings[type.id] = { notes: "" };
+      adminSettings[type.id].notes = el.value;
+    }
+  });
+  saveAdminSettings();
+  saveSettingsToServer();
+  closeAdmin();
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT WIRING
+// ═══════════════════════════════════════════════════════════
+document.getElementById("btn-pdf").addEventListener("click", downloadPDF);
+document.getElementById("btn-word").addEventListener("click", downloadWord);
+document.getElementById("btn-admin").addEventListener("click", openAdmin);
+document.getElementById("btn-signout").addEventListener("click", function() {
+  fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
+    window.location.href = "/document-creator/login";
+  });
+});
+document.getElementById("admin-close").addEventListener("click", closeAdmin);
+document.getElementById("admin-cancel").addEventListener("click", closeAdmin);
+document.getElementById("admin-save").addEventListener("click", saveAdmin);
+document.getElementById("admin-overlay").addEventListener("click", function(e) { if (e.target === document.getElementById("admin-overlay")) closeAdmin(); });
+document.getElementById("btn-regen").addEventListener("click", function() { openChat(state.selectedType); });
+document.getElementById("chat-close-btn").addEventListener("click", closeChat);
+document.getElementById("chat-gen-btn").addEventListener("click", generate);
+document.getElementById("chat-overlay").addEventListener("click", function(e) {
+  if (e.target === document.getElementById("chat-overlay")) closeChat();
+});
+document.getElementById("doc-file-input").addEventListener("change", function(e) {
+  var files = Array.from(e.target.files);
+  e.target.value = "";
+  files.forEach(function(file) {
+    var isImage = file.type.startsWith("image/");
+    var isText = /\.(txt|html|htm|md|csv)$/i.test(file.name) || ["text/plain","text/html","text/markdown","text/csv"].indexOf(file.type) !== -1;
+    var reader = new FileReader();
+    if (isImage) {
+      reader.onload = function(ev) {
+        var d = ev.target.result, comma = d.indexOf(",");
+        _pendingFiles.push({ name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1) });
+        renderFileList();
+      };
+      reader.readAsDataURL(file);
+    } else if (isText) {
+      reader.onload = function(ev) {
+        _pendingFiles.push({ name: file.name, isImage: false, text: ev.target.result });
+        renderFileList();
+      };
+      reader.readAsText(file);
+    }
+  });
+});
+document.getElementById("btn-copy").addEventListener("click", function() {
+  navigator.clipboard.writeText(state.generatedHTML).then(function() {
+    var btn = document.getElementById("btn-copy");
+    var orig = btn.textContent;
+    btn.textContent = "✓ Copied!";
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  });
+});
+function loadCreditBalance() {
+  if (!_accountId || !_accountToken) return;
+  fetch("/api/credits/status?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var el = document.getElementById("credit-display");
+      if (!el) return;
+      if (d.balance !== undefined) {
+        el.textContent = "⚡ " + d.balance.toLocaleString() + " credits";
+        el.style.color = d.balance < 20 ? "#DC2626" : "#64748B";
+        el.title = "Click to buy more credits";
+        el.onclick = function() { window.open("/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken), "_blank"); };
+      }
+    })
+    .catch(function() {});
+}
+
+function applyServerSettings(data) {
+  if (data.adminSettings) {
+    try {
+      var s = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
+      if (data.adminSettings.schoolName) s.schoolName = data.adminSettings.schoolName;
+      DOC_TYPES.forEach(function(t) {
+        if (!s[t.id]) s[t.id] = { notes: "" };
+        if (data.adminSettings[t.id] && data.adminSettings[t.id].notes !== undefined) s[t.id].notes = data.adminSettings[t.id].notes;
+      });
+      Object.assign(adminSettings, s);
+    } catch(e) {}
+  }
+  if (data.docTypes && Array.isArray(data.docTypes) && data.docTypes.length) {
+    DOC_TYPES.length = 0;
+    data.docTypes.forEach(function(t) { DOC_TYPES.push(t); });
+  }
+}
+
+async function saveSettingsToServer() {
+  try {
+    await fetch("/api/document-creator/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminSettings: adminSettings, docTypes: DOC_TYPES })
+    });
+  } catch(e) {}
+}
+
+async function initAuth() {
+  try {
+    var resp = await fetch("/api/document-creator/auth/session");
+    if (!resp.ok) { window.location.href = "/document-creator/login"; return; }
+    var data = await resp.json();
+    if (!data.session) { window.location.href = "/document-creator/login"; return; }
+
+    _userSession = data.session;
+    _accountId = data.session.accountId;
+    _accountToken = data.session.accountToken;
+
+    // Update topbar
+    var nameEl = document.getElementById("user-name-display");
+    if (nameEl) nameEl.textContent = data.session.name;
+    if (data.session.role === "admin") {
+      var adminLink = document.getElementById("admin-link");
+      if (adminLink) adminLink.style.display = "inline";
+    }
+    var signoutBtn = document.getElementById("btn-signout");
+    if (signoutBtn) signoutBtn.style.display = "";
+
+    // Load school settings from server
+    try {
+      var sResp = await fetch("/api/document-creator/settings");
+      if (sResp.ok) {
+        var sData = await sResp.json();
+        applyServerSettings(sData);
+      }
+    } catch(e) {}
+
+    // Hide auth overlay and initialize
+    document.getElementById("auth-overlay").style.display = "none";
+    setMainState("placeholder");
+    renderTypeList();
+    loadCreditBalance();
+  } catch(e) {
+    window.location.href = "/document-creator/login";
+  }
+}
+
+// ── INIT ──────────────────────────────────────────
+initAuth();
+</script>
+</body>
+</html>

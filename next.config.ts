@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   outputFileTracingRoot: process.cwd(),
+  outputFileTracingIncludes: {
+    '/document-creator/app': ['./extension/Document_Creator.html'],
+  },
   async headers() {
     return [
       {
