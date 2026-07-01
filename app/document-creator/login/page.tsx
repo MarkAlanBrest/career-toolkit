@@ -113,8 +113,12 @@ export default function DocumentCreatorLogin() {
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: muted }}>
-          Contact your school administrator for account access.
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: muted }}>
+          New school?{' '}
+          <a href="/document-creator/signup" style={{ color: blue, textDecoration: 'none', fontWeight: 600 }}>Create an account</a>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: 8, fontSize: 12, color: '#94A3B8' }}>
+          Teachers: contact your school administrator for login access.
         </div>
       </div>
 
