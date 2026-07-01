@@ -4,6 +4,9 @@ import {
   addSchoolToIndex, generateId, generateToken,
   hashPassword, saveSchool, saveUser, getUser, createSession, sessionCookieOptions,
 } from '@/lib/dcAuth';
+import { redis } from '@/lib/billing';
+
+const TRIAL_CREDITS = 1000;
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
@@ -48,7 +51,12 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    await Promise.all([saveSchool(school), saveUser(user), addSchoolToIndex(schoolId)]);
+    await Promise.all([
+      saveSchool(school),
+      saveUser(user),
+      addSchoolToIndex(schoolId),
+      redis.set(`ce:credits:${accountId}:ai`, TRIAL_CREDITS),
+    ]);
 
     const session: DcSession = {
       email, name, role: 'admin',
