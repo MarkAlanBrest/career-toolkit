@@ -194,7 +194,7 @@ body {
     <div class="tb-divider"></div>
     <button class="tb-btn" id="btn-admin">⚙ School Settings</button>
     <div class="tb-divider"></div>
-    <span id="credit-display" style="font-size:12px;color:#64748B;white-space:nowrap;cursor:pointer;" title="Click to buy more credits">⚡ — credits</span>
+    <span id="credit-display" style="font-size:12px;color:#64748B;white-space:nowrap;">⚡ — credits</span>
     <div class="tb-divider"></div>
     <span id="user-name-display" style="font-size:12px;color:#64748B;white-space:nowrap;"></span>
     <span id="admin-link" style="display:none;"><a href="/document-creator/admin" style="font-size:12px;color:#1E4D8C;text-decoration:none;white-space:nowrap;">Admin Panel</a></span>
@@ -1025,15 +1025,29 @@ async function initAuth() {
     _accountId = data.session.accountId;
     _accountToken = data.session.accountToken;
 
-    // Update topbar
+    // Update topbar based on role
     var nameEl = document.getElementById("user-name-display");
     if (nameEl) nameEl.textContent = data.session.name;
+    var signoutBtn = document.getElementById("btn-signout");
+    if (signoutBtn) signoutBtn.style.display = "";
+
     if (data.session.role === "admin") {
       var adminLink = document.getElementById("admin-link");
       if (adminLink) adminLink.style.display = "inline";
+      // Admin can buy credits — enable click on credit display
+      var creditEl = document.getElementById("credit-display");
+      if (creditEl) {
+        creditEl.style.cursor = "pointer";
+        creditEl.title = "Click to buy more credits";
+        creditEl.onclick = function() { window.open("/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken), "_blank"); };
+      }
+    } else {
+      // Teacher — hide school settings button and buy-credits behavior
+      var adminBtn = document.getElementById("btn-admin");
+      if (adminBtn) adminBtn.style.display = "none";
+      var creditEl2 = document.getElementById("credit-display");
+      if (creditEl2) { creditEl2.style.cursor = "default"; creditEl2.title = ""; }
     }
-    var signoutBtn = document.getElementById("btn-signout");
-    if (signoutBtn) signoutBtn.style.display = "";
 
     // Load school settings from server
     try {
