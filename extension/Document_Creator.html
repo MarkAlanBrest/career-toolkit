@@ -334,9 +334,19 @@ var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","
 // STATE
 // ═══════════════════════════════════════════════════════════
 // ── Admin settings ──
+var THEMES = {
+  navy:     '#1E293B',
+  cobalt:   '#1D4ED8',
+  forest:   '#166534',
+  burgundy: '#7F1D1D',
+};
+function getThemeColor() { return THEMES[adminSettings && adminSettings.theme] || '#1E293B'; }
+
 var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
   model: "claude-haiku-4-5",
+  theme: "navy",
+  logo: "",
   syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
   worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
   projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
@@ -360,6 +370,8 @@ var adminSettings = (function(){
     var out = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
     if (saved.schoolName) out.schoolName = saved.schoolName;
     if (saved.model) out.model = saved.model;
+    if (saved.theme && THEMES[saved.theme]) out.theme = saved.theme;
+    if (saved.logo !== undefined) out.logo = saved.logo;
     DOC_TYPES.forEach(function(t) {
       if (!out[t.id]) out[t.id] = { notes: "" };
       if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
@@ -472,7 +484,7 @@ async function callClaude(promptOrMessages, onChunk) {
 // ═══════════════════════════════════════════════════════════
 function buildPromptFromInput(typeId, description) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
-  var color = type ? type.color : "#1E293B";
+  var color = getThemeColor();
 
   var base = "You are a senior curriculum specialist producing institutional-grade documents for a professional trade school or college.\n"
     + "VOICE & TONE: Formal, authoritative, and precise — no filler, no motivational fluff, no watered-down language.\n"
@@ -717,6 +729,11 @@ async function generate() {
       paperEl.innerHTML = stripFences(partial);
     });
     state.generatedHTML = stripFences(html);
+    // Prepend logo bar if a school logo is set
+    if (adminSettings.logo) {
+      var _lc = getThemeColor();
+      state.generatedHTML = '<div style="background:' + _lc + ';padding:14px 48px 0;display:flex;align-items:center;"><img src="' + adminSettings.logo + '" style="height:52px;max-width:200px;object-fit:contain;display:block;"></div>' + state.generatedHTML;
+    }
     paperEl.innerHTML = state.generatedHTML;
     setMainState("doc");
     loadCreditBalance();
@@ -1002,6 +1019,8 @@ function applyServerSettings(data) {
       var s = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
       if (data.adminSettings.schoolName) s.schoolName = data.adminSettings.schoolName;
       if (data.adminSettings.model) s.model = data.adminSettings.model;
+      if (data.adminSettings.theme && THEMES[data.adminSettings.theme]) s.theme = data.adminSettings.theme;
+      if (data.adminSettings.logo !== undefined) s.logo = data.adminSettings.logo;
       DOC_TYPES.forEach(function(t) {
         if (!s[t.id]) s[t.id] = { notes: "" };
         if (data.adminSettings[t.id] && data.adminSettings[t.id].notes !== undefined) s[t.id].notes = data.adminSettings[t.id].notes;

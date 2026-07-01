@@ -10,6 +10,13 @@ const muted = '#64748B';
 const green = '#15803D';
 const red = '#DC2626';
 
+const THEMES = [
+  { id: 'navy',     label: 'Classic Navy',  color: '#1E293B' },
+  { id: 'cobalt',   label: 'Cobalt Blue',   color: '#1D4ED8' },
+  { id: 'forest',   label: 'Forest Green',  color: '#166534' },
+  { id: 'burgundy', label: 'Burgundy',      color: '#7F1D1D' },
+];
+
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
@@ -67,6 +74,10 @@ export default function AdminPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [model, setModel] = useState<string>('claude-haiku-4-5');
   const [savingModel, setSavingModel] = useState(false);
+  const [theme, setTheme] = useState<string>('navy');
+  const [logo, setLogo] = useState<string>('');
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [savingLogo, setSavingLogo] = useState(false);
 
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -173,7 +184,11 @@ export default function AdminPage() {
   function loadModel() {
     fetch('/api/document-creator/settings')
       .then(r => r.json())
-      .then(d => { if (d.adminSettings?.model) setModel(d.adminSettings.model); })
+      .then(d => {
+        if (d.adminSettings?.model) setModel(d.adminSettings.model);
+        if (d.adminSettings?.theme) setTheme(d.adminSettings.theme);
+        if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
+      })
       .catch(() => {});
   }
 
@@ -195,6 +210,61 @@ export default function AdminPage() {
     } finally {
       setSavingModel(false);
     }
+  }
+
+  async function patchSettings(patch: Record<string, unknown>) {
+    const settingsResp = await fetch('/api/document-creator/settings');
+    const settingsData = await settingsResp.json();
+    const updated = { ...(settingsData.adminSettings || {}), ...patch };
+    await fetch('/api/document-creator/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminSettings: updated }),
+    });
+  }
+
+  async function saveTheme(newTheme: string) {
+    setTheme(newTheme);
+    setSavingTheme(true);
+    try {
+      await patchSettings({ theme: newTheme });
+      showMsg('Theme saved.');
+    } catch { showMsg('Failed to save theme.', red); }
+    finally { setSavingTheme(false); }
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) { showMsg('Logo must be under 1 MB.', red); return; }
+    setSavingLogo(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, 400 / img.width, 200 / img.height);
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+      setLogo(dataUrl);
+      await patchSettings({ logo: dataUrl });
+      showMsg('Logo saved.');
+    } catch { showMsg('Failed to save logo.', red); }
+    finally { setSavingLogo(false); }
+  }
+
+  async function removeLogo() {
+    setLogo('');
+    setSavingLogo(true);
+    try { await patchSettings({ logo: '' }); showMsg('Logo removed.'); }
+    catch { showMsg('Failed to remove logo.', red); }
+    finally { setSavingLogo(false); }
   }
 
   async function logout() {
@@ -330,6 +400,45 @@ export default function AdminPage() {
             >
               Buy Credits
             </a>
+          </div>
+        </Section>
+
+        {/* School Theme */}
+        <Section title="Document Theme">
+          <div style={{ display: 'flex', gap: 10 }}>
+            {THEMES.map(t => (
+              <label key={t.id} style={{ flex: 1, cursor: savingTheme ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
+                <input type="radio" name="theme" value={t.id} checked={theme === t.id} onChange={() => saveTheme(t.id)} disabled={savingTheme} style={{ display: 'none' }} />
+                <div style={{ height: 44, background: t.color, borderRadius: 8, marginBottom: 6, border: theme === t.id ? '3px solid #60A5FA' : '3px solid transparent', boxSizing: 'border-box', transition: 'border-color 0.15s' }} />
+                <div style={{ fontSize: 12, color: theme === t.id ? navy : muted, fontWeight: theme === t.id ? 700 : 400 }}>{t.label}</div>
+              </label>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: muted, marginTop: 10 }}>Applied to every generated document — header background, section borders, and table headers.</div>
+        </Section>
+
+        {/* School Logo */}
+        <Section title="School Logo">
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            {logo ? (
+              <div style={{ background: THEMES.find(t => t.id === theme)?.color || '#1E293B', borderRadius: 8, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <img src={logo} style={{ height: 48, maxWidth: 160, objectFit: 'contain', display: 'block' }} alt="School logo" />
+              </div>
+            ) : (
+              <div style={{ width: 120, height: 72, background: '#F8FAFC', border: `2px dashed ${border}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 11, color: muted }}>No logo</span>
+              </div>
+            )}
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: savingLogo ? 'not-allowed' : 'pointer', opacity: savingLogo ? 0.6 : 1 }}>
+                {savingLogo ? 'Saving...' : logo ? 'Replace Logo' : 'Upload Logo'}
+                <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={savingLogo} style={{ display: 'none' }} />
+              </label>
+              {logo && (
+                <button onClick={removeLogo} disabled={savingLogo} style={{ marginLeft: 8, background: 'none', border: `1px solid ${border}`, borderRadius: 7, padding: '8px 14px', fontSize: 13, color: muted, cursor: 'pointer', fontFamily: font }}>Remove</button>
+              )}
+              <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PNG, SVG, or JPG. Max 1 MB. Shown in the top-left of every document.</div>
+            </div>
           </div>
         </Section>
 
