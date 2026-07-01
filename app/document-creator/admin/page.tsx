@@ -19,6 +19,7 @@ const THEMES = [
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
+type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {
   totalAll: number;
@@ -78,6 +79,13 @@ export default function AdminPage() {
   const [logo, setLogo] = useState<string>('');
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
+
+  const [schoolName, setSchoolName] = useState('');
+  const [docTypes, setDocTypes] = useState<DocType[]>([]);
+  const [docNotes, setDocNotes] = useState<Record<string, string>>({});
+  const [savingSchool, setSavingSchool] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const [newTypeDesc, setNewTypeDesc] = useState('');
 
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -188,6 +196,13 @@ export default function AdminPage() {
         if (d.adminSettings?.model) setModel(d.adminSettings.model);
         if (d.adminSettings?.theme) setTheme(d.adminSettings.theme);
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
+        if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
+        if (d.docTypes?.length) {
+          setDocTypes(d.docTypes);
+          const notes: Record<string, string> = {};
+          d.docTypes.forEach((t: DocType) => { notes[t.id] = d.adminSettings?.[t.id]?.notes || ''; });
+          setDocNotes(notes);
+        }
       })
       .catch(() => {});
   }
@@ -265,6 +280,41 @@ export default function AdminPage() {
     try { await patchSettings({ logo: '' }); showMsg('Logo removed.'); }
     catch { showMsg('Failed to remove logo.', red); }
     finally { setSavingLogo(false); }
+  }
+
+  async function saveSchoolSettings() {
+    setSavingSchool(true);
+    try {
+      const settingsResp = await fetch('/api/document-creator/settings');
+      const settingsData = await settingsResp.json();
+      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}), schoolName };
+      docTypes.forEach(t => { updated[t.id] = { notes: docNotes[t.id] || '' }; });
+      await fetch('/api/document-creator/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminSettings: updated, docTypes }),
+      });
+      showMsg('School settings saved.');
+    } catch { showMsg('Failed to save.', red); }
+    finally { setSavingSchool(false); }
+  }
+
+  function addDocType() {
+    if (!newTypeName.trim()) { showMsg('Enter a document type name.', red); return; }
+    const id = newTypeName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (docTypes.find(t => t.id === id)) { showMsg('A type with that name already exists.', red); return; }
+    setDocTypes([...docTypes, { id, label: newTypeName.trim(), icon: '📄', color: '#475569', desc: newTypeDesc.trim() }]);
+    setDocNotes({ ...docNotes, [id]: '' });
+    setNewTypeName('');
+    setNewTypeDesc('');
+  }
+
+  function removeDocType(id: string) {
+    if (!confirm(`Remove this document type? Its requirements will also be deleted.`)) return;
+    setDocTypes(docTypes.filter(t => t.id !== id));
+    const n = { ...docNotes };
+    delete n[id];
+    setDocNotes(n);
   }
 
   async function logout() {
@@ -438,6 +488,51 @@ export default function AdminPage() {
                 <button onClick={removeLogo} disabled={savingLogo} style={{ marginLeft: 8, background: 'none', border: `1px solid ${border}`, borderRadius: 7, padding: '8px 14px', fontSize: 13, color: muted, cursor: 'pointer', fontFamily: font }}>Remove</button>
               )}
               <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PNG, SVG, or JPG. Max 1 MB. Shown in the top-left of every document.</div>
+            </div>
+          </div>
+        </Section>
+
+        {/* School Settings */}
+        <Section title="School Settings">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {/* School name */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name</div>
+              <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
+            </div>
+
+            {/* Per-type notes */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type</div>
+              <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {docTypes.map(t => (
+                  <details key={t.id} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
+                    <summary style={{ background: '#F8FAFC', padding: '10px 14px', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: navy, flex: 1 }}>{t.icon} {t.label}</span>
+                      <button onClick={e => { e.preventDefault(); removeDocType(t.id); }} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 5, cursor: 'pointer', color: muted, fontSize: 11, padding: '2px 8px', fontFamily: font }}>Remove</button>
+                    </summary>
+                    <div style={{ padding: 14 }}>
+                      <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={4} placeholder="e.g. Always include the attendance policy. Require OSHA PPE language. Do not include a grading scale..."
+                        style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+
+            {/* Add doc type */}
+            <div style={{ paddingTop: 12, borderTop: `1px solid ${border}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Add Document Type</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <Input value={newTypeName} onChange={setNewTypeName} placeholder="Type name (e.g. Parent Letter)" />
+                <Input value={newTypeDesc} onChange={setNewTypeDesc} placeholder="Short description (optional)" />
+              </div>
+              <Btn onClick={addDocType}>+ Add Type</Btn>
+            </div>
+
+            <div>
+              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save School Settings'}</Btn>
             </div>
           </div>
         </Section>

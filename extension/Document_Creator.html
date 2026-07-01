@@ -192,12 +192,11 @@ body {
     <button class="tb-btn" id="btn-pdf" disabled title="Open print dialog — save as PDF from there. Enable 'Print background graphics' for full color.">🖨️ Print / PDF</button>
     <button class="tb-btn" id="btn-word" disabled>⬇ Word (.doc)</button>
     <div class="tb-divider"></div>
-    <button class="tb-btn" id="btn-admin">⚙ School Settings</button>
+    <button class="tb-btn" id="btn-admin">⚙ Admin Panel</button>
     <div class="tb-divider"></div>
     <span id="credit-display" style="font-size:12px;color:#64748B;white-space:nowrap;">⚡ — credits</span>
     <div class="tb-divider"></div>
     <span id="user-name-display" style="font-size:12px;color:#64748B;white-space:nowrap;"></span>
-    <span id="admin-link" style="display:none;"><a href="/document-creator/admin" style="font-size:12px;color:#1E4D8C;text-decoration:none;white-space:nowrap;">Admin Panel</a></span>
     <button id="btn-signout" class="tb-btn" style="display:none;">Sign Out</button>
   </div>
 </div>
@@ -949,7 +948,7 @@ function saveAdmin() {
 // ═══════════════════════════════════════════════════════════
 document.getElementById("btn-pdf").addEventListener("click", downloadPDF);
 document.getElementById("btn-word").addEventListener("click", downloadWord);
-document.getElementById("btn-admin").addEventListener("click", openAdmin);
+document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
     window.location.href = "/document-creator/login";
@@ -1062,8 +1061,6 @@ async function initAuth() {
     if (signoutBtn) signoutBtn.style.display = "";
 
     if (data.session.role === "admin") {
-      var adminLink = document.getElementById("admin-link");
-      if (adminLink) adminLink.style.display = "inline";
       // Admin can buy credits — enable click on credit display
       var creditEl = document.getElementById("credit-display");
       if (creditEl) {
