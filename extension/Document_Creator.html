@@ -336,6 +336,7 @@ var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","
 // ── Admin settings ──
 var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
+  model: "claude-haiku-4-5",
   syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
   worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
   projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
@@ -358,6 +359,7 @@ var adminSettings = (function(){
     var saved = JSON.parse(s);
     var out = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
     if (saved.schoolName) out.schoolName = saved.schoolName;
+    if (saved.model) out.model = saved.model;
     DOC_TYPES.forEach(function(t) {
       if (!out[t.id]) out[t.id] = { notes: "" };
       if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
@@ -422,7 +424,7 @@ async function callClaude(promptOrMessages, onChunk) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: adminSettings.model || "claude-haiku-4-5",
       max_tokens: 8000,
       usageType: "creation",
       accountId: _accountId,
@@ -988,6 +990,7 @@ function applyServerSettings(data) {
     try {
       var s = JSON.parse(JSON.stringify(ADMIN_DEFAULTS));
       if (data.adminSettings.schoolName) s.schoolName = data.adminSettings.schoolName;
+      if (data.adminSettings.model) s.model = data.adminSettings.model;
       DOC_TYPES.forEach(function(t) {
         if (!s[t.id]) s[t.id] = { notes: "" };
         if (data.adminSettings[t.id] && data.adminSettings[t.id].notes !== undefined) s[t.id].notes = data.adminSettings[t.id].notes;

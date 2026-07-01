@@ -57,6 +57,8 @@ export default function AdminPage() {
   const [resetting, setResetting] = useState(false);
 
   const [balance, setBalance] = useState<number | null>(null);
+  const [model, setModel] = useState<string>('claude-haiku-4-5');
+  const [savingModel, setSavingModel] = useState(false);
 
   function showMsg(text: string, color = green) { setMsg(text); setMsgColor(color); setTimeout(() => setMsg(''), 4000); }
 
@@ -70,6 +72,7 @@ export default function AdminPage() {
         setLoading(false);
         loadTeachers();
         loadBalance(data.session.accountId, data.session.accountToken);
+        loadModel();
       })
       .catch(() => { window.location.href = '/document-creator/login'; });
   }, []);
@@ -138,6 +141,33 @@ export default function AdminPage() {
     }
   }
 
+  function loadModel() {
+    fetch('/api/document-creator/settings')
+      .then(r => r.json())
+      .then(d => { if (d.adminSettings?.model) setModel(d.adminSettings.model); })
+      .catch(() => {});
+  }
+
+  async function saveModel(newModel: string) {
+    setModel(newModel);
+    setSavingModel(true);
+    try {
+      const settingsResp = await fetch('/api/document-creator/settings');
+      const settingsData = await settingsResp.json();
+      const updated = { ...(settingsData.adminSettings || {}), model: newModel };
+      await fetch('/api/document-creator/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminSettings: updated }),
+      });
+      showMsg(`Model switched to ${newModel === 'claude-haiku-4-5' ? 'Haiku ($0.03/doc)' : 'Sonnet ($0.10/doc)'}.`);
+    } catch {
+      showMsg('Failed to save model preference.', red);
+    } finally {
+      setSavingModel(false);
+    }
+  }
+
   async function logout() {
     await fetch('/api/document-creator/auth/logout', { method: 'POST' });
     window.location.href = '/document-creator/login';
@@ -186,6 +216,24 @@ export default function AdminPage() {
             >
               Buy Credits
             </a>
+          </div>
+        </Section>
+
+        {/* AI Model */}
+        <Section title="AI Model">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              { id: 'claude-haiku-4-5',  label: 'Haiku',  cost: '$0.03 / document', desc: 'Fast and affordable. Handles most documents well.' },
+              { id: 'claude-sonnet-4-6', label: 'Sonnet', cost: '$0.10 / document', desc: 'Higher quality. Better for complex layouts and detailed rubrics.' },
+            ].map(opt => (
+              <label key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', border: `2px solid ${model === opt.id ? blue : border}`, borderRadius: 10, cursor: savingModel ? 'not-allowed' : 'pointer', background: model === opt.id ? '#F0F4FF' : '#fff' }}>
+                <input type="radio" name="model" value={opt.id} checked={model === opt.id} onChange={() => saveModel(opt.id)} disabled={savingModel} style={{ marginTop: 2 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: navy }}>{opt.label} <span style={{ fontWeight: 400, fontSize: 12, color: model === opt.id ? blue : muted }}>— {opt.cost}</span></div>
+                  <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{opt.desc}</div>
+                </div>
+              </label>
+            ))}
           </div>
         </Section>
 
