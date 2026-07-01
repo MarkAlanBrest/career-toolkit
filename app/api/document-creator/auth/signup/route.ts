@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   DcSchool, DcUser, DcSession,
   addSchoolToIndex, generateId, generateToken,
-  hashPassword, saveSchool, saveUser, createSession, sessionCookieOptions,
+  hashPassword, saveSchool, saveUser, getUser, createSession, sessionCookieOptions,
 } from '@/lib/dcAuth';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if email already exists
-    const { getUser } = await import('@/lib/dcAuth');
     const existing = await getUser(email);
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 409, headers: CORS });
