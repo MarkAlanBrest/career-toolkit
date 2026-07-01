@@ -12,6 +12,14 @@ const red = '#DC2626';
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
+type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
+type UsageStats = {
+  totalAll: number;
+  totalMonth: number;
+  byTeacher: { name: string; email: string; total: number; thisMonth: number }[];
+  byDocType: { label: string; count: number }[];
+  recent: UsageEntry[];
+};
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -60,6 +68,9 @@ export default function AdminPage() {
   const [model, setModel] = useState<string>('claude-haiku-4-5');
   const [savingModel, setSavingModel] = useState(false);
 
+  const [usage, setUsage] = useState<UsageStats | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
   function showMsg(text: string, color = green) { setMsg(text); setMsgColor(color); setTimeout(() => setMsg(''), 4000); }
 
   useEffect(() => {
@@ -73,6 +84,7 @@ export default function AdminPage() {
         loadTeachers();
         loadBalance(data.session.accountId, data.session.accountToken);
         loadModel();
+        loadUsage();
       })
       .catch(() => { window.location.href = '/document-creator/login'; });
   }, []);
@@ -141,6 +153,23 @@ export default function AdminPage() {
     }
   }
 
+  function loadUsage() {
+    setLoadingUsage(true);
+    fetch('/api/document-creator/usage/stats')
+      .then(r => r.json())
+      .then(data => { if (data.totalAll !== undefined) setUsage(data); })
+      .catch(() => {})
+      .finally(() => setLoadingUsage(false));
+  }
+
+  function timeAgo(ts: number) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  }
+
   function loadModel() {
     fetch('/api/document-creator/settings')
       .then(r => r.json())
@@ -199,6 +228,91 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Usage Dashboard */}
+        <Section title="Usage Dashboard">
+          {loadingUsage ? (
+            <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
+          ) : !usage || usage.totalAll === 0 ? (
+            <div style={{ color: muted, fontSize: 13 }}>No documents generated yet. Usage will appear here after your first generation.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              {/* Stat cards */}
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { label: 'This Month', value: usage.totalMonth },
+                  { label: 'All Time', value: usage.totalAll },
+                ].map(card => (
+                  <div key={card.label} style={{ flex: 1, background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 10, padding: '14px 18px' }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: navy }}>{card.value.toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{card.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* By teacher */}
+              {usage.byTeacher.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>By Teacher</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${border}` }}>
+                        <th style={{ textAlign: 'left', padding: '5px 8px', color: muted, fontWeight: 600 }}>Name</th>
+                        <th style={{ textAlign: 'right', padding: '5px 8px', color: muted, fontWeight: 600 }}>This Month</th>
+                        <th style={{ textAlign: 'right', padding: '5px 8px', color: muted, fontWeight: 600 }}>All Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usage.byTeacher.map(t => (
+                        <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
+                          <td style={{ padding: '7px 8px', color: navy, fontWeight: 500 }}>{t.name}<span style={{ color: muted, fontWeight: 400, fontSize: 11, marginLeft: 6 }}>{t.email}</span></td>
+                          <td style={{ padding: '7px 8px', textAlign: 'right', color: navy }}>{t.thisMonth}</td>
+                          <td style={{ padding: '7px 8px', textAlign: 'right', color: muted }}>{t.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* By doc type */}
+              {usage.byDocType.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Popular Document Types</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {usage.byDocType.map(dt => {
+                      const pct = Math.round((dt.count / usage.totalAll) * 100);
+                      return (
+                        <div key={dt.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ fontSize: 13, color: navy, width: 130, flexShrink: 0 }}>{dt.label}</div>
+                          <div style={{ flex: 1, background: '#E2E8F0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                            <div style={{ width: `${pct}%`, background: blue, height: '100%', borderRadius: 4 }} />
+                          </div>
+                          <div style={{ fontSize: 12, color: muted, width: 36, textAlign: 'right', flexShrink: 0 }}>{dt.count}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent activity */}
+              {usage.recent.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Recent Activity</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    {usage.recent.map((entry, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${border}`, fontSize: 12 }}>
+                        <div style={{ color: navy }}>{entry.name} <span style={{ color: muted }}>→</span> <span style={{ color: blue }}>{entry.docTypeLabel}</span></div>
+                        <div style={{ color: muted, flexShrink: 0, marginLeft: 12 }}>{timeAgo(entry.ts)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Section>
+
         {/* Credits */}
         <Section title="AI Credits">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -206,7 +320,7 @@ export default function AdminPage() {
               <div style={{ fontSize: 28, fontWeight: 700, color: balance !== null && balance < 20 ? red : navy }}>
                 {balance !== null ? balance.toLocaleString() : '—'}
               </div>
-              <div style={{ fontSize: 13, color: muted, marginTop: 2 }}>Available credits · 10 credits per document</div>
+              <div style={{ fontSize: 13, color: muted, marginTop: 2 }}>Available credits · {model === 'claude-haiku-4-5' ? '3' : '10'} credits per document</div>
             </div>
             <a
               href={`/buy-credits?accountId=${encodeURIComponent(session?.accountId || '')}&accountToken=${encodeURIComponent(session?.accountToken || '')}`}

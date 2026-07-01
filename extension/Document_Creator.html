@@ -720,6 +720,17 @@ async function generate() {
     paperEl.innerHTML = state.generatedHTML;
     setMainState("doc");
     loadCreditBalance();
+    // Fire-and-forget usage tracking
+    var _usageType = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
+    fetch("/api/document-creator/usage/record", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        docType: state.selectedType,
+        docTypeLabel: _usageType ? _usageType.label : state.selectedType,
+        model: adminSettings.model || "claude-haiku-4-5"
+      })
+    }).catch(function() {});
   } catch (err) {
     setMainState(state.generatedHTML ? "doc" : "placeholder");
     alert("Generation error: " + err.message);
