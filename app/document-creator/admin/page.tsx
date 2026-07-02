@@ -216,8 +216,8 @@ export default function AdminPage() {
   async function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!newDocName.trim()) { showMsg('Enter a name for this document first (e.g. "School Catalog").', red); e.target.value = ''; return; }
     if (file.size > 8 * 1024 * 1024) { showMsg('File must be under 8 MB.', red); e.target.value = ''; return; }
+    const docName = newDocName.trim() || file.name.replace(/\.[^./]+$/, '');
     setUploadingDoc(true);
     try {
       const b64 = await new Promise<string>((resolve, reject) => {
@@ -241,12 +241,12 @@ export default function AdminPage() {
       const resp = await fetch('/api/document-creator/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newDocName.trim(), filename: file.name, text: parsed.text }),
+        body: JSON.stringify({ name: docName, filename: file.name, text: parsed.text }),
       });
       const data = await resp.json();
       if (!resp.ok) { showMsg(data.error || 'Failed to save document.', red); return; }
       setNewDocName('');
-      showMsg('Document added.');
+      showMsg(`"${docName}" added.`);
       loadDocs();
     } catch {
       showMsg('Upload failed. Please try again.', red);
@@ -595,13 +595,13 @@ export default function AdminPage() {
           )}
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input value={newDocName} onChange={setNewDocName} placeholder='Document name (e.g. "School Catalog 2026")' />
+            <Input value={newDocName} onChange={setNewDocName} placeholder='Name (optional — e.g. "School Catalog 2026")' />
             <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1, whiteSpace: 'nowrap' }}>
               {uploadingDoc ? 'Uploading...' : 'Upload File'}
               <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleDocUpload} disabled={uploadingDoc} style={{ display: 'none' }} />
             </label>
           </div>
-          <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically.</div>
+          <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
         </Section>
 
         {/* School Settings */}
