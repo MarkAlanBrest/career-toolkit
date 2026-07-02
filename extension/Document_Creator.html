@@ -519,13 +519,19 @@ function esc(s) { var d = document.createElement("div"); d.textContent = s || ""
 // ═══════════════════════════════════════════════════════════
 // CLAUDE API
 // ═══════════════════════════════════════════════════════════
+// Kept modest on purpose: the backend serverless function is capped at ~60s (Hobby plan),
+// and a long Sonnet response can take longer than that to stream. Capping tokens per call
+// keeps each call comfortably under that ceiling; callClaude() below chains calls together
+// for documents that need more than one.
+var MAX_TOKENS_PER_CALL = 2500;
+
 async function callClaudeOnce(messages, onChunk) {
   var resp = await fetch("https://career-toolkit-ruby.vercel.app/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: adminSettings.model || "claude-haiku-4-5",
-      max_tokens: 16000,
+      max_tokens: MAX_TOKENS_PER_CALL,
       usageType: "creation",
       messages: messages
     })
@@ -565,8 +571,10 @@ async function callClaudeOnce(messages, onChunk) {
   return { text: fullText, stopReason: stopReason };
 }
 
-// Generates in one call, but if Claude hits the token ceiling mid-document, automatically
-// asks it to continue from where it stopped (up to a few times) so long documents aren't cut short.
+// Chains calls together for documents longer than one call can produce — whether that call
+// stopped because it hit MAX_TOKENS_PER_CALL, or because the connection was cut before Claude
+// finished (e.g. a hosting timeout on a slow response), the fix is the same: ask it to continue.
+// Only a clean "end_turn" (Claude actually finished the document) stops the loop early.
 async function callClaude(promptOrMessages, onChunk) {
   var messages = (Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }]).slice();
   var combined = "";
@@ -576,7 +584,7 @@ async function callClaude(promptOrMessages, onChunk) {
     var result = await callClaudeOnce(messages, function(partial) { if (onChunk) onChunk(priorText + partial); });
     combined += result.text;
     attempts++;
-    if (result.stopReason !== "max_tokens" || attempts >= 3) break;
+    if (result.stopReason === "end_turn" || attempts >= 6) break;
     messages = messages.concat([
       { role: "assistant", content: result.text },
       { role: "user", content: "Continue the HTML exactly where you left off. Do not repeat any earlier content and add no commentary — resume mid-tag if necessary." }
