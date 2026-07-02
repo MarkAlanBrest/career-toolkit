@@ -422,6 +422,14 @@ var state = {
 };
 
 var _userSession = null;
+var referenceDocs = [];
+
+function loadReferenceDocs() {
+  fetch("/api/document-creator/documents")
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (Array.isArray(d.documents)) referenceDocs = d.documents; })
+    .catch(function() {});
+}
 
 var chatState = { typeId: null };
 var _pendingFiles = [];
@@ -534,11 +542,18 @@ function buildPromptFromInput(typeId, description) {
     ? "ADMIN REQUIREMENTS — these take full priority over teacher input. Follow every item exactly:\n" + adminNotes + "\n\n"
     : "";
 
+  var refIds = (adminSettings[typeId] && adminSettings[typeId].referenceDocs) || [];
+  var selectedDocs = refIds.map(function(id) { return referenceDocs.find(function(d) { return d.id === id; }); }).filter(Boolean);
+  var referenceBlock = selectedDocs.length
+    ? "REFERENCE MATERIALS — authoritative source for facts like course codes, program names, and official descriptions. Pull only what's relevant to this document; do not dump entire documents verbatim:\n\n"
+      + selectedDocs.map(function(d) { return "[" + d.name + "]\n" + d.text; }).join("\n\n") + "\n\n"
+    : "";
+
   var teacherBlock = description
     ? "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
 
-  return base + schoolBlock + styleBlock + adminBlock + teacherBlock
+  return base + schoolBlock + styleBlock + adminBlock + referenceBlock + teacherBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
     + getLayoutInstructions(typeId, color, lc);
 }
@@ -1184,6 +1199,7 @@ function applyServerSettings(data) {
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
           if (src.styleOptions) s[t.id].styleOptions = src.styleOptions;
           if (src.theme && THEMES[src.theme]) s[t.id].theme = src.theme;
+          if (Array.isArray(src.referenceDocs)) s[t.id].referenceDocs = src.referenceDocs;
         }
       });
       Object.assign(adminSettings, s);
@@ -1234,6 +1250,7 @@ async function initAuth() {
         applyServerSettings(sData);
       }
     } catch(e) {}
+    loadReferenceDocs();
 
     // Hide auth overlay and initialize
     document.getElementById("auth-overlay").style.display = "none";
