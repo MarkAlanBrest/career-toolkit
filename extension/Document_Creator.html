@@ -168,6 +168,7 @@ body {
   #main { overflow: visible; padding: 0; background: #fff; }
   #doc-wrap { display: block !important; max-width: 100%; margin: 0; }
   #doc-actions { display: none !important; }
+  #refine-bar { display: none !important; }
   #doc-paper { box-shadow: none; border-radius: 0; }
   #placeholder, #loading { display: none !important; }
 }
@@ -191,6 +192,8 @@ body {
   <div class="topbar-actions">
     <button class="tb-btn" id="btn-pdf" disabled title="Open print dialog — save as PDF from there. Enable 'Print background graphics' for full color.">🖨️ Print / PDF</button>
     <button class="tb-btn" id="btn-word" disabled>⬇ Word (.doc)</button>
+    <div class="tb-divider"></div>
+    <button class="tb-btn" id="btn-history">📋 History</button>
     <div class="tb-divider"></div>
     <button class="tb-btn" id="btn-admin">⚙ Admin Panel</button>
     <div class="tb-divider"></div>
@@ -227,6 +230,11 @@ body {
       <div id="doc-actions">
         <button class="tb-btn" id="btn-regen">↺ Regenerate</button>
         <button class="tb-btn" id="btn-copy">⎘ Copy HTML</button>
+      </div>
+      <div id="refine-bar" style="display:none;margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:10px 14px;align-items:center;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+        <span style="font-size:14px;flex-shrink:0;color:#7C3AED;">✦</span>
+        <input id="refine-input" type="text" placeholder="Refine — e.g. 'convert the schedule to a table' or 'add a makeup exam policy section'" style="flex:1;border:none;outline:none;font-size:13px;font-family:inherit;color:#1E293B;background:transparent;" />
+        <button id="refine-btn" style="background:#4F46E5;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Apply</button>
       </div>
       <div id="doc-paper"></div>
     </div>
@@ -270,6 +278,15 @@ body {
       <button id="chat-gen-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Generate Document</button>
     </div>
   </div>
+</div>
+
+<!-- HISTORY PANEL -->
+<div id="history-panel" style="display:none;position:fixed;top:40px;right:0;bottom:0;width:300px;background:#fff;border-left:1px solid #E2E8F0;box-shadow:-4px 0 20px rgba(0,0,0,0.10);z-index:50;flex-direction:column;">
+  <div style="padding:12px 16px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+    <span style="font-size:13px;font-weight:700;color:#1E293B;">Recent Documents</span>
+    <button onclick="closeHistory()" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;line-height:1;padding:0 4px;">✕</button>
+  </div>
+  <div id="history-list" style="flex:1;overflow-y:auto;padding:8px;font-size:13px;"></div>
 </div>
 
 <!-- ADMIN OVERLAY -->
@@ -753,6 +770,7 @@ function setMainState(which) {
   document.getElementById("placeholder").style.display = which === "placeholder" ? "flex" : "none";
   document.getElementById("loading").style.display = which === "loading" ? "flex" : "none";
   document.getElementById("doc-wrap").style.display = which === "doc" ? "block" : "none";
+  document.getElementById("refine-bar").style.display = which === "doc" ? "flex" : "none";
   var hasDoc = which === "doc";
   document.getElementById("btn-pdf").disabled = !hasDoc;
   document.getElementById("btn-word").disabled = !hasDoc;
@@ -819,6 +837,7 @@ async function generate() {
     paperEl.innerHTML = state.generatedHTML;
     setMainState("doc");
     loadCreditBalance();
+    saveToHistory();
     // Fire-and-forget usage tracking
     var _usageType = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
     fetch("/api/document-creator/usage/record", {
@@ -979,6 +998,7 @@ function saveAdmin() {
 // ═══════════════════════════════════════════════════════════
 document.getElementById("btn-pdf").addEventListener("click", downloadPDF);
 document.getElementById("btn-word").addEventListener("click", downloadWord);
+document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
@@ -990,6 +1010,8 @@ document.getElementById("admin-cancel").addEventListener("click", closeAdmin);
 document.getElementById("admin-save").addEventListener("click", saveAdmin);
 document.getElementById("admin-overlay").addEventListener("click", function(e) { if (e.target === document.getElementById("admin-overlay")) closeAdmin(); });
 document.getElementById("btn-regen").addEventListener("click", function() { openChat(state.selectedType); });
+document.getElementById("refine-btn").addEventListener("click", refineDocument);
+document.getElementById("refine-input").addEventListener("keydown", function(e) { if (e.key === "Enter") refineDocument(); });
 document.getElementById("chat-close-btn").addEventListener("click", closeChat);
 document.getElementById("chat-gen-btn").addEventListener("click", generate);
 document.getElementById("chat-overlay").addEventListener("click", function(e) {
@@ -1026,6 +1048,115 @@ document.getElementById("btn-copy").addEventListener("click", function() {
     setTimeout(function() { btn.textContent = orig; }, 2000);
   });
 });
+// ═══════════════════════════════════════════════════════════
+// DOCUMENT HISTORY
+// ═══════════════════════════════════════════════════════════
+function timeAgo(ts) {
+  var s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+
+function saveToHistory() {
+  if (!state.generatedHTML || !state.selectedType) return;
+  var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
+  fetch("/api/document-creator/history", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ docType: state.selectedType, docTypeLabel: type ? type.label : state.selectedType, html: state.generatedHTML })
+  }).catch(function() {});
+}
+
+var _historyDocs = [];
+
+function openHistory() {
+  var panel = document.getElementById("history-panel");
+  if (panel.style.display !== "none") { closeHistory(); return; }
+  panel.style.display = "flex";
+  loadHistoryList();
+}
+
+function closeHistory() {
+  document.getElementById("history-panel").style.display = "none";
+}
+
+function loadHistoryList() {
+  var list = document.getElementById("history-list");
+  list.innerHTML = '<div style="padding:20px;color:#94A3B8;text-align:center;">Loading...</div>';
+  fetch("/api/document-creator/history")
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _historyDocs = data.docs || [];
+      if (!_historyDocs.length) {
+        list.innerHTML = '<div style="padding:24px 16px;color:#94A3B8;text-align:center;line-height:1.6;">No documents yet.<br>Generate one to see it here.</div>';
+        return;
+      }
+      list.innerHTML = _historyDocs.map(function(doc, i) {
+        var type = DOC_TYPES.find(function(t) { return t.id === doc.docType; }) || { icon: "📄" };
+        return '<div onclick="restoreFromHistory(' + i + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:background 0.12s;" onmouseover="this.style.background=\'#F5F3FF\';this.style.borderColor=\'#DDD6FE\'" onmouseout="this.style.background=\'\';this.style.borderColor=\'transparent\'">'
+          + '<span style="font-size:18px;flex-shrink:0;">' + type.icon + '</span>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(doc.docTypeLabel) + '</div>'
+          + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + timeAgo(doc.ts) + '</div>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    })
+    .catch(function() {
+      list.innerHTML = '<div style="padding:20px;color:#94A3B8;text-align:center;">Failed to load.</div>';
+    });
+}
+
+function restoreFromHistory(idx) {
+  var doc = _historyDocs[idx];
+  if (!doc) return;
+  state.generatedHTML = doc.html;
+  state.selectedType = doc.docType;
+  document.getElementById("doc-paper").innerHTML = doc.html;
+  setMainState("doc");
+  renderTypeList();
+  closeHistory();
+}
+
+// ═══════════════════════════════════════════════════════════
+// REFINEMENT
+// ═══════════════════════════════════════════════════════════
+async function refineDocument() {
+  var input = document.getElementById("refine-input");
+  var request = input ? input.value.trim() : "";
+  if (!request || !state.generatedHTML || state.isGenerating) return;
+  var refineBtn = document.getElementById("refine-btn");
+  if (refineBtn) { refineBtn.disabled = true; refineBtn.textContent = "Applying…"; }
+  state.isGenerating = true;
+  var paperEl = document.getElementById("doc-paper");
+  try {
+    var prompt = "You are editing an existing HTML document. Apply ONLY the requested change — preserve everything else exactly as-is: same structure, same sections, same inline CSS, same content not mentioned in the change.\n\n"
+      + "CURRENT DOCUMENT:\n" + state.generatedHTML + "\n\n"
+      + "REQUESTED CHANGE: " + request + "\n\n"
+      + "Return the complete updated HTML body content. Inline CSS only, no <html>/<head>/<body> tags, no markdown fences.";
+    var html = await callClaude([{ role: "user", content: prompt }], function(partial) {
+      paperEl.innerHTML = stripFences(partial);
+    });
+    state.generatedHTML = stripFences(html);
+    if (adminSettings.logo) {
+      state.generatedHTML = '<div style="position:relative;">'
+        + '<img src="' + adminSettings.logo + '" style="position:absolute;top:14px;right:24px;height:52px;max-width:180px;object-fit:contain;z-index:10;">'
+        + state.generatedHTML + '</div>';
+    }
+    paperEl.innerHTML = state.generatedHTML;
+    if (input) input.value = "";
+    saveToHistory();
+    loadCreditBalance();
+  } catch(err) {
+    alert("Refinement error: " + err.message);
+  } finally {
+    state.isGenerating = false;
+    if (refineBtn) { refineBtn.disabled = false; refineBtn.textContent = "Apply"; }
+  }
+}
+
 function loadCreditBalance() {
   if (!_accountId || !_accountToken) return;
   fetch("/api/credits/status?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken))
