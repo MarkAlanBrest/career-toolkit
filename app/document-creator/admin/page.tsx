@@ -20,7 +20,7 @@ const THEMES = [
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
-type DocTemplate = { name: string; isImage: boolean; mediaType?: string; data?: string; text?: string };
+type StyleOptions = { lines: boolean; numbered: boolean; infoBar: boolean; callouts: boolean };
 
 const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'syllabus',       label: 'Syllabus',               icon: '📋', color: '#7C3AED' },
@@ -104,9 +104,10 @@ export default function AdminPage() {
   const [schoolName, setSchoolName] = useState('');
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
-  const [docTemplates, setDocTemplates] = useState<Record<string, DocTemplate | null>>({});
   const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
   const [savingSchool, setSavingSchool] = useState(false);
+  const [styleOptions, setStyleOptions] = useState<StyleOptions>({ lines: false, numbered: false, infoBar: false, callouts: false });
+  const [savingStyle, setSavingStyle] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
 
@@ -224,17 +225,15 @@ export default function AdminPage() {
           const types: DocType[] = d.docTypes?.length ? d.docTypes : DEFAULT_DOC_TYPES;
           setDocTypes(types);
           const notes: Record<string, string> = {};
-          const templates: Record<string, DocTemplate | null> = {};
           const questions: Record<string, string> = {};
           types.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
-            templates[t.id] = d.adminSettings?.[t.id]?.template || null;
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
           });
           setDocNotes(notes);
-          setDocTemplates(templates);
           setDocQuestions(questions);
+          if (d.adminSettings?.styleOptions) setStyleOptions(d.adminSettings.styleOptions);
         }
       })
       .catch(() => {});
@@ -315,27 +314,12 @@ export default function AdminPage() {
     finally { setSavingLogo(false); }
   }
 
-  async function handleTemplateUpload(typeId: string, e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 1024 * 1024) { showMsg('Template must be under 1 MB.', red); return; }
-    const isImage = file.type.startsWith('image/');
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (isImage) {
-        const full = reader.result as string;
-        const data = full.split(',')[1];
-        setDocTemplates(prev => ({ ...prev, [typeId]: { name: file.name, isImage: true, mediaType: file.type, data } }));
-      } else {
-        setDocTemplates(prev => ({ ...prev, [typeId]: { name: file.name, isImage: false, text: reader.result as string } }));
-      }
-    };
-    isImage ? reader.readAsDataURL(file) : reader.readAsText(file);
-    e.target.value = '';
-  }
-
-  function clearTemplate(typeId: string) {
-    setDocTemplates(prev => ({ ...prev, [typeId]: null }));
+  async function saveStyleOptions(opts: StyleOptions) {
+    setStyleOptions(opts);
+    setSavingStyle(true);
+    try { await patchSettings({ styleOptions: opts }); }
+    catch { showMsg('Failed to save style options.', red); }
+    finally { setSavingStyle(false); }
   }
 
   async function saveSchoolSettings() {
@@ -347,7 +331,6 @@ export default function AdminPage() {
       docTypes.forEach(t => {
         updated[t.id] = {
           notes: docNotes[t.id] || '',
-          template: docTemplates[t.id] || null,
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
         };
       });
@@ -374,9 +357,8 @@ export default function AdminPage() {
   function removeDocType(id: string) {
     if (!confirm(`Remove this document type? Its requirements will also be deleted.`)) return;
     setDocTypes(docTypes.filter(t => t.id !== id));
-    const n = { ...docNotes };
-    delete n[id];
-    setDocNotes(n);
+    const n = { ...docNotes }; delete n[id]; setDocNotes(n);
+    const q = { ...docQuestions }; delete q[id]; setDocQuestions(q);
   }
 
   async function logout() {
@@ -529,6 +511,33 @@ export default function AdminPage() {
           <div style={{ fontSize: 11, color: muted, marginTop: 10 }}>Applied to every generated document — header background, section borders, and table headers.</div>
         </Section>
 
+        {/* Document Style Toggles */}
+        <Section title="Document Style">
+          <div style={{ fontSize: 11, color: muted, marginBottom: 14 }}>These apply to every document your school generates. Toggle to enable — saves automatically.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {([
+              { key: 'lines'    as const, label: 'Section divider lines',  desc: 'Thin horizontal rule above each major section heading' },
+              { key: 'numbered' as const, label: 'Numbered sections',      desc: '"1. Course Description", "2. Learning Outcomes", etc.' },
+              { key: 'infoBar'  as const, label: 'Teacher info bar',       desc: 'Teacher / Course / Date fill-in line directly below the header' },
+              { key: 'callouts' as const, label: 'Callout boxes',          desc: 'Policy text and key requirements in shaded bordered boxes' },
+            ] as { key: keyof StyleOptions; label: string; desc: string }[]).map(opt => (
+              <label key={opt.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: savingStyle ? 'not-allowed' : 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={styleOptions[opt.key]}
+                  onChange={() => saveStyleOptions({ ...styleOptions, [opt.key]: !styleOptions[opt.key] })}
+                  disabled={savingStyle}
+                  style={{ marginTop: 2, flexShrink: 0, width: 15, height: 15 }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: navy }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{opt.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </Section>
+
         {/* School Logo */}
         <Section title="School Logo">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -578,7 +587,7 @@ export default function AdminPage() {
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
-                        <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={4} placeholder="e.g. Always include the attendance policy. Require OSHA PPE language. Do not include a grading scale..."
+                        <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
                       <div>
@@ -593,26 +602,7 @@ export default function AdminPage() {
                         />
                       </div>
 
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Example Template</div>
-                        <div style={{ fontSize: 11, color: muted, marginBottom: 8 }}>AI matches this document&apos;s style and format. Image, HTML, or text file.</div>
-                        {docTemplates[t.id] ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F1F5F9', borderRadius: 8, padding: '9px 13px' }}>
-                            <span style={{ fontSize: 15 }}>📄</span>
-                            <span style={{ flex: 1, fontSize: 12, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{docTemplates[t.id]!.name}</span>
-                            <button onClick={() => clearTemplate(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 15, padding: 0, lineHeight: 1 }}>✕</button>
-                          </div>
-                        ) : (
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: `1.5px dashed ${border}`, borderRadius: 8, padding: '10px 16px', cursor: 'pointer', background: '#FAFBFC' }}>
-                            <span style={{ fontSize: 17 }}>📎</span>
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>Upload example template</div>
-                              <div style={{ fontSize: 11, color: muted }}>Image, .html, or .txt · max 1 MB</div>
-                            </div>
-                            <input type="file" accept="image/*,.txt,.html,.htm" onChange={e => handleTemplateUpload(t.id, e)} style={{ display: 'none' }} />
-                          </label>
-                        )}
-                      </div>
+
                     </div>
                   </details>
                 ))}

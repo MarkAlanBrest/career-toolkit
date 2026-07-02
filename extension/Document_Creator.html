@@ -351,6 +351,7 @@ var ADMIN_DEFAULTS = {
   model: "claude-haiku-4-5",
   theme: "navy",
   logo: "",
+  styleOptions: { lines: false, numbered: false, infoBar: false, callouts: false },
   syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
   worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
   projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
@@ -388,14 +389,7 @@ var adminSettings = (function(){
   } catch(e) { return JSON.parse(JSON.stringify(ADMIN_DEFAULTS)); }
 })();
 
-// Per-type templates stored as { typeId: { name, isImage, mediaType?, data?, text? } }
-var _adminTemplates = (function(){
-  try { var t = localStorage.getItem("doc_creator_templates"); return t ? JSON.parse(t) : {}; }
-  catch(e) { return {}; }
-})();
-
 function saveAdminSettings(){ try { localStorage.setItem("doc_creator_admin", JSON.stringify(adminSettings)); } catch(e){} }
-function saveAdminTemplates(){ try { localStorage.setItem("doc_creator_templates", JSON.stringify(_adminTemplates)); } catch(e){} }
 
 var state = {
   selectedType: null,
@@ -507,6 +501,14 @@ function buildPromptFromInput(typeId, description) {
     ? "SCHOOL: " + adminSettings.schoolName + "\n\n"
     : "";
 
+  var so = (adminSettings.styleOptions) || {};
+  var styleLines = [];
+  if (so.lines)    styleLines.push("Add a thin horizontal rule (style=\"border:none;border-top:1px solid #E2E8F0;margin:28px 0 16px;\") before each major section heading.");
+  if (so.numbered) styleLines.push("Number all major sections (e.g., '1. Course Description', '2. Learning Outcomes', '3. Required Materials').");
+  if (so.infoBar)  styleLines.push("Directly beneath the colored header div, insert a white info bar (style=\"background:#fff;padding:10px 48px;font-size:13px;font-family:Arial,sans-serif;border-bottom:1px solid #E2E8F0;\") containing: Teacher: _____________ &nbsp;|&nbsp; Course: _____________ &nbsp;|&nbsp; Date: _____________");
+  if (so.callouts) styleLines.push("Wrap all policy text, warnings, and key requirements in a callout div (style=\"background:#F8FAFC;border-left:4px solid " + color + ";padding:14px 20px;margin:14px 0;border-radius:0 6px 6px 0;\").");
+  var styleBlock = styleLines.length ? "SCHOOL STYLE — apply to every section of this document:\n" + styleLines.join("\n") + "\n\n" : "";
+
   var adminNotes = adminSettings[typeId] && adminSettings[typeId].notes && adminSettings[typeId].notes.trim();
   var adminBlock = adminNotes
     ? "ADMIN REQUIREMENTS — these take full priority over teacher input. Follow every item exactly:\n" + adminNotes + "\n\n"
@@ -516,7 +518,7 @@ function buildPromptFromInput(typeId, description) {
     ? "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
 
-  return base + schoolBlock + adminBlock + teacherBlock
+  return base + schoolBlock + styleBlock + adminBlock + teacherBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
     + getLayoutInstructions(typeId, color);
 }
@@ -787,27 +789,16 @@ async function generate() {
   var paperEl = document.getElementById("doc-paper");
   var streaming = false;
   var prompt = buildPromptFromInput(state.selectedType, description);
-  var adminTmpl = _adminTemplates[state.selectedType] || null;
-  // Append text files to prompt
-  if (adminTmpl && !adminTmpl.isImage && adminTmpl.text) {
-    prompt += "\n\nADMIN TEMPLATE — HIGHEST PRIORITY: Reproduce this document's exact section order, heading structure, table layouts, and visual formatting. Override the layout instructions above where they conflict with this template:\n\n" + adminTmpl.text;
-  }
-  // Append text files to prompt
   _pendingFiles.forEach(function(f) {
     if (!f.isImage && f.text) {
       prompt += "\n\nTEACHER-ATTACHED FILE — " + f.name + " (use as content reference, subject to admin requirements):\n\n" + f.text;
     }
   });
-  // Build content parts — admin template image first, then teacher images, then prompt text
   var parts = [];
-  if (adminTmpl && adminTmpl.isImage) {
-    parts.push({ type: "image", source: { type: "base64", media_type: adminTmpl.mediaType, data: adminTmpl.data } });
-  }
   _pendingFiles.forEach(function(f) {
     if (f.isImage) parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
   });
   var imageNote = "";
-  if (adminTmpl && adminTmpl.isImage) imageNote += " CRITICAL: The first image is the required school template. Replicate its exact section order, visual layout, header style, table structure, and formatting in your HTML output. This takes priority over all layout instructions above.";
   var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; });
   if (teacherImages.length) imageNote += " The teacher attached " + teacherImages.length + " image(s) — use them as content references, subject to admin requirements.";
   parts.push({ type: "text", text: prompt + imageNote });
@@ -872,21 +863,6 @@ function downloadWord() {
 // ═══════════════════════════════════════════════════════════
 // ADMIN UI
 // ═══════════════════════════════════════════════════════════
-function tmplBlock(typeId) {
-  var tmpl = _adminTemplates[typeId];
-  if (tmpl) {
-    return '<div style="display:flex;align-items:center;gap:10px;background:#F1F5F9;border-radius:8px;padding:9px 13px;">'
-      + '<span style="font-size:15px;">📄</span>'
-      + '<span style="flex:1;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(tmpl.name) + '</span>'
-      + '<button onclick="event.stopPropagation();clearAdminTemplate(\'' + typeId + '\')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
-      + '</div>';
-  }
-  return '<div style="border:1.5px dashed #CBD5E1;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById(\'tmpl-' + typeId + '\').click()">'
-    + '<span style="font-size:17px;">📎</span>'
-    + '<div><div style="font-size:12px;font-weight:600;color:#334155;">Upload example template</div>'
-    + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">Image, .html, or .txt</div></div>'
-    + '</div>';
-}
 
 function renderAdminUI() {
   var h = '<div style="margin-bottom:28px;">'
@@ -909,12 +885,6 @@ function renderAdminUI() {
       + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Admin Notes &amp; Requirements</label>'
       + '<p style="font-size:11px;color:#94A3B8;margin:0 0 5px;">What to include, exclude, or require — AI follows these exactly and they override the teacher.</p>'
       + '<textarea id="adm-notes-' + type.id + '" rows="4" placeholder="e.g. Always include the attendance policy. Require OSHA PPE language. Do not include a grading scale..." style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;line-height:1.5;">' + esc(notes) + '</textarea>'
-      + '</div>'
-      + '<div>'
-      + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Example Template</label>'
-      + '<p style="font-size:11px;color:#94A3B8;margin:0 0 5px;">AI will match this document\'s style and format.</p>'
-      + tmplBlock(type.id)
-      + '<input type="file" id="tmpl-' + type.id + '" accept="image/*,.txt,.html,.htm" data-typeid="' + type.id + '" style="display:none;">'
       + '</div>'
       + '</div></details>';
   });
@@ -939,30 +909,6 @@ function renderAdminUI() {
   // Default color selection — first swatch
   var firstSwatch = document.querySelector("#admin-body [data-color]");
   if (firstSwatch) selectNewTypeColor(firstSwatch.dataset.color);
-
-  // Wire all template file inputs
-  DOC_TYPES.forEach(function(type) {
-    var input = document.getElementById("tmpl-" + type.id);
-    if (!input) return;
-    input.addEventListener("change", function(e) {
-      var file = e.target.files[0];
-      if (!file) return;
-      var tid = e.target.dataset.typeid;
-      var isImage = file.type.startsWith("image/");
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        if (isImage) {
-          var d = ev.target.result, comma = d.indexOf(",");
-          _adminTemplates[tid] = { name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1) };
-        } else {
-          _adminTemplates[tid] = { name: file.name, isImage: false, text: ev.target.result };
-        }
-        saveAdminTemplates();
-        renderAdminUI();
-      };
-      isImage ? reader.readAsDataURL(file) : reader.readAsText(file);
-    });
-  });
 }
 
 var _newTypeColor = TYPE_COLORS[0];
@@ -995,21 +941,14 @@ function deleteDocType(typeId) {
   if (!confirm("Remove \"" + (DOC_TYPES.find(function(t){return t.id===typeId;})||{}).label + "\"? Its admin notes and template will also be deleted.")) return;
   DOC_TYPES = DOC_TYPES.filter(function(t) { return t.id !== typeId; });
   delete adminSettings[typeId];
-  delete _adminTemplates[typeId];
   if (state.selectedType === typeId) state.selectedType = null;
   saveDocTypes();
   saveAdminSettings();
-  saveAdminTemplates();
   saveSettingsToServer();
   renderAdminUI();
   renderTypeList();
 }
 
-function clearAdminTemplate(typeId) {
-  delete _adminTemplates[typeId];
-  saveAdminTemplates();
-  renderAdminUI();
-}
 
 function openAdmin() {
   renderAdminUI();
@@ -1111,6 +1050,7 @@ function applyServerSettings(data) {
       if (data.adminSettings.model) s.model = data.adminSettings.model;
       if (data.adminSettings.theme && THEMES[data.adminSettings.theme]) s.theme = data.adminSettings.theme;
       if (data.adminSettings.logo !== undefined) s.logo = data.adminSettings.logo;
+      if (data.adminSettings.styleOptions) s.styleOptions = data.adminSettings.styleOptions;
       DOC_TYPES.forEach(function(t) {
         if (!s[t.id]) s[t.id] = { notes: "", questions: [] };
         var src = data.adminSettings[t.id];
@@ -1118,9 +1058,6 @@ function applyServerSettings(data) {
           if (src.notes !== undefined) s[t.id].notes = src.notes;
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
         }
-        // Load template — always, regardless of whether docTypes came from server
-        var tmpl = src && src.template;
-        if (tmpl) _adminTemplates[t.id] = tmpl; else delete _adminTemplates[t.id];
       });
       Object.assign(adminSettings, s);
     } catch(e) {}
