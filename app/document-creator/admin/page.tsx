@@ -105,9 +105,8 @@ export default function AdminPage() {
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
   const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
+  const [docStyles, setDocStyles] = useState<Record<string, StyleOptions>>({});
   const [savingSchool, setSavingSchool] = useState(false);
-  const [styleOptions, setStyleOptions] = useState<StyleOptions>({ lines: false, numbered: false, infoBar: false, callouts: false });
-  const [savingStyle, setSavingStyle] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
 
@@ -226,14 +225,16 @@ export default function AdminPage() {
           setDocTypes(types);
           const notes: Record<string, string> = {};
           const questions: Record<string, string> = {};
+          const styles: Record<string, StyleOptions> = {};
           types.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
+            styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || { lines: false, numbered: false, infoBar: false, callouts: false };
           });
           setDocNotes(notes);
           setDocQuestions(questions);
-          if (d.adminSettings?.styleOptions) setStyleOptions(d.adminSettings.styleOptions);
+          setDocStyles(styles);
         }
       })
       .catch(() => {});
@@ -314,14 +315,6 @@ export default function AdminPage() {
     finally { setSavingLogo(false); }
   }
 
-  async function saveStyleOptions(opts: StyleOptions) {
-    setStyleOptions(opts);
-    setSavingStyle(true);
-    try { await patchSettings({ styleOptions: opts }); }
-    catch { showMsg('Failed to save style options.', red); }
-    finally { setSavingStyle(false); }
-  }
-
   async function saveSchoolSettings() {
     setSavingSchool(true);
     try {
@@ -332,6 +325,7 @@ export default function AdminPage() {
         updated[t.id] = {
           notes: docNotes[t.id] || '',
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
+          styleOptions: docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false },
         };
       });
       await fetch('/api/document-creator/settings', {
@@ -511,33 +505,6 @@ export default function AdminPage() {
           <div style={{ fontSize: 11, color: muted, marginTop: 10 }}>Applied to every generated document — header background, section borders, and table headers.</div>
         </Section>
 
-        {/* Document Style Toggles */}
-        <Section title="Document Style">
-          <div style={{ fontSize: 11, color: muted, marginBottom: 14 }}>These apply to every document your school generates. Toggle to enable — saves automatically.</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {([
-              { key: 'lines'    as const, label: 'Section divider lines',  desc: 'Thin horizontal rule above each major section heading' },
-              { key: 'numbered' as const, label: 'Numbered sections',      desc: '"1. Course Description", "2. Learning Outcomes", etc.' },
-              { key: 'infoBar'  as const, label: 'Teacher info bar',       desc: 'Teacher / Course / Date fill-in line directly below the header' },
-              { key: 'callouts' as const, label: 'Callout boxes',          desc: 'Policy text and key requirements in shaded bordered boxes' },
-            ] as { key: keyof StyleOptions; label: string; desc: string }[]).map(opt => (
-              <label key={opt.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: savingStyle ? 'not-allowed' : 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={styleOptions[opt.key]}
-                  onChange={() => saveStyleOptions({ ...styleOptions, [opt.key]: !styleOptions[opt.key] })}
-                  disabled={savingStyle}
-                  style={{ marginTop: 2, flexShrink: 0, width: 15, height: 15 }}
-                />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: navy }}>{opt.label}</div>
-                  <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{opt.desc}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </Section>
-
         {/* School Logo */}
         <Section title="School Logo">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -589,6 +556,25 @@ export default function AdminPage() {
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
+                          {([
+                            { key: 'lines'    as const, label: 'Divider lines' },
+                            { key: 'numbered' as const, label: 'Numbered sections' },
+                            { key: 'infoBar'  as const, label: 'Teacher info bar' },
+                            { key: 'callouts' as const, label: 'Callout boxes' },
+                          ] as { key: keyof StyleOptions; label: string }[]).map(opt => {
+                            const cur = docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false };
+                            return (
+                              <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
+                                <input type="checkbox" checked={cur[opt.key]} onChange={() => setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, [opt.key]: !cur[opt.key] } }))} style={{ flexShrink: 0 }} />
+                                {opt.label}
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions</div>

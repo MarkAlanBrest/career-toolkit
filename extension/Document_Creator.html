@@ -351,7 +351,6 @@ var ADMIN_DEFAULTS = {
   model: "claude-haiku-4-5",
   theme: "navy",
   logo: "",
-  styleOptions: { lines: false, numbered: false, infoBar: false, callouts: false },
   syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
   worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
   projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
@@ -501,7 +500,7 @@ function buildPromptFromInput(typeId, description) {
     ? "SCHOOL: " + adminSettings.schoolName + "\n\n"
     : "";
 
-  var so = (adminSettings.styleOptions) || {};
+  var so = (adminSettings[typeId] && adminSettings[typeId].styleOptions) || {};
   var styleLines = [];
   if (so.lines)    styleLines.push("Add a thin horizontal rule (style=\"border:none;border-top:1px solid #E2E8F0;margin:28px 0 16px;\") before each major section heading.");
   if (so.numbered) styleLines.push("Number all major sections (e.g., '1. Course Description', '2. Learning Outcomes', '3. Required Materials').");
@@ -1052,13 +1051,13 @@ function applyServerSettings(data) {
       if (data.adminSettings.model) s.model = data.adminSettings.model;
       if (data.adminSettings.theme && THEMES[data.adminSettings.theme]) s.theme = data.adminSettings.theme;
       if (data.adminSettings.logo !== undefined) s.logo = data.adminSettings.logo;
-      if (data.adminSettings.styleOptions) s.styleOptions = data.adminSettings.styleOptions;
       DOC_TYPES.forEach(function(t) {
         if (!s[t.id]) s[t.id] = { notes: "", questions: [] };
         var src = data.adminSettings[t.id];
         if (src) {
           if (src.notes !== undefined) s[t.id].notes = src.notes;
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
+          if (src.styleOptions) s[t.id].styleOptions = src.styleOptions;
         }
       });
       Object.assign(adminSettings, s);
