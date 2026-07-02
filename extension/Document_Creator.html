@@ -1112,8 +1112,12 @@ function applyServerSettings(data) {
       if (data.adminSettings.theme && THEMES[data.adminSettings.theme]) s.theme = data.adminSettings.theme;
       if (data.adminSettings.logo !== undefined) s.logo = data.adminSettings.logo;
       DOC_TYPES.forEach(function(t) {
-        if (!s[t.id]) s[t.id] = { notes: "" };
-        if (data.adminSettings[t.id] && data.adminSettings[t.id].notes !== undefined) s[t.id].notes = data.adminSettings[t.id].notes;
+        if (!s[t.id]) s[t.id] = { notes: "", questions: [] };
+        var src = data.adminSettings[t.id];
+        if (src) {
+          if (src.notes !== undefined) s[t.id].notes = src.notes;
+          if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
+        }
       });
       Object.assign(adminSettings, s);
     } catch(e) {}
