@@ -810,10 +810,12 @@ async function generate() {
       paperEl.innerHTML = stripFences(partial);
     });
     state.generatedHTML = stripFences(html);
-    // Prepend logo bar if a school logo is set
+    // Overlay logo in top-right of the document header
     if (adminSettings.logo) {
-      var _lc = getThemeColor();
-      state.generatedHTML = '<div style="background:' + _lc + ';padding:14px 48px 0;display:flex;align-items:center;"><img src="' + adminSettings.logo + '" style="height:52px;max-width:200px;object-fit:contain;display:block;"></div>' + state.generatedHTML;
+      state.generatedHTML = '<div style="position:relative;">'
+        + '<img src="' + adminSettings.logo + '" style="position:absolute;top:14px;right:24px;height:52px;max-width:180px;object-fit:contain;z-index:10;">'
+        + state.generatedHTML
+        + '</div>';
     }
     paperEl.innerHTML = state.generatedHTML;
     setMainState("doc");
