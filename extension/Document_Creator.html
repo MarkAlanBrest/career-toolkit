@@ -402,21 +402,24 @@ var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","
 // STATE
 // ═══════════════════════════════════════════════════════════
 // ── Admin settings ──
-var THEMES = {
-  navy:     '#1E293B',
-  cobalt:   '#1D4ED8',
-  forest:   '#166534',
-  burgundy: '#7F1D1D',
-};
-function getThemeColor(typeId) { return THEMES[adminSettings[typeId] && adminSettings[typeId].theme] || THEMES.navy; }
-
-var THEME_LIGHT = {
-  navy:     '#EEF2F7',
-  cobalt:   '#EFF6FF',
-  forest:   '#F0FDF4',
-  burgundy: '#FFF1F2',
-};
-function getThemeLightColor(typeId) { return THEME_LIGHT[adminSettings[typeId] && adminSettings[typeId].theme] || THEME_LIGHT.navy; }
+// Older saved settings store one of these named IDs instead of a hex color — migrate on read.
+var LEGACY_THEME_HEX = { navy: '#1E293B', cobalt: '#1D4ED8', forest: '#166534', burgundy: '#7F1D1D' };
+function isValidTheme(v) { return !!v && (LEGACY_THEME_HEX[v] || /^#[0-9a-fA-F]{6}$/.test(v)); }
+function themeToHex(v) {
+  if (v && LEGACY_THEME_HEX[v]) return LEGACY_THEME_HEX[v];
+  if (v && /^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  return '#1E293B';
+}
+function lightenHex(hex, amount) {
+  hex = String(hex || '#1E293B').replace('#', '');
+  var r = parseInt(hex.substr(0, 2), 16), g = parseInt(hex.substr(2, 2), 16), b = parseInt(hex.substr(4, 2), 16);
+  r = Math.round(r + (255 - r) * amount);
+  g = Math.round(g + (255 - g) * amount);
+  b = Math.round(b + (255 - b) * amount);
+  return '#' + [r, g, b].map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+}
+function getThemeColor(typeId) { return themeToHex(adminSettings[typeId] && adminSettings[typeId].theme); }
+function getThemeLightColor(typeId) { return lightenHex(getThemeColor(typeId), 0.9); }
 
 var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
@@ -453,7 +456,7 @@ var adminSettings = (function(){
     DOC_TYPES.forEach(function(t) {
       if (!out[t.id]) out[t.id] = { notes: "" };
       if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
-      if (saved[t.id] && saved[t.id].theme && THEMES[saved[t.id].theme]) out[t.id].theme = saved[t.id].theme;
+      if (saved[t.id] && isValidTheme(saved[t.id].theme)) out[t.id].theme = saved[t.id].theme;
     });
     return out;
   } catch(e) { return JSON.parse(JSON.stringify(ADMIN_DEFAULTS)); }
@@ -1354,7 +1357,7 @@ function applyServerSettings(data) {
           if (src.notes !== undefined) s[t.id].notes = src.notes;
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
           if (src.styleOptions) s[t.id].styleOptions = src.styleOptions;
-          if (src.theme && THEMES[src.theme]) s[t.id].theme = src.theme;
+          if (isValidTheme(src.theme)) s[t.id].theme = src.theme;
           if (Array.isArray(src.referenceDocs)) s[t.id].referenceDocs = src.referenceDocs;
         }
       });

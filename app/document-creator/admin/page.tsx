@@ -10,12 +10,13 @@ const muted = '#64748B';
 const green = '#15803D';
 const red = '#DC2626';
 
-const THEMES = [
-  { id: 'navy',     label: 'Classic Navy',  color: '#1E293B' },
-  { id: 'cobalt',   label: 'Cobalt Blue',   color: '#1D4ED8' },
-  { id: 'forest',   label: 'Forest Green',  color: '#166534' },
-  { id: 'burgundy', label: 'Burgundy',      color: '#7F1D1D' },
-];
+// Older saved settings store one of these named IDs instead of a hex color — migrate on read.
+const LEGACY_THEME_HEX: Record<string, string> = { navy: '#1E293B', cobalt: '#1D4ED8', forest: '#166534', burgundy: '#7F1D1D' };
+function themeToHex(v: string | undefined): string {
+  if (!v) return '#1E293B';
+  if (LEGACY_THEME_HEX[v]) return LEGACY_THEME_HEX[v];
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : '#1E293B';
+}
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
@@ -320,7 +321,7 @@ export default function AdminPage() {
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
             styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || DEFAULT_STYLE_OPTIONS;
-            themes[t.id] = d.adminSettings?.[t.id]?.theme || 'navy';
+            themes[t.id] = themeToHex(d.adminSettings?.[t.id]?.theme);
             const rd = d.adminSettings?.[t.id]?.referenceDocs;
             refs[t.id] = Array.isArray(rd) ? rd : [];
           });
@@ -410,7 +411,7 @@ export default function AdminPage() {
           notes: docNotes[t.id] || '',
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
           styleOptions: docStyles[t.id] || DEFAULT_STYLE_OPTIONS,
-          theme: docThemes[t.id] || 'navy',
+          theme: themeToHex(docThemes[t.id]),
           referenceDocs: docRefs[t.id] || [],
         };
       });
@@ -694,17 +695,10 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme<Help text="Sets the accent color used for this document type's header, borders, and table headings." /></div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          {THEMES.map(th => {
-                            const curTheme = docThemes[t.id] || 'navy';
-                            return (
-                              <label key={th.id} style={{ flex: 1, cursor: 'pointer', textAlign: 'center' }}>
-                                <input type="radio" name={`theme-${t.id}`} value={th.id} checked={curTheme === th.id} onChange={() => setDocThemes(prev => ({ ...prev, [t.id]: th.id }))} style={{ display: 'none' }} />
-                                <div style={{ height: 30, background: th.color, borderRadius: 6, marginBottom: 4, border: curTheme === th.id ? '2px solid #60A5FA' : '2px solid transparent', boxSizing: 'border-box' }} />
-                                <div style={{ fontSize: 10, color: curTheme === th.id ? navy : muted, fontWeight: curTheme === th.id ? 700 : 400 }}>{th.label}</div>
-                              </label>
-                            );
-                          })}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="color" value={themeToHex(docThemes[t.id])} onChange={e => setDocThemes(prev => ({ ...prev, [t.id]: e.target.value }))}
+                            style={{ width: 44, height: 32, padding: 0, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer', background: 'none' }} />
+                          <span style={{ fontSize: 12, color: muted, fontFamily: 'monospace' }}>{themeToHex(docThemes[t.id]).toUpperCase()}</span>
                         </div>
                         <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
                       </div>
