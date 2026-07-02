@@ -95,9 +95,7 @@ export default function AdminPage() {
 
   const [model, setModel] = useState<string>('claude-haiku-4-5');
   const [savingModel, setSavingModel] = useState(false);
-  const [theme, setTheme] = useState<string>('navy');
   const [logo, setLogo] = useState<string>('');
-  const [savingTheme, setSavingTheme] = useState(false);
   const [savingLogo, setSavingLogo] = useState(false);
 
   const [schoolName, setSchoolName] = useState('');
@@ -105,6 +103,7 @@ export default function AdminPage() {
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
   const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
   const [docStyles, setDocStyles] = useState<Record<string, StyleOptions>>({});
+  const [docThemes, setDocThemes] = useState<Record<string, string>>({});
   const [savingSchool, setSavingSchool] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
@@ -208,7 +207,6 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(d => {
         if (d.adminSettings?.model) setModel(d.adminSettings.model);
-        if (d.adminSettings?.theme) setTheme(d.adminSettings.theme);
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
         if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
         {
@@ -217,15 +215,18 @@ export default function AdminPage() {
           const notes: Record<string, string> = {};
           const questions: Record<string, string> = {};
           const styles: Record<string, StyleOptions> = {};
+          const themes: Record<string, string> = {};
           types.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
             styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || { lines: false, numbered: false, infoBar: false, callouts: false };
+            themes[t.id] = d.adminSettings?.[t.id]?.theme || 'navy';
           });
           setDocNotes(notes);
           setDocQuestions(questions);
           setDocStyles(styles);
+          setDocThemes(themes);
         }
       })
       .catch(() => {});
@@ -260,16 +261,6 @@ export default function AdminPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adminSettings: updated }),
     });
-  }
-
-  async function saveTheme(newTheme: string) {
-    setTheme(newTheme);
-    setSavingTheme(true);
-    try {
-      await patchSettings({ theme: newTheme });
-      showMsg('Theme saved.');
-    } catch { showMsg('Failed to save theme.', red); }
-    finally { setSavingTheme(false); }
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -317,6 +308,7 @@ export default function AdminPage() {
           notes: docNotes[t.id] || '',
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
           styleOptions: docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false },
+          theme: docThemes[t.id] || 'navy',
         };
       });
       await fetch('/api/document-creator/settings', {
@@ -462,25 +454,11 @@ export default function AdminPage() {
           )}
         </Section>
 
-        {/* School Theme */}
-        <Section title="Document Theme">
-          <div style={{ display: 'flex', gap: 10 }}>
-            {THEMES.map(t => (
-              <label key={t.id} style={{ flex: 1, cursor: savingTheme ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
-                <input type="radio" name="theme" value={t.id} checked={theme === t.id} onChange={() => saveTheme(t.id)} disabled={savingTheme} style={{ display: 'none' }} />
-                <div style={{ height: 44, background: t.color, borderRadius: 8, marginBottom: 6, border: theme === t.id ? '3px solid #60A5FA' : '3px solid transparent', boxSizing: 'border-box', transition: 'border-color 0.15s' }} />
-                <div style={{ fontSize: 12, color: theme === t.id ? navy : muted, fontWeight: theme === t.id ? 700 : 400 }}>{t.label}</div>
-              </label>
-            ))}
-          </div>
-          <div style={{ fontSize: 11, color: muted, marginTop: 10 }}>Applied to every generated document — header background, section borders, and table headers.</div>
-        </Section>
-
         {/* School Logo */}
         <Section title="School Logo">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             {logo ? (
-              <div style={{ background: THEMES.find(t => t.id === theme)?.color || '#1E293B', borderRadius: 8, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ background: '#1E293B', borderRadius: 8, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <img src={logo} style={{ height: 48, maxWidth: 160, objectFit: 'contain', display: 'block' }} alt="School logo" />
               </div>
             ) : (
@@ -546,6 +524,22 @@ export default function AdminPage() {
                             );
                           })}
                         </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {THEMES.map(th => {
+                            const curTheme = docThemes[t.id] || 'navy';
+                            return (
+                              <label key={th.id} style={{ flex: 1, cursor: 'pointer', textAlign: 'center' }}>
+                                <input type="radio" name={`theme-${t.id}`} value={th.id} checked={curTheme === th.id} onChange={() => setDocThemes(prev => ({ ...prev, [t.id]: th.id }))} style={{ display: 'none' }} />
+                                <div style={{ height: 30, background: th.color, borderRadius: 6, marginBottom: 4, border: curTheme === th.id ? '2px solid #60A5FA' : '2px solid transparent', boxSizing: 'border-box' }} />
+                                <div style={{ fontSize: 10, color: curTheme === th.id ? navy : muted, fontWeight: curTheme === th.id ? 700 : 400 }}>{th.label}</div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
                       </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions</div>
