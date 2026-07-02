@@ -169,6 +169,7 @@ body {
   #doc-wrap { display: block !important; max-width: 100%; margin: 0; }
   #doc-actions { display: none !important; }
   #refine-bar { display: none !important; }
+  #history-overlay { display: none !important; }
   #doc-paper { box-shadow: none; border-radius: 0; }
   #placeholder, #loading { display: none !important; }
 }
@@ -280,13 +281,15 @@ body {
   </div>
 </div>
 
-<!-- HISTORY PANEL -->
-<div id="history-panel" style="display:none;position:fixed;top:40px;right:0;bottom:0;width:300px;background:#fff;border-left:1px solid #E2E8F0;box-shadow:-4px 0 20px rgba(0,0,0,0.10);z-index:50;flex-direction:column;">
-  <div style="padding:12px 16px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-    <span style="font-size:13px;font-weight:700;color:#1E293B;">Recent Documents</span>
-    <button onclick="closeHistory()" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;line-height:1;padding:0 4px;">✕</button>
+<!-- HISTORY MODAL -->
+<div id="history-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;width:520px;max-width:calc(100vw - 48px);max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0;">
+      <span style="font-size:15px;font-weight:700;color:#1E293B;">📋 Recent Documents</span>
+      <button onclick="closeHistory()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
+    </div>
+    <div id="history-list" style="overflow-y:auto;padding:12px;font-size:13px;min-height:120px;"></div>
   </div>
-  <div id="history-list" style="flex:1;overflow-y:auto;padding:8px;font-size:13px;"></div>
 </div>
 
 <!-- ADMIN OVERLAY -->
@@ -999,6 +1002,7 @@ function saveAdmin() {
 document.getElementById("btn-pdf").addEventListener("click", downloadPDF);
 document.getElementById("btn-word").addEventListener("click", downloadWord);
 document.getElementById("btn-history").addEventListener("click", openHistory);
+document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
@@ -1072,14 +1076,13 @@ function saveToHistory() {
 var _historyDocs = [];
 
 function openHistory() {
-  var panel = document.getElementById("history-panel");
-  if (panel.style.display !== "none") { closeHistory(); return; }
-  panel.style.display = "flex";
+  var overlay = document.getElementById("history-overlay");
+  overlay.style.display = "flex";
   loadHistoryList();
 }
 
 function closeHistory() {
-  document.getElementById("history-panel").style.display = "none";
+  document.getElementById("history-overlay").style.display = "none";
 }
 
 function loadHistoryList() {

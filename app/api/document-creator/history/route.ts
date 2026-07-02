@@ -54,7 +54,10 @@ export async function POST(req: NextRequest) {
 
   const key = `dc:history:${session.schoolId}:${session.email}`;
   await redis.zadd(key, { score: entry.ts, member: JSON.stringify(entry) });
-  await redis.zremrangebyrank(key, 0, -(CAP + 1));
+  const count = await redis.zcard(key);
+  if (count > CAP) {
+    await redis.zremrangebyrank(key, 0, count - CAP - 1);
+  }
 
   return NextResponse.json({ ok: true, id: entry.id });
 }
