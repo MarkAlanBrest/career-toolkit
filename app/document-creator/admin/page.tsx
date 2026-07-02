@@ -20,7 +20,8 @@ const THEMES = [
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
-type StyleOptions = { lines: boolean; numbered: boolean; infoBar: boolean; callouts: boolean };
+type StyleOptions = { lines: boolean; numbered: boolean; infoBar: boolean; callouts: boolean; checklist: boolean; signature: boolean };
+const DEFAULT_STYLE_OPTIONS: StyleOptions = { lines: false, numbered: false, infoBar: false, callouts: false, checklist: false, signature: false };
 type RefDoc = { id: string; name: string; filename: string; chars: number; uploadedAt: string };
 
 const DEFAULT_DOC_TYPES: DocType[] = [
@@ -293,7 +294,7 @@ export default function AdminPage() {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
-            styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || { lines: false, numbered: false, infoBar: false, callouts: false };
+            styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || DEFAULT_STYLE_OPTIONS;
             themes[t.id] = d.adminSettings?.[t.id]?.theme || 'navy';
             const rd = d.adminSettings?.[t.id]?.referenceDocs;
             refs[t.id] = Array.isArray(rd) ? rd : [];
@@ -383,7 +384,7 @@ export default function AdminPage() {
         updated[t.id] = {
           notes: docNotes[t.id] || '',
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
-          styleOptions: docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false },
+          styleOptions: docStyles[t.id] || DEFAULT_STYLE_OPTIONS,
           theme: docThemes[t.id] || 'navy',
           referenceDocs: docRefs[t.id] || [],
         };
@@ -634,12 +635,14 @@ export default function AdminPage() {
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
                           {([
-                            { key: 'lines'    as const, label: 'Divider lines' },
-                            { key: 'numbered' as const, label: 'Numbered sections' },
-                            { key: 'infoBar'  as const, label: 'Teacher info bar' },
-                            { key: 'callouts' as const, label: 'Callout boxes' },
+                            { key: 'lines'     as const, label: 'Divider lines' },
+                            { key: 'numbered'  as const, label: 'Numbered sections' },
+                            { key: 'infoBar'   as const, label: 'Teacher info bar' },
+                            { key: 'callouts'  as const, label: 'Callout boxes' },
+                            { key: 'checklist' as const, label: 'Checklist bullets' },
+                            { key: 'signature' as const, label: 'Signature block' },
                           ] as { key: keyof StyleOptions; label: string }[]).map(opt => {
-                            const cur = docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false };
+                            const cur = docStyles[t.id] || DEFAULT_STYLE_OPTIONS;
                             return (
                               <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
                                 <input type="checkbox" checked={cur[opt.key]} onChange={() => setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, [opt.key]: !cur[opt.key] } }))} style={{ flexShrink: 0 }} />
