@@ -21,6 +21,22 @@ type Session = { email: string; name: string; role: string; schoolId: string; sc
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
 type DocTemplate = { name: string; isImage: boolean; mediaType?: string; data?: string; text?: string };
+
+const DEFAULT_DOC_TYPES: DocType[] = [
+  { id: 'syllabus',       label: 'Syllabus',               icon: '📋', color: '#7C3AED' },
+  { id: 'worksheet',      label: 'Worksheet',              icon: '📝', color: '#2563EB' },
+  { id: 'lessonplan',     label: 'Lesson Plan',            icon: '📚', color: '#0891B2' },
+  { id: 'rubric',         label: 'Rubric',                 icon: '✅', color: '#16A34A' },
+  { id: 'test',           label: 'Test / Quiz',            icon: '📊', color: '#DC2626' },
+  { id: 'projectguide',   label: 'Project Guide',          icon: '🏗️', color: '#D97706' },
+  { id: 'research',       label: 'Research Assignment',    icon: '🔬', color: '#7C3AED' },
+  { id: 'studyguide',     label: 'Study Guide',            icon: '📖', color: '#0891B2' },
+  { id: 'safetycontract', label: 'Safety Contract',        icon: '⚠️', color: '#DC2626' },
+  { id: 'missingwork',    label: 'Missing Work Form',      icon: '📋', color: '#475569' },
+  { id: 'obschecklist',   label: 'Observation Checklist',  icon: '✅', color: '#16A34A' },
+  { id: 'incident',       label: 'Incident Report',        icon: '🚨', color: '#DC2626' },
+  { id: 'custom',         label: 'Custom Document',        icon: '📄', color: '#475569' },
+];
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {
   totalAll: number;
@@ -85,6 +101,7 @@ export default function AdminPage() {
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
   const [docTemplates, setDocTemplates] = useState<Record<string, DocTemplate | null>>({});
+  const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
   const [savingSchool, setSavingSchool] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
@@ -199,16 +216,21 @@ export default function AdminPage() {
         if (d.adminSettings?.theme) setTheme(d.adminSettings.theme);
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
         if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
-        if (d.docTypes?.length) {
-          setDocTypes(d.docTypes);
+        {
+          const types: DocType[] = d.docTypes?.length ? d.docTypes : DEFAULT_DOC_TYPES;
+          setDocTypes(types);
           const notes: Record<string, string> = {};
           const templates: Record<string, DocTemplate | null> = {};
-          d.docTypes.forEach((t: DocType) => {
+          const questions: Record<string, string> = {};
+          types.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             templates[t.id] = d.adminSettings?.[t.id]?.template || null;
+            const q = d.adminSettings?.[t.id]?.questions;
+            questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
           });
           setDocNotes(notes);
           setDocTemplates(templates);
+          setDocQuestions(questions);
         }
       })
       .catch(() => {});
@@ -318,7 +340,13 @@ export default function AdminPage() {
       const settingsResp = await fetch('/api/document-creator/settings');
       const settingsData = await settingsResp.json();
       const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}), schoolName };
-      docTypes.forEach(t => { updated[t.id] = { notes: docNotes[t.id] || '', template: docTemplates[t.id] || null }; });
+      docTypes.forEach(t => {
+        updated[t.id] = {
+          notes: docNotes[t.id] || '',
+          template: docTemplates[t.id] || null,
+          questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
+        };
+      });
       await fetch('/api/document-creator/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -549,6 +577,18 @@ export default function AdminPage() {
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={4} placeholder="e.g. Always include the attendance policy. Require OSHA PPE language. Do not include a grading scale..."
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions</div>
+                        <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>One question per line. Teachers fill these in before generating — replaces the blank description box.</div>
+                        <textarea
+                          value={docQuestions[t.id] || ''}
+                          onChange={e => setDocQuestions({ ...docQuestions, [t.id]: e.target.value })}
+                          rows={4}
+                          placeholder={'What subject or course is this for?\nWhat level or grade?\nWhat topic or chapter?\nWhat types of questions? (multiple choice, short answer, etc.)'}
+                          style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }}
+                        />
+                      </div>
+
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Example Template</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 8 }}>AI matches this document&apos;s style and format. Image, HTML, or text file.</div>
