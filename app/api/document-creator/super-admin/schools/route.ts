@@ -21,8 +21,7 @@ export async function GET(req: NextRequest) {
     const school = await getSchool(id);
     if (!school) return null;
     const teacherEmails = await getSchoolTeacherEmails(id);
-    const balance = await redis.get<number>(`ce:credits:${school.accountId}:ai`) ?? 0;
-    return { ...school, teacherCount: teacherEmails.length, balance };
+    return { ...school, teacherCount: teacherEmails.length };
   }));
 
   return NextResponse.json({ schools: schools.filter(Boolean) }, { headers: CORS });
@@ -107,10 +106,6 @@ export async function PATCH(req: NextRequest) {
       const { hash, salt } = hashPassword(password);
       await saveUser({ ...admin, passwordHash: hash, passwordSalt: salt });
     }
-  }
-
-  if (typeof body?.credits === 'number') {
-    await redis.set(`ce:credits:${school.accountId}:ai`, body.credits);
   }
 
   return NextResponse.json({ ok: true }, { headers: CORS });

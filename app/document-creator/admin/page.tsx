@@ -93,7 +93,6 @@ export default function AdminPage() {
   const [resetPass, setResetPass] = useState('');
   const [resetting, setResetting] = useState(false);
 
-  const [balance, setBalance] = useState<number | null>(null);
   const [model, setModel] = useState<string>('claude-haiku-4-5');
   const [savingModel, setSavingModel] = useState(false);
   const [theme, setTheme] = useState<string>('navy');
@@ -124,7 +123,6 @@ export default function AdminPage() {
         setSession(data.session);
         setLoading(false);
         loadTeachers();
-        loadBalance(data.session.accountId, data.session.accountToken);
         loadModel();
         loadUsage();
       })
@@ -138,13 +136,6 @@ export default function AdminPage() {
       .then(data => { if (data.teachers) setTeachers(data.teachers); })
       .catch(() => {})
       .finally(() => setLoadingTeachers(false));
-  }
-
-  function loadBalance(accountId: string, accountToken: string) {
-    fetch(`/api/credits/status?accountId=${encodeURIComponent(accountId)}&accountToken=${encodeURIComponent(accountToken)}`)
-      .then(r => r.json())
-      .then(data => { if (data.balance !== undefined) setBalance(data.balance); })
-      .catch(() => {});
   }
 
   async function addTeacher() {
@@ -469,26 +460,6 @@ export default function AdminPage() {
               )}
             </div>
           )}
-        </Section>
-
-        {/* Credits */}
-        <Section title="AI Credits">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: 28, fontWeight: 700, color: balance !== null && balance < 20 ? red : navy }}>
-                {balance !== null ? balance.toLocaleString() : '—'}
-              </div>
-              <div style={{ fontSize: 13, color: muted, marginTop: 2 }}>Available credits · {model === 'claude-haiku-4-5' ? '3' : '10'} credits per document</div>
-            </div>
-            <a
-              href={`/buy-credits?accountId=${encodeURIComponent(session?.accountId || '')}&accountToken=${encodeURIComponent(session?.accountToken || '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: blue, color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600 }}
-            >
-              Buy Credits
-            </a>
-          </div>
         </Section>
 
         {/* School Theme */}

@@ -198,8 +198,6 @@ body {
     <div class="tb-divider"></div>
     <button class="tb-btn" id="btn-admin">⚙ Admin Panel</button>
     <div class="tb-divider"></div>
-    <span id="credit-display" style="font-size:12px;color:#64748B;white-space:nowrap;">⚡ — credits</span>
-    <div class="tb-divider"></div>
     <span id="user-name-display" style="font-size:12px;color:#64748B;white-space:nowrap;"></span>
     <button id="btn-signout" class="tb-btn" style="display:none;">Sign Out</button>
   </div>
@@ -424,9 +422,6 @@ var state = {
   isGenerating: false
 };
 
-// Credentials come from the server session — set during initAuth()
-var _accountId = "";
-var _accountToken = "";
 var _userSession = null;
 
 var chatState = { typeId: null };
@@ -468,15 +463,12 @@ async function callClaude(promptOrMessages, onChunk) {
       model: adminSettings.model || "claude-haiku-4-5",
       max_tokens: 8000,
       usageType: "creation",
-      accountId: _accountId,
-      accountToken: _accountToken,
       messages: Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }]
     })
   });
   if (!resp.ok) {
     var err = {}; try { err = await resp.json(); } catch(e) {}
     var msg = (typeof err.error === 'string') ? err.error : (err.error && err.error.message) ? err.error.message : ("API error " + resp.status);
-    if (resp.status === 402) msg += "\n\nPurchase credits at:\nhttps://career-toolkit-ruby.vercel.app/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken);
     throw new Error(msg);
   }
   var reader = resp.body.getReader();
@@ -849,7 +841,6 @@ async function generate() {
     }
     paperEl.innerHTML = state.generatedHTML;
     setMainState("doc");
-    loadCreditBalance();
     saveToHistory();
     // Fire-and-forget usage tracking
     var _usageType = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
@@ -1171,30 +1162,12 @@ async function refineDocument() {
     paperEl.innerHTML = state.generatedHTML;
     if (input) input.value = "";
     saveToHistory();
-    loadCreditBalance();
   } catch(err) {
     alert("Refinement error: " + err.message);
   } finally {
     state.isGenerating = false;
     if (refineBtn) { refineBtn.disabled = false; refineBtn.textContent = "Apply"; }
   }
-}
-
-function loadCreditBalance() {
-  if (!_accountId || !_accountToken) return;
-  fetch("/api/credits/status?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken))
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var el = document.getElementById("credit-display");
-      if (!el) return;
-      if (d.balance !== undefined) {
-        el.textContent = "⚡ " + d.balance.toLocaleString() + " credits";
-        el.style.color = d.balance < 20 ? "#DC2626" : "#64748B";
-        el.title = "Click to buy more credits";
-        el.onclick = function() { window.open("/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken), "_blank"); };
-      }
-    })
-    .catch(function() {});
 }
 
 function applyServerSettings(data) {
@@ -1241,8 +1214,6 @@ async function initAuth() {
     if (!data.session) { window.location.href = "/document-creator/login"; return; }
 
     _userSession = data.session;
-    _accountId = data.session.accountId;
-    _accountToken = data.session.accountToken;
 
     // Update topbar based on role
     var nameEl = document.getElementById("user-name-display");
@@ -1250,20 +1221,10 @@ async function initAuth() {
     var signoutBtn = document.getElementById("btn-signout");
     if (signoutBtn) signoutBtn.style.display = "";
 
-    if (data.session.role === "admin") {
-      // Admin can buy credits — enable click on credit display
-      var creditEl = document.getElementById("credit-display");
-      if (creditEl) {
-        creditEl.style.cursor = "pointer";
-        creditEl.title = "Click to buy more credits";
-        creditEl.onclick = function() { window.open("/buy-credits?accountId=" + encodeURIComponent(_accountId) + "&accountToken=" + encodeURIComponent(_accountToken), "_blank"); };
-      }
-    } else {
-      // Teacher — hide school settings button and buy-credits behavior
+    if (data.session.role !== "admin") {
+      // Teacher — hide school settings button
       var adminBtn = document.getElementById("btn-admin");
       if (adminBtn) adminBtn.style.display = "none";
-      var creditEl2 = document.getElementById("credit-display");
-      if (creditEl2) { creditEl2.style.cursor = "default"; creditEl2.title = ""; }
     }
 
     // Load school settings from server
@@ -1279,7 +1240,6 @@ async function initAuth() {
     document.getElementById("auth-overlay").style.display = "none";
     setMainState("placeholder");
     renderTypeList();
-    loadCreditBalance();
   } catch(e) {
     window.location.href = "/document-creator/login";
   }

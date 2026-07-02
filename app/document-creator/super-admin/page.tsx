@@ -10,7 +10,7 @@ const muted = '#64748B';
 const green = '#15803D';
 const red = '#DC2626';
 
-type School = { id: string; name: string; adminEmail: string; accountId: string; teacherCount: number; balance: number; createdAt: string };
+type School = { id: string; name: string; adminEmail: string; accountId: string; teacherCount: number; createdAt: string };
 
 function Input({ value, onChange, placeholder, type = 'text', style: extra }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; style?: React.CSSProperties }) {
   return (
@@ -41,11 +41,6 @@ export default function SuperAdminPage() {
   const [adminName, setAdminName] = useState('');
   const [adminPass, setAdminPass] = useState('');
   const [creating, setCreating] = useState(false);
-
-  // Edit credits
-  const [creditSchool, setCreditSchool] = useState('');
-  const [creditAmount, setCreditAmount] = useState('');
-  const [savingCredits, setSavingCredits] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('dc_super_admin_token') || '';
@@ -104,26 +99,6 @@ export default function SuperAdminPage() {
     else { const d = await resp.json(); showMsg(d.error || 'Failed.', red); }
   }
 
-  async function setCredits() {
-    const amount = parseInt(creditAmount, 10);
-    if (!creditSchool || isNaN(amount)) { showMsg('Select school and enter credit amount.', red); return; }
-    setSavingCredits(true);
-    try {
-      const resp = await fetch('/api/document-creator/super-admin/schools', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-admin-token': savedToken },
-        body: JSON.stringify({ schoolId: creditSchool, credits: amount }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) { showMsg(data.error || 'Failed.', red); return; }
-      showMsg('Credits updated.');
-      setCreditSchool(''); setCreditAmount('');
-      loadSchools();
-    } finally {
-      setSavingCredits(false);
-    }
-  }
-
   return (
     <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: font }}>
       <div style={{ background: navy, color: '#fff', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -167,7 +142,6 @@ export default function SuperAdminPage() {
                         <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>School</th>
                         <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Admin</th>
                         <th style={{ textAlign: 'center', padding: '6px 8px', color: muted, fontWeight: 600 }}>Teachers</th>
-                        <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Credits</th>
                         <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Created</th>
                         <th style={{ width: 70 }}></th>
                       </tr>
@@ -178,7 +152,6 @@ export default function SuperAdminPage() {
                           <td style={{ padding: '8px 8px', color: navy, fontWeight: 600 }}>{s.name}</td>
                           <td style={{ padding: '8px 8px', color: muted }}>{s.adminEmail}</td>
                           <td style={{ padding: '8px 8px', textAlign: 'center', color: navy }}>{s.teacherCount}</td>
-                          <td style={{ padding: '8px 8px', textAlign: 'right', color: s.balance < 20 ? red : green, fontWeight: 600 }}>{s.balance?.toLocaleString()}</td>
                           <td style={{ padding: '8px 8px', color: muted }}>{new Date(s.createdAt).toLocaleDateString()}</td>
                           <td style={{ padding: '8px 4px', textAlign: 'right' }}>
                             <button onClick={() => deleteSchool(s)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 12, fontFamily: font }}>Delete</button>
@@ -188,20 +161,6 @@ export default function SuperAdminPage() {
                     </tbody>
                   </table>
                 )}
-              </div>
-            </div>
-
-            {/* Manage Credits */}
-            <div style={{ background: '#fff', borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20 }}>
-              <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}`, fontWeight: 700, fontSize: 13, color: navy, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Set School Credits</div>
-              <div style={{ padding: 20, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={creditSchool} onChange={e => setCreditSchool(e.target.value)}
-                  style={{ flex: 2, padding: '8px 11px', border: `1px solid ${border}`, borderRadius: 7, fontSize: 13, fontFamily: font, color: navy, outline: 'none' }}>
-                  <option value="">Select school...</option>
-                  {schools.map(s => <option key={s.id} value={s.id}>{s.name} (current: {s.balance})</option>)}
-                </select>
-                <Input value={creditAmount} onChange={setCreditAmount} placeholder="New balance" type="number" style={{ flex: 1 }} />
-                <Btn onClick={setCredits} disabled={savingCredits}>{savingCredits ? 'Saving...' : 'Set Credits'}</Btn>
               </div>
             </div>
 
