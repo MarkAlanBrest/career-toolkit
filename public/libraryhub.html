@@ -122,6 +122,14 @@
   .footer strong{color:var(--navy)}
   .footer-grid{display:grid;grid-template-columns:1.4fr .8fr;gap:12px;align-items:start}
 
+  .help-wrap{position:relative;display:inline-flex;vertical-align:middle;margin-left:6px}
+  .help-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--blue-light);color:var(--blue);font-size:10px;font-weight:700;cursor:pointer;border:0.5px solid #c8dcf1;line-height:1;user-select:none}
+  .help-icon:hover{background:var(--blue);color:#fff}
+  .help-pop{display:none;position:absolute;top:24px;left:0;z-index:30;width:250px;background:var(--navy);color:#e8f1fb;font-size:11px;font-weight:400;line-height:1.55;padding:10px 12px;border-radius:8px;box-shadow:0 10px 24px rgba(15,39,68,.3)}
+  .help-pop::before{content:'';position:absolute;top:-5px;left:8px;width:10px;height:10px;background:var(--navy);transform:rotate(45deg)}
+  .help-pop.open{display:block}
+  @media (max-width:760px){ .help-pop{width:200px} }
+
   @media (max-width:760px){
     .hero,.two-col,.footer-grid{grid-template-columns:1fr}
     .header-zone{padding:1.4rem 1rem 3rem}
@@ -153,7 +161,12 @@
       <section class="hero" id="top">
         <div class="hero-copy">
           <div class="eyebrow">Institutional Learning Resource System</div>
-          <h1>LibraryHub</h1>
+          <h1>LibraryHub
+            <span class="help-wrap">
+              <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="What is LibraryHub?">?</span>
+              <span class="help-pop">LibraryHub is your one-stop page for research databases, program-specific resources, writing and citation help, career tools, and student support. Use "Quick access" below to jump to any section, or scroll down to explore.</span>
+            </span>
+          </h1>
           <p class="intro"><strong>LibraryHub</strong> gives students, faculty, and staff one place to access academic research, open educational resources, technical references, program resources, writing help, career tools, and student support materials from any internet-connected device.</p>
           <div class="hero-actions">
             <a class="pill-btn primary" href="#research">Start Research</a>
@@ -187,7 +200,12 @@
       <section id="research">
         <div class="section-label">Search open-access databases</div>
         <div class="search-card">
-          <div class="section-title">Academic Research Search</div>
+          <div class="section-title">Academic Research Search
+            <span class="help-wrap">
+              <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does search work?">?</span>
+              <span class="help-pop">Click databases below to select or deselect them (highlighted = selected). Type a topic or keyword, then press Search — each selected database opens in its own new tab with your term already entered.</span>
+            </span>
+          </div>
           <p class="section-note">Choose one or more trusted databases. Each selected source opens in a new tab with your search term.</p>
           <div class="db-grid">
             <div class="db-btn selected" data-db="scholar" onclick="toggleDb(this)"><div class="db-icon gs">GS</div><span>Google Scholar</span><div class="db-check"></div></div>
@@ -212,7 +230,12 @@
       <section id="assistant">
         <div class="section-label">Research Assistant</div>
         <div class="assistant-box">
-          <div class="section-title">Build Better Searches</div>
+          <div class="section-title">Build Better Searches
+            <span class="help-wrap">
+              <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does the research assistant work?">?</span>
+              <span class="help-pop">Type your assignment topic or question, then click "Generate Research Help" for suggested keywords, Boolean search examples, and recommended databases. This is a starting point, not a finished answer — it does not do the research for you.</span>
+            </span>
+          </div>
           <p class="section-note">Enter a topic and LibraryHub will suggest research keywords, Boolean searches, and recommended places to search. This does not replace research — it helps students start smarter.</p>
           <textarea id="topicInput" placeholder="Type a research topic, assignment question, or trade-related issue..."></textarea>
           <div class="search-row">
@@ -226,7 +249,12 @@
       <hr class="divider">
 
       <section id="programs">
-        <div class="section-label">Browse by program</div>
+        <div class="section-label">Browse by program
+          <span class="help-wrap">
+            <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do I filter resources?">?</span>
+            <span class="help-pop">Click a program tab to show only resources for that program, or use the keyword box to filter by name or description. Selections combine — pick a program, then narrow further by keyword.</span>
+          </span>
+        </div>
         <p class="section-note">Resources are organized by academic program and include research sources, government publications, industry standards, safety materials, certification references, and open educational materials.</p>
         <div class="program-nav">
           <span class="pnav active" data-filter="all">All programs</span>
@@ -412,6 +440,22 @@
   };
 
   function toggleDb(el) { el.classList.toggle('selected'); }
+
+  function toggleHelp(icon) {
+    const pop = icon.nextElementSibling;
+    const wasOpen = pop.classList.contains('open');
+    document.querySelectorAll('.help-pop.open').forEach(p => p.classList.remove('open'));
+    if (!wasOpen) pop.classList.add('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.help-wrap')) {
+      document.querySelectorAll('.help-pop.open').forEach(p => p.classList.remove('open'));
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.classList.contains('help-icon')) toggleHelp(e.target);
+    if (e.key === 'Escape') document.querySelectorAll('.help-pop.open').forEach(p => p.classList.remove('open'));
+  });
 
   function doSearch() {
     const q = document.getElementById('searchInput').value.trim();

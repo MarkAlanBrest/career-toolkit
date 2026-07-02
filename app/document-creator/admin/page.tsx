@@ -109,6 +109,7 @@ export default function AdminPage() {
   const [savingSchool, setSavingSchool] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
+  const [selectedDocTypeId, setSelectedDocTypeId] = useState<string>('');
 
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -285,6 +286,7 @@ export default function AdminPage() {
         {
           const types: DocType[] = d.docTypes?.length ? d.docTypes : DEFAULT_DOC_TYPES;
           setDocTypes(types);
+          setSelectedDocTypeId(prev => prev && types.find(t => t.id === prev) ? prev : (types[0]?.id || ''));
           const notes: Record<string, string> = {};
           const questions: Record<string, string> = {};
           const styles: Record<string, StyleOptions> = {};
@@ -405,15 +407,18 @@ export default function AdminPage() {
     if (docTypes.find(t => t.id === id)) { showMsg('A type with that name already exists.', red); return; }
     setDocTypes([...docTypes, { id, label: newTypeName.trim(), icon: '📄', color: '#475569', desc: newTypeDesc.trim() }]);
     setDocNotes({ ...docNotes, [id]: '' });
+    setSelectedDocTypeId(id);
     setNewTypeName('');
     setNewTypeDesc('');
   }
 
   function removeDocType(id: string) {
     if (!confirm(`Remove this document type? Its requirements will also be deleted.`)) return;
-    setDocTypes(docTypes.filter(t => t.id !== id));
+    const remaining = docTypes.filter(t => t.id !== id);
+    setDocTypes(remaining);
     const n = { ...docNotes }; delete n[id]; setDocNotes(n);
     const q = { ...docQuestions }; delete q[id]; setDocQuestions(q);
+    if (selectedDocTypeId === id) setSelectedDocTypeId(remaining[0]?.id || '');
   }
 
   async function logout() {
@@ -617,13 +622,24 @@ export default function AdminPage() {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type</div>
               <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {docTypes.map(t => (
-                  <details key={t.id} style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
-                    <summary style={{ background: '#F8FAFC', padding: '10px 14px', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: navy, flex: 1 }}>{t.icon} {t.label}</span>
-                      <button onClick={e => { e.preventDefault(); removeDocType(t.id); }} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 5, cursor: 'pointer', color: muted, fontSize: 11, padding: '2px 8px', fontFamily: font }}>Remove</button>
-                    </summary>
+              {docTypes.length === 0 ? (
+                <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
+              ) : (() => {
+                const t = docTypes.find(dt => dt.id === selectedDocTypeId) || docTypes[0];
+                return (
+                  <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
+                    <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
+                      <select
+                        value={t.id}
+                        onChange={e => setSelectedDocTypeId(e.target.value)}
+                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                      >
+                        {docTypes.map(dt => (
+                          <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => removeDocType(t.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 5, cursor: 'pointer', color: muted, fontSize: 11, padding: '2px 8px', fontFamily: font }}>Remove</button>
+                    </div>
                     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements</div>
@@ -702,12 +718,10 @@ export default function AdminPage() {
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }}
                         />
                       </div>
-
-
                     </div>
-                  </details>
-                ))}
-              </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Add doc type */}
