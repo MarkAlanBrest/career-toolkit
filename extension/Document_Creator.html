@@ -366,6 +366,14 @@ var THEMES = {
 };
 function getThemeColor() { return THEMES[adminSettings && adminSettings.theme] || '#1E293B'; }
 
+var THEME_LIGHT = {
+  navy:     '#EEF2F7',
+  cobalt:   '#EFF6FF',
+  forest:   '#F0FDF4',
+  burgundy: '#FFF1F2',
+};
+function getThemeLightColor() { return THEME_LIGHT[adminSettings && adminSettings.theme] || '#EEF2F7'; }
+
 var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
   model: "claude-haiku-4-5",
@@ -506,6 +514,7 @@ async function callClaude(promptOrMessages, onChunk) {
 function buildPromptFromInput(typeId, description) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
   var color = getThemeColor();
+  var lc = getThemeLightColor();
 
   var base = "You are a senior curriculum specialist producing institutional-grade documents for a professional trade school or college.\n"
     + "VOICE & TONE: Formal, authoritative, and precise — no filler, no motivational fluff, no watered-down language.\n"
@@ -513,8 +522,9 @@ function buildPromptFromInput(typeId, description) {
     + "STRICTLY AVOID: emojis, exclamation points, 'Let's explore!', 'Great job!', 'Fun Fact!', or any student-cheerleading language.\n"
     + "FORMAT: Return ONLY valid HTML body content — no <html>/<head>/<body> tags. No markdown code fences.\n"
     + "Use ONLY inline CSS — no <style> blocks. Every tag must be properly closed.\n"
-    + "PRIMARY COLOR: " + color + " — header backgrounds, section heading borders, table headers, accent elements.\n"
-    + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n\n";
+    + "PRIMARY COLOR: " + color + " — borders, section headings, accent elements. LIGHT TINT: " + lc + " — header backgrounds, table header backgrounds.\n"
+    + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n"
+    + "PRINT-FIRST DESIGN: All documents must print clearly in black and white. NEVER use dark background fills with white text. Document headers use light tinted background (" + lc + ") with a 5px solid colored top border (border-top:5px solid " + color + ") and dark text. Table headers use light tint background with colored bold text. All body text is dark (#1E293B or #475569). No white-on-dark anywhere.\n\n";
 
   var schoolBlock = adminSettings.schoolName
     ? "SCHOOL: " + adminSettings.schoolName + "\n\n"
@@ -539,34 +549,34 @@ function buildPromptFromInput(typeId, description) {
 
   return base + schoolBlock + styleBlock + adminBlock + teacherBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
-    + getLayoutInstructions(typeId, color);
+    + getLayoutInstructions(typeId, color, lc);
 }
 
-function getLayoutInstructions(typeId, color) {
+function getLayoutInstructions(typeId, color, lc) {
   if (typeId === "syllabus") return "LAYOUT:\n"
-    + "1. Full-width header — background:" + color + "; padding:44px 48px; — Course title (Georgia 36px #fff bold), level/term subtitle\n"
+    + "1. Full-width header — background:" + lc + "; border-top:5px solid " + color + "; padding:44px 48px; — Course title (Georgia 36px color:" + color + " bold), level/term subtitle (Arial 15px #475569)\n"
     + "2. Content area: padding:44px 48px; font-family:Arial,sans-serif;\n"
     + "3. Section headings: Georgia 18px bold; color:" + color + "; border-bottom:2px solid " + color + "; padding-bottom:8px; margin:32px 0 14px;\n"
     + "4. COURSE DESCRIPTION — paragraph\n5. LEARNING OUTCOMES — 4–6 measurable outcomes with action verbs\n6. REQUIRED MATERIALS — bulleted list\n"
-    + "7. COURSE SCHEDULE — table (Week/Unit | Topic | Activities). Header: background:" + color + "; color:#fff; Rows: alternating #fff/#F8FAFC;\n"
+    + "7. COURSE SCHEDULE — table (Week/Unit | Topic | Activities). Header: background:" + lc + "; color:" + color + "; font-weight:700; Rows: alternating #fff/#F8FAFC;\n"
     + "8. GRADING BREAKDOWN — table with categories and percentages\n9. COURSE POLICIES — all provided policies clearly labeled\n10. Footer — small gray text\n";
 
   if (typeId === "worksheet") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 28px #fff bold), Name/Date/Class info line\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 28px color:" + color + " bold), Name/Date/Class info line (Arial 13px #475569)\n"
     + "2. INSTRUCTIONS — one concise paragraph\n"
     + "3. QUESTIONS — each numbered, bold question text + appropriate response space (lines, boxes, options). Match the format discussed.\n"
     + "   Multiple Choice: A–D options. Short Answer: 3 ruled lines. True/False: T / F before statement. Calculations: Given/Find/Work/Answer with bordered box.\n"
     + "4. Score footer — 'Score: _______ / [total]' centered\n";
 
   if (typeId === "projectguide") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:40px 48px; — Project title (Georgia 34px #fff bold), course + level subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:40px 48px; — Project title (Georgia 34px color:" + color + " bold), course + level subtitle (Arial 15px #475569)\n"
     + "2. PROJECT OVERVIEW — what students will build or accomplish\n3. LEARNING OBJECTIVES — 3–5 measurable outcomes\n"
     + "4. MATERIALS & TOOLS — checklist with ☐ prefix\n5. PHASE TIMELINE — table (Phase | Activities | Duration | Due Date)\n"
     + "6. STEP-BY-STEP INSTRUCTIONS — numbered imperative steps\n7. DELIVERABLES — bulleted list of what to submit\n"
     + "8. TIPS FOR SUCCESS — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:16px 20px;\n9. GRADING — assessment criteria table\n";
 
   if (typeId === "research") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:40px 48px; — Assignment title (Georgia 32px #fff bold)\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:40px 48px; — Assignment title (Georgia 32px color:" + color + " bold)\n"
     + "2. OVERVIEW — purpose and expectations\n"
     + "3. RESEARCH QUESTION — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 20px;\n"
     + "4. LEARNING OBJECTIVES — 3–4 research skills\n5. PAPER REQUIREMENTS — length, citation style, formatting\n"
@@ -575,7 +585,7 @@ function getLayoutInstructions(typeId, color) {
     + "8. GRADING BREAKDOWN — table distributing points\n9. SUBMISSION CHECKLIST — ☐ items\n";
 
   if (typeId === "lessonplan") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:36px 48px; — Lesson title (Georgia 32px #fff bold), Subject | Level | Duration\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Lesson title (Georgia 32px color:" + color + " bold), Subject | Level | Duration (Arial 14px #475569)\n"
     + "2. AT A GLANCE — 3-cell grid (Duration | Level | Materials): background:#F8FAFC; border:1px solid #E2E8F0; padding:14px 18px; text-align:center;\n"
     + "3. LEARNING OBJECTIVES — numbered with action verbs (Bloom's taxonomy)\n4. MATERIALS & PREPARATION — checklist + prep notes\n"
     + "5. LESSON TIMELINE — table: Time | Phase | Instructor Activity | Student Activity (Opening/Hook, Direct Instruction, Guided Practice, Independent Practice, Closure)\n"
@@ -583,31 +593,31 @@ function getLayoutInstructions(typeId, color) {
     + "8. ASSESSMENT — formative check + summative connection\n9. REFLECTION — blank dashed box: border:1px dashed #CBD5E1; min-height:80px;\n";
 
   if (typeId === "rubric") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:32px 48px; — Assignment name (Georgia 30px #fff bold)\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Assignment name (Georgia 30px color:" + color + " bold)\n"
     + "2. RUBRIC TABLE — Columns: Criteria | Excellent | Proficient | Developing | Beginning | Points\n"
-    + "   Header row: background:" + color + "; color:#fff; font-size:12px; font-weight:700;\n"
+    + "   Header row: background:" + lc + "; color:" + color + "; font-size:12px; font-weight:700;\n"
     + "   Write SPECIFIC, CONCRETE descriptors for every cell. Distribute total points across criteria.\n"
     + "   Alternating rows: #fff/#F8FAFC; vertical-align:top; font-size:13px;\n"
-    + "3. TOTAL ROW — bold totals, background:" + color + "20;\n4. GRADING SCALE — points to letter grade table\n";
+    + "3. TOTAL ROW — bold totals, background:" + lc + ";\n4. GRADING SCALE — points to letter grade table\n";
 
   if (typeId === "studyguide") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:36px 48px; — Topic (Georgia 32px #fff bold), course subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Topic (Georgia 32px color:" + color + " bold), course subtitle (Arial 15px #475569)\n"
     + "2. KEY CONCEPTS — for each concept: H3 (Georgia 18px color:" + color + "; border-bottom:1px solid #E2E8F0), definition, formula callout (background:#F1F5F9; border-left:4px solid " + color + "; font-family:Courier New; font-size:13px), example\n"
-    + "3. VOCABULARY TABLE — two-column Term | Definition. Header: background:" + color + "; color:#fff;\n"
+    + "3. VOCABULARY TABLE — two-column Term | Definition. Header: background:" + lc + "; color:" + color + "; font-weight:700;\n"
     + "4. COMMON MISTAKES — callout: background:#FFF7ED; border-left:4px solid #F59E0B; padding:16px 20px;\n"
     + "5. QUICK REFERENCE — bullet list of critical facts/formulas\n"
     + "6. PRACTICE QUESTIONS — 5 questions with hidden answers: <details><summary>Show Answers</summary>…</details>\n";
 
   if (typeId === "test") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:32px 48px; — Test title (Georgia 30px #fff bold), Course | Level | Time row\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Test title (Georgia 30px color:" + color + " bold), Course | Level | Time row (Arial 14px #475569)\n"
     + "2. Student info bar — Name / Date / Period with ruled lines\n3. GENERAL INSTRUCTIONS — 2–3 formal sentences\n"
     + "4. QUESTION SECTIONS — each section has a header: background:#F1F5F9; border-left:4px solid " + color + "; padding:10px 16px; Georgia bold 15px; includes point value per question.\n"
     + "   Multiple Choice: A–D, one correct. Short Answer: 3 ruled lines. True/False: T/F before statement. Calculations: Given/Find/Work/Answer box.\n"
     + "   All questions substantive and specific to the topics discussed.\n"
-    + "5. ANSWER KEY (if requested) — page-break section: header background:" + color + "; answers by number with model answers for open-ended items.\n";
+    + "5. ANSWER KEY (if requested) — page-break section: header background:" + lc + "; border-top:5px solid " + color + "; title color:" + color + "; answers by number with model answers for open-ended items.\n";
 
   if (typeId === "safetycontract") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:36px 48px; — Title (Georgia 30px #fff bold: 'Laboratory Safety Agreement'), course/lab name subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Title (Georgia 30px color:" + color + " bold: 'Laboratory Safety Agreement'), course/lab name subtitle (Arial 14px #475569)\n"
     + "2. INTRODUCTION — 2-sentence formal statement of purpose and expectation\n"
     + "3. SAFETY RULES — numbered list, bold rule title + one-sentence explanation each. Minimum 8 rules.\n"
     + "4. PPE REQUIREMENTS — bulleted list with ☐ checkbox prefix for each item\n"
@@ -617,7 +627,7 @@ function getLayoutInstructions(typeId, color) {
     + "8. SIGNATURE BLOCK — table: Student Name (print) | Signature | Date, then Parent/Guardian (if under 18) row, then Instructor row. Ruled lines for each field.\n";
 
   if (typeId === "missingwork") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Missing Work Request'), school name subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Missing Work Request'), school name subtitle (Arial 13px #475569)\n"
     + "2. STUDENT INFORMATION — two-column table: Student Name | Date Submitted, Course | Period, Instructor | Date of Absence/Missed Work\n"
     + "3. ASSIGNMENT INFORMATION — Assignment Name, Original Due Date, Point Value — ruled line fields\n"
     + "4. REASON FOR MISSING WORK — checkboxes for common reasons (Absence / Personal Emergency / Misunderstood Assignment / Other) + open lines for explanation\n"
@@ -626,17 +636,17 @@ function getLayoutInstructions(typeId, color) {
     + "7. INSTRUCTOR DECISION — callout box: ☐ Approved  ☐ Denied  ☐ Partial Credit Only. Conditions/Notes: ruled lines. Instructor Signature + Date.\n";
 
   if (typeId === "obschecklist") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Performance Observation Checklist'), task/skill name subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Performance Observation Checklist'), task/skill name subtitle (Arial 13px #475569)\n"
     + "2. SESSION INFO — two-column table: Student Name | Date, Instructor | Course\n"
     + "3. SKILLS CHECKLIST TABLE — Columns: # | Skill / Step | Pass | Needs Improvement | Not Observed\n"
-    + "   Header: background:" + color + "; color:#fff; font-size:12px font-weight:700;\n"
+    + "   Header: background:" + lc + "; color:" + color + "; font-size:12px; font-weight:700;\n"
     + "   Each row: numbered skill, ☐ in each status column. Alternating #fff/#F8FAFC. Minimum 10 skill rows based on task.\n"
     + "4. OVERALL ASSESSMENT — callout: ☐ Satisfactory — student demonstrated all required skills  ☐ Unsatisfactory — see notes below\n"
     + "5. INSTRUCTOR NOTES — ruled lines area\n"
     + "6. SIGNATURES — Instructor Signature + Date, Student Signature + Date (ruled lines)\n";
 
   if (typeId === "incident") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:28px 40px; — Title (Georgia 26px #fff bold: 'Incident Report'), 'CONFIDENTIAL' in small caps top-right\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Incident Report'), 'CONFIDENTIAL' in small caps top-right (color:#64748B)\n"
     + "2. INCIDENT DETAILS — table: Date | Time | Location, Type of Incident checkboxes: ☐ Injury ☐ Safety Violation ☐ Conduct ☐ Property Damage ☐ Other\n"
     + "3. PERSONS INVOLVED — fields: Name(s) of student(s), Grade/Level, Reporting Instructor\n"
     + "4. DESCRIPTION OF INCIDENT — large lined area with label: 'Provide a factual, chronological account of what occurred:'\n"
@@ -646,40 +656,40 @@ function getLayoutInstructions(typeId, color) {
     + "8. SIGNATURE BLOCK — table rows: Reporting Instructor (signature + date), Administrator (signature + date), Student Acknowledgment (signature + date, labeled optional)\n";
 
   if (typeId === "vocablist") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:32px 48px; — Title (Georgia 30px #fff bold: 'Vocabulary List'), course + unit/topic subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Title (Georgia 30px color:" + color + " bold: 'Vocabulary List'), course + unit/topic subtitle (Arial 14px #475569)\n"
     + "2. TERMS — for each term, a card-style block: background:#F8FAFC; border-left:4px solid " + color + "; border-radius:0 8px 8px 0; padding:14px 18px; margin-bottom:10px;\n"
     + "   Inside each card: Term (Georgia 16px bold color:" + color + "), Part of speech (italic 12px #64748B), Definition (Arial 13px #1E293B), Example sentence (italic 13px #475569 border-top:1px solid #E2E8F0 padding-top:8px margin-top:8px)\n"
-    + "3. QUICK REFERENCE TABLE (after all cards) — two-column: Term | Definition only. Header: background:" + color + "; color:#fff;\n"
+    + "3. QUICK REFERENCE TABLE (after all cards) — two-column: Term | Definition only. Header: background:" + lc + "; color:" + color + "; font-weight:700;\n"
     + "4. SELF-QUIZ — 'Cover the right column and test yourself.' Same table reproduced with definition column cells containing faint dashes instead of text.\n";
 
   if (typeId === "readingguide") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:36px 48px; — 'Reading Guide' label (Georgia 14px #fff uppercase), Title (Georgia 32px #fff bold), Author + Pages/Chapter subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — 'Reading Guide' label (Georgia 13px color:" + color + " uppercase letter-spacing:2px), Title (Georgia 32px color:" + color + " bold), Author + Pages/Chapter subtitle (Arial 14px #475569)\n"
     + "2. BEFORE READING — callout: background:#F0F9FF; border-left:4px solid " + color + "; padding:14px 18px; Contains: 2–3 pre-reading questions and a key vocabulary preview (terms only, no definitions — students define as they read)\n"
     + "3. DURING READING — section-by-section (use chapter names or page ranges as subheadings: Georgia 16px bold color:" + color + "; border-bottom:1px solid). Under each: 3–5 comprehension questions with 4–5 ruled response lines each\n"
     + "4. AFTER READING — H2 section: 2 synthesis questions requiring multi-sentence responses (8 ruled lines each)\n"
-    + "5. KEY TERMS — table: Term | Page # | My Definition. Header: background:" + color + "; color:#fff; 8–12 blank rows for student completion\n"
+    + "5. KEY TERMS — table: Term | Page # | My Definition. Header: background:" + lc + "; color:" + color + "; font-weight:700; 8–12 blank rows for student completion\n"
     + "6. DISCUSSION QUESTIONS — 3 open-ended questions in a callout: background:#F8FAFC; border:1px solid #E2E8F0; padding:16px 20px;\n";
 
   if (typeId === "funactivity") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:32px 48px; — Activity name (Georgia 30px #fff bold). Info bar below header: background:" + color + "CC; padding:10px 48px; — Time | Group Size | Materials as inline badges (background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 12px; font-size:12px;)\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Activity name (Georgia 30px color:" + color + " bold). Info bar below header: background:" + lc + "; border-bottom:2px solid " + color + "; padding:10px 48px; — Time | Group Size | Materials as inline badges (background:" + color + "22; color:" + color + "; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600;)\n"
     + "2. LEARNING OBJECTIVE — callout: background:#F0FDF4; border-left:4px solid " + color + "; padding:12px 18px; One clear measurable objective\n"
     + "3. SETUP — brief instructor-facing preparation note (background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px 16px; font-size:12px italic)\n"
     + "4. INSTRUCTIONS — numbered bold steps, each step 1–2 sentences. Clear, imperative language.\n"
-    + "5. ROUNDS / PHASES (if applicable) — table: Round | Time | What Happens. Header: background:" + color + "; color:#fff;\n"
+    + "5. ROUNDS / PHASES (if applicable) — table: Round | Time | What Happens. Header: background:" + lc + "; color:" + color + "; font-weight:700;\n"
     + "6. DEBRIEF QUESTIONS — bulleted list of 3–4 discussion questions to close the activity\n"
     + "7. EXTENSION (optional) — one sentence in italic suggesting a follow-up or harder variation\n";
 
   if (typeId === "creative") return "LAYOUT:\n"
-    + "1. Header — background:" + color + "; padding:36px 48px; — Assignment title (Georgia 32px #fff bold), course + due date subtitle\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Assignment title (Georgia 32px color:" + color + " bold), course + due date subtitle (Arial 14px #475569)\n"
     + "2. OVERVIEW — 2–3 sentence description of the assignment and its purpose\n"
     + "3. LEARNING OBJECTIVES — 3–4 measurable outcomes (bulleted)\n"
     + "4. THE ASSIGNMENT — detailed description of what students will create. Be specific about format, length, or scope.\n"
     + "5. REQUIREMENTS — numbered list of concrete requirements students must meet. Bold the key requirement in each item.\n"
     + "6. GUIDELINES & CONSTRAINTS — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 18px; Any restrictions, parameters, or notes on academic integrity\n"
-    + "7. GRADING RUBRIC — table: Criteria | Excellent (A) | Proficient (B/C) | Needs Work (D/F) | Points. Header: background:" + color + "; color:#fff; At least 4 criteria rows.\n"
+    + "7. GRADING RUBRIC — table: Criteria | Excellent (A) | Proficient (B/C) | Needs Work (D/F) | Points. Header: background:" + lc + "; color:" + color + "; font-weight:700; At least 4 criteria rows.\n"
     + "8. SUBMISSION — bulleted checklist with ☐ prefix: file format, naming convention, where/how to submit, deadline\n";
 
-  if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for any headers or accent elements. Make it complete and professional.\n";
+  if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for borders and accents; use the light tint (" + lc + ") for header backgrounds. Make it complete and professional.\n";
 
   return "Generate a complete, professional document using all the information provided.\n";
 }
@@ -1066,10 +1076,23 @@ function timeAgo(ts) {
 function saveToHistory() {
   if (!state.generatedHTML || !state.selectedType) return;
   var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
+  var entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+    docType: state.selectedType,
+    docTypeLabel: type ? type.label : state.selectedType,
+    html: state.generatedHTML,
+    ts: Date.now()
+  };
+  try {
+    var hist = JSON.parse(localStorage.getItem("dc_history") || "[]");
+    hist.unshift(entry);
+    if (hist.length > 20) hist.length = 20;
+    localStorage.setItem("dc_history", JSON.stringify(hist));
+  } catch(e) {}
   fetch("/api/document-creator/history", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ docType: state.selectedType, docTypeLabel: type ? type.label : state.selectedType, html: state.generatedHTML })
+    body: JSON.stringify({ docType: entry.docType, docTypeLabel: entry.docTypeLabel, html: entry.html })
   }).catch(function() {});
 }
 
@@ -1086,30 +1109,27 @@ function closeHistory() {
 }
 
 function loadHistoryList() {
+  try { _historyDocs = JSON.parse(localStorage.getItem("dc_history") || "[]"); } catch(e) { _historyDocs = []; }
+  renderHistoryList();
+}
+
+function renderHistoryList() {
   var list = document.getElementById("history-list");
-  list.innerHTML = '<div style="padding:20px;color:#94A3B8;text-align:center;">Loading...</div>';
-  fetch("/api/document-creator/history")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      _historyDocs = data.docs || [];
-      if (!_historyDocs.length) {
-        list.innerHTML = '<div style="padding:24px 16px;color:#94A3B8;text-align:center;line-height:1.6;">No documents yet.<br>Generate one to see it here.</div>';
-        return;
-      }
-      list.innerHTML = _historyDocs.map(function(doc, i) {
-        var type = DOC_TYPES.find(function(t) { return t.id === doc.docType; }) || { icon: "📄" };
-        return '<div onclick="restoreFromHistory(' + i + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;transition:background 0.12s;" onmouseover="this.style.background=\'#F5F3FF\';this.style.borderColor=\'#DDD6FE\'" onmouseout="this.style.background=\'\';this.style.borderColor=\'transparent\'">'
-          + '<span style="font-size:18px;flex-shrink:0;">' + type.icon + '</span>'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(doc.docTypeLabel) + '</div>'
-          + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + timeAgo(doc.ts) + '</div>'
-          + '</div>'
-          + '</div>';
-      }).join('');
-    })
-    .catch(function() {
-      list.innerHTML = '<div style="padding:20px;color:#94A3B8;text-align:center;">Failed to load.</div>';
-    });
+  if (!list) return;
+  if (!_historyDocs.length) {
+    list.innerHTML = '<div style="padding:24px 16px;color:#94A3B8;text-align:center;line-height:1.6;">No documents yet.<br>Generate one to see it here.</div>';
+    return;
+  }
+  list.innerHTML = _historyDocs.map(function(doc, i) {
+    var type = DOC_TYPES.find(function(t) { return t.id === doc.docType; }) || { icon: "📄" };
+    return '<div onclick="restoreFromHistory(' + i + ')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:3px;" onmouseover="this.style.background=\'#F5F3FF\';this.style.borderColor=\'#DDD6FE\'" onmouseout="this.style.background=\'\';this.style.borderColor=\'transparent\'">'
+      + '<span style="font-size:18px;flex-shrink:0;">' + type.icon + '</span>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(doc.docTypeLabel) + '</div>'
+      + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + timeAgo(doc.ts) + '</div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
 }
 
 function restoreFromHistory(idx) {
