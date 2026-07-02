@@ -1030,6 +1030,11 @@ function applyServerSettings(data) {
   if (data.docTypes && Array.isArray(data.docTypes) && data.docTypes.length) {
     DOC_TYPES.length = 0;
     data.docTypes.forEach(function(t) { DOC_TYPES.push(t); });
+    // Load templates from server settings
+    DOC_TYPES.forEach(function(t) {
+      var tmpl = data.adminSettings && data.adminSettings[t.id] && data.adminSettings[t.id].template;
+      if (tmpl) _adminTemplates[t.id] = tmpl; else delete _adminTemplates[t.id];
+    });
   }
 }
 
