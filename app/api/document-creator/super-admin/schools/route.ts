@@ -130,6 +130,7 @@ export async function DELETE(req: NextRequest) {
     redis.del(`dc:school:${schoolId}:teachers`),
     redis.del(`dc:school:${schoolId}:settings`),
     redis.del(`dc:school:${schoolId}:types`),
+    redis.del(`dc:school:${schoolId}:documents`),
   ]);
 
   return NextResponse.json({ ok: true }, { headers: CORS });

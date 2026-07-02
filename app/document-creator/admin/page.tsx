@@ -21,6 +21,7 @@ type Session = { email: string; name: string; role: string; schoolId: string; sc
 type Teacher = { email: string; name: string; active: boolean; createdAt: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
 type StyleOptions = { lines: boolean; numbered: boolean; infoBar: boolean; callouts: boolean };
+type RefDoc = { id: string; name: string; filename: string; chars: number; uploadedAt: string };
 
 const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'syllabus',       label: 'Syllabus',               icon: '📋', color: '#7C3AED' },
@@ -111,6 +112,13 @@ export default function AdminPage() {
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [loadingUsage, setLoadingUsage] = useState(false);
 
+  // Reference documents (school catalog, course lists, etc.)
+  const [refDocs, setRefDocs] = useState<RefDoc[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [newDocName, setNewDocName] = useState('');
+  const [docRefs, setDocRefs] = useState<Record<string, string[]>>({});
+
   function showMsg(text: string, color = green) { setMsg(text); setMsgColor(color); setTimeout(() => setMsg(''), 4000); }
 
   useEffect(() => {
@@ -124,6 +132,7 @@ export default function AdminPage() {
         loadTeachers();
         loadModel();
         loadUsage();
+        loadDocs();
       })
       .catch(() => { window.location.href = '/document-creator/login'; });
   }, []);
@@ -194,6 +203,69 @@ export default function AdminPage() {
       .finally(() => setLoadingUsage(false));
   }
 
+  function loadDocs() {
+    setLoadingDocs(true);
+    fetch('/api/document-creator/documents')
+      .then(r => r.json())
+      .then(data => { if (data.documents) setRefDocs(data.documents); })
+      .catch(() => {})
+      .finally(() => setLoadingDocs(false));
+  }
+
+  async function handleDocUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!newDocName.trim()) { showMsg('Enter a name for this document first (e.g. "School Catalog").', red); e.target.value = ''; return; }
+    if (file.size > 8 * 1024 * 1024) { showMsg('File must be under 8 MB.', red); e.target.value = ''; return; }
+    setUploadingDoc(true);
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          resolve(result.slice(result.indexOf(',') + 1));
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const parseResp = await fetch('/api/parse-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ b64, filename: file.name, mimeType: file.type }),
+      });
+      const parsed = await parseResp.json();
+      if (!parseResp.ok) { showMsg(parsed.error || 'Could not extract text from this file.', red); return; }
+
+      const resp = await fetch('/api/document-creator/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newDocName.trim(), filename: file.name, text: parsed.text }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { showMsg(data.error || 'Failed to save document.', red); return; }
+      setNewDocName('');
+      showMsg('Document added.');
+      loadDocs();
+    } catch {
+      showMsg('Upload failed. Please try again.', red);
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = '';
+    }
+  }
+
+  async function removeDoc(id: string, name: string) {
+    if (!confirm(`Remove "${name}"? Document types referencing it will stop using it.`)) return;
+    const resp = await fetch('/api/document-creator/documents', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (resp.ok) { showMsg('Document removed.'); loadDocs(); }
+    else { const d = await resp.json(); showMsg(d.error || 'Failed.', red); }
+  }
+
   function timeAgo(ts: number) {
     const s = Math.floor((Date.now() - ts) / 1000);
     if (s < 60) return `${s}s ago`;
@@ -216,17 +288,21 @@ export default function AdminPage() {
           const questions: Record<string, string> = {};
           const styles: Record<string, StyleOptions> = {};
           const themes: Record<string, string> = {};
+          const refs: Record<string, string[]> = {};
           types.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
             styles[t.id] = d.adminSettings?.[t.id]?.styleOptions || { lines: false, numbered: false, infoBar: false, callouts: false };
             themes[t.id] = d.adminSettings?.[t.id]?.theme || 'navy';
+            const rd = d.adminSettings?.[t.id]?.referenceDocs;
+            refs[t.id] = Array.isArray(rd) ? rd : [];
           });
           setDocNotes(notes);
           setDocQuestions(questions);
           setDocStyles(styles);
           setDocThemes(themes);
+          setDocRefs(refs);
         }
       })
       .catch(() => {});
@@ -309,6 +385,7 @@ export default function AdminPage() {
           questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
           styleOptions: docStyles[t.id] || { lines: false, numbered: false, infoBar: false, callouts: false },
           theme: docThemes[t.id] || 'navy',
+          referenceDocs: docRefs[t.id] || [],
         };
       });
       await fetch('/api/document-creator/settings', {
@@ -479,6 +556,53 @@ export default function AdminPage() {
           </div>
         </Section>
 
+        {/* Reference Documents */}
+        <Section title="Reference Documents">
+          <div style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
+            Upload the school catalog, course list, program descriptions, or other source-of-truth documents. Below, each document type can be told to reference specific uploads — e.g. have Resume generation pull course descriptions from the catalog.
+          </div>
+
+          {loadingDocs ? (
+            <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
+          ) : refDocs.length === 0 ? (
+            <div style={{ color: muted, fontSize: 13, marginBottom: 14 }}>No reference documents yet. Add one below.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14 }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${border}` }}>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>File</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Size</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
+                  <th style={{ width: 60 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {refDocs.map(d => (
+                  <tr key={d.id} style={{ borderBottom: `1px solid ${border}` }}>
+                    <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{d.name}</td>
+                    <td style={{ padding: '8px 8px', color: muted }}>{d.filename}</td>
+                    <td style={{ padding: '8px 8px', textAlign: 'right', color: muted }}>{Math.round(d.chars / 1000).toLocaleString()}k chars</td>
+                    <td style={{ padding: '8px 8px', color: muted }}>{new Date(d.uploadedAt).toLocaleDateString()}</td>
+                    <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                      <button onClick={() => removeDoc(d.id, d.name)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input value={newDocName} onChange={setNewDocName} placeholder='Document name (e.g. "School Catalog 2026")' />
+            <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+              {uploadingDoc ? 'Uploading...' : 'Upload File'}
+              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleDocUpload} disabled={uploadingDoc} style={{ display: 'none' }} />
+            </label>
+          </div>
+          <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically.</div>
+        </Section>
+
         {/* School Settings */}
         <Section title="School Settings">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -540,6 +664,29 @@ export default function AdminPage() {
                           })}
                         </div>
                         <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reference Documents</div>
+                        <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>Selected documents are included as source material when generating this document type.</div>
+                        {refDocs.length === 0 ? (
+                          <div style={{ fontSize: 12, color: muted }}>No reference documents uploaded yet — see the Reference Documents section above.</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {refDocs.map(d => {
+                              const selected = (docRefs[t.id] || []).includes(d.id);
+                              return (
+                                <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
+                                  <input type="checkbox" checked={selected} onChange={() => {
+                                    const cur = docRefs[t.id] || [];
+                                    const next = selected ? cur.filter(id => id !== d.id) : [...cur, d.id];
+                                    setDocRefs(prev => ({ ...prev, [t.id]: next }));
+                                  }} style={{ flexShrink: 0 }} />
+                                  {d.name}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions</div>
