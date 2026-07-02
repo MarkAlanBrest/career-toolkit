@@ -308,7 +308,11 @@ var DOC_TYPES_DEFAULT = [
   { id:"missingwork",    label:"Missing Work Request",      icon:"📩", color:"#3B1F5C", desc:"Student request form for late or makeup credit" },
   { id:"obschecklist",   label:"Observation Checklist",     icon:"✅", color:"#1C3557", desc:"Skill-by-skill performance checklist for hands-on tasks" },
   { id:"incident",       label:"Incident Report",           icon:"⚠️", color:"#7B2D00", desc:"Formal documentation of a safety or conduct incident" },
-  { id:"custom",         label:"Custom Document",           icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" }
+  { id:"vocablist",      label:"Vocabulary List",            icon:"🔤", color:"#0E7490", desc:"Terms, definitions, and examples for a unit or topic" },
+  { id:"readingguide",  label:"Reading Guide",              icon:"📰", color:"#065F46", desc:"Guided questions and annotations for assigned readings" },
+  { id:"funactivity",   label:"Fun Activity",               icon:"🎯", color:"#B45309", desc:"Engaging in-class activity, game, or group exercise" },
+  { id:"creative",      label:"Creative Assignment",        icon:"🎨", color:"#6D28D9", desc:"Open-ended creative project with requirements and rubric" },
+  { id:"custom",        label:"Custom Document",            icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" }
 ];
 
 var DOC_TYPES = (function(){
@@ -359,6 +363,10 @@ var ADMIN_DEFAULTS = {
   missingwork:  { notes: "Include fields for: student name, date, course, instructor, original assignment name, original due date, reason for missing work, proposed completion date. Instructor must sign to approve. Include a notes section for any conditions or requirements attached to the approval." },
   obschecklist: { notes: "Include fields for: student name, date, instructor name, task or skill being observed. Each checklist item must have three options: Pass / Needs Improvement / Not Observed. Include an overall assessment section (Satisfactory / Unsatisfactory). Require instructor signature and date at the bottom." },
   incident:     { notes: "Include fields for: date, time, location, type of incident (injury / safety violation / conduct / property damage / other). Include a detailed description section. Include a witnesses section. Include immediate action taken. Include a follow-up required section with checkboxes. Require signatures from: reporting instructor, student (if applicable), and administrator. Mark as confidential." },
+  vocablist:    { notes: "Include term, definition, and a discipline-specific example sentence for each entry. Group related terms together where applicable. Include a self-quiz section at the end." },
+  readingguide: { notes: "Include Before / During / After reading sections. During-reading questions must reference specific sections or page ranges. End with at least two higher-order synthesis questions." },
+  funactivity:  { notes: "Include time estimate, group size, and materials list at the top. All activities must connect to measurable course learning outcomes. State the debrief/discussion goal clearly." },
+  creative:     { notes: "Include specific deliverable requirements, file format or submission method, and academic integrity statement. All creative work must demonstrate mastery of course content — creativity does not exempt students from technical accuracy." },
   custom:       { notes: "" }
 };
 
@@ -615,6 +623,40 @@ function getLayoutInstructions(typeId, color) {
     + "6. IMMEDIATE ACTION TAKEN — lined area\n"
     + "7. FOLLOW-UP REQUIRED — checkboxes: ☐ Parent/Guardian Notification ☐ Administrative Review ☐ Medical Attention ☐ Disciplinary Referral ☐ No Further Action\n"
     + "8. SIGNATURE BLOCK — table rows: Reporting Instructor (signature + date), Administrator (signature + date), Student Acknowledgment (signature + date, labeled optional)\n";
+
+  if (typeId === "vocablist") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:32px 48px; — Title (Georgia 30px #fff bold: 'Vocabulary List'), course + unit/topic subtitle\n"
+    + "2. TERMS — for each term, a card-style block: background:#F8FAFC; border-left:4px solid " + color + "; border-radius:0 8px 8px 0; padding:14px 18px; margin-bottom:10px;\n"
+    + "   Inside each card: Term (Georgia 16px bold color:" + color + "), Part of speech (italic 12px #64748B), Definition (Arial 13px #1E293B), Example sentence (italic 13px #475569 border-top:1px solid #E2E8F0 padding-top:8px margin-top:8px)\n"
+    + "3. QUICK REFERENCE TABLE (after all cards) — two-column: Term | Definition only. Header: background:" + color + "; color:#fff;\n"
+    + "4. SELF-QUIZ — 'Cover the right column and test yourself.' Same table reproduced with definition column cells containing faint dashes instead of text.\n";
+
+  if (typeId === "readingguide") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:36px 48px; — 'Reading Guide' label (Georgia 14px #fff uppercase), Title (Georgia 32px #fff bold), Author + Pages/Chapter subtitle\n"
+    + "2. BEFORE READING — callout: background:#F0F9FF; border-left:4px solid " + color + "; padding:14px 18px; Contains: 2–3 pre-reading questions and a key vocabulary preview (terms only, no definitions — students define as they read)\n"
+    + "3. DURING READING — section-by-section (use chapter names or page ranges as subheadings: Georgia 16px bold color:" + color + "; border-bottom:1px solid). Under each: 3–5 comprehension questions with 4–5 ruled response lines each\n"
+    + "4. AFTER READING — H2 section: 2 synthesis questions requiring multi-sentence responses (8 ruled lines each)\n"
+    + "5. KEY TERMS — table: Term | Page # | My Definition. Header: background:" + color + "; color:#fff; 8–12 blank rows for student completion\n"
+    + "6. DISCUSSION QUESTIONS — 3 open-ended questions in a callout: background:#F8FAFC; border:1px solid #E2E8F0; padding:16px 20px;\n";
+
+  if (typeId === "funactivity") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:32px 48px; — Activity name (Georgia 30px #fff bold). Info bar below header: background:" + color + "CC; padding:10px 48px; — Time | Group Size | Materials as inline badges (background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 12px; font-size:12px;)\n"
+    + "2. LEARNING OBJECTIVE — callout: background:#F0FDF4; border-left:4px solid " + color + "; padding:12px 18px; One clear measurable objective\n"
+    + "3. SETUP — brief instructor-facing preparation note (background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px 16px; font-size:12px italic)\n"
+    + "4. INSTRUCTIONS — numbered bold steps, each step 1–2 sentences. Clear, imperative language.\n"
+    + "5. ROUNDS / PHASES (if applicable) — table: Round | Time | What Happens. Header: background:" + color + "; color:#fff;\n"
+    + "6. DEBRIEF QUESTIONS — bulleted list of 3–4 discussion questions to close the activity\n"
+    + "7. EXTENSION (optional) — one sentence in italic suggesting a follow-up or harder variation\n";
+
+  if (typeId === "creative") return "LAYOUT:\n"
+    + "1. Header — background:" + color + "; padding:36px 48px; — Assignment title (Georgia 32px #fff bold), course + due date subtitle\n"
+    + "2. OVERVIEW — 2–3 sentence description of the assignment and its purpose\n"
+    + "3. LEARNING OBJECTIVES — 3–4 measurable outcomes (bulleted)\n"
+    + "4. THE ASSIGNMENT — detailed description of what students will create. Be specific about format, length, or scope.\n"
+    + "5. REQUIREMENTS — numbered list of concrete requirements students must meet. Bold the key requirement in each item.\n"
+    + "6. GUIDELINES & CONSTRAINTS — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 18px; Any restrictions, parameters, or notes on academic integrity\n"
+    + "7. GRADING RUBRIC — table: Criteria | Excellent (A) | Proficient (B/C) | Needs Work (D/F) | Points. Header: background:" + color + "; color:#fff; At least 4 criteria rows.\n"
+    + "8. SUBMISSION — bulleted checklist with ☐ prefix: file format, naming convention, where/how to submit, deadline\n";
 
   if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for any headers or accent elements. Make it complete and professional.\n";
 

@@ -35,7 +35,11 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'missingwork',    label: 'Missing Work Form',      icon: '📋', color: '#475569' },
   { id: 'obschecklist',   label: 'Observation Checklist',  icon: '✅', color: '#16A34A' },
   { id: 'incident',       label: 'Incident Report',        icon: '🚨', color: '#DC2626' },
-  { id: 'custom',         label: 'Custom Document',        icon: '📄', color: '#475569' },
+  { id: 'vocablist',      label: 'Vocabulary List',         icon: '🔤', color: '#0E7490' },
+  { id: 'readingguide',  label: 'Reading Guide',           icon: '📰', color: '#065F46' },
+  { id: 'funactivity',   label: 'Fun Activity',            icon: '🎯', color: '#B45309' },
+  { id: 'creative',      label: 'Creative Assignment',     icon: '🎨', color: '#6D28D9' },
+  { id: 'custom',        label: 'Custom Document',         icon: '📄', color: '#475569' },
 ];
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {
