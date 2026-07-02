@@ -303,7 +303,7 @@ export default function AdminPage() {
     fetch('/api/document-creator/settings')
       .then(r => r.json())
       .then(d => {
-        if (d.adminSettings?.model) setModel(d.adminSettings.model);
+        if (d.adminSettings?.model) setModel(d.adminSettings.model === 'claude-haiku-4-5' ? d.adminSettings.model : 'claude-haiku-4-5');
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
         if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
         {
@@ -769,7 +769,6 @@ export default function AdminPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               { id: 'claude-haiku-4-5',  label: 'Haiku',  cost: '$0.03 / document', desc: 'Fast and affordable. Handles most documents well.' },
-              { id: 'claude-sonnet-4-6', label: 'Sonnet', cost: '$0.10 / document', desc: 'Higher quality. Better for complex layouts and detailed rubrics.' },
             ].map(opt => (
               <label key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', border: `2px solid ${model === opt.id ? blue : border}`, borderRadius: 10, cursor: savingModel ? 'not-allowed' : 'pointer', background: model === opt.id ? '#F0F4FF' : '#fff' }}>
                 <input type="radio" name="model" value={opt.id} checked={model === opt.id} onChange={() => saveModel(opt.id)} disabled={savingModel} style={{ marginTop: 2 }} />

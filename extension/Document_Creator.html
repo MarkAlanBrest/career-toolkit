@@ -530,7 +530,7 @@ async function callClaudeOnce(messages, onChunk) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: adminSettings.model || "claude-haiku-4-5",
+      model: "claude-haiku-4-5", // Sonnet is temporarily disabled for generation — see admin panel note
       max_tokens: MAX_TOKENS_PER_CALL,
       usageType: "creation",
       messages: messages
