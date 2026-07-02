@@ -790,7 +790,7 @@ async function generate() {
   var adminTmpl = _adminTemplates[state.selectedType] || null;
   // Append text files to prompt
   if (adminTmpl && !adminTmpl.isImage && adminTmpl.text) {
-    prompt += "\n\nADMIN TEMPLATE (match this document's exact style, structure, and visual layout):\n\n" + adminTmpl.text;
+    prompt += "\n\nADMIN TEMPLATE — HIGHEST PRIORITY: Reproduce this document's exact section order, heading structure, table layouts, and visual formatting. Override the layout instructions above where they conflict with this template:\n\n" + adminTmpl.text;
   }
   // Append text files to prompt
   _pendingFiles.forEach(function(f) {
@@ -807,7 +807,7 @@ async function generate() {
     if (f.isImage) parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
   });
   var imageNote = "";
-  if (adminTmpl && adminTmpl.isImage) imageNote += " The first image is the admin template — match its visual style exactly.";
+  if (adminTmpl && adminTmpl.isImage) imageNote += " CRITICAL: The first image is the required school template. Replicate its exact section order, visual layout, header style, table structure, and formatting in your HTML output. This takes priority over all layout instructions above.";
   var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; });
   if (teacherImages.length) imageNote += " The teacher attached " + teacherImages.length + " image(s) — use them as content references, subject to admin requirements.";
   parts.push({ type: "text", text: prompt + imageNote });
@@ -1118,6 +1118,9 @@ function applyServerSettings(data) {
           if (src.notes !== undefined) s[t.id].notes = src.notes;
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
         }
+        // Load template — always, regardless of whether docTypes came from server
+        var tmpl = src && src.template;
+        if (tmpl) _adminTemplates[t.id] = tmpl; else delete _adminTemplates[t.id];
       });
       Object.assign(adminSettings, s);
     } catch(e) {}
@@ -1125,11 +1128,6 @@ function applyServerSettings(data) {
   if (data.docTypes && Array.isArray(data.docTypes) && data.docTypes.length) {
     DOC_TYPES.length = 0;
     data.docTypes.forEach(function(t) { DOC_TYPES.push(t); });
-    // Load templates from server settings
-    DOC_TYPES.forEach(function(t) {
-      var tmpl = data.adminSettings && data.adminSettings[t.id] && data.adminSettings[t.id].template;
-      if (tmpl) _adminTemplates[t.id] = tmpl; else delete _adminTemplates[t.id];
-    });
   }
 }
 
