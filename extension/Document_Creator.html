@@ -510,15 +510,15 @@ function esc(s) { var d = document.createElement("div"); d.textContent = s || ""
 // ═══════════════════════════════════════════════════════════
 // CLAUDE API
 // ═══════════════════════════════════════════════════════════
-async function callClaude(promptOrMessages, onChunk) {
+async function callClaudeOnce(messages, onChunk) {
   var resp = await fetch("https://career-toolkit-ruby.vercel.app/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: adminSettings.model || "claude-haiku-4-5",
-      max_tokens: 8000,
+      max_tokens: 16000,
       usageType: "creation",
-      messages: Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }]
+      messages: messages
     })
   });
   if (!resp.ok) {
@@ -529,6 +529,7 @@ async function callClaude(promptOrMessages, onChunk) {
   var reader = resp.body.getReader();
   var decoder = new TextDecoder();
   var fullText = "";
+  var stopReason = null;
   var buffer = "";
   while (true) {
     var result = await reader.read();
@@ -546,11 +547,33 @@ async function callClaude(promptOrMessages, onChunk) {
         if (parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.type === 'text_delta') {
           fullText += parsed.delta.text;
           if (onChunk) onChunk(fullText);
+        } else if (parsed.type === 'message_delta' && parsed.delta && parsed.delta.stop_reason) {
+          stopReason = parsed.delta.stop_reason;
         }
       } catch(e) {}
     }
   }
-  return fullText;
+  return { text: fullText, stopReason: stopReason };
+}
+
+// Generates in one call, but if Claude hits the token ceiling mid-document, automatically
+// asks it to continue from where it stopped (up to a few times) so long documents aren't cut short.
+async function callClaude(promptOrMessages, onChunk) {
+  var messages = (Array.isArray(promptOrMessages) ? promptOrMessages : [{ role: "user", content: promptOrMessages }]).slice();
+  var combined = "";
+  var attempts = 0;
+  while (true) {
+    var priorText = combined;
+    var result = await callClaudeOnce(messages, function(partial) { if (onChunk) onChunk(priorText + partial); });
+    combined += result.text;
+    attempts++;
+    if (result.stopReason !== "max_tokens" || attempts >= 3) break;
+    messages = messages.concat([
+      { role: "assistant", content: result.text },
+      { role: "user", content: "Continue the HTML exactly where you left off. Do not repeat any earlier content and add no commentary — resume mid-tag if necessary." }
+    ]);
+  }
+  return combined;
 }
 
 
