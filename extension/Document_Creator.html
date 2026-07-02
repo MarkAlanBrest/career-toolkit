@@ -441,12 +441,22 @@ function renderFileList() {
     var thumb = f.isImage
       ? '<img src="data:' + f.mediaType + ';base64,' + f.data + '" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">'
       : '<span style="font-size:20px;flex-shrink:0;">📄</span>';
-    return '<div style="display:flex;align-items:center;gap:8px;background:#F1F5F9;padding:7px 10px;border-radius:8px;">'
+    var noteInput = f.isImage
+      ? '<input type="text" placeholder="How should this image be used? e.g. \'Show as a diagram after the intro\' (optional)" value="' + esc(f.note || '') + '" oninput="setFileNote(' + i + ', this.value)" style="width:100%;margin-top:5px;padding:6px 9px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;box-sizing:border-box;font-family:inherit;">'
+      : '';
+    return '<div style="background:#F1F5F9;padding:7px 10px;border-radius:8px;">'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
       + thumb
       + '<span style="flex:1;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</span>'
       + '<button onclick="removeFile(' + i + ')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
+      + '</div>'
+      + noteInput
       + '</div>';
   }).join('');
+}
+
+function setFileNote(index, value) {
+  if (_pendingFiles[index]) _pendingFiles[index].note = value;
 }
 
 function removeFile(index) {
@@ -838,7 +848,12 @@ async function generate() {
   });
   var imageNote = "";
   var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; });
-  if (teacherImages.length) imageNote += " The teacher attached " + teacherImages.length + " image(s) — use them as content references, subject to admin requirements.";
+  if (teacherImages.length) {
+    imageNote += " The teacher attached " + teacherImages.length + " image(s), 0-indexed in the order listed.";
+    var instructed = teacherImages.map(function(f, i) { return f.note && f.note.trim() ? ("Image " + i + ": " + f.note.trim()) : null; }).filter(Boolean);
+    if (instructed.length) imageNote += " Teacher instructions for specific images — " + instructed.join(" | ") + ".";
+    imageNote += " If displaying one of these images would improve the document (e.g. a diagram, photo, or reference figure the document is about), insert exactly one tag like <img data-teacher-image=\"INDEX\" style=\"max-width:100%;\"> at the best location in the HTML for each image you choose to show, where INDEX matches the image's position — do not set a src attribute yourself, it will be filled in automatically. Follow any teacher instructions above for where and how to use each image. If an image is only useful as background reference and shouldn't visually appear in the document, don't insert a tag for it.";
+  }
   parts.push({ type: "text", text: prompt + imageNote });
   var messages = [{ role: "user", content: parts.length === 1 ? parts[0].text : parts }];
   _pendingFiles = [];
@@ -848,6 +863,11 @@ async function generate() {
       paperEl.innerHTML = stripFences(partial);
     });
     state.generatedHTML = stripFences(html);
+    // Replace teacher-image placeholders with the real attached image data
+    state.generatedHTML = state.generatedHTML.replace(/<img\b[^>]*\bdata-teacher-image=["']?(\d+)["']?[^>]*>/gi, function(match, idxStr) {
+      var img = teacherImages[parseInt(idxStr, 10)];
+      return img ? '<img src="data:' + img.mediaType + ';base64,' + img.data + '" style="max-width:100%;height:auto;">' : "";
+    });
     // Overlay logo in top-right of the document header
     if (adminSettings.logo) {
       state.generatedHTML = '<div style="position:relative;">'
