@@ -643,6 +643,7 @@ export default function AdminPage() {
                     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: navy, marginBottom: 6 }}>{t.icon} {t.label}</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
