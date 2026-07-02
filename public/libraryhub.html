@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibraryHub | Digital Learning Resource System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --navy:#0f2744;--navy2:#1a3a5c;--blue:#2563a8;--blue-light:#e8f1fb;
+    --gold:#c8942a;--gold-light:#fff4db;--border:#d1dce8;--text:#0f2744;--muted:#5a6a7e;
+    --white:#fff;--bg:#d0dbe8;--soft:#f5f8fc;--green:#1a6b3a;--red:#b52b27;
+    --radius:10px;--shadow:0 10px 30px rgba(15,39,68,.08)
+  }
+  body{font-family:'DM Sans',sans-serif;color:var(--text);font-size:14px;line-height:1.6;background:var(--bg)}
+  a{color:inherit}
+
+  /* HEADER ZONE - preserved style */
+  .header-zone{background:var(--navy);padding:2rem 2rem 3.5rem}
+  .header-inner{max-width:980px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .topbar-left{display:flex;align-items:center;gap:10px}
+  .logo{width:42px;height:42px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;color:#fff;flex-shrink:0}
+  .topbar-title{font-size:18px;font-weight:600;color:#fff;letter-spacing:.1px}
+  .topbar-sub{font-size:12px;color:#8aaac8;margin-top:1px}
+  .badge{background:rgba(200,148,42,.2);color:#f0c060;font-size:10px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid rgba(200,148,42,.4);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+
+  /* CONTENT ZONE - preserved card style */
+  .content-wrap{background:var(--bg);padding:0 1rem 2rem}
+  .content-zone{background:#fff;border-radius:var(--radius);border:0.5px solid var(--border);max-width:980px;margin:0 auto;position:relative;top:-2rem;padding:1.5rem;box-shadow:var(--shadow)}
+
+  .hero{display:grid;grid-template-columns:1.5fr .9fr;gap:1rem;align-items:stretch;margin-bottom:1.25rem}
+  .hero-copy{background:linear-gradient(135deg,#fff,#f6f9fd);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .eyebrow{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.35rem}
+  h1{font-size:28px;line-height:1.15;margin-bottom:.4rem;color:var(--navy);letter-spacing:-.5px}
+  .intro{font-size:13px;color:var(--muted);margin-bottom:.85rem;max-width:680px}
+  .intro strong{color:var(--navy)}
+  .hero-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:1rem}
+  .pill-btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:7px 12px;border-radius:20px;border:0.5px solid var(--border);font-size:12px;font-weight:600;color:var(--navy);background:#fff;transition:all .15s}
+  .pill-btn:hover{border-color:var(--blue);background:var(--blue-light)}
+  .pill-btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .hero-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{background:var(--soft);border:0.5px solid var(--border);border-radius:var(--radius);padding:1rem;min-height:90px}
+  .stat-num{font-size:22px;font-weight:700;color:var(--navy)}
+  .stat-label{font-size:11px;color:var(--muted);line-height:1.35;margin-top:2px}
+
+  .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:.6rem}
+  .section-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:.3rem}
+  .section-note{font-size:12px;color:var(--muted);margin-bottom:.8rem}
+
+  input,select,textarea{width:100%;padding:8px 12px;border:0.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--white);outline:none;transition:border-color .15s}
+  textarea{min-height:96px;resize:vertical;line-height:1.5}
+  input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+
+  .search-card{background:#f5f8fc;border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem}
+  .db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px;margin:10px 0}
+  .db-btn{display:flex;align-items:center;gap:8px;padding:9px 12px;border:0.5px solid var(--border);border-radius:8px;background:var(--white);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--navy);transition:all .15s;text-align:left}
+  .db-btn:hover{border-color:var(--blue);background:var(--blue-light)}
+  .db-btn.selected{border-color:var(--blue);background:var(--blue-light);color:var(--blue)}
+  .db-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+  .db-icon.gs{background:#4285f4}.db-icon.co{background:#0f2744}.db-icon.dj{background:#1a6b3a}.db-icon.ie{background:#00629B}.db-icon.os{background:#e55b2d}.db-icon.ni{background:#b52b27}.db-icon.er{background:#6b4fb5}.db-icon.sm{background:#185FA5}.db-icon.pb{background:#326599}.db-icon.ob{background:#854F0B}
+  .db-check{width:14px;height:14px;border:1.5px solid var(--border);border-radius:3px;flex-shrink:0;margin-left:auto;display:flex;align-items:center;justify-content:center;transition:all .15s}
+  .db-btn.selected .db-check{background:var(--blue);border-color:var(--blue)}
+  .db-btn.selected .db-check::after{content:'';display:block;width:4px;height:7px;border:1.5px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px)}
+  .search-row{display:flex;gap:8px;margin-top:10px}
+  .search-input{flex:1;padding:9px 12px;border:0.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--white);outline:none;transition:border-color .15s;width:auto}
+  .search-input:focus{border-color:var(--blue)}
+  .search-btn{padding:9px 18px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+  .search-btn:hover{background:var(--navy2)}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px}
+
+  .divider{border:none;border-top:0.5px solid var(--border);margin:1.5rem 0}
+
+  .quick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:10px;margin-bottom:1.2rem}
+  .quick-card{background:#fff;border:0.5px solid var(--border);border-radius:var(--radius);padding:1rem;text-decoration:none;display:block;transition:all .15s;min-height:120px}
+  .quick-card:hover{border-color:var(--blue);transform:translateY(-1px)}
+  .quick-icon{width:34px;height:34px;border-radius:8px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;margin-bottom:.65rem;font-size:18px}
+  .quick-name{font-weight:700;color:var(--navy);font-size:14px;margin-bottom:.25rem}
+  .quick-desc{font-size:12px;color:var(--muted);line-height:1.4}
+
+  .program-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+  .pnav{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:0.5px solid var(--border);background:var(--white);color:var(--muted);transition:all .15s}
+  .pnav:hover{border-color:#8aaac8;color:var(--navy)}
+  .pnav.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .kw-wrap{position:relative;margin-bottom:1rem}
+  .kw-wrap input{padding-left:32px}
+  .kw-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:14px;height:14px;opacity:.3;pointer-events:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+  .res-card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;text-decoration:none;display:block;transition:border-color .15s}
+  .res-card:hover{border-color:var(--blue)}
+  .res-header{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px}
+  .res-name{font-size:13px;font-weight:700;color:var(--navy);line-height:1.3}
+  .ext-icon{width:11px;height:11px;opacity:.25;flex-shrink:0;margin-top:2px}
+  .res-desc{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:7px}
+  .tag-row{display:flex;gap:4px;flex-wrap:wrap}
+  .tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+  .tag-all{background:#e8f1fb;color:#185FA5}.tag-auto{background:#e8f5ee;color:#1a6b3a}.tag-diesel{background:#fdf3e0;color:#854F0B}.tag-elec{background:#e8f1fb;color:#0C447C}.tag-maint{background:#eeedfe;color:#3C3489}.tag-weld{background:#faece7;color:#712B13}.tag-hvac{background:#e1f5ee;color:#085041}.tag-build{background:#f1efe8;color:#444441}.tag-machine{background:#fbeaf0;color:#72243E}.tag-cdl{background:#fdf3e0;color:#412402}.tag-moto{background:#faece7;color:#993C1D}.tag-help{background:#edf5ff;color:#0f4f91}.tag-career{background:#f3ecff;color:#4c2f7d}.tag-policy{background:#fff4db;color:#7a5000}
+  .no-results{text-align:center;padding:2.5rem;color:var(--muted);font-size:13px;grid-column:1/-1}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .info-panel{background:#fff;border:0.5px solid var(--border);border-radius:var(--radius);padding:1rem}
+  .info-panel.gold{background:var(--gold-light);border-color:#efd48f}
+  .info-panel.blue{background:#f5f8fc}
+  .info-panel h3{font-size:15px;color:var(--navy);margin-bottom:.5rem}
+  .info-panel p,.info-panel li{font-size:12px;color:var(--muted);line-height:1.5}
+  .info-panel ul{padding-left:1.1rem;margin-top:.4rem}
+  .mini-list{display:grid;gap:7px;margin-top:.65rem}
+  .mini-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);line-height:1.4}
+  .mini-dot{width:8px;height:8px;background:var(--gold);border-radius:50%;margin-top:5px;flex-shrink:0}
+
+  .assistant-box{background:#f5f8fc;border:0.5px solid var(--border);border-radius:var(--radius);padding:1.25rem}
+  .assistant-output{display:none;margin-top:1rem;background:#fff;border:0.5px solid var(--border);border-radius:8px;padding:1rem;font-size:12px;color:var(--muted)}
+  .assistant-output h4{font-size:13px;color:var(--navy);margin:.4rem 0 .25rem}
+  .assistant-output code{background:#edf3fa;border:0.5px solid #d8e4f1;padding:1px 5px;border-radius:5px;color:#0f2744}
+
+  details{border:0.5px solid var(--border);border-radius:8px;padding:.75rem 1rem;background:#fff;margin-bottom:8px}
+  summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--navy)}
+  details p,details li{font-size:12px;color:var(--muted);margin-top:.45rem}
+  details ul{padding-left:1.1rem;margin-top:.35rem}
+
+  .footer{margin-top:1.5rem;padding-top:1rem;border-top:0.5px solid var(--border);font-size:12px;color:var(--muted)}
+  .footer strong{color:var(--navy)}
+  .footer-grid{display:grid;grid-template-columns:1.4fr .8fr;gap:12px;align-items:start}
+
+  @media (max-width:760px){
+    .hero,.two-col,.footer-grid{grid-template-columns:1fr}
+    .header-zone{padding:1.4rem 1rem 3rem}
+    .content-zone{padding:1rem;top:-1.5rem}
+    .search-row{flex-direction:column}
+    .search-input{width:100%}
+    h1{font-size:24px}
+  }
+</style>
+</head>
+<body>
+
+  <div class="header-zone">
+    <div class="header-inner">
+      <div class="topbar-left">
+        <div class="logo">LH</div>
+        <div>
+          <div class="topbar-title">LibraryHub</div>
+          <div class="topbar-sub">Digital Library • Research • Learning • Student Success</div>
+        </div>
+      </div>
+      <div class="badge">24/7 Digital Access</div>
+    </div>
+  </div>
+
+  <div class="content-wrap">
+    <div class="content-zone">
+
+      <section class="hero" id="top">
+        <div class="hero-copy">
+          <div class="eyebrow">Institutional Learning Resource System</div>
+          <h1>LibraryHub</h1>
+          <p class="intro"><strong>LibraryHub</strong> gives students, faculty, and staff one place to access academic research, open educational resources, technical references, program resources, writing help, career tools, and student support materials from any internet-connected device.</p>
+          <div class="hero-actions">
+            <a class="pill-btn primary" href="#research">Start Research</a>
+            <a class="pill-btn" href="#programs">Browse Programs</a>
+            <a class="pill-btn" href="#writing">Writing Help</a>
+            <a class="pill-btn" href="#career">Career Tools</a>
+          </div>
+        </div>
+        <div class="hero-stats" aria-label="LibraryHub highlights">
+          <div class="stat"><div class="stat-num">24/7</div><div class="stat-label">Online access from school, home, or mobile devices</div></div>
+          <div class="stat"><div class="stat-num">10+</div><div class="stat-label">Program-specific resource collections</div></div>
+          <div class="stat"><div class="stat-num">Open</div><div class="stat-label">Free academic, government, and industry resources</div></div>
+          <div class="stat"><div class="stat-num">Annual</div><div class="stat-label">Resource review and update process</div></div>
+        </div>
+      </section>
+
+      <section id="quick">
+        <div class="section-label">Quick access</div>
+        <div class="quick-grid">
+          <a class="quick-card" href="#research"><div class="quick-icon">📚</div><div class="quick-name">Academic Research</div><div class="quick-desc">Search scholarly sources, open journals, research papers, and technical publications.</div></a>
+          <a class="quick-card" href="#programs"><div class="quick-icon">🔧</div><div class="quick-name">Program Resources</div><div class="quick-desc">Browse trade-specific standards, safety references, certifications, and industry links.</div></a>
+          <a class="quick-card" href="#success"><div class="quick-icon">🎓</div><div class="quick-name">Student Success</div><div class="quick-desc">Study skills, tutoring information, technology help, and learning support resources.</div></a>
+          <a class="quick-card" href="#career"><div class="quick-icon">💼</div><div class="quick-name">Career Center</div><div class="quick-desc">Resume, cover letter, interview, job search, and professional communication tools.</div></a>
+          <a class="quick-card" href="#writing"><div class="quick-icon">📝</div><div class="quick-name">Writing Center</div><div class="quick-desc">Research guides, source evaluation, citations, plagiarism prevention, and writing support.</div></a>
+          <a class="quick-card" href="#assistant"><div class="quick-icon">🤖</div><div class="quick-name">Research Assistant</div><div class="quick-desc">Turn a topic into better search terms, databases, questions, and research directions.</div></a>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section id="research">
+        <div class="section-label">Search open-access databases</div>
+        <div class="search-card">
+          <div class="section-title">Academic Research Search</div>
+          <p class="section-note">Choose one or more trusted databases. Each selected source opens in a new tab with your search term.</p>
+          <div class="db-grid">
+            <div class="db-btn selected" data-db="scholar" onclick="toggleDb(this)"><div class="db-icon gs">GS</div><span>Google Scholar</span><div class="db-check"></div></div>
+            <div class="db-btn selected" data-db="core" onclick="toggleDb(this)"><div class="db-icon co">CO</div><span>CORE</span><div class="db-check"></div></div>
+            <div class="db-btn selected" data-db="doaj" onclick="toggleDb(this)"><div class="db-icon dj">DJ</div><span>DOAJ</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="eric" onclick="toggleDb(this)"><div class="db-icon er">ER</div><span>ERIC</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="semantic" onclick="toggleDb(this)"><div class="db-icon sm">SM</div><span>Semantic Scholar</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="pubmed" onclick="toggleDb(this)"><div class="db-icon pb">PB</div><span>PubMed</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="ieee" onclick="toggleDb(this)"><div class="db-icon ie">IE</div><span>IEEE Xplore</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="openbooks" onclick="toggleDb(this)"><div class="db-icon ob">OB</div><span>Open Textbooks</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="osha" onclick="toggleDb(this)"><div class="db-icon os">OS</div><span>OSHA Pub.</span><div class="db-check"></div></div>
+            <div class="db-btn" data-db="niosh" onclick="toggleDb(this)"><div class="db-icon ni">NI</div><span>NIOSH / CDC</span><div class="db-check"></div></div>
+          </div>
+          <div class="search-row">
+            <input class="search-input" type="text" id="searchInput" placeholder="e.g. diesel injection pump troubleshooting, OSHA lockout tagout, HVAC heat pump systems..." onkeydown="if(event.key==='Enter')doSearch()">
+            <button class="search-btn" onclick="doSearch()">Search</button>
+          </div>
+          <div class="hint" id="searchHint">Tip: use specific keywords, trade terms, and safety topics for better results.</div>
+        </div>
+      </section>
+
+      <section id="assistant">
+        <div class="section-label">Research Assistant</div>
+        <div class="assistant-box">
+          <div class="section-title">Build Better Searches</div>
+          <p class="section-note">Enter a topic and LibraryHub will suggest research keywords, Boolean searches, and recommended places to search. This does not replace research — it helps students start smarter.</p>
+          <textarea id="topicInput" placeholder="Type a research topic, assignment question, or trade-related issue..."></textarea>
+          <div class="search-row">
+            <button class="search-btn" onclick="buildResearchHelp()">Generate Research Help</button>
+            <button class="pill-btn" style="border-radius:8px;justify-content:center" onclick="clearResearchHelp()">Clear</button>
+          </div>
+          <div class="assistant-output" id="assistantOutput"></div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section id="programs">
+        <div class="section-label">Browse by program</div>
+        <p class="section-note">Resources are organized by academic program and include research sources, government publications, industry standards, safety materials, certification references, and open educational materials.</p>
+        <div class="program-nav">
+          <span class="pnav active" data-filter="all">All programs</span>
+          <span class="pnav" data-filter="auto">Automotive</span>
+          <span class="pnav" data-filter="diesel">Diesel</span>
+          <span class="pnav" data-filter="elec">Electrical</span>
+          <span class="pnav" data-filter="maint">Industrial Maint.</span>
+          <span class="pnav" data-filter="weld">Welding</span>
+          <span class="pnav" data-filter="hvac">HVAC / Refrig.</span>
+          <span class="pnav" data-filter="build">Building Tech</span>
+          <span class="pnav" data-filter="machine">Machinist</span>
+          <span class="pnav" data-filter="cdl">CDL / Heavy Equip.</span>
+          <span class="pnav" data-filter="moto">Motorcycle</span>
+          <span class="pnav" data-filter="help">Academic Help</span>
+          <span class="pnav" data-filter="career">Career</span>
+          <span class="pnav" data-filter="policy">Policies</span>
+        </div>
+
+        <div class="kw-wrap">
+          <svg class="kw-icon" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="#0f2744" stroke-width="1.5"/><path d="M10 10L14 14" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <input type="text" id="browseSearch" placeholder="Filter resources by keyword...">
+        </div>
+
+        <div class="grid" id="grid">
+          <a class="res-card" href="https://scholar.google.com" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto help"><div class="res-header"><div class="res-name">Google Scholar</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Broad academic search for scholarly articles, patents, books, and technical papers.</div><div class="tag-row"><span class="tag tag-all">Research</span></div></a>
+          <a class="res-card" href="https://core.ac.uk" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto help"><div class="res-header"><div class="res-name">CORE — Open Research Papers</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Open-access research papers across many disciplines; strong first stop for free full text.</div><div class="tag-row"><span class="tag tag-all">Research</span></div></a>
+          <a class="res-card" href="https://doaj.org" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto help"><div class="res-header"><div class="res-name">DOAJ — Open Access Journals</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Directory of peer-reviewed open-access journals for academic and technical research.</div><div class="tag-row"><span class="tag tag-all">Journals</span></div></a>
+          <a class="res-card" href="https://www.semanticscholar.org" target="_blank" rel="noopener" data-p="all elec maint machine help"><div class="res-header"><div class="res-name">Semantic Scholar</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">AI-supported academic search engine for scholarly papers and related research.</div><div class="tag-row"><span class="tag tag-all">Research</span></div></a>
+          <a class="res-card" href="https://eric.ed.gov" target="_blank" rel="noopener" data-p="all help"><div class="res-header"><div class="res-name">ERIC</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Education research database useful for teaching, learning, student success, and academic support topics.</div><div class="tag-row"><span class="tag tag-help">Academic Help</span></div></a>
+          <a class="res-card" href="https://openstax.org" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto help"><div class="res-header"><div class="res-name">OpenStax Free Textbooks</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Free peer-reviewed college textbooks in math, science, physics, business, and more.</div><div class="tag-row"><span class="tag tag-all">Textbooks</span></div></a>
+          <a class="res-card" href="https://open.umn.edu/opentextbooks" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto help"><div class="res-header"><div class="res-name">Open Textbook Library</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Reviewed open textbooks for college-level courses and skill support.</div><div class="tag-row"><span class="tag tag-all">OER</span></div></a>
+          <a class="res-card" href="https://unpaywall.org" target="_blank" rel="noopener" data-p="all help"><div class="res-header"><div class="res-name">Unpaywall</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Browser extension that helps locate legal free PDFs of scholarly articles.</div><div class="tag-row"><span class="tag tag-help">Research Help</span></div></a>
+
+          <a class="res-card" href="https://www.osha.gov/publications" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto"><div class="res-header"><div class="res-name">OSHA Publications</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Official safety publications, hazard guidance, regulations, and training materials for trades.</div><div class="tag-row"><span class="tag tag-all">Safety</span></div></a>
+          <a class="res-card" href="https://www.cdc.gov/niosh" target="_blank" rel="noopener" data-p="all auto diesel elec maint weld hvac build machine cdl moto"><div class="res-header"><div class="res-name">NIOSH / CDC</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Occupational safety and health research, alerts, and workplace health guidance.</div><div class="tag-row"><span class="tag tag-all">All Trades</span></div></a>
+          <a class="res-card" href="https://www.sae.org/publications" target="_blank" rel="noopener" data-p="auto diesel moto"><div class="res-header"><div class="res-name">SAE International</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Automotive, diesel, mobility, and engineering technical papers and standards.</div><div class="tag-row"><span class="tag tag-auto">Automotive</span><span class="tag tag-diesel">Diesel</span></div></a>
+          <a class="res-card" href="https://www.epa.gov/vehicles-and-engines" target="_blank" rel="noopener" data-p="auto diesel moto"><div class="res-header"><div class="res-name">EPA Vehicles & Engines</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Emissions standards, engine regulations, fuel systems, and compliance resources.</div><div class="tag-row"><span class="tag tag-auto">Auto</span><span class="tag tag-diesel">Diesel</span></div></a>
+          <a class="res-card" href="https://www.nhtsa.gov/vehicle-safety" target="_blank" rel="noopener" data-p="auto moto"><div class="res-header"><div class="res-name">NHTSA Vehicle Safety</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Vehicle safety standards, recall data, crash information, and safety guidance.</div><div class="tag-row"><span class="tag tag-auto">Automotive</span></div></a>
+          <a class="res-card" href="https://www.fmcsa.dot.gov/regulations" target="_blank" rel="noopener" data-p="diesel cdl"><div class="res-header"><div class="res-name">FMCSA Regulations</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Federal motor carrier rules for CDL, heavy vehicles, inspections, and driver safety.</div><div class="tag-row"><span class="tag tag-diesel">Diesel</span><span class="tag tag-cdl">CDL</span></div></a>
+          <a class="res-card" href="https://www.nfpa.org/codes-and-standards/nfpa-70-standard-development/70" target="_blank" rel="noopener" data-p="elec maint build"><div class="res-header"><div class="res-name">NFPA 70 — NEC</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">National Electrical Code access for electrical, building, and maintenance programs.</div><div class="tag-row"><span class="tag tag-elec">Electrical</span></div></a>
+          <a class="res-card" href="https://ieeexplore.ieee.org/Xplore/home.jsp" target="_blank" rel="noopener" data-p="elec maint machine"><div class="res-header"><div class="res-name">IEEE Xplore Open Access</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Electrical engineering, electronics, controls, industrial systems, and open-access technical papers.</div><div class="tag-row"><span class="tag tag-elec">Electrical</span><span class="tag tag-maint">Maintenance</span></div></a>
+          <a class="res-card" href="https://www.energy.gov/eere/electricvehicles/electric-vehicle-basics" target="_blank" rel="noopener" data-p="elec auto"><div class="res-header"><div class="res-name">DOE Electric Vehicle Resources</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">EV basics, charging systems, energy technology, and transportation electrification resources.</div><div class="tag-row"><span class="tag tag-elec">Electrical</span><span class="tag tag-auto">Auto</span></div></a>
+          <a class="res-card" href="https://www.aws.org/standards-and-publications/aws-standards" target="_blank" rel="noopener" data-p="weld"><div class="res-header"><div class="res-name">AWS Welding Standards</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">American Welding Society standards, codes, certification, and welding procedure references.</div><div class="tag-row"><span class="tag tag-weld">Welding</span></div></a>
+          <a class="res-card" href="https://www.lincolnelectric.com/en-us/support/welding-how-to" target="_blank" rel="noopener" data-p="weld"><div class="res-header"><div class="res-name">Lincoln Electric Welding Guides</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Process guides, welding how-to resources, troubleshooting, and technical support content.</div><div class="tag-row"><span class="tag tag-weld">Welding</span></div></a>
+          <a class="res-card" href="https://www.ashrae.org/technical-resources/free-resources" target="_blank" rel="noopener" data-p="hvac"><div class="res-header"><div class="res-name">ASHRAE Free Resources</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">HVAC/R technical resources, standards, design guidance, and professional references.</div><div class="tag-row"><span class="tag tag-hvac">HVAC</span></div></a>
+          <a class="res-card" href="https://www.epa.gov/section608" target="_blank" rel="noopener" data-p="hvac"><div class="res-header"><div class="res-name">EPA Section 608</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Refrigerant handling rules, technician certification information, and compliance guidance.</div><div class="tag-row"><span class="tag tag-hvac">HVAC</span></div></a>
+          <a class="res-card" href="https://codes.iccsafe.org" target="_blank" rel="noopener" data-p="build"><div class="res-header"><div class="res-name">ICC Building Codes</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">International building, residential, mechanical, plumbing, and construction code resources.</div><div class="tag-row"><span class="tag tag-build">Building Tech</span></div></a>
+          <a class="res-card" href="https://www.osha.gov/construction" target="_blank" rel="noopener" data-p="build weld cdl"><div class="res-header"><div class="res-name">OSHA Construction Safety</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Construction safety topics including fall protection, scaffolding, excavation, and PPE.</div><div class="tag-row"><span class="tag tag-build">Building</span><span class="tag tag-weld">Welding</span></div></a>
+          <a class="res-card" href="https://www.nist.gov/publications" target="_blank" rel="noopener" data-p="machine maint"><div class="res-header"><div class="res-name">NIST Publications</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Measurement, precision, manufacturing, cybersecurity, and technical standards publications.</div><div class="tag-row"><span class="tag tag-machine">Machinist</span></div></a>
+          <a class="res-card" href="https://www.asme.org/codes-standards" target="_blank" rel="noopener" data-p="machine maint build"><div class="res-header"><div class="res-name">ASME Standards</div><svg class="ext-icon" viewBox="0 0 12 12" fill="none"><path d="M2 10L10 2M10 2H6M10 2V6" stroke="#0f2744" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="res-desc">Engineering standards for manufacturing, piping, pressure systems, and GD&T references.</div><div class="tag-row"><span class="tag tag-machine">Machinist</span><span class="tag tag-maint">Maintenance</span></div></a>
+
+          <a class="res-card" href="#writing" data-p="help policy"><div class="res-header"><div class="res-name">Source Evaluation Guide</div></div><div class="res-desc">Learn how to tell whether a source is credible, current, relevant, accurate, and appropriate for college research.</div><div class="tag-row"><span class="tag tag-help">Writing Center</span></div></a>
+          <a class="res-card" href="#writing" data-p="help policy"><div class="res-header"><div class="res-name">Citation & Plagiarism Help</div></div><div class="res-desc">APA/MLA support, quoting, paraphrasing, summarizing, and academic integrity expectations.</div><div class="tag-row"><span class="tag tag-help">Research Help</span></div></a>
+          <a class="res-card" href="#career" data-p="career"><div class="res-header"><div class="res-name">Resume Builder</div></div><div class="res-desc">Create or improve a resume for job search, career services, and employer review.</div><div class="tag-row"><span class="tag tag-career">Career</span></div></a>
+          <a class="res-card" href="#career" data-p="career"><div class="res-header"><div class="res-name">Interview Practice</div></div><div class="res-desc">Practice common interview questions and build confident responses for technical and trade careers.</div><div class="tag-row"><span class="tag tag-career">Career</span></div></a>
+          <a class="res-card" href="#policies" data-p="policy"><div class="res-header"><div class="res-name">LibraryHub Policies</div></div><div class="res-desc">Mission, review schedule, resource selection, copyright, accessibility, and support information.</div><div class="tag-row"><span class="tag tag-policy">Policy</span></div></a>
+          <div class="no-results" id="noResults" style="display:none">No resources match your search. Try a different keyword or program filter.</div>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section id="success" class="two-col">
+        <div class="info-panel blue">
+          <div class="section-label">Student Success Center</div>
+          <h3>Academic Support Resources</h3>
+          <p>LibraryHub supports student learning beyond research databases by connecting students to practical academic support resources.</p>
+          <div class="mini-list">
+            <div class="mini-item"><span class="mini-dot"></span><span>Study skills, note taking, time management, and test preparation.</span></div>
+            <div class="mini-item"><span class="mini-dot"></span><span>Math refreshers including fractions, measurements, algebra, and calculators.</span></div>
+            <div class="mini-item"><span class="mini-dot"></span><span>Technology help for email, Canvas/LMS, Microsoft Office, Google tools, and file management.</span></div>
+            <div class="mini-item"><span class="mini-dot"></span><span>Information on tutoring, student services, disability accommodations, and academic assistance.</span></div>
+          </div>
+        </div>
+        <div class="info-panel gold" id="writing">
+          <div class="section-label">Writing Center</div>
+          <h3>Research, Writing, and Citations</h3>
+          <p>Students can use LibraryHub to improve research quality, avoid plagiarism, and submit stronger academic work.</p>
+          <ul>
+            <li>How to find peer-reviewed and open-access sources.</li>
+            <li>How to evaluate websites, journals, articles, and technical sources.</li>
+            <li>APA and MLA citation basics.</li>
+            <li>Quoting, paraphrasing, summarizing, and plagiarism prevention.</li>
+            <li>Responsible use of AI tools in academic work.</li>
+          </ul>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section id="career" class="two-col">
+        <div class="info-panel">
+          <div class="section-label">Career Center</div>
+          <h3>Career Readiness Tools</h3>
+          <p>LibraryHub connects learning resources to employability by supporting resume writing, interviewing, job search, and professional communication.</p>
+          <ul>
+            <li>Resume builder and resume review support.</li>
+            <li>Cover letter builder and professional email templates.</li>
+            <li>Interview practice and common employer questions.</li>
+            <li>LinkedIn, job search, references, and workplace communication guidance.</li>
+          </ul>
+        </div>
+        <div class="info-panel">
+          <div class="section-label">Faculty & Staff</div>
+          <h3>Instructional Use</h3>
+          <p>Faculty may direct students to LibraryHub resources for research assignments, safety topics, technical references, career preparation, and program support.</p>
+          <ul>
+            <li>Recommend resources for specific courses and modules.</li>
+            <li>Submit new resources for review.</li>
+            <li>Use research help guides in assignments.</li>
+            <li>Support consistent student access across programs and campuses.</li>
+          </ul>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section id="policies">
+        <div class="section-label">Compliance support documentation</div>
+        <div class="two-col">
+          <div>
+            <details open>
+              <summary>LibraryHub Mission</summary>
+              <p>LibraryHub provides students, faculty, and staff with digital access to academic research, technical references, open educational resources, career preparation materials, and student support information that align with institutional programs and student learning outcomes.</p>
+            </details>
+            <details>
+              <summary>Access Statement</summary>
+              <p>LibraryHub is available online 24 hours a day, seven days a week, from any internet-connected device. Resources are selected to support both on-campus and online student access.</p>
+            </details>
+            <details>
+              <summary>Resource Selection Policy</summary>
+              <p>Resources are selected based on relevance to institutional programs, accuracy, authority, accessibility, currency, educational value, student usability, and alignment with course and program outcomes.</p>
+            </details>
+            <details>
+              <summary>Annual Review Policy</summary>
+              <p>LibraryHub resources should be reviewed at least annually by the LibraryHub Administrator, academic leadership, and/or program faculty. Broken, outdated, or low-value links should be updated, replaced, or removed.</p>
+            </details>
+          </div>
+          <div>
+            <details open>
+              <summary>Student Support</summary>
+              <p>Students needing assistance using LibraryHub should contact their instructor, Student Services, or the LibraryHub Administrator. Faculty may provide classroom demonstrations or assignment-specific guidance.</p>
+            </details>
+            <details>
+              <summary>Accessibility Statement</summary>
+              <p>LibraryHub is designed with responsive layout, readable contrast, keyboard-friendly controls, semantic HTML structure, and clear labeling. Accessibility feedback should be directed to the LibraryHub Administrator.</p>
+            </details>
+            <details>
+              <summary>Copyright & Acceptable Use</summary>
+              <p>LibraryHub links to lawful open-access, government, institutional, and educational resources. Users are responsible for following copyright, fair use, academic integrity, and acceptable use policies.</p>
+            </details>
+            <details>
+              <summary>Evidence of Use</summary>
+              <p>Recommended documentation includes student orientation materials, faculty assignment examples, resource review logs, update dates, student support contacts, and analytics or usage records when available.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer">
+        <div class="footer-grid">
+          <p><strong>LibraryHub</strong> is a digital learning resource system designed to support academic research, program-specific learning, student success, career preparation, and institutional learning resources. It is not presented as a guarantee of accreditation compliance; it is designed to help document and support access to organized learning resources.</p>
+          <p><strong>Resource Review:</strong><br>Last reviewed: July 2026<br>Maintained by: LibraryHub Administrator<br>Contact: Student Services or your program instructor</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const DB_URLS = {
+    scholar: q => 'https://scholar.google.com/scholar?q=' + encodeURIComponent(q),
+    core: q => 'https://core.ac.uk/search?q=' + encodeURIComponent(q),
+    doaj: q => 'https://doaj.org/search/articles?query=' + encodeURIComponent(q),
+    eric: q => 'https://eric.ed.gov/?q=' + encodeURIComponent(q),
+    semantic: q => 'https://www.semanticscholar.org/search?q=' + encodeURIComponent(q),
+    pubmed: q => 'https://pubmed.ncbi.nlm.nih.gov/?term=' + encodeURIComponent(q),
+    ieee: q => 'https://ieeexplore.ieee.org/search/searchresult.jsp?queryText=' + encodeURIComponent(q),
+    openbooks: q => 'https://open.umn.edu/opentextbooks/textbooks?q=' + encodeURIComponent(q),
+    osha: q => 'https://www.osha.gov/search?searchText=' + encodeURIComponent(q),
+    niosh: q => 'https://www.cdc.gov/niosh/search.html?query=' + encodeURIComponent(q)
+  };
+
+  function toggleDb(el) { el.classList.toggle('selected'); }
+
+  function doSearch() {
+    const q = document.getElementById('searchInput').value.trim();
+    const hint = document.getElementById('searchHint');
+    if (!q) { hint.textContent = 'Please enter a search term first.'; return; }
+    const selected = document.querySelectorAll('.db-btn.selected');
+    if (!selected.length) { hint.textContent = 'Please select at least one database.'; return; }
+    selected.forEach(btn => { const db = btn.dataset.db; if (DB_URLS[db]) window.open(DB_URLS[db](q), '_blank', 'noopener'); });
+    const names = Array.from(selected).map(b => b.querySelector('span').textContent).join(', ');
+    hint.textContent = 'Opened ' + selected.length + ' tab(s): ' + names;
+  }
+
+  const cards = document.querySelectorAll('.res-card');
+  const noResults = document.getElementById('noResults');
+  let activeFilter = 'all', searchTerm = '';
+
+  function applyFilters() {
+    let visible = 0;
+    cards.forEach(c => {
+      const programs = c.dataset.p || '';
+      const nameEl = c.querySelector('.res-name');
+      const descEl = c.querySelector('.res-desc');
+      const name = nameEl ? nameEl.textContent.toLowerCase() : '';
+      const desc = descEl ? descEl.textContent.toLowerCase() : '';
+      const matchFilter = activeFilter === 'all' || programs.split(' ').includes(activeFilter);
+      const matchSearch = !searchTerm || name.includes(searchTerm) || desc.includes(searchTerm);
+      c.style.display = (matchFilter && matchSearch) ? 'block' : 'none';
+      if (matchFilter && matchSearch) visible++;
+    });
+    noResults.style.display = visible === 0 ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('.pnav').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.pnav').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      activeFilter = p.dataset.filter;
+      applyFilters();
+    });
+  });
+
+  document.getElementById('browseSearch').addEventListener('input', e => {
+    searchTerm = e.target.value.toLowerCase().trim();
+    applyFilters();
+  });
+
+  function buildResearchHelp() {
+    const topic = document.getElementById('topicInput').value.trim();
+    const out = document.getElementById('assistantOutput');
+    if (!topic) {
+      out.style.display = 'block';
+      out.innerHTML = '<strong>Please enter a topic first.</strong>';
+      return;
+    }
+    const safe = topic.replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    const words = safe.split(/\s+/).filter(Boolean).slice(0,8);
+    const quoted = words.length > 1 ? '&quot;' + words.join(' ') + '&quot;' : safe;
+    out.style.display = 'block';
+    out.innerHTML = `
+      <h4>Suggested research direction for: ${safe}</h4>
+      <p><strong>Start with keywords:</strong> ${words.join(', ')}</p>
+      <p><strong>Try related phrases:</strong> troubleshooting, safety, standards, certification, best practices, workplace hazards, technical training, current research.</p>
+      <p><strong>Boolean search examples:</strong><br>
+        <code>${quoted} AND safety</code><br>
+        <code>${quoted} AND standards</code><br>
+        <code>${quoted} AND training OR education</code><br>
+        <code>${quoted} AND troubleshooting AND technician</code>
+      </p>
+      <p><strong>Best places to search:</strong> Google Scholar for broad research, CORE/DOAJ for free full text, OSHA/NIOSH for safety, and program-specific standards organizations for technical references.</p>
+      <p><strong>Research question starter:</strong> What are the most important safety, technical, training, or workplace considerations related to ${safe}?</p>
+    `;
+  }
+  function clearResearchHelp(){
+    document.getElementById('topicInput').value='';
+    const out=document.getElementById('assistantOutput');
+    out.style.display='none'; out.innerHTML='';
+  }
+</script>
+</body>
+</html>
