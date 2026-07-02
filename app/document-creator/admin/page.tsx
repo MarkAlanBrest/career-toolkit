@@ -76,6 +76,29 @@ function Input({ value, onChange, placeholder, type = 'text' }: { value: string;
   );
 }
 
+function Help({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', verticalAlign: 'middle', marginLeft: 6 }}>
+      <span
+        onClick={() => setOpen(o => !o)}
+        role="button"
+        tabIndex={0}
+        aria-label="Help"
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', background: '#EFF6FF', color: blue, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: '1px solid #BFDBFE', lineHeight: 1, userSelect: 'none', flexShrink: 0 }}
+      >?</span>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{ position: 'absolute', top: 20, left: 0, zIndex: 50, width: 240, background: navy, color: '#E2E8F0', fontSize: 11, fontWeight: 400, lineHeight: 1.5, padding: '10px 12px', borderRadius: 8, boxShadow: '0 10px 24px rgba(15,23,42,.3)' }}>
+            {text}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 export default function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -614,13 +637,13 @@ export default function AdminPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {/* School name */}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears (headers, footers). Optional, but recommended for a professional look." /></div>
               <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
             </div>
 
             {/* Per-type notes */}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions — settings don't carry over between types." /></div>
               <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
               {docTypes.length === 0 ? (
                 <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
@@ -642,14 +665,14 @@ export default function AdminPage() {
                     </div>
                     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: navy, marginBottom: 6 }}>{t.icon} {t.label}</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style<Help text="Optional formatting touches applied throughout the document for this type — e.g. numbered sections or a signature block. Leave all unchecked to let the AI choose formatting freely." /></div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
                           {([
                             { key: 'lines'     as const, label: 'Divider lines' },
@@ -670,7 +693,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme<Help text="Sets the accent color used for this document type's header, borders, and table headings." /></div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           {THEMES.map(th => {
                             const curTheme = docThemes[t.id] || 'navy';
@@ -686,7 +709,7 @@ export default function AdminPage() {
                         <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reference Documents</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reference Documents<Help text="Check any uploaded files (course catalogs, program descriptions, etc.) that should be pulled from as source material specifically for this document type. Upload new files from the Reference Documents section further up this page." /></div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>Selected documents are included as source material when generating this document type.</div>
                         {refDocs.length === 0 ? (
                           <div style={{ fontSize: 12, color: muted }}>No reference documents uploaded yet — see the Reference Documents section above.</div>
@@ -709,7 +732,7 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions<Help text="If set, teachers see these as short-answer fields instead of a free-text description box when creating this document type — useful for guiding them to provide exactly the details the AI needs." /></div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>One question per line. Teachers fill these in before generating — replaces the blank description box.</div>
                         <textarea
                           value={docQuestions[t.id] || ''}

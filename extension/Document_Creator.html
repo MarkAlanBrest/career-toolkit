@@ -160,6 +160,14 @@ body {
 }
 
 
+/* ── HELP ICON / POPOVER ───────────────────────────── */
+.help-wrap { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.help-icon { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: #EFF6FF; color: #4F46E5; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid #C7D2FE; line-height: 1; user-select: none; flex-shrink: 0; }
+.help-icon:hover { background: #4F46E5; color: #fff; }
+.help-pop { display: none; position: absolute; top: 20px; left: 0; z-index: 600; width: 240px; background: #1E293B; color: #E2E8F0; font-size: 11px; font-weight: 400; line-height: 1.55; padding: 10px 12px; border-radius: 8px; box-shadow: 0 10px 24px rgba(15,23,42,.3); }
+.help-pop::before { content: ''; position: absolute; top: -5px; left: 8px; width: 10px; height: 10px; background: #1E293B; transform: rotate(45deg); }
+.help-pop.open { display: block; }
+
 /* ── PRINT ───────────────────────────────────────── */
 @media print {
   #topbar, #sidebar { display: none !important; }
@@ -189,6 +197,10 @@ body {
   <div class="topbar-brand">
     <span style="font-size:18px;">🗂️</span>
     Document Creator
+    <span class="help-wrap">
+      <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does Document Creator work?">?</span>
+      <span class="help-pop">Pick a document type on the left, describe what you need (or answer the quick questions), and attach any photos or reference files. After it generates, use "Refine" to request changes, or Print/Word to export.</span>
+    </span>
   </div>
   <div class="topbar-actions">
     <button class="tb-btn" id="btn-pdf" disabled title="Open print dialog — save as PDF from there. Enable 'Print background graphics' for full color.">🖨️ Print / PDF</button>
@@ -208,7 +220,12 @@ body {
 
   <!-- SIDEBAR -->
   <div id="sidebar">
-    <div class="sidebar-header">Create Document</div>
+    <div class="sidebar-header">Create Document
+      <span class="help-wrap">
+        <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do I create a document?">?</span>
+        <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Click a document type below to open a guided form. Your school admin may have set required questions or built-in requirements for each type.</span>
+      </span>
+    </div>
     <div id="type-list"></div>
   </div>
 
@@ -233,6 +250,10 @@ body {
       <div id="refine-bar" style="display:none;margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:10px 14px;align-items:center;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
         <span style="font-size:14px;flex-shrink:0;color:#7C3AED;">✦</span>
         <input id="refine-input" type="text" placeholder="Refine — e.g. 'convert the schedule to a table' or 'add a makeup exam policy section'" style="flex:1;border:none;outline:none;font-size:13px;font-family:inherit;color:#1E293B;background:transparent;" />
+        <span class="help-wrap">
+          <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does refine work?">?</span>
+          <span class="help-pop" style="left:auto;right:0;">Describe a specific change and click Apply — the AI edits the existing document rather than starting over. Good for wording tweaks, formatting changes, or adding/removing a section.</span>
+        </span>
         <button id="refine-btn" style="background:#4F46E5;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Apply</button>
       </div>
       <div id="doc-paper"></div>
@@ -261,7 +282,12 @@ body {
       <div id="questions-form" style="display:none;flex-direction:column;gap:12px;"></div>
       <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional</label>
+        <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional
+          <span class="help-wrap">
+            <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do attachments work?">?</span>
+            <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Attached photos can be shown in the generated document if relevant — type a note under an image (e.g. "show this diagram after the intro") to tell the AI where and how to use it. Text files are used as background reference only.</span>
+          </span>
+        </label>
         <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById('doc-file-input').click()">
           <span style="font-size:20px;">📎</span>
           <div>
@@ -458,6 +484,18 @@ function renderFileList() {
 function setFileNote(index, value) {
   if (_pendingFiles[index]) _pendingFiles[index].note = value;
 }
+
+function toggleHelp(icon) {
+  var pop = icon.nextElementSibling;
+  var wasOpen = pop.classList.contains('open');
+  document.querySelectorAll('.help-pop.open').forEach(function(p) { p.classList.remove('open'); });
+  if (!wasOpen) pop.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.help-wrap')) {
+    document.querySelectorAll('.help-pop.open').forEach(function(p) { p.classList.remove('open'); });
+  }
+});
 
 function removeFile(index) {
   _pendingFiles.splice(index, 1);
