@@ -335,28 +335,21 @@ body {
     <div style="padding:16px 20px;overflow-y:auto;">
       <div id="materials-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
 
-      <div style="display:flex;gap:6px;margin-bottom:10px;">
-        <button type="button" class="wpreset-btn active" id="mat-tab-paste" onclick="setMaterialsTab('paste')">✎ Paste Text</button>
-        <button type="button" class="wpreset-btn" id="mat-tab-upload" onclick="setMaterialsTab('upload')">📎 Upload File</button>
-      </div>
+      <input type="text" id="mat-name-input" placeholder="Name (optional) — auto-filled from the file or text if left blank" style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
 
-      <input type="text" id="mat-name-input" placeholder="Name this material — e.g. 'Ch. 12 Photosynthesis'" style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
-
-      <div id="mat-paste-panel">
-        <textarea id="mat-text-input" rows="6" placeholder="Paste text here..." style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;margin-bottom:8px;"></textarea>
-      </div>
-      <div id="mat-upload-panel" style="display:none;">
-        <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;margin-bottom:8px;" onclick="document.getElementById('mat-file-input').click()">
-          <span style="font-size:20px;">📎</span>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:#334155;" id="mat-file-label">Choose a file</div>
-            <div style="font-size:11px;color:#94A3B8;margin-top:2px;">PDF, Word, Excel, or text. Max 8 MB.</div>
-          </div>
+      <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;margin-bottom:10px;" onclick="document.getElementById('mat-file-input').click()">
+        <span style="font-size:20px;">📎</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#334155;" id="mat-file-label">Choose a file — saves automatically</div>
+          <div style="font-size:11px;color:#94A3B8;margin-top:2px;">PDF, Word, Excel, or text. Max 8 MB.</div>
         </div>
-        <input type="file" id="mat-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none;">
       </div>
+      <input type="file" id="mat-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none;">
 
-      <button id="mat-save-btn" onclick="saveMaterial()" style="width:100%;padding:11px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Material</button>
+      <div style="text-align:center;font-size:11px;color:#94A3B8;margin:10px 0;">— or paste text —</div>
+
+      <textarea id="mat-text-input" rows="5" placeholder="Paste text here..." style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;margin-bottom:8px;"></textarea>
+      <button id="mat-save-btn" onclick="saveMaterial()" style="width:100%;padding:11px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Text</button>
     </div>
   </div>
 </div>
@@ -523,8 +516,6 @@ function loadReferenceDocs() {
 // ═══════════════════════════════════════════════════════════
 var teacherMaterials = [];
 var selectedMaterial = null;
-var _materialsMode = "paste";
-var _materialPendingFile = null;
 
 function loadTeacherMaterials() {
   fetch("/api/document-creator/materials")
@@ -585,14 +576,6 @@ function closeMaterials() {
   document.getElementById("materials-overlay").style.display = "none";
 }
 
-function setMaterialsTab(tab) {
-  _materialsMode = tab;
-  document.getElementById("mat-tab-paste").classList.toggle("active", tab === "paste");
-  document.getElementById("mat-tab-upload").classList.toggle("active", tab === "upload");
-  document.getElementById("mat-paste-panel").style.display = tab === "paste" ? "" : "none";
-  document.getElementById("mat-upload-panel").style.display = tab === "upload" ? "" : "none";
-}
-
 function renderMaterialsList() {
   var list = document.getElementById("materials-list");
   if (!list) return;
@@ -638,52 +621,41 @@ function deleteMaterial(id) {
   }).catch(function() { alert("Could not delete material."); });
 }
 
-async function saveMaterial() {
-  var name = document.getElementById("mat-name-input").value.trim();
-  var btn = document.getElementById("mat-save-btn");
-  if (!name) { alert("Enter a name for this material."); return; }
+function deriveMaterialName(text, filename) {
+  if (filename) return filename.replace(/\.[^./]+$/, "");
+  var firstLine = text.split(/\r?\n/).map(function(l) { return l.trim(); }).find(function(l) { return l.length; }) || "";
+  return firstLine.slice(0, 60) || ("Material " + new Date().toLocaleDateString());
+}
 
-  var text = "";
-  var filename = "";
+async function persistMaterial(name, filename, text) {
+  var resp = await fetch("/api/document-creator/materials", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name, filename: filename, text: text })
+  });
+  var data = await resp.json();
+  if (!resp.ok) { alert(data.error || "Could not save material."); return null; }
+  teacherMaterials.push(data.material);
+  selectedMaterial = data.material;
+  document.getElementById("mat-name-input").value = "";
+  renderMaterialsList();
+  renderMaterialBanner();
+  renderPlaceholderMaterialsState();
+  return data.material;
+}
+
+async function saveMaterial() {
+  var nameInput = document.getElementById("mat-name-input");
+  var text = document.getElementById("mat-text-input").value.trim();
+  if (!text) { alert("Paste some text, or choose a file above."); return; }
+  var name = nameInput.value.trim() || deriveMaterialName(text, "");
+  var btn = document.getElementById("mat-save-btn");
   btn.disabled = true;
   var origLabel = btn.textContent;
+  btn.textContent = "Saving...";
   try {
-    if (_materialsMode === "upload") {
-      if (!_materialPendingFile) { alert("Choose a file to upload."); return; }
-      btn.textContent = "Extracting text...";
-      var parseResp = await fetch("/api/parse-file", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ b64: _materialPendingFile.b64, filename: _materialPendingFile.filename, mimeType: _materialPendingFile.mimeType })
-      });
-      var parsed = await parseResp.json();
-      if (!parseResp.ok) { alert(parsed.error || "Could not extract text from this file."); return; }
-      text = parsed.text;
-      filename = _materialPendingFile.filename;
-    } else {
-      text = document.getElementById("mat-text-input").value.trim();
-      if (!text) { alert("Paste some text, or switch to Upload File."); return; }
-    }
-
-    btn.textContent = "Saving...";
-    var resp = await fetch("/api/document-creator/materials", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name, filename: filename, text: text })
-    });
-    var data = await resp.json();
-    if (!resp.ok) { alert(data.error || "Could not save material."); return; }
-
-    teacherMaterials.push(data.material);
-    selectedMaterial = data.material;
-    document.getElementById("mat-name-input").value = "";
-    document.getElementById("mat-text-input").value = "";
-    document.getElementById("mat-file-input").value = "";
-    document.getElementById("mat-file-label").textContent = "Choose a file";
-    _materialPendingFile = null;
-    renderMaterialsList();
-    renderMaterialBanner();
-    renderPlaceholderMaterialsState();
+    var saved = await persistMaterial(name, "", text);
+    if (saved) document.getElementById("mat-text-input").value = "";
   } catch (err) {
     alert("Could not save material: " + err.message);
   } finally {
@@ -1429,19 +1401,41 @@ document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
 document.getElementById("btn-materials").addEventListener("click", openMaterials);
 document.getElementById("materials-overlay").addEventListener("click", function(e) { if (e.target === this) closeMaterials(); });
-document.getElementById("mat-file-input").addEventListener("change", function(e) {
+document.getElementById("mat-file-input").addEventListener("change", async function(e) {
   var file = e.target.files[0];
+  e.target.value = "";
   if (!file) return;
-  if (file.size > 8 * 1024 * 1024) { alert("File must be under 8 MB."); e.target.value = ""; return; }
-  document.getElementById("mat-file-label").textContent = file.name;
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    var d = ev.target.result, comma = d.indexOf(",");
-    _materialPendingFile = { filename: file.name, mimeType: file.type, b64: d.slice(comma + 1) };
-  };
-  reader.readAsDataURL(file);
-  var nameInput = document.getElementById("mat-name-input");
-  if (!nameInput.value.trim()) nameInput.value = file.name.replace(/\.[^./]+$/, "");
+  if (file.size > 8 * 1024 * 1024) { alert("File must be under 8 MB."); return; }
+
+  var label = document.getElementById("mat-file-label");
+  var origLabel = label.textContent;
+  label.textContent = "Reading " + file.name + "...";
+  try {
+    var b64 = await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { var d = ev.target.result; resolve(d.slice(d.indexOf(",") + 1)); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    label.textContent = "Extracting text from " + file.name + "...";
+    var parseResp = await fetch("/api/parse-file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ b64: b64, filename: file.name, mimeType: file.type })
+    });
+    var parsed = await parseResp.json();
+    if (!parseResp.ok) { alert(parsed.error || "Could not extract text from this file."); return; }
+
+    label.textContent = "Saving...";
+    var nameInput = document.getElementById("mat-name-input");
+    var name = nameInput.value.trim() || deriveMaterialName("", file.name);
+    await persistMaterial(name, file.name, parsed.text);
+  } catch (err) {
+    alert("Could not save material: " + err.message);
+  } finally {
+    label.textContent = origLabel;
+  }
 });
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
