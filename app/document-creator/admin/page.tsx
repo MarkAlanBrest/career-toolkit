@@ -19,7 +19,7 @@ function themeToHex(v: string | undefined): string {
 }
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
-type Teacher = { email: string; name: string; active: boolean; createdAt: string };
+type Teacher = { email: string; name: string; active: boolean; createdAt: string; sharepointFolderPath: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
 type StyleOptions = { lines: boolean; numbered: boolean; infoBar: boolean; callouts: boolean; checklist: boolean; signature: boolean };
 const DEFAULT_STYLE_OPTIONS: StyleOptions = { lines: false, numbered: false, infoBar: false, callouts: false, checklist: false, signature: false };
@@ -112,12 +112,18 @@ export default function AdminPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [newFolderPath, setNewFolderPath] = useState('');
   const [adding, setAdding] = useState(false);
 
   // Reset password
   const [resetEmail, setResetEmail] = useState('');
   const [resetPass, setResetPass] = useState('');
   const [resetting, setResetting] = useState(false);
+
+  // Set SharePoint folder
+  const [folderEmail, setFolderEmail] = useState('');
+  const [folderPath, setFolderPath] = useState('');
+  const [savingFolder, setSavingFolder] = useState(false);
 
   const [model, setModel] = useState<string>('claude-haiku-4-5');
   const [savingModel, setSavingModel] = useState(false);
@@ -179,11 +185,11 @@ export default function AdminPage() {
       const resp = await fetch('/api/document-creator/admin/teachers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail, name: newName, password: newPass }),
+        body: JSON.stringify({ email: newEmail, name: newName, password: newPass, sharepointFolderPath: newFolderPath }),
       });
       const data = await resp.json();
       if (!resp.ok) { showMsg(data.error || 'Failed to add teacher.', red); return; }
-      setNewEmail(''); setNewName(''); setNewPass('');
+      setNewEmail(''); setNewName(''); setNewPass(''); setNewFolderPath('');
       showMsg('Teacher added successfully.');
       loadTeachers();
     } finally {
@@ -217,6 +223,25 @@ export default function AdminPage() {
       showMsg('Password reset successfully.');
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function saveFolderPath() {
+    if (!folderEmail) { showMsg('Email required.', red); return; }
+    setSavingFolder(true);
+    try {
+      const resp = await fetch('/api/document-creator/admin/teachers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: folderEmail, sharepointFolderPath: folderPath }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { showMsg(data.error || 'Failed.', red); return; }
+      setFolderEmail(''); setFolderPath('');
+      showMsg('SharePoint folder saved.');
+      loadTeachers();
+    } finally {
+      setSavingFolder(false);
     }
   }
 
@@ -787,6 +812,7 @@ export default function AdminPage() {
                 <tr style={{ borderBottom: `1px solid ${border}` }}>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Email</th>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
                   <th style={{ width: 60 }}></th>
                 </tr>
@@ -796,6 +822,7 @@ export default function AdminPage() {
                   <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
                     <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{t.name}</td>
                     <td style={{ padding: '8px 8px', color: muted }}>{t.email}</td>
+                    <td style={{ padding: '8px 8px', color: muted }}>{t.sharepointFolderPath || <span style={{ fontStyle: 'italic' }}>Not set</span>}</td>
                     <td style={{ padding: '8px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
                     <td style={{ padding: '8px 4px', textAlign: 'right' }}>
                       <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
@@ -816,6 +843,7 @@ export default function AdminPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <Input value={newPass} onChange={setNewPass} placeholder="Temporary password (min 8 chars)" type="password" />
+              <Input value={newFolderPath} onChange={setNewFolderPath} placeholder="SharePoint folder (optional, e.g. Teachers/Ms.Lee)" />
               <Btn onClick={addTeacher} disabled={adding}>{adding ? 'Adding...' : 'Add Teacher'}</Btn>
             </div>
           </div>
@@ -827,6 +855,19 @@ export default function AdminPage() {
             <Input value={resetEmail} onChange={setResetEmail} placeholder="teacher@school.edu" type="email" />
             <Input value={resetPass} onChange={setResetPass} placeholder="New password (min 8 chars)" type="password" />
             <Btn onClick={resetPassword} disabled={resetting}>{resetting ? 'Saving...' : 'Reset'}</Btn>
+          </div>
+        </Section>
+
+        {/* Set SharePoint Folder */}
+        <Section title="Set SharePoint Folder">
+          <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>
+            Documents that teacher saves via "Save to SharePoint" go into this subfolder of the shared site's document library. Leave blank to disable the button for that teacher.
+            <Help text="Documents this teacher saves to SharePoint go into this subfolder of the shared site's document library. Leave blank to disable the Save to SharePoint button for this teacher." />
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input value={folderEmail} onChange={setFolderEmail} placeholder="teacher@school.edu" type="email" />
+            <Input value={folderPath} onChange={setFolderPath} placeholder="SharePoint folder path (e.g. Teachers/Ms.Lee)" />
+            <Btn onClick={saveFolderPath} disabled={savingFolder}>{savingFolder ? 'Saving...' : 'Save'}</Btn>
           </div>
         </Section>
 

@@ -22,6 +22,7 @@ export interface DcUser {
   role: 'teacher' | 'admin';
   active: boolean;
   createdAt: string;
+  sharepointFolderPath?: string;
 }
 
 export interface DcSession {
@@ -51,6 +52,15 @@ export function verifyPassword(password: string, storedHash: string, salt: strin
 
 export function generateId(): string {
   return randomBytes(16).toString('hex');
+}
+
+export function normalizeFolderPath(raw: string): string {
+  return String(raw || '')
+    .trim()
+    .split('/')
+    .map(seg => seg.trim())
+    .filter(seg => seg && seg !== '.' && seg !== '..')
+    .join('/');
 }
 
 export function generateToken(): string {

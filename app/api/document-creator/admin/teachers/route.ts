@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getUser, saveUser, getSchoolTeacherEmails, addTeacherToSchool, removeTeacherFromSchool, hashPassword, DcUser } from '@/lib/dcAuth';
+import { getSession, getUser, saveUser, getSchoolTeacherEmails, addTeacherToSchool, removeTeacherFromSchool, hashPassword, normalizeFolderPath, DcUser } from '@/lib/dcAuth';
 import { cookies } from 'next/headers';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
   const teachers = await Promise.all(
     emails.map(async (email) => {
       const user = await getUser(email);
-      return user ? { email: user.email, name: user.name, active: user.active, createdAt: user.createdAt } : null;
+      return user ? { email: user.email, name: user.name, active: user.active, createdAt: user.createdAt, sharepointFolderPath: user.sharepointFolderPath || '' } : null;
     })
   );
 
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   const email = String(body?.email || '').trim().toLowerCase();
   const name = String(body?.name || '').trim();
   const password = String(body?.password || '').trim();
+  const sharepointFolderPath = normalizeFolderPath(body?.sharepointFolderPath || '');
 
   if (!email || !name || !password) {
     return NextResponse.json({ error: 'Email, name, and password are required.' }, { status: 400, headers: CORS });
@@ -66,12 +67,13 @@ export async function POST(req: NextRequest) {
     role: 'teacher',
     active: true,
     createdAt: new Date().toISOString(),
+    ...(sharepointFolderPath ? { sharepointFolderPath } : {}),
   };
 
   await saveUser(user);
   await addTeacherToSchool(session.schoolId, email);
 
-  return NextResponse.json({ ok: true, teacher: { email, name, active: true } }, { headers: CORS });
+  return NextResponse.json({ ok: true, teacher: { email, name, active: true, sharepointFolderPath } }, { headers: CORS });
 }
 
 // DELETE — remove a teacher
@@ -95,7 +97,7 @@ export async function DELETE(req: NextRequest) {
   return NextResponse.json({ ok: true }, { headers: CORS });
 }
 
-// PATCH — reset a teacher's password
+// PATCH — reset a teacher's password and/or set their SharePoint folder path
 export async function PATCH(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: 'Admin access required.' }, { status: 403, headers: CORS });
@@ -103,17 +105,28 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email = String(body?.email || '').trim().toLowerCase();
   const password = String(body?.password || '').trim();
+  const hasFolderPath = typeof body?.sharepointFolderPath === 'string';
 
-  if (!email || !password) return NextResponse.json({ error: 'Email and new password required.' }, { status: 400, headers: CORS });
-  if (password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400, headers: CORS });
+  if (!email || (!password && !hasFolderPath)) {
+    return NextResponse.json({ error: 'Email and a new password or SharePoint folder path are required.' }, { status: 400, headers: CORS });
+  }
+  if (password && password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400, headers: CORS });
 
   const user = await getUser(email);
   if (!user || user.schoolId !== session.schoolId) {
     return NextResponse.json({ error: 'Teacher not found in your school.' }, { status: 404, headers: CORS });
   }
 
-  const { hash, salt } = hashPassword(password);
-  await saveUser({ ...user, passwordHash: hash, passwordSalt: salt });
+  const updated: DcUser = { ...user };
+  if (password) {
+    const { hash, salt } = hashPassword(password);
+    updated.passwordHash = hash;
+    updated.passwordSalt = salt;
+  }
+  if (hasFolderPath) {
+    updated.sharepointFolderPath = normalizeFolderPath(body.sharepointFolderPath);
+  }
+  await saveUser(updated);
 
   return NextResponse.json({ ok: true }, { headers: CORS });
 }
