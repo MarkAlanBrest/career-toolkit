@@ -515,56 +515,73 @@ function loadReferenceDocs() {
 // MY MATERIALS — teacher's persistent source material
 // ═══════════════════════════════════════════════════════════
 var teacherMaterials = [];
-var selectedMaterial = null;
+var selectedMaterialIds = [];
 
 function loadTeacherMaterials() {
   fetch("/api/document-creator/materials")
     .then(function(r) { return r.json(); })
-    .then(function(d) { if (Array.isArray(d.materials)) { teacherMaterials = d.materials; renderMaterialsList(); } })
+    .then(function(d) { if (Array.isArray(d.materials)) {
+      teacherMaterials = d.materials;
+      renderMaterialsList();
+      renderMaterialsChecklist("materials-landing-checklist");
+      renderMaterialsChecklist("chat-materials-checklist");
+    } })
     .catch(function() {});
+}
+
+// Read-only checklist used wherever a teacher picks which saved materials to use for a
+// generation (landing screen, chat modal) — no add/delete here, that only lives in the
+// My Materials manager overlay.
+function renderMaterialsChecklist(containerId) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  if (!teacherMaterials.length) {
+    el.innerHTML = '<div style="font-size:12px;color:#94A3B8;padding:6px 0;">No saved materials yet — add one from 📚 My Materials in the toolbar.</div>';
+    return;
+  }
+  el.innerHTML = teacherMaterials.map(function(m) {
+    var checked = selectedMaterialIds.indexOf(m.id) !== -1;
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:#1E293B;' + (checked ? 'background:#F5F3FF;' : '') + '">'
+      + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleMaterialSelection(\'' + m.id + '\')" style="flex-shrink:0;">'
+      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.name) + '</span>'
+      + '<span style="font-size:11px;color:#94A3B8;flex-shrink:0;">' + Math.round(m.chars / 1000) + 'k</span>'
+      + '</label>';
+  }).join('');
+}
+
+function toggleMaterialSelection(id) {
+  var idx = selectedMaterialIds.indexOf(id);
+  if (idx === -1) selectedMaterialIds.push(id); else selectedMaterialIds.splice(idx, 1);
+  renderMaterialsChecklist("materials-landing-checklist");
+  renderMaterialsChecklist("chat-materials-checklist");
+  renderPlaceholderMaterialsState();
 }
 
 function renderPlaceholderMaterialsState() {
   var el = document.getElementById("materials-landing");
   if (!el) return;
-  if (selectedMaterial) {
-    el.innerHTML = '<div class="ph-icon">📚</div>'
-      + '<h2>Using: ' + esc(selectedMaterial.name) + '</h2>'
-      + '<p>Pick a document type from the sidebar to generate from this material — a study guide, a test, a lesson plan, and more, all from the same source, without re-uploading.</p>'
-      + '<button type="button" onclick="openMaterials()" style="margin-top:14px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;font-family:inherit;">Change Material</button>';
-  } else {
-    el.innerHTML = '<div class="ph-icon">🗂️</div>'
-      + '<h2>Start with your source material</h2>'
-      + '<p>Paste text or upload a file (a chapter, lecture notes, etc.) to reuse across multiple document types — a study guide, a test, a lesson plan, and more, all from the same source.</p>'
-      + '<button type="button" onclick="openMaterials()" style="margin-top:14px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;font-family:inherit;">📚 Add Material</button>'
-      + '<p style="margin-top:10px;font-size:12px;color:#94A3B8;">...or just pick a document type from the sidebar to skip this and describe what you need.</p>';
-  }
+  var count = selectedMaterialIds.length;
+  el.innerHTML = '<div class="ph-icon">' + (count ? '📚' : '🗂️') + '</div>'
+    + '<h2>' + (count ? ('Using ' + count + ' material' + (count > 1 ? 's' : '')) : 'Start with your source material') + '</h2>'
+    + '<p>Check which saved materials to use, then pick a document type from the sidebar — reuse the same materials for a study guide, a test, a lesson plan, and more.</p>'
+    + '<div id="materials-landing-checklist" style="text-align:left;width:100%;max-width:340px;margin:12px auto 0;"></div>'
+    + '<button type="button" onclick="openMaterials()" style="margin-top:14px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;font-family:inherit;">📚 Manage Materials</button>';
+  renderMaterialsChecklist("materials-landing-checklist");
 }
 
 function renderMaterialBanner() {
   var el = document.getElementById("chat-material-banner");
   if (!el) return;
-  if (selectedMaterial) {
-    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:10px 14px;font-size:12px;color:#5B21B6;">'
-      + '<span style="font-size:16px;">📚</span>'
-      + '<span style="flex:1;">Using material: <strong>' + esc(selectedMaterial.name) + '</strong></span>'
-      + '<button type="button" onclick="openMaterials()" style="background:none;border:none;color:#5B21B6;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;">Change</button>'
-      + '<button type="button" onclick="clearSelectedMaterial()" style="background:none;border:none;color:#94A3B8;font-size:12px;cursor:pointer;font-family:inherit;">Clear</button>'
-      + '</div>';
-  } else {
-    el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;padding:10px 14px;font-size:12px;color:#64748B;">'
-      + '<span style="font-size:16px;">📚</span>'
-      + '<span style="flex:1;">No source material selected — using your description below only.</span>'
-      + '<button type="button" onclick="openMaterials()" style="background:none;border:none;color:#4F46E5;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;">Add / Select</button>'
-      + '</div>';
-  }
-}
-
-function clearSelectedMaterial() {
-  selectedMaterial = null;
-  renderMaterialBanner();
-  renderMaterialsList();
-  renderPlaceholderMaterialsState();
+  var count = selectedMaterialIds.length;
+  el.innerHTML = '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
+    + '<span style="font-size:14px;">📚</span>'
+    + '<span style="flex:1;font-size:12px;font-weight:700;color:#475569;">' + (count ? ('Using ' + count + ' material' + (count > 1 ? 's' : '')) : 'Source materials (optional)') + '</span>'
+    + '<button type="button" onclick="openMaterials()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;">Manage</button>'
+    + '</div>'
+    + '<div id="chat-materials-checklist"></div>'
+    + '</div>';
+  renderMaterialsChecklist("chat-materials-checklist");
 }
 
 function openMaterials() {
@@ -576,6 +593,7 @@ function closeMaterials() {
   document.getElementById("materials-overlay").style.display = "none";
 }
 
+// Manager list (inside the My Materials overlay) — add/delete only, no selection here.
 function renderMaterialsList() {
   var list = document.getElementById("materials-list");
   if (!list) return;
@@ -584,26 +602,15 @@ function renderMaterialsList() {
     return;
   }
   list.innerHTML = teacherMaterials.map(function(m) {
-    var active = selectedMaterial && selectedMaterial.id === m.id;
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ' + (active ? '#7C3AED' : '#E2E8F0') + ';background:' + (active ? '#F5F3FF' : '#fff') + ';">'
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid #E2E8F0;background:#fff;">'
       + '<span style="font-size:18px;flex-shrink:0;">📄</span>'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.name) + '</div>'
       + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + Math.round(m.chars / 1000) + 'k chars &middot; ' + timeAgo(new Date(m.uploadedAt).getTime()) + '</div>'
       + '</div>'
-      + '<button type="button" onclick="selectMaterial(\'' + m.id + '\')" style="background:' + (active ? '#7C3AED' : '#fff') + ';color:' + (active ? '#fff' : '#475569') + ';border:1px solid #CBD5E1;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">' + (active ? 'Selected' : 'Select') + '</button>'
       + '<button type="button" onclick="deleteMaterial(\'' + m.id + '\')" style="background:none;border:none;color:#DC2626;cursor:pointer;font-size:13px;font-family:inherit;">Delete</button>'
       + '</div>';
   }).join('');
-}
-
-function selectMaterial(id) {
-  var m = teacherMaterials.find(function(x) { return x.id === id; });
-  if (!m) return;
-  selectedMaterial = m;
-  renderMaterialsList();
-  renderMaterialBanner();
-  renderPlaceholderMaterialsState();
 }
 
 function deleteMaterial(id) {
@@ -614,8 +621,11 @@ function deleteMaterial(id) {
     body: JSON.stringify({ id: id })
   }).then(function(r) { return r.json(); }).then(function() {
     teacherMaterials = teacherMaterials.filter(function(m) { return m.id !== id; });
-    if (selectedMaterial && selectedMaterial.id === id) selectedMaterial = null;
+    var idx = selectedMaterialIds.indexOf(id);
+    if (idx !== -1) selectedMaterialIds.splice(idx, 1);
     renderMaterialsList();
+    renderMaterialsChecklist("materials-landing-checklist");
+    renderMaterialsChecklist("chat-materials-checklist");
     renderMaterialBanner();
     renderPlaceholderMaterialsState();
   }).catch(function() { alert("Could not delete material."); });
@@ -636,9 +646,11 @@ async function persistMaterial(name, filename, text) {
   var data = await resp.json();
   if (!resp.ok) { alert(data.error || "Could not save material."); return null; }
   teacherMaterials.push(data.material);
-  selectedMaterial = data.material;
+  selectedMaterialIds.push(data.material.id);
   document.getElementById("mat-name-input").value = "";
   renderMaterialsList();
+  renderMaterialsChecklist("materials-landing-checklist");
+  renderMaterialsChecklist("chat-materials-checklist");
   renderMaterialBanner();
   renderPlaceholderMaterialsState();
   return data.material;
@@ -846,14 +858,15 @@ function buildPromptFromInput(typeId, description) {
       + selectedDocs.map(function(d) { return "[" + d.name + "]\n" + d.text; }).join("\n\n") + "\n\n"
     : "";
 
-  var materialBlock = selectedMaterial
-    ? "SOURCE MATERIAL — this is the primary content basis for this document; ground all content in this text before adding anything else:\n\n"
-      + "[" + selectedMaterial.name + "]\n" + selectedMaterial.text + "\n\n"
+  var selectedMaterials = selectedMaterialIds.map(function(id) { return teacherMaterials.find(function(m) { return m.id === id; }); }).filter(Boolean);
+  var materialBlock = selectedMaterials.length
+    ? "SOURCE MATERIALS — this is the primary content basis for this document; ground all content in this text before adding anything else:\n\n"
+      + selectedMaterials.map(function(m) { return "[" + m.name + "]\n" + m.text; }).join("\n\n") + "\n\n"
     : "";
 
   var teacherBlock = description
-    ? (selectedMaterial
-        ? "ADDITIONAL INSTRUCTIONS — apply on top of the source material above; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
+    ? (selectedMaterials.length
+        ? "ADDITIONAL INSTRUCTIONS — apply on top of the source materials above; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
         : "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n")
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
 
