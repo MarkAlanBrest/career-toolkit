@@ -160,12 +160,6 @@ body {
 }
 
 
-/* ── WORKSHEET PRESETS ──────────────────────────────── */
-.wpreset-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
-.wpreset-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 20px; border: 1px solid #DDD6FE; background: #F5F3FF; color: #5B21B6; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
-.wpreset-btn:hover { background: #EDE9FE; }
-.wpreset-btn.active { background: #7C3AED; border-color: #7C3AED; color: #fff; }
-
 /* ── HELP ICON / POPOVER ───────────────────────────── */
 .help-wrap { position: relative; display: inline-flex; vertical-align: middle; margin-left: 6px; }
 .help-icon { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: #EFF6FF; color: #4F46E5; font-size: 10px; font-weight: 700; cursor: pointer; border: 1px solid #C7D2FE; line-height: 1; user-select: none; flex-shrink: 0; }
@@ -229,6 +223,13 @@ body {
 
   <!-- SIDEBAR -->
   <div id="sidebar">
+    <div id="materials-sidebar" style="padding:10px 16px;border-bottom:1px solid #F1F5F9;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94A3B8;">📚 Source Materials</span>
+        <button type="button" onclick="openMaterials()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Manage</button>
+      </div>
+      <div id="materials-sidebar-checklist" style="max-height:130px;overflow-y:auto;"></div>
+    </div>
     <div class="sidebar-header">Create Document
       <span class="help-wrap">
         <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do I create a document?">?</span>
@@ -241,7 +242,9 @@ body {
   <!-- MAIN -->
   <div id="main">
     <div id="placeholder">
-      <div id="materials-landing"></div>
+      <div class="ph-icon">🗂️</div>
+      <h2>No document yet</h2>
+      <p>Choose a document type from the sidebar and Claude will guide you through building it.</p>
     </div>
 
     <div id="loading">
@@ -287,7 +290,6 @@ body {
         Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong>
         Include the course name, topics, question types, timeline, or any specific requirements.
       </p>
-      <div id="worksheet-presets" style="display:none;flex-direction:column;gap:8px;"></div>
       <div id="questions-form" style="display:none;flex-direction:column;gap:12px;"></div>
       <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
       <div style="display:flex;flex-direction:column;gap:8px;">
@@ -414,19 +416,6 @@ function saveDocTypes() {
   try { localStorage.setItem("doc_creator_types", JSON.stringify(DOC_TYPES)); } catch(e) {}
 }
 
-// ═══════════════════════════════════════════════════════════
-// WORKSHEET QUICK-START PRESETS
-// ═══════════════════════════════════════════════════════════
-var WORKSHEET_PRESETS = [
-  { label: "Multiple Choice",              icon: "☑️", structure: "10 multiple choice questions (A–D), one correct answer each. Include an answer key at the end." },
-  { label: "True / False",                 icon: "✔️", structure: "12 true/false statements. Include an answer key at the end." },
-  { label: "Short Answer",                 icon: "✍️", structure: "8 short-answer questions requiring 2–3 sentence responses each." },
-  { label: "Fill in the Blank",            icon: "▭", structure: "10 fill-in-the-blank sentences using key vocabulary or terms. Include a word bank at the top." },
-  { label: "Vocabulary Matching",          icon: "🔤", structure: "12-term vocabulary matching worksheet — terms in one column, definitions in scrambled order in the other." },
-  { label: "Calculations / Word Problems", icon: "🧮", structure: "8 calculation/word problems, each with Given / Find / Work / Answer sections." },
-  { label: "Mixed Question Types",         icon: "🧩", structure: "12 questions total: 4 multiple choice, 4 short answer, 4 calculation/word problems." },
-];
-
 var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","#155E75","#1E293B","#3B1F5C","#065F46","#831843","#1C3557"];
 
 // ═══════════════════════════════════════════════════════════
@@ -523,7 +512,7 @@ function loadTeacherMaterials() {
     .then(function(d) { if (Array.isArray(d.materials)) {
       teacherMaterials = d.materials;
       renderMaterialsList();
-      renderMaterialsChecklist("materials-landing-checklist");
+      renderMaterialsChecklist("materials-sidebar-checklist");
       renderMaterialsChecklist("chat-materials-checklist");
     } })
     .catch(function() {});
@@ -552,21 +541,13 @@ function renderMaterialsChecklist(containerId) {
 function toggleMaterialSelection(id) {
   var idx = selectedMaterialIds.indexOf(id);
   if (idx === -1) selectedMaterialIds.push(id); else selectedMaterialIds.splice(idx, 1);
-  renderMaterialsChecklist("materials-landing-checklist");
+  renderMaterialsChecklist("materials-sidebar-checklist");
   renderMaterialsChecklist("chat-materials-checklist");
-  renderPlaceholderMaterialsState();
+  renderMaterialsSidebar();
 }
 
-function renderPlaceholderMaterialsState() {
-  var el = document.getElementById("materials-landing");
-  if (!el) return;
-  var count = selectedMaterialIds.length;
-  el.innerHTML = '<div class="ph-icon">' + (count ? '📚' : '🗂️') + '</div>'
-    + '<h2>' + (count ? ('Using ' + count + ' material' + (count > 1 ? 's' : '')) : 'Start with your source material') + '</h2>'
-    + '<p>Check which saved materials to use, then pick a document type from the sidebar — reuse the same materials for a study guide, a test, a lesson plan, and more.</p>'
-    + '<div id="materials-landing-checklist" style="text-align:left;width:100%;max-width:340px;margin:12px auto 0;"></div>'
-    + '<button type="button" onclick="openMaterials()" style="margin-top:14px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;font-family:inherit;">📚 Manage Materials</button>';
-  renderMaterialsChecklist("materials-landing-checklist");
+function renderMaterialsSidebar() {
+  renderMaterialsChecklist("materials-sidebar-checklist");
 }
 
 function renderMaterialBanner() {
@@ -624,10 +605,10 @@ function deleteMaterial(id) {
     var idx = selectedMaterialIds.indexOf(id);
     if (idx !== -1) selectedMaterialIds.splice(idx, 1);
     renderMaterialsList();
-    renderMaterialsChecklist("materials-landing-checklist");
+    renderMaterialsChecklist("materials-sidebar-checklist");
     renderMaterialsChecklist("chat-materials-checklist");
     renderMaterialBanner();
-    renderPlaceholderMaterialsState();
+    renderMaterialsSidebar();
   }).catch(function() { alert("Could not delete material."); });
 }
 
@@ -649,10 +630,10 @@ async function persistMaterial(name, filename, text) {
   selectedMaterialIds.push(data.material.id);
   document.getElementById("mat-name-input").value = "";
   renderMaterialsList();
-  renderMaterialsChecklist("materials-landing-checklist");
+  renderMaterialsChecklist("materials-sidebar-checklist");
   renderMaterialsChecklist("chat-materials-checklist");
   renderMaterialBanner();
-  renderPlaceholderMaterialsState();
+  renderMaterialsSidebar();
   return data.material;
 }
 
@@ -1052,33 +1033,6 @@ function renderQuestionsForm(questions) {
   return html;
 }
 
-function renderWorksheetPresets() {
-  var html = '<label style="font-size:11px;font-weight:700;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Quick Start — pick a format</label><div class="wpreset-wrap">';
-  WORKSHEET_PRESETS.forEach(function(p, i) {
-    html += '<button type="button" class="wpreset-btn" id="wpreset-' + i + '" onclick="applyWorksheetPreset(' + i + ')">' + p.icon + ' ' + esc(p.label) + '</button>';
-  });
-  html += '</div>';
-  return html;
-}
-
-function applyWorksheetPreset(idx) {
-  var preset = WORKSHEET_PRESETS[idx];
-  if (!preset) return;
-  document.querySelectorAll('.wpreset-btn').forEach(function(b, i) { b.classList.toggle('active', i === idx); });
-  var formEl = document.getElementById("questions-form");
-  if (formEl.style.display !== "none") {
-    var notes = document.getElementById("q-notes");
-    if (notes) { notes.value = preset.structure; notes.focus(); }
-    return;
-  }
-  var inputEl = document.getElementById("chat-input");
-  var token = "[TOPIC]";
-  inputEl.value = "Worksheet on " + token + ". " + preset.structure;
-  inputEl.focus();
-  var idxOfToken = inputEl.value.indexOf(token);
-  if (idxOfToken >= 0) inputEl.setSelectionRange(idxOfToken, idxOfToken + token.length);
-}
-
 function openChat(typeId) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
   if (!type) return;
@@ -1094,15 +1048,6 @@ function openChat(typeId) {
   var hintEl = document.getElementById("chat-hint");
   var formEl = document.getElementById("questions-form");
   var inputEl = document.getElementById("chat-input");
-  var presetsEl = document.getElementById("worksheet-presets");
-
-  if (typeId === "worksheet") {
-    presetsEl.innerHTML = renderWorksheetPresets();
-    presetsEl.style.display = "flex";
-  } else {
-    presetsEl.style.display = "none";
-    presetsEl.innerHTML = "";
-  }
 
   if (questions.length > 0) {
     hintEl.style.display = "none";
@@ -1689,7 +1634,7 @@ async function initAuth() {
     document.getElementById("auth-overlay").style.display = "none";
     setMainState("placeholder");
     renderTypeList();
-    renderPlaceholderMaterialsState();
+    renderMaterialsSidebar();
   } catch(e) {
     window.location.href = "/document-creator/login";
   }
