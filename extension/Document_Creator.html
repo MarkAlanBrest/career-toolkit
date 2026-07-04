@@ -490,17 +490,57 @@ function enableInlineEditing() {
   });
 }
 
-function getSectionIconLabel(text) {
+function getSectionIconType(text) {
   var s = (text || "").toLowerCase();
-  if (/safety|hazard|incident|warning|policy|ppe|risk/.test(s)) return "!";
-  if (/objective|outcome|goal|standard/.test(s)) return "OBJ";
-  if (/material|resource|equipment|tool|supply/.test(s)) return "MAT";
-  if (/procedure|step|process|activity|task|assignment/.test(s)) return "DO";
-  if (/assessment|rubric|grading|score|evaluation/.test(s)) return "A";
-  if (/signature|approval|acknowledg/.test(s)) return "SIG";
-  if (/schedule|date|timeline|due/.test(s)) return "CAL";
-  if (/vocabulary|term|definition/.test(s)) return "VOC";
-  return "SEC";
+  if (/safety|hazard|incident|warning|policy|ppe|risk/.test(s)) return "alert";
+  if (/objective|outcome|goal|standard/.test(s)) return "target";
+  if (/material|resource|equipment|tool|supply/.test(s)) return "folder";
+  if (/procedure|step|process|activity|task|assignment/.test(s)) return "list";
+  if (/assessment|rubric|grading|score|evaluation/.test(s)) return "check";
+  if (/signature|approval|acknowledg/.test(s)) return "pen";
+  if (/schedule|date|timeline|due/.test(s)) return "calendar";
+  if (/vocabulary|term|definition/.test(s)) return "book";
+  return "section";
+}
+
+function createSectionIcon(typeId, headingText) {
+  var color = getThemeColor(typeId);
+  var type = getSectionIconType(headingText);
+  var wrap = document.createElement("span");
+  var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  var paths = {
+    alert: '<path d="M12 4 3.5 19h17L12 4Z"/><path d="M12 9v4"/><path d="M12 16h.01"/>',
+    target: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+    folder: '<path d="M3.5 7.5h6l2 2h9v8a2 2 0 0 1-2 2h-15v-12Z"/><path d="M3.5 9.5h17"/>',
+    list: '<path d="M8 7h11M8 12h11M8 17h11"/><path d="M4.5 7h.01M4.5 12h.01M4.5 17h.01"/>',
+    check: '<path d="M4.5 12.5 9.5 17 19.5 7"/><path d="M4 5h16v14H4z"/>',
+    pen: '<path d="M5 19 6.5 14.5 16.5 4.5a2 2 0 0 1 3 3l-10 10L5 19Z"/><path d="M14.5 6.5l3 3"/>',
+    calendar: '<path d="M5 5h14v14H5z"/><path d="M8 3v4M16 3v4M5 9h14"/>',
+    book: '<path d="M5 5.5c2.4-1.1 4.8-1.1 7 0v13c-2.2-1.1-4.6-1.1-7 0v-13Z"/><path d="M12 5.5c2.2-1.1 4.6-1.1 7 0v13c-2.4-1.1-4.8-1.1-7 0"/>',
+    section: '<path d="M5 6h14M5 12h14M5 18h10"/>'
+  };
+  wrap.setAttribute("data-doc-icon", "true");
+  wrap.setAttribute("contenteditable", "false");
+  wrap.style.cssText = "display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin-right:9px;border-radius:6px;border:1px solid " + color + ";background:#fff;vertical-align:middle;flex:0 0 auto;";
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", color);
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.innerHTML = paths[type] || paths.section;
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function removeGeneratedIconTags(heading) {
+  heading.childNodes.forEach(function(node) {
+    if (node.nodeType === 3) {
+      node.nodeValue = node.nodeValue.replace(/^\s*\[(?:i|!|check|list|info|warning|objective|material|assessment|section)\]\s*/i, "");
+    }
+  });
 }
 
 function applyDocumentStyleEnhancements(typeId) {
@@ -509,14 +549,10 @@ function applyDocumentStyleEnhancements(typeId) {
   var options = getStyleOptions(typeId);
   paper.querySelectorAll("[data-doc-icon]").forEach(function(el) { el.remove(); });
   if (!options.icons) return;
-  var color = getThemeColor(typeId);
   paper.querySelectorAll("h2,h3,h4,h5,h6").forEach(function(heading) {
     if (!heading.textContent || !heading.textContent.trim()) return;
-    var icon = document.createElement("span");
-    icon.setAttribute("data-doc-icon", "true");
-    icon.setAttribute("contenteditable", "false");
-    icon.textContent = getSectionIconLabel(heading.textContent);
-    icon.style.cssText = "display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 6px;margin-right:9px;border-radius:5px;border:1px solid " + color + ";color:" + color + ";background:#fff;font-family:Arial,sans-serif;font-size:10px;font-weight:800;line-height:1;vertical-align:middle;";
+    removeGeneratedIconTags(heading);
+    var icon = createSectionIcon(typeId, heading.textContent);
     heading.insertBefore(icon, heading.firstChild);
   });
 }
@@ -760,7 +796,7 @@ function buildPromptFromInput(typeId, description) {
   if (so.checklist) styleLines.push("Wherever content is an actionable, completable, or gradable item (tasks, requirements, observation items, approval options), render it as a checkbox line using the ☐ character instead of a standard bullet — one checkbox item per line.");
   if (so.signature) styleLines.push("At the end of the document, add a signature block: ruled underline fields for 'Student Signature' and 'Date', and 'Instructor Signature' and 'Date' side by side (style=\"display:flex;gap:40px;margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;\"; each field style=\"flex:1;border-bottom:1px solid #1E293B;padding-bottom:4px;font-size:12px;color:#475569;\"). If the document concerns a minor or requires parental consent, add a third 'Parent/Guardian Signature' and 'Date' field.");
   if (so.pageNumbers) styleLines.push("Add a compact document footer with a page-number field suitable for printed handouts. If exact print counters are not supported in inline HTML, include a clean footer line with 'Page ____ of ____' on the lower right.");
-  if (so.icons) styleLines.push("Add restrained section markers before major headings using small monochrome text labels such as [i], [!], [check], or [list]. Do not use emoji, decorative clip art, or large icons.");
+  if (so.icons) styleLines.push("Leave section heading text clean, with no bracket labels such as [check], [list], [i], or [!]. The application will add visual heading icons after generation.");
   var styleBlock = styleLines.length ? "SCHOOL STYLE — apply to every section of this document:\n" + styleLines.join("\n") + "\n\n" : "";
 
   var adminNotes = adminSettings[typeId] && adminSettings[typeId].notes && adminSettings[typeId].notes.trim();
