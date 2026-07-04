@@ -71,16 +71,19 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const pkgDir = path.dirname(pkgPath);
     pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(pkgDir, 'legacy/build/pdf.worker.mjs')).href;
+    const standardFontDataPath = path.join(pkgDir, 'standard_fonts') + path.sep;
+    const cMapPath = path.join(pkgDir, 'cmaps') + path.sep;
     const doc = await pdfjs.getDocument({
       data: new Uint8Array(buffer),
       stopAtErrors: false,
-      verbosity: 0,
+      verbosity: pdfjs.VerbosityLevel.ERRORS,
       // Point directly at the font/CMap data bundled in the package instead of letting pdfjs-dist
       // guess where to load it from — that guess is unreliable in serverless Node environments
       // and is the likely source of internal errors on PDFs with non-embedded or CJK fonts.
-      standardFontDataUrl: pathToFileURL(path.join(pkgDir, 'standard_fonts') + path.sep).href,
-      cMapUrl: pathToFileURL(path.join(pkgDir, 'cmaps') + path.sep).href,
+      standardFontDataUrl: standardFontDataPath,
+      cMapUrl: cMapPath,
       cMapPacked: true,
+      useWorkerFetch: false,
       disableFontFace: true,
       useSystemFonts: false,
     }).promise;
