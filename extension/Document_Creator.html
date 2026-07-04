@@ -199,15 +199,13 @@ body {
     Document Creator
     <span class="help-wrap">
       <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does Document Creator work?">?</span>
-      <span class="help-pop">Pick a document type on the left, describe what you need (or answer the quick questions), and attach any photos or reference files. After it generates, use "Refine" to request changes, or Print/Word to export.</span>
+      <span class="help-pop">Add any files or photos you need at the top of the sidebar, pick a document type, and describe what you need. After it generates, use "Refine" to request changes, or Print/Word to export.</span>
     </span>
   </div>
   <div class="topbar-actions">
     <button class="tb-btn" id="btn-pdf" disabled title="Open print dialog — save as PDF from there. Enable 'Print background graphics' for full color.">🖨️ Print / PDF</button>
     <button class="tb-btn" id="btn-word" disabled>⬇ Word (.doc)</button>
     <button class="tb-btn" id="btn-sharepoint" disabled>☁ Save to SharePoint</button>
-    <div class="tb-divider"></div>
-    <button class="tb-btn" id="btn-materials">📚 My Materials</button>
     <div class="tb-divider"></div>
     <button class="tb-btn" id="btn-history">📋 History</button>
     <div class="tb-divider"></div>
@@ -223,6 +221,15 @@ body {
 
   <!-- SIDEBAR -->
   <div id="sidebar">
+    <div style="padding:10px 16px;border-bottom:1px solid #F1F5F9;flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94A3B8;">Files</span>
+        <button type="button" onclick="document.getElementById('session-file-input').click()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">+ Add Files</button>
+      </div>
+      <div style="font-size:10px;color:#94A3B8;margin-bottom:6px;line-height:1.4;">Used in every document you create this session. Cleared when you close the app.</div>
+      <input type="file" id="session-file-input" accept="image/*,.txt,.html,.htm,.md,.csv" multiple style="display:none;">
+      <div id="session-files-list"></div>
+    </div>
     <div class="sidebar-header">Create Document
       <span class="help-wrap">
         <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do I create a document?">?</span>
@@ -283,23 +290,6 @@ body {
         Include the course name, topics, question types, timeline, or any specific requirements.
       </p>
       <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional
-          <span class="help-wrap">
-            <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do attachments work?">?</span>
-            <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Attached photos can be shown in the generated document if relevant — type a note under an image (e.g. "show this diagram after the intro") to tell the AI where and how to use it. Text files are used as background reference only. Check "Save for reuse" on any attachment to keep it available for other documents too — manage saved materials from 📚 My Materials in the toolbar.</span>
-          </span>
-        </label>
-        <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById('doc-file-input').click()">
-          <span style="font-size:20px;">📎</span>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:#334155;">Add photos or documents</div>
-            <div style="font-size:11px;color:#94A3B8;margin-top:2px;">Images, .txt, .html, .csv — hold Ctrl/Cmd to select multiple</div>
-          </div>
-        </div>
-        <input type="file" id="doc-file-input" accept="image/*,.txt,.html,.htm,.md,.csv" multiple style="display:none;">
-        <div id="file-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-      </div>
     </div>
     <div style="padding:16px 24px;border-top:1px solid #E2E8F0;flex-shrink:0;">
       <button id="chat-gen-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Generate Document</button>
@@ -315,20 +305,6 @@ body {
       <button onclick="closeHistory()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
     </div>
     <div id="history-list" style="overflow-y:auto;padding:12px;font-size:13px;min-height:120px;"></div>
-  </div>
-</div>
-
-<!-- MATERIALS MODAL -->
-<div id="materials-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;width:560px;max-width:calc(100vw - 48px);max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0;">
-      <span style="font-size:15px;font-weight:700;color:#1E293B;">📚 My Materials</span>
-      <button onclick="closeMaterials()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
-    </div>
-    <div style="padding:16px 20px;overflow-y:auto;">
-      <div style="font-size:12px;color:#64748B;margin-bottom:12px;line-height:1.5;">Check which materials to use for the document you're about to create. To add a new one, attach a file or photo when creating a document and check "Save for reuse."</div>
-      <div id="materials-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-    </div>
   </div>
 </div>
 
@@ -477,156 +453,34 @@ function loadReferenceDocs() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// MY MATERIALS — teacher's persistent source material
+// SESSION FILES — loaded once, used for every document created this session.
+// Not persisted anywhere; cleared on page reload, or removed one at a time.
 // ═══════════════════════════════════════════════════════════
-var teacherMaterials = [];
-var selectedMaterialIds = [];
+var sessionFiles = [];
 
-function loadTeacherMaterials() {
-  fetch("/api/document-creator/materials")
-    .then(function(r) { return r.json(); })
-    .then(function(d) { if (Array.isArray(d.materials)) { teacherMaterials = d.materials; renderMaterialsList(); } })
-    .catch(function() {});
-}
-
-function openMaterials() {
-  document.getElementById("materials-overlay").style.display = "flex";
-  renderMaterialsList();
-}
-
-function closeMaterials() {
-  document.getElementById("materials-overlay").style.display = "none";
-}
-
-// The single place to pick which saved materials to use for a generation AND to delete
-// them — everything else (attaching / adding a material) happens via the normal
-// document-creation attachment flow with "Save for reuse" (see renderFileList/toggleFileReuse).
-function renderMaterialsList() {
-  var list = document.getElementById("materials-list");
+function renderSessionFilesList() {
+  var list = document.getElementById("session-files-list");
   if (!list) return;
-  if (!teacherMaterials.length) {
-    list.innerHTML = '<div style="padding:16px;color:#94A3B8;text-align:center;font-size:13px;">No saved materials yet.</div>';
+  if (!sessionFiles.length) {
+    list.innerHTML = '<div style="font-size:11px;color:#94A3B8;">No files loaded</div>';
     return;
   }
-  list.innerHTML = teacherMaterials.map(function(m) {
-    var checked = selectedMaterialIds.indexOf(m.id) !== -1;
-    var icon = m.kind === "image" ? "🖼️" : "📄";
-    var meta = m.kind === "image" ? "image" : (Math.round(m.chars / 1000) + "k chars");
-    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ' + (checked ? '#7C3AED' : '#E2E8F0') + ';background:' + (checked ? '#F5F3FF' : '#fff') + ';cursor:pointer;">'
-      + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleMaterialSelection(\'' + m.id + '\')" style="flex-shrink:0;">'
-      + '<span style="font-size:18px;flex-shrink:0;">' + icon + '</span>'
-      + '<div style="flex:1;min-width:0;">'
-      + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.name) + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + meta + ' &middot; ' + timeAgo(new Date(m.uploadedAt).getTime()) + '</div>'
-      + '</div>'
-      + '<button type="button" onclick="event.stopPropagation(); deleteMaterial(\'' + m.id + '\')" style="background:none;border:none;color:#DC2626;cursor:pointer;font-size:13px;font-family:inherit;">Delete</button>'
-      + '</label>';
-  }).join('');
-}
-
-function toggleMaterialSelection(id) {
-  var idx = selectedMaterialIds.indexOf(id);
-  if (idx === -1) selectedMaterialIds.push(id); else selectedMaterialIds.splice(idx, 1);
-  renderMaterialsList();
-}
-
-function deleteMaterial(id, skipConfirm) {
-  if (!skipConfirm && !confirm("Delete this material? This cannot be undone.")) return Promise.resolve();
-  return fetch("/api/document-creator/materials", {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: id })
-  }).then(function(r) { return r.json(); }).then(function() {
-    teacherMaterials = teacherMaterials.filter(function(m) { return m.id !== id; });
-    var idx = selectedMaterialIds.indexOf(id);
-    if (idx !== -1) selectedMaterialIds.splice(idx, 1);
-    renderMaterialsList();
-  }).catch(function() { alert("Could not delete material."); });
-}
-
-function deriveMaterialName(text, filename) {
-  if (filename) return filename.replace(/\.[^./]+$/, "");
-  var firstLine = (text || "").split(/\r?\n/).map(function(l) { return l.trim(); }).find(function(l) { return l.length; }) || "";
-  return firstLine.slice(0, 60) || ("Material " + new Date().toLocaleDateString());
-}
-
-// Promotes a one-off attachment (text or image) into a persistent, reusable material.
-async function persistMaterial(name, filename, text, imageData) {
-  var body = imageData
-    ? { name: name, filename: filename, kind: "image", mediaType: imageData.mediaType, data: imageData.data }
-    : { name: name, filename: filename, text: text };
-  var resp = await fetch("/api/document-creator/materials", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  var data = await resp.json();
-  if (!resp.ok) { alert(data.error || "Could not save material."); return null; }
-  teacherMaterials.push(data.material);
-  renderMaterialsList();
-  return data.material;
-}
-
-var chatState = { typeId: null };
-var _pendingFiles = [];
-
-function renderFileList() {
-  var list = document.getElementById("file-list");
-  if (!list) return;
-  list.innerHTML = _pendingFiles.map(function(f, i) {
-    var thumb = f.isImage
-      ? '<img src="data:' + f.mediaType + ';base64,' + f.data + '" style="width:34px;height:34px;object-fit:cover;border-radius:5px;flex-shrink:0;">'
-      : '<span style="font-size:20px;flex-shrink:0;">📄</span>';
-    var noteInput = f.isImage
-      ? '<input type="text" placeholder="How should this image be used? e.g. \'Show as a diagram after the intro\' (optional)" value="' + esc(f.note || '') + '" oninput="setFileNote(' + i + ', this.value)" style="width:100%;margin-top:5px;padding:6px 9px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;box-sizing:border-box;font-family:inherit;">'
-      : '';
-    var reuseLabel = f.savingReuse ? "Saving…" : (f.reuse ? "✓ Saved for reuse in other documents" : "Save for reuse in other documents");
-    var reuseRow = '<label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11px;color:#5B21B6;cursor:pointer;">'
-      + '<input type="checkbox" ' + (f.reuse ? 'checked' : '') + ' ' + (f.savingReuse ? 'disabled' : '') + ' onchange="toggleFileReuse(' + i + ')">'
-      + reuseLabel
-      + '</label>';
-    return '<div style="background:#F1F5F9;padding:7px 10px;border-radius:8px;">'
-      + '<div style="display:flex;align-items:center;gap:8px;">'
-      + thumb
-      + '<span style="flex:1;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</span>'
-      + '<button onclick="removeFile(' + i + ')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
-      + '</div>'
-      + noteInput
-      + reuseRow
+  list.innerHTML = sessionFiles.map(function(f, i) {
+    var icon = f.isImage ? "🖼️" : "📄";
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;color:#1E293B;">'
+      + '<span style="flex-shrink:0;">' + icon + '</span>'
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</span>'
+      + '<button type="button" onclick="removeSessionFile(' + i + ')" style="background:none;border:none;color:#94A3B8;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>'
       + '</div>';
   }).join('');
 }
 
-async function toggleFileReuse(i) {
-  var f = _pendingFiles[i];
-  if (!f) return;
-  if (!f.reuse) {
-    if (f.isImage && f.data && f.data.length * 0.75 > 8 * 1024 * 1024) {
-      alert("This image is too large to save for reuse (max 8 MB).");
-      return;
-    }
-    f.reuse = true;
-    f.savingReuse = true;
-    renderFileList();
-    var name = deriveMaterialName(f.isImage ? "" : f.text, f.name);
-    var material = f.isImage
-      ? await persistMaterial(name, f.name, "", { mediaType: f.mediaType, data: f.data })
-      : await persistMaterial(name, f.name, f.text);
-    f.savingReuse = false;
-    if (material) { f.materialId = material.id; } else { f.reuse = false; }
-    renderFileList();
-  } else {
-    var idToDelete = f.materialId;
-    f.reuse = false;
-    f.materialId = null;
-    renderFileList();
-    if (idToDelete) await deleteMaterial(idToDelete, true);
-  }
+function removeSessionFile(i) {
+  sessionFiles.splice(i, 1);
+  renderSessionFilesList();
 }
 
-function setFileNote(index, value) {
-  if (_pendingFiles[index]) _pendingFiles[index].note = value;
-}
+var chatState = { typeId: null };
 
 function toggleHelp(icon) {
   var pop = icon.nextElementSibling;
@@ -648,11 +502,6 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.help-pop.open').forEach(function(p) { p.classList.remove('open'); });
   }
 });
-
-function removeFile(index) {
-  _pendingFiles.splice(index, 1);
-  renderFileList();
-}
 
 // ═══════════════════════════════════════════════════════════
 // HELPERS
@@ -788,15 +637,14 @@ function buildPromptFromInput(typeId, description) {
       + selectedDocs.map(function(d) { return "[" + d.name + "]\n" + d.text; }).join("\n\n") + "\n\n"
     : "";
 
-  var selectedMaterials = selectedMaterialIds.map(function(id) { return teacherMaterials.find(function(m) { return m.id === id; }); }).filter(Boolean);
-  var selectedTextMaterials = selectedMaterials.filter(function(m) { return m.kind !== "image"; });
-  var materialBlock = selectedTextMaterials.length
+  var sessionTextFiles = sessionFiles.filter(function(f) { return !f.isImage; });
+  var materialBlock = sessionTextFiles.length
     ? "SOURCE MATERIALS — this is the primary content basis for this document; ground all content in this text before adding anything else:\n\n"
-      + selectedTextMaterials.map(function(m) { return "[" + m.name + "]\n" + m.text; }).join("\n\n") + "\n\n"
+      + sessionTextFiles.map(function(f) { return "[" + f.name + "]\n" + f.text; }).join("\n\n") + "\n\n"
     : "";
 
   var teacherBlock = description
-    ? (selectedMaterials.length
+    ? (sessionTextFiles.length
         ? "ADDITIONAL INSTRUCTIONS — apply on top of the source materials above; defer to admin requirements where there is any conflict:\n" + description + "\n\n"
         : "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n")
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
@@ -978,9 +826,6 @@ function openChat(typeId) {
   chatState.typeId = typeId;
   document.getElementById("chat-icon").textContent = type.icon;
   document.getElementById("chat-title").textContent = type.label;
-  document.getElementById("doc-file-input").value = "";
-  _pendingFiles = [];
-  renderFileList();
 
   var questions = (adminSettings[typeId] || {}).questions || [];
   var hintEl = document.getElementById("chat-hint");
@@ -1001,12 +846,6 @@ function openChat(typeId) {
 
 function closeChat() {
   document.getElementById("chat-overlay").style.display = "none";
-}
-
-function clearFile() {
-  _pendingFiles = [];
-  document.getElementById("doc-file-input").value = "";
-  renderFileList();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1041,30 +880,18 @@ async function generate() {
   var paperEl = document.getElementById("doc-paper");
   var streaming = false;
   var prompt = buildPromptFromInput(state.selectedType, description);
-  _pendingFiles.forEach(function(f) {
-    if (!f.isImage && f.text) {
-      prompt += "\n\nTEACHER-ATTACHED FILE — " + f.name + " (use as content reference, subject to admin requirements):\n\n" + f.text;
-    }
-  });
-  var selectedImageMaterials = selectedMaterialIds
-    .map(function(id) { return teacherMaterials.find(function(m) { return m.id === id; }); })
-    .filter(function(m) { return m && m.kind === "image"; })
-    .map(function(m) { return { name: m.name, isImage: true, mediaType: m.mediaType, data: m.data, note: "" }; });
-  var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; }).concat(selectedImageMaterials);
+  var teacherImages = sessionFiles.filter(function(f) { return f.isImage; });
   var parts = [];
   teacherImages.forEach(function(f) {
     parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
   });
   var imageNote = "";
   if (teacherImages.length) {
-    imageNote += " The teacher attached " + teacherImages.length + " image(s), 0-indexed in the order listed.";
-    var instructed = teacherImages.map(function(f, i) { return f.note && f.note.trim() ? ("Image " + i + ": " + f.note.trim()) : null; }).filter(Boolean);
-    if (instructed.length) imageNote += " Teacher instructions for specific images — " + instructed.join(" | ") + ".";
-    imageNote += " If displaying one of these images would improve the document (e.g. a diagram, photo, or reference figure the document is about), insert exactly one tag like <img data-teacher-image=\"INDEX\" style=\"max-width:100%;\"> at the best location in the HTML for each image you choose to show, where INDEX matches the image's position — do not set a src attribute yourself, it will be filled in automatically. Follow any teacher instructions above for where and how to use each image. If an image is only useful as background reference and shouldn't visually appear in the document, don't insert a tag for it.";
+    imageNote += " " + teacherImages.length + " image(s) were loaded, 0-indexed in the order listed.";
+    imageNote += " If displaying one of these images would improve the document (e.g. a diagram, photo, or reference figure the document is about), insert exactly one tag like <img data-teacher-image=\"INDEX\" style=\"max-width:100%;\"> at the best location in the HTML for each image you choose to show, where INDEX matches the image's position — do not set a src attribute yourself, it will be filled in automatically. If an image is only useful as background reference and shouldn't visually appear in the document, don't insert a tag for it.";
   }
   parts.push({ type: "text", text: prompt + imageNote });
   var messages = [{ role: "user", content: parts.length === 1 ? parts[0].text : parts }];
-  _pendingFiles = [];
   try {
     var html = await callClaude(messages, function(partial) {
       if (!streaming) { setMainState("doc"); streaming = true; }
@@ -1277,8 +1104,6 @@ document.getElementById("btn-word").addEventListener("click", downloadWord);
 document.getElementById("btn-sharepoint").addEventListener("click", saveToSharePoint);
 document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
-document.getElementById("btn-materials").addEventListener("click", openMaterials);
-document.getElementById("materials-overlay").addEventListener("click", function(e) { if (e.target === this) closeMaterials(); });
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
@@ -1297,7 +1122,7 @@ document.getElementById("chat-gen-btn").addEventListener("click", generate);
 document.getElementById("chat-overlay").addEventListener("click", function(e) {
   if (e.target === document.getElementById("chat-overlay")) closeChat();
 });
-document.getElementById("doc-file-input").addEventListener("change", function(e) {
+document.getElementById("session-file-input").addEventListener("change", function(e) {
   var files = Array.from(e.target.files);
   e.target.value = "";
   files.forEach(function(file) {
@@ -1307,14 +1132,14 @@ document.getElementById("doc-file-input").addEventListener("change", function(e)
     if (isImage) {
       reader.onload = function(ev) {
         var d = ev.target.result, comma = d.indexOf(",");
-        _pendingFiles.push({ name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1), reuse: false, materialId: null });
-        renderFileList();
+        sessionFiles.push({ name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1) });
+        renderSessionFilesList();
       };
       reader.readAsDataURL(file);
     } else if (isText) {
       reader.onload = function(ev) {
-        _pendingFiles.push({ name: file.name, isImage: false, text: ev.target.result, reuse: false, materialId: null });
-        renderFileList();
+        sessionFiles.push({ name: file.name, isImage: false, text: ev.target.result });
+        renderSessionFilesList();
       };
       reader.readAsText(file);
     }
@@ -1512,7 +1337,7 @@ async function initAuth() {
       }
     } catch(e) {}
     loadReferenceDocs();
-    loadTeacherMaterials();
+    renderSessionFilesList();
 
     // Hide auth overlay and initialize
     document.getElementById("auth-overlay").style.display = "none";
