@@ -52,54 +52,68 @@ function htmlToStructuredText(html: string): string {
 
 // Use Mozilla's actively-maintained pdfjs-dist first. pdf-parse bundles a much older pdf.js
 // engine that fails on some real-world PDFs, including files that newer pdfjs-dist can recover.
-async function extractPdfText(buffer: Buffer): Promise<string> {
+async function extractTextFromPdfDocument(doc: any): Promise<string> {
+  let text = '';
   try {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    // Resolve the worker file's real location via the package's own package.json (a plain JSON
-    // file, so webpack can resolve it) rather than letting pdfjs-dist guess — that guess is what
-    // breaks under Next.js's server bundling. The ESM loader needs a proper file:// URL, not a
-    // raw filesystem path (required on Windows, and the officially correct form everywhere).
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item: any) => ('str' in item ? item.str : '')).join(' ') + '\n\n';
+    }
+  } finally {
+    await doc.destroy?.();
+  }
+  return text;
+}
+
+async function extractPdfTextWithPdfjs(buffer: Buffer, withAssets: boolean): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const data = new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+  const options: any = {
+    data,
+    stopAtErrors: false,
+    verbosity: pdfjs.VerbosityLevel.ERRORS,
+    disableFontFace: true,
+    useSystemFonts: false,
+    useWorkerFetch: false,
+  };
+
+  if (withAssets) {
     const path = await import('path');
     const { pathToFileURL } = await import('url');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pkgPath = require.resolve('pdfjs-dist/package.json');
     const pkgDir = path.dirname(pkgPath);
     pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(pkgDir, 'legacy/build/pdf.worker.mjs')).href;
-    const standardFontDataPath = path.join(pkgDir, 'standard_fonts') + path.sep;
-    const cMapPath = path.join(pkgDir, 'cmaps') + path.sep;
-    const doc = await pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      stopAtErrors: false,
-      verbosity: pdfjs.VerbosityLevel.ERRORS,
-      // Point directly at the font/CMap data bundled in the package instead of letting pdfjs-dist
-      // guess where to load it from — that guess is unreliable in serverless Node environments
-      // and is the likely source of internal errors on PDFs with non-embedded or CJK fonts.
-      standardFontDataUrl: standardFontDataPath,
-      cMapUrl: cMapPath,
-      cMapPacked: true,
-      useWorkerFetch: false,
-      disableFontFace: true,
-      useSystemFonts: false,
-    }).promise;
-    let text = '';
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item) => ('str' in item ? item.str : '')).join(' ') + '\n\n';
-    }
-    return text;
-  } catch (pdfjsError) {
-    // Keep pdf-parse as a last-resort fallback for any PDFs that its older text renderer handles
-    // differently, but avoid making it the primary path for uploaded documents.
+    options.standardFontDataUrl = pathToFileURL(path.join(pkgDir, 'standard_fonts') + path.sep).href;
+    options.cMapUrl = pathToFileURL(path.join(pkgDir, 'cmaps') + path.sep).href;
+    options.cMapPacked = true;
+  }
+
+  const doc = await pdfjs.getDocument(options).promise;
+  return extractTextFromPdfDocument(doc);
+}
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const errors: string[] = [];
+  for (const withAssets of [false, true]) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(buffer);
-      return data.text;
-    } catch {
-      throw pdfjsError;
+      return await extractPdfTextWithPdfjs(buffer, withAssets);
+    } catch (err: any) {
+      errors.push(err?.message || String(err));
     }
   }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(Buffer.from(buffer));
+    return data.text;
+  } catch (err: any) {
+    errors.push(err?.message || String(err));
+  }
+
+  throw new Error(`PDF text extraction failed after ${errors.length} attempts: ${errors.join(' | ')}`);
 }
 
 const CORS = {
