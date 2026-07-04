@@ -751,8 +751,7 @@ export default function AdminPage() {
                         )}
                       </div>
                       <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Teacher Questions<Help text="If set, teachers see these as short-answer fields instead of a free-text description box when creating this document type — useful for guiding them to provide exactly the details the AI needs." /></div>
-                        <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>One question per line. Teachers fill these in before generating — replaces the blank description box.</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Detailed Instructions<Help text="Shown to teachers as guidance above the description box when creating this document type — useful for telling them exactly what details the AI needs." /></div>
                         <textarea
                           value={docQuestions[t.id] || ''}
                           onChange={e => setDocQuestions({ ...docQuestions, [t.id]: e.target.value })}
