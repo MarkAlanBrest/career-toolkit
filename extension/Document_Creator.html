@@ -641,6 +641,7 @@ function buildPromptFromInput(typeId, description) {
     + "LANGUAGE REGISTER: Discipline-appropriate vocabulary for adult learners.\n"
     + "STRICTLY AVOID: emojis, exclamation points, 'Let's explore!', 'Great job!', 'Fun Fact!', or any student-cheerleading language.\n"
     + "FORMAT: Return ONLY valid HTML body content — no <html>/<head>/<body> tags. No markdown code fences.\n"
+    + "NEVER include any preamble, narration, or meta-commentary about what you are about to do or did (e.g. no sentences like 'I'll search for...' or 'Now I'll create...', even when using tools). Your entire response must be the document itself, starting immediately with the first HTML tag — nothing before it, nothing after it.\n"
     + "Use ONLY inline CSS — no <style> blocks. Every tag must be properly closed.\n"
     + "PRIMARY COLOR: " + color + " — borders, section headings, accent elements. LIGHT TINT: " + lc + " — header backgrounds, table header backgrounds.\n"
     + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n"
@@ -979,7 +980,11 @@ function setMainState(which) {
 // GENERATE
 // ═══════════════════════════════════════════════════════════
 function stripFences(s) {
-  return s.replace(/^```(?:html)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+  var cleaned = s.replace(/^```(?:html)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+  // Safety net: if the model narrates before the document ("I'll search for...") despite being
+  // told not to, drop everything before the first tag rather than showing that text to the user.
+  var tagIndex = cleaned.indexOf("<");
+  return tagIndex === -1 ? "" : cleaned.slice(tagIndex);
 }
 
 async function generate() {
