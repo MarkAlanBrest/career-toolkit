@@ -83,6 +83,25 @@ body {
   flex-shrink: 0;
 }
 
+/* Type category tabs */
+#type-tabs { display: flex; gap: 2px; padding: 8px 8px 0; flex-shrink: 0; }
+.type-tab {
+  flex: 1;
+  padding: 7px 4px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: background 0.15s, color 0.15s;
+}
+.type-tab:hover { background: #F1F5F9; }
+.type-tab.active { background: #F5F3FF; color: #7C3AED; }
+
 /* Type list */
 #type-list { flex: 1; overflow-y: auto; padding: 8px; }
 .type-item {
@@ -236,6 +255,11 @@ body {
         <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Click a document type below to open a guided form. Your school admin may have set required questions or built-in requirements for each type.</span>
       </span>
     </div>
+    <div id="type-tabs">
+      <button type="button" class="type-tab" data-cat="teaching" onclick="setActiveCategory('teaching')">Teaching Materials</button>
+      <button type="button" class="type-tab" data-cat="admin" onclick="setActiveCategory('admin')">Administrative</button>
+      <button type="button" class="type-tab" data-cat="other" onclick="setActiveCategory('other')">Other</button>
+    </div>
     <div id="type-list"></div>
   </div>
 
@@ -367,6 +391,16 @@ var DOC_TYPES = (function(){
 function saveDocTypes() {
   try { localStorage.setItem("doc_creator_types", JSON.stringify(DOC_TYPES)); } catch(e) {}
 }
+
+// Fixed grouping for the sidebar tabs — any type id not listed here (e.g. a school's own
+// custom document type) falls back to "other".
+var DOC_TYPE_CATEGORIES = {
+  worksheet: "teaching", studyguide: "teaching", vocablist: "teaching", readingguide: "teaching",
+  funactivity: "teaching", creative: "teaching", lessonplan: "teaching", projectguide: "teaching",
+  research: "teaching", test: "teaching", rubric: "teaching",
+  syllabus: "admin", safetycontract: "admin", missingwork: "admin", obschecklist: "admin", incident: "admin"
+};
+function categoryForType(typeId) { return DOC_TYPE_CATEGORIES[typeId] || "other"; }
 
 var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","#155E75","#1E293B","#3B1F5C","#065F46","#831843","#1C3557"];
 
@@ -799,10 +833,28 @@ function getLayoutInstructions(typeId, color, lc) {
 // ═══════════════════════════════════════════════════════════
 // UI — TYPE LIST
 // ═══════════════════════════════════════════════════════════
+var activeTypeCategory = "teaching";
+
+function setActiveCategory(cat) {
+  activeTypeCategory = cat;
+  renderTypeList();
+}
+
 function renderTypeList() {
+  document.querySelectorAll(".type-tab").forEach(function(btn) {
+    btn.classList.toggle("active", btn.getAttribute("data-cat") === activeTypeCategory);
+  });
+
   var list = document.getElementById("type-list");
   list.innerHTML = "";
-  DOC_TYPES.forEach(function(type) {
+  var typesInCategory = DOC_TYPES.filter(function(type) { return categoryForType(type.id) === activeTypeCategory; });
+
+  if (!typesInCategory.length) {
+    list.innerHTML = '<div style="padding:16px 10px;color:#94A3B8;font-size:12px;text-align:center;">No document types in this category yet.</div>';
+    return;
+  }
+
+  typesInCategory.forEach(function(type) {
     var el = document.createElement("div");
     el.className = "type-item" + (state.selectedType === type.id ? " active" : "");
     el.innerHTML = '<span class="type-icon">' + type.icon + '</span>'
@@ -824,6 +876,7 @@ function openChat(typeId) {
   if (!type) return;
   state.selectedType = typeId;
   chatState.typeId = typeId;
+  activeTypeCategory = categoryForType(typeId);
   document.getElementById("chat-icon").textContent = type.icon;
   document.getElementById("chat-title").textContent = type.label;
 
@@ -1261,6 +1314,7 @@ function restoreFromHistory(idx) {
   if (!doc) return;
   state.generatedHTML = doc.html;
   state.selectedType = doc.docType;
+  activeTypeCategory = categoryForType(doc.docType);
   document.getElementById("doc-paper").innerHTML = doc.html;
   setMainState("doc");
   renderTypeList();
