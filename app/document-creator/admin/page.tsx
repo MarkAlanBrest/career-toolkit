@@ -44,6 +44,10 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'creative',      label: 'Creative Assignment',     icon: '🎨', color: '#6D28D9' },
   { id: 'custom',        label: 'Custom Document',         icon: '📄', color: '#475569' },
   { id: 'resourceguide', label: 'Resource Guide',          icon: '🔗', color: '#0F766E' },
+  { id: 'certificate',   label: 'Certificate of Completion', icon: '🏆', color: '#92400E' },
+  { id: 'icebreaker',    label: 'Icebreaker Activity Guide', icon: '🤝', color: '#0369A1' },
+  { id: 'concernnotice', label: 'Academic Concern Notice', icon: '🚩', color: '#9F1239' },
+  { id: 'advisingsummary', label: 'Advising/Progress Summary', icon: '🧭', color: '#5B21B6' },
 ];
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {

@@ -373,7 +373,11 @@ var DOC_TYPES_DEFAULT = [
   { id:"funactivity",   label:"Fun Activity",               icon:"🎯", color:"#B45309", desc:"Engaging in-class activity, game, or group exercise" },
   { id:"creative",      label:"Creative Assignment",        icon:"🎨", color:"#6D28D9", desc:"Open-ended creative project with requirements and rubric" },
   { id:"custom",        label:"Custom Document",            icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" },
-  { id:"resourceguide", label:"Resource Guide",             icon:"🔗", color:"#0F766E", desc:"Curated videos and links for a topic — YouTube, Khan Academy, and more" }
+  { id:"resourceguide", label:"Resource Guide",             icon:"🔗", color:"#0F766E", desc:"Curated videos and links for a topic — YouTube, Khan Academy, and more" },
+  { id:"certificate",   label:"Certificate of Completion",  icon:"🏆", color:"#92400E", desc:"Program or course completion certificate for a student" },
+  { id:"icebreaker",    label:"Icebreaker Activity Guide",  icon:"🤝", color:"#0369A1", desc:"First-day-of-class team-building activity with instructions and debrief" },
+  { id:"concernnotice", label:"Academic Concern Notice",    icon:"🚩", color:"#9F1239", desc:"Documents an attendance or performance concern, sent to the student" },
+  { id:"advisingsummary", label:"Advising/Progress Summary", icon:"🧭", color:"#5B21B6", desc:"Summary notes from a student-advisor check-in" }
 ];
 
 var DOC_TYPES = (function(){
@@ -398,8 +402,9 @@ function saveDocTypes() {
 var DOC_TYPE_CATEGORIES = {
   worksheet: "teaching", studyguide: "teaching", vocablist: "teaching", readingguide: "teaching",
   funactivity: "teaching", creative: "teaching", lessonplan: "teaching", projectguide: "teaching",
-  research: "teaching", test: "teaching", rubric: "teaching",
-  syllabus: "admin", safetycontract: "admin", missingwork: "admin", obschecklist: "admin", incident: "admin"
+  research: "teaching", test: "teaching", rubric: "teaching", icebreaker: "teaching",
+  syllabus: "admin", safetycontract: "admin", missingwork: "admin", obschecklist: "admin", incident: "admin",
+  concernnotice: "admin", advisingsummary: "admin"
 };
 function categoryForType(typeId) { return DOC_TYPE_CATEGORIES[typeId] || "other"; }
 
@@ -840,6 +845,43 @@ function getLayoutInstructions(typeId, color, lc) {
     + "6. Footer note — small gray text: 'Links verified at time of generation — confirm they still work before sharing with students.'\n";
 
   if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for borders and accents; use the light tint (" + lc + ") for header backgrounds. Make it complete and professional.\n";
+
+  if (typeId === "certificate") return "LAYOUT — this is a single decorative certificate, not a multi-section report:\n"
+    + "1. Full-page ornamental border: outer div style=\"border:10px double " + color + "; padding:60px 70px; text-align:center; min-height:600px; display:flex; flex-direction:column; align-items:center; justify-content:center;\"\n"
+    + "2. Small eyebrow text above the title: school name, letter-spaced, uppercase, Arial 13px #64748B\n"
+    + "3. Title 'CERTIFICATE OF COMPLETION' — Georgia 40px color:" + color + " bold, letter-spacing:1px, centered\n"
+    + "4. 'This certifies that' — Arial 14px #475569 italic\n"
+    + "5. Student name placeholder line — Georgia 32px color:#1E293B, with a ruled underline beneath it (border-bottom:2px solid " + color + "; padding-bottom:6px; min-width:320px;) if no name was given, leave blank for the school to fill in by hand\n"
+    + "6. 'has successfully completed' followed by the program/course name in bold Georgia 20px\n"
+    + "7. Completion date, centered, Arial 13px\n"
+    + "8. Signature block near the bottom: two ruled lines side by side (display:flex; gap:60px; margin-top:50px;) labeled 'Program Director' and 'Date', each border-bottom:1px solid #1E293B; padding-bottom:4px;\n"
+    + "9. Optional small decorative seal element — a circle (border-radius:50%; border:3px solid " + color + "; width:70px; height:70px;) with a star or short text inside, positioned near the signature block\n";
+
+  if (typeId === "icebreaker") return "LAYOUT:\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Activity title (Georgia 26px color:" + color + " bold), subtitle noting best use (e.g. 'First day of class' or 'New group icebreaker')\n"
+    + "2. AT A GLANCE — info bar: Time Needed | Group Size | Materials Needed (three columns or a compact table)\n"
+    + "3. OBJECTIVE — one sentence on what this activity accomplishes\n"
+    + "4. INSTRUCTIONS — numbered step-by-step directions to run the activity\n"
+    + "5. DEBRIEF QUESTIONS — 3-5 discussion questions to ask afterward, bulleted\n"
+    + "6. VARIATIONS — optional callout box with 1-2 adaptations (larger/smaller group, virtual/remote version, shy-group alternative)\n";
+
+  if (typeId === "concernnotice") return "LAYOUT:\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Academic Concern Notice' (Georgia 26px color:" + color + " bold)\n"
+    + "2. Info bar: Student Name: _____________ | Course: _____________ | Date: _____________\n"
+    + "3. NATURE OF CONCERN — one clear paragraph describing the issue (attendance, performance, conduct — whichever applies)\n"
+    + "4. SPECIFIC INSTANCES — table: Date | Description | Action Taken So Far. At least 2 example rows if the teacher didn't provide specifics.\n"
+    + "5. IMPACT IF UNADDRESSED — callout box (background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 20px;) explaining consequences to academic standing\n"
+    + "6. REQUESTED NEXT STEPS — numbered list of what the student needs to do and by when\n"
+    + "7. Signature block: Instructor Signature/Date and Student Acknowledgment/Date, side by side ruled lines\n"
+    + "8. Footer note, small gray text: 'cc: Academic Advisor / Department' \n";
+
+  if (typeId === "advisingsummary") return "LAYOUT:\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Advising Summary' (Georgia 26px color:" + color + " bold)\n"
+    + "2. Info bar: Student Name: _____________ | Advisor: _____________ | Date: _____________ | Term: _____________\n"
+    + "3. DISCUSSION SUMMARY — one or two paragraphs on what was covered in the meeting\n"
+    + "4. ACADEMIC STANDING — compact table or bullet list of relevant status info (e.g. credits completed, current standing, progress toward program)\n"
+    + "5. ACTION ITEMS — checklist using ☐ prefix, one item per line, of goals or tasks agreed on\n"
+    + "6. FOLLOW-UP PLAN — next meeting date and any resources or offices the student was referred to\n";
 
   return "Generate a complete, professional document using all the information provided.\n";
 }
