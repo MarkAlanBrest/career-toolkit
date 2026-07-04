@@ -227,7 +227,7 @@ body {
         <button type="button" onclick="document.getElementById('session-file-input').click()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">+ Add Files</button>
       </div>
       <div style="font-size:10px;color:#94A3B8;margin-bottom:6px;line-height:1.4;">Used in every document you create this session. Cleared when you close the app.</div>
-      <input type="file" id="session-file-input" accept="image/*,.txt,.html,.htm,.md,.csv" multiple style="display:none;">
+      <input type="file" id="session-file-input" accept="image/*,.txt,.html,.htm,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx" multiple style="display:none;">
       <div id="session-files-list"></div>
     </div>
     <div class="sidebar-header">Create Document
@@ -466,10 +466,10 @@ function renderSessionFilesList() {
     return;
   }
   list.innerHTML = sessionFiles.map(function(f, i) {
-    var icon = f.isImage ? "🖼️" : "📄";
-    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;color:#1E293B;">'
+    var icon = f.loading ? "⏳" : (f.isImage ? "🖼️" : "📄");
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:12px;color:' + (f.loading ? '#94A3B8' : '#1E293B') + ';">'
       + '<span style="flex-shrink:0;">' + icon + '</span>'
-      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</span>'
+      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + (f.loading ? ' — reading…' : '') + '</span>'
       + '<button type="button" onclick="removeSessionFile(' + i + ')" style="background:none;border:none;color:#94A3B8;cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>'
       + '</div>';
   }).join('');
@@ -1127,7 +1127,7 @@ document.getElementById("session-file-input").addEventListener("change", functio
   e.target.value = "";
   files.forEach(function(file) {
     var isImage = file.type.startsWith("image/");
-    var isText = /\.(txt|html|htm|md|csv)$/i.test(file.name) || ["text/plain","text/html","text/markdown","text/csv"].indexOf(file.type) !== -1;
+    var isPlainText = /\.(txt|html|htm|md|csv)$/i.test(file.name) || ["text/plain","text/html","text/markdown","text/csv"].indexOf(file.type) !== -1;
     var reader = new FileReader();
     if (isImage) {
       reader.onload = function(ev) {
@@ -1136,12 +1136,45 @@ document.getElementById("session-file-input").addEventListener("change", functio
         renderSessionFilesList();
       };
       reader.readAsDataURL(file);
-    } else if (isText) {
+    } else if (isPlainText) {
       reader.onload = function(ev) {
         sessionFiles.push({ name: file.name, isImage: false, text: ev.target.result });
         renderSessionFilesList();
       };
       reader.readAsText(file);
+    } else {
+      // PDF, Word, Excel — extract text server-side via /api/parse-file. Nothing is persisted;
+      // the extracted text just lands in the in-memory sessionFiles list like any other file.
+      var placeholder = { name: file.name, isImage: false, text: "", loading: true };
+      sessionFiles.push(placeholder);
+      renderSessionFilesList();
+      reader.onload = function(ev) {
+        var d = ev.target.result, comma = d.indexOf(",");
+        fetch("/api/parse-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ b64: d.slice(comma + 1), filename: file.name, mimeType: file.type })
+        })
+          .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+          .then(function(res) {
+            var idx = sessionFiles.indexOf(placeholder);
+            if (idx === -1) return;
+            if (!res.ok) {
+              alert("Could not read " + file.name + ": " + (res.data.error || "unsupported file."));
+              sessionFiles.splice(idx, 1);
+            } else {
+              sessionFiles[idx] = { name: file.name, isImage: false, text: res.data.text };
+            }
+            renderSessionFilesList();
+          })
+          .catch(function() {
+            var idx = sessionFiles.indexOf(placeholder);
+            if (idx !== -1) sessionFiles.splice(idx, 1);
+            alert("Could not read " + file.name + ".");
+            renderSessionFilesList();
+          });
+      };
+      reader.readAsDataURL(file);
     }
   });
 });
