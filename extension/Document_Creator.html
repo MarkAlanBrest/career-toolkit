@@ -490,10 +490,43 @@ function enableInlineEditing() {
   });
 }
 
+function getSectionIconLabel(text) {
+  var s = (text || "").toLowerCase();
+  if (/safety|hazard|incident|warning|policy|ppe|risk/.test(s)) return "!";
+  if (/objective|outcome|goal|standard/.test(s)) return "OBJ";
+  if (/material|resource|equipment|tool|supply/.test(s)) return "MAT";
+  if (/procedure|step|process|activity|task|assignment/.test(s)) return "DO";
+  if (/assessment|rubric|grading|score|evaluation/.test(s)) return "A";
+  if (/signature|approval|acknowledg/.test(s)) return "SIG";
+  if (/schedule|date|timeline|due/.test(s)) return "CAL";
+  if (/vocabulary|term|definition/.test(s)) return "VOC";
+  return "SEC";
+}
+
+function applyDocumentStyleEnhancements(typeId) {
+  var paper = document.getElementById("doc-paper");
+  if (!paper || !typeId) return;
+  var options = getStyleOptions(typeId);
+  paper.querySelectorAll("[data-doc-icon]").forEach(function(el) { el.remove(); });
+  if (!options.icons) return;
+  var color = getThemeColor(typeId);
+  paper.querySelectorAll("h2,h3,h4,h5,h6").forEach(function(heading) {
+    if (!heading.textContent || !heading.textContent.trim()) return;
+    var icon = document.createElement("span");
+    icon.setAttribute("data-doc-icon", "true");
+    icon.setAttribute("contenteditable", "false");
+    icon.textContent = getSectionIconLabel(heading.textContent);
+    icon.style.cssText = "display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 6px;margin-right:9px;border-radius:5px;border:1px solid " + color + ";color:" + color + ";background:#fff;font-family:Arial,sans-serif;font-size:10px;font-weight:800;line-height:1;vertical-align:middle;";
+    heading.insertBefore(icon, heading.firstChild);
+  });
+}
+
 function renderGeneratedDocument(html) {
   state.generatedHTML = html;
   document.getElementById("doc-paper").innerHTML = html;
+  applyDocumentStyleEnhancements(state.selectedType);
   enableInlineEditing();
+  state.generatedHTML = serializeCurrentDocument();
 }
 
 var ADMIN_DEFAULTS = {
