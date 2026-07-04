@@ -177,6 +177,20 @@ body {
   border-radius: 3px;
   overflow: hidden;
 }
+.doc-editable {
+  outline: 1px solid transparent;
+  outline-offset: 2px;
+  border-radius: 3px;
+  cursor: text;
+}
+.doc-editable:hover {
+  outline-color: #CBD5E1;
+  background: rgba(248,250,252,0.7);
+}
+.doc-editable:focus {
+  outline-color: #4F46E5;
+  background: #fff;
+}
 
 
 /* ── HELP ICON / POPOVER ───────────────────────────── */
@@ -198,6 +212,7 @@ body {
   #refine-bar { display: none !important; }
   #history-overlay { display: none !important; }
   #doc-paper { box-shadow: none; border-radius: 0; }
+  .doc-editable { outline: none !important; background: transparent !important; }
   #placeholder, #loading { display: none !important; }
 }
 </style>
@@ -432,6 +447,54 @@ function lightenHex(hex, amount) {
 }
 function getThemeColor(typeId) { return themeToHex(adminSettings[typeId] && adminSettings[typeId].theme); }
 function getThemeLightColor(typeId) { return lightenHex(getThemeColor(typeId), 0.9); }
+var DEFAULT_STYLE_OPTIONS = { lines:false, numbered:false, infoBar:false, callouts:false, checklist:false, signature:false, pageNumbers:false, icons:false, headerStyle:"classic" };
+function getStyleOptions(typeId) {
+  return Object.assign({}, DEFAULT_STYLE_OPTIONS, (adminSettings[typeId] && adminSettings[typeId].styleOptions) || {});
+}
+function getHeaderStyleInstructions(styleId, color, lc) {
+  if (styleId === "letterhead") {
+    return "HEADER STYLE: Formal letterhead. Use a white header with school name/logo area at top, title beneath it, and a clean 2px " + color + " rule under the header. Avoid large color-filled header blocks.\n";
+  }
+  if (styleId === "sidebar") {
+    return "HEADER STYLE: Modern sidebar. Put a vertical accent bar on the left (width 10-14px, background:" + color + ") and place title/subtitle in a clean white title block beside it. Use restrained spacing and no dark fills.\n";
+  }
+  if (styleId === "minimal") {
+    return "HEADER STYLE: Minimal top rule. Use a white header, compact title typography, and one thin top or bottom rule in " + color + ". Keep decorative elements minimal.\n";
+  }
+  return "HEADER STYLE: Classic band. Use a light tinted header background (" + lc + ") with a 5px solid colored top border (border-top:5px solid " + color + ") and dark readable text.\n";
+}
+
+function serializeCurrentDocument() {
+  var paper = document.getElementById("doc-paper");
+  if (!paper) return state.generatedHTML || "";
+  var clone = paper.cloneNode(true);
+  clone.querySelectorAll("[contenteditable]").forEach(function(el) {
+    el.removeAttribute("contenteditable");
+    el.removeAttribute("data-editable");
+    el.classList.remove("doc-editable");
+  });
+  return clone.innerHTML;
+}
+
+function enableInlineEditing() {
+  var paper = document.getElementById("doc-paper");
+  if (!paper) return;
+  paper.querySelectorAll("h1,h2,h3,h4,h5,h6,p,li,td,th,blockquote,figcaption").forEach(function(el) {
+    if (!el.textContent || !el.textContent.trim()) return;
+    el.setAttribute("contenteditable", "true");
+    el.setAttribute("data-editable", "true");
+    el.classList.add("doc-editable");
+    el.addEventListener("input", function() {
+      state.generatedHTML = serializeCurrentDocument();
+    });
+  });
+}
+
+function renderGeneratedDocument(html) {
+  state.generatedHTML = html;
+  document.getElementById("doc-paper").innerHTML = html;
+  enableInlineEditing();
+}
 
 var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
@@ -468,6 +531,9 @@ var adminSettings = (function(){
     DOC_TYPES.forEach(function(t) {
       if (!out[t.id]) out[t.id] = { notes: "" };
       if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
+      if (saved[t.id] && Array.isArray(saved[t.id].questions)) out[t.id].questions = saved[t.id].questions;
+      if (saved[t.id] && saved[t.id].styleOptions) out[t.id].styleOptions = Object.assign({}, DEFAULT_STYLE_OPTIONS, saved[t.id].styleOptions);
+      if (saved[t.id] && Array.isArray(saved[t.id].referenceDocs)) out[t.id].referenceDocs = saved[t.id].referenceDocs;
       if (saved[t.id] && isValidTheme(saved[t.id].theme)) out[t.id].theme = saved[t.id].theme;
     });
     return out;
@@ -635,6 +701,7 @@ function buildPromptFromInput(typeId, description) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
   var color = getThemeColor(typeId);
   var lc = getThemeLightColor(typeId);
+  var so = getStyleOptions(typeId);
 
   var base = "You are a senior curriculum specialist producing institutional-grade documents for a professional trade school or college.\n"
     + "VOICE & TONE: Formal, authoritative, and precise — no filler, no motivational fluff, no watered-down language.\n"
@@ -645,13 +712,13 @@ function buildPromptFromInput(typeId, description) {
     + "Use ONLY inline CSS — no <style> blocks. Every tag must be properly closed.\n"
     + "PRIMARY COLOR: " + color + " — borders, section headings, accent elements. LIGHT TINT: " + lc + " — header backgrounds, table header backgrounds.\n"
     + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n"
-    + "PRINT-FIRST DESIGN: All documents must print clearly in black and white. NEVER use dark background fills with white text. Document headers use light tinted background (" + lc + ") with a 5px solid colored top border (border-top:5px solid " + color + ") and dark text. Table headers use light tint background with colored bold text. All body text is dark (#1E293B or #475569). No white-on-dark anywhere.\n\n";
+    + "PRINT-FIRST DESIGN: All documents must print clearly in black and white. NEVER use dark background fills with white text. Table headers use light tint background with colored bold text. All body text is dark (#1E293B or #475569). No white-on-dark anywhere.\n"
+    + getHeaderStyleInstructions(so.headerStyle, color, lc) + "\n";
 
   var schoolBlock = adminSettings.schoolName
     ? "SCHOOL: " + adminSettings.schoolName + "\n\n"
     : "";
 
-  var so = (adminSettings[typeId] && adminSettings[typeId].styleOptions) || {};
   var styleLines = [];
   if (so.lines)    styleLines.push("Add a thin horizontal rule (style=\"border:none;border-top:1px solid #E2E8F0;margin:28px 0 16px;\") before each major section heading.");
   if (so.numbered) styleLines.push("Number all major sections (e.g., '1. Course Description', '2. Learning Outcomes', '3. Required Materials').");
@@ -659,6 +726,8 @@ function buildPromptFromInput(typeId, description) {
   if (so.callouts) styleLines.push("Wrap all policy text, warnings, and key requirements in a callout div (style=\"background:#F8FAFC;border-left:4px solid " + color + ";padding:14px 20px;margin:14px 0;border-radius:0 6px 6px 0;\").");
   if (so.checklist) styleLines.push("Wherever content is an actionable, completable, or gradable item (tasks, requirements, observation items, approval options), render it as a checkbox line using the ☐ character instead of a standard bullet — one checkbox item per line.");
   if (so.signature) styleLines.push("At the end of the document, add a signature block: ruled underline fields for 'Student Signature' and 'Date', and 'Instructor Signature' and 'Date' side by side (style=\"display:flex;gap:40px;margin-top:40px;padding-top:20px;border-top:1px solid #E2E8F0;\"; each field style=\"flex:1;border-bottom:1px solid #1E293B;padding-bottom:4px;font-size:12px;color:#475569;\"). If the document concerns a minor or requires parental consent, add a third 'Parent/Guardian Signature' and 'Date' field.");
+  if (so.pageNumbers) styleLines.push("Add a compact document footer with a page-number field suitable for printed handouts. If exact print counters are not supported in inline HTML, include a clean footer line with 'Page ____ of ____' on the lower right.");
+  if (so.icons) styleLines.push("Add restrained section markers before major headings using small monochrome text labels such as [i], [!], [check], or [list]. Do not use emoji, decorative clip art, or large icons.");
   var styleBlock = styleLines.length ? "SCHOOL STYLE — apply to every section of this document:\n" + styleLines.join("\n") + "\n\n" : "";
 
   var adminNotes = adminSettings[typeId] && adminSettings[typeId].notes && adminSettings[typeId].notes.trim();
@@ -1030,7 +1099,7 @@ async function generate() {
         + state.generatedHTML
         + '</div>';
     }
-    paperEl.innerHTML = state.generatedHTML;
+    renderGeneratedDocument(state.generatedHTML);
     setMainState("doc");
     saveToHistory();
     // Fire-and-forget usage tracking
@@ -1059,6 +1128,7 @@ function downloadPDF() { window.print(); }
 
 function downloadWord() {
   if (!state.generatedHTML) return;
+  state.generatedHTML = serializeCurrentDocument();
   var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
   var name = (type ? type.label : "Document").replace(/\s+/g, "_");
   var wrapped = "<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' "
@@ -1076,6 +1146,7 @@ function downloadWord() {
 
 async function saveToSharePoint() {
   if (!state.generatedHTML) return;
+  state.generatedHTML = serializeCurrentDocument();
   var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
   var btn = document.getElementById("btn-sharepoint");
   var origLabel = btn.textContent;
@@ -1299,6 +1370,7 @@ document.getElementById("session-file-input").addEventListener("change", functio
   });
 });
 document.getElementById("btn-copy").addEventListener("click", function() {
+  state.generatedHTML = serializeCurrentDocument();
   navigator.clipboard.writeText(state.generatedHTML).then(function() {
     var btn = document.getElementById("btn-copy");
     var orig = btn.textContent;
@@ -1319,6 +1391,7 @@ function timeAgo(ts) {
 
 function saveToHistory() {
   if (!state.generatedHTML || !state.selectedType) return;
+  state.generatedHTML = serializeCurrentDocument();
   var type = DOC_TYPES.find(function(t) { return t.id === state.selectedType; });
   var entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2),
@@ -1382,7 +1455,7 @@ function restoreFromHistory(idx) {
   state.generatedHTML = doc.html;
   state.selectedType = doc.docType;
   activeTypeCategory = categoryForType(doc.docType);
-  document.getElementById("doc-paper").innerHTML = doc.html;
+  renderGeneratedDocument(doc.html);
   setMainState("doc");
   renderTypeList();
   closeHistory();
@@ -1401,7 +1474,7 @@ async function refineDocument() {
   var paperEl = document.getElementById("doc-paper");
   try {
     var prompt = "You are editing an existing HTML document. Apply ONLY the requested change — preserve everything else exactly as-is: same structure, same sections, same inline CSS, same content not mentioned in the change.\n\n"
-      + "CURRENT DOCUMENT:\n" + state.generatedHTML + "\n\n"
+      + "CURRENT DOCUMENT:\n" + serializeCurrentDocument() + "\n\n"
       + "REQUESTED CHANGE: " + request + "\n\n"
       + "Return the complete updated HTML body content. Inline CSS only, no <html>/<head>/<body> tags, no markdown fences.";
     var html = await callClaude([{ role: "user", content: prompt }], function(partial) {
@@ -1413,7 +1486,7 @@ async function refineDocument() {
         + '<img src="' + adminSettings.logo + '" style="position:absolute;top:14px;right:24px;height:52px;max-width:180px;object-fit:contain;z-index:10;">'
         + state.generatedHTML + '</div>';
     }
-    paperEl.innerHTML = state.generatedHTML;
+    renderGeneratedDocument(state.generatedHTML);
     if (input) input.value = "";
     saveToHistory();
   } catch(err) {
@@ -1437,7 +1510,7 @@ function applyServerSettings(data) {
         if (src) {
           if (src.notes !== undefined) s[t.id].notes = src.notes;
           if (Array.isArray(src.questions)) s[t.id].questions = src.questions;
-          if (src.styleOptions) s[t.id].styleOptions = src.styleOptions;
+          if (src.styleOptions) s[t.id].styleOptions = Object.assign({}, DEFAULT_STYLE_OPTIONS, src.styleOptions);
           if (isValidTheme(src.theme)) s[t.id].theme = src.theme;
           if (Array.isArray(src.referenceDocs)) s[t.id].referenceDocs = src.referenceDocs;
         }
