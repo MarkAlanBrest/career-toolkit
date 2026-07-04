@@ -66,7 +66,7 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
       const content = await page.getTextContent();
-      text += content.items.map((item: { str?: string }) => item.str || '').join(' ') + '\n\n';
+      text += content.items.map((item) => ('str' in item ? item.str : '')).join(' ') + '\n\n';
     }
     return text;
   }
