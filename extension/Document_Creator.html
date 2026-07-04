@@ -683,8 +683,12 @@ function buildPromptFromInput(typeId, description) {
         : "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n")
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
 
-  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock
-    + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
+  var literalBlock = description
+    ? "FOLLOW THE TEACHER'S INPUT LITERALLY: if it gives an exact count, quantity, or question type (e.g. '20 true/false questions', '5 short answer'), the document MUST contain exactly that — do not round, substitute a different type, or treat it as a loose suggestion. Only deviate where it conflicts with an admin requirement above.\n\n"
+    : "";
+
+  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock + literalBlock
+    + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement or any specific count/format the teacher gave.\n\n"
     + getLayoutInstructions(typeId, color, lc);
 }
 
