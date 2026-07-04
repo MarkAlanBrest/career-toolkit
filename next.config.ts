@@ -4,7 +4,14 @@ const config: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   outputFileTracingIncludes: {
     '/document-creator/app': ['./extension/Document_Creator.html'],
+    // pdfjs-dist looks up its worker file by relative path at runtime — webpack bundling breaks
+    // that lookup (serverExternalPackages below prevents the bundling), so also make sure the
+    // worker file itself is actually copied into the deployed function.
+    '/api/parse-file': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
   },
+  // Load pdfjs-dist directly from node_modules at runtime instead of bundling it — bundling
+  // rewrites its internal worker-file path in a way that doesn't resolve on Vercel.
+  serverExternalPackages: ['pdfjs-dist'],
   async headers() {
     return [
       {

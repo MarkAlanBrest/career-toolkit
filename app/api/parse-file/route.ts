@@ -61,6 +61,16 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     return data.text;
   } catch {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    // Resolve the worker file's real location via the package's own package.json (a plain JSON
+    // file, so webpack can resolve it) rather than letting pdfjs-dist guess — that guess is what
+    // breaks under Next.js's server bundling. The ESM loader needs a proper file:// URL, not a
+    // raw filesystem path (required on Windows, and the officially correct form everywhere).
+    const path = await import('path');
+    const { pathToFileURL } = await import('url');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pkgPath = require.resolve('pdfjs-dist/package.json');
+    const workerPath = path.join(path.dirname(pkgPath), 'legacy/build/pdf.worker.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
     const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer), stopAtErrors: false, verbosity: 0 }).promise;
     let text = '';
     for (let i = 1; i <= doc.numPages; i++) {
