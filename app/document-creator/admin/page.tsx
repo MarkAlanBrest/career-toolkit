@@ -461,13 +461,46 @@ export default function AdminPage() {
     setNewTypeDesc('');
   }
 
-  function removeDocType(id: string) {
+  async function removeDocType(id: string) {
     if (!confirm(`Remove this document type? Its requirements will also be deleted.`)) return;
     const remaining = docTypes.filter(t => t.id !== id);
+    const newNotes = { ...docNotes }; delete newNotes[id];
+    const newQuestions = { ...docQuestions }; delete newQuestions[id];
+    const newStyles = { ...docStyles }; delete newStyles[id];
+    const newThemes = { ...docThemes }; delete newThemes[id];
+    const newRefs = { ...docRefs }; delete newRefs[id];
+
     setDocTypes(remaining);
-    const n = { ...docNotes }; delete n[id]; setDocNotes(n);
-    const q = { ...docQuestions }; delete q[id]; setDocQuestions(q);
+    setDocNotes(newNotes);
+    setDocQuestions(newQuestions);
+    setDocStyles(newStyles);
+    setDocThemes(newThemes);
+    setDocRefs(newRefs);
     if (selectedDocTypeId === id) setSelectedDocTypeId(remaining[0]?.id || '');
+
+    try {
+      const settingsResp = await fetch('/api/document-creator/settings');
+      const settingsData = await settingsResp.json();
+      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}) };
+      delete updated[id];
+      remaining.forEach(t => {
+        updated[t.id] = {
+          notes: newNotes[t.id] || '',
+          questions: newQuestions[t.id] ? [newQuestions[t.id]] : [],
+          styleOptions: newStyles[t.id] || DEFAULT_STYLE_OPTIONS,
+          theme: themeToHex(newThemes[t.id]),
+          referenceDocs: newRefs[t.id] || [],
+        };
+      });
+      await fetch('/api/document-creator/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminSettings: updated, docTypes: remaining }),
+      });
+      showMsg('Document type removed.');
+    } catch {
+      showMsg('Removed here, but failed to save — it may reappear on reload. Try again.', red);
+    }
   }
 
   async function logout() {
