@@ -71,10 +71,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Only the built-in web search tool may be requested — this is a public proxy, so arbitrary
+  // client-supplied tools are never forwarded to Anthropic.
+  const ALLOWED_TOOLS = ['web_search_20250305'];
+  const tools = Array.isArray(body.tools)
+    ? body.tools.filter((t: unknown) => ALLOWED_TOOLS.includes((t as { type?: string })?.type || ''))
+    : [];
+
   const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model, max_tokens, messages: body.messages, stream: true }),
+    body: JSON.stringify({ model, max_tokens, messages: body.messages, stream: true, ...(tools.length ? { tools } : {}) }),
   });
 
   if (!anthropicRes.ok) {
