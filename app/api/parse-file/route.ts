@@ -50,16 +50,10 @@ function htmlToStructuredText(html: string): string {
     .trim();
 }
 
-// pdf-parse's bundled engine has no recovery path for malformed PDFs (e.g. "bad XRef entry",
-// common with real-world files re-saved/exported by various tools). Fall back to Mozilla's
-// actively-maintained pdfjs-dist, which can recover by scanning for objects directly.
+// Use Mozilla's actively-maintained pdfjs-dist first. pdf-parse bundles a much older pdf.js
+// engine that fails on some real-world PDFs, including files that newer pdfjs-dist can recover.
 async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    return data.text;
-  } catch {
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     // Resolve the worker file's real location via the package's own package.json (a plain JSON
     // file, so webpack can resolve it) rather than letting pdfjs-dist guess — that guess is what
@@ -94,6 +88,17 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
       text += content.items.map((item) => ('str' in item ? item.str : '')).join(' ') + '\n\n';
     }
     return text;
+  } catch (pdfjsError) {
+    // Keep pdf-parse as a last-resort fallback for any PDFs that its older text renderer handles
+    // differently, but avoid making it the primary path for uploaded documents.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(buffer);
+      return data.text;
+    } catch {
+      throw pdfjsError;
+    }
   }
 }
 
