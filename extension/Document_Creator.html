@@ -282,7 +282,6 @@ body {
         Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong>
         Include the course name, topics, question types, timeline, or any specific requirements.
       </p>
-      <div id="questions-form" style="display:none;flex-direction:column;gap:12px;"></div>
       <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional
@@ -776,6 +775,12 @@ function buildPromptFromInput(typeId, description) {
     ? "ADMIN REQUIREMENTS — these take full priority over teacher input. Follow every item exactly:\n" + adminNotes + "\n\n"
     : "";
 
+  var typeQuestions = (adminSettings[typeId] && adminSettings[typeId].questions) || [];
+  var questionsBlock = typeQuestions.length
+    ? "THE TEACHER WAS ASKED TO COVER — they answered in their own words below, not necessarily point-by-point, so infer answers from their free-form text:\n"
+      + typeQuestions.map(function(q) { return "- " + q; }).join("\n") + "\n\n"
+    : "";
+
   var refIds = (adminSettings[typeId] && adminSettings[typeId].referenceDocs) || [];
   var selectedDocs = refIds.map(function(id) { return referenceDocs.find(function(d) { return d.id === id; }); }).filter(Boolean);
   var referenceBlock = selectedDocs.length
@@ -796,7 +801,7 @@ function buildPromptFromInput(typeId, description) {
         : "TEACHER INPUT — use as the content basis; defer to admin requirements where there is any conflict:\n" + description + "\n\n")
     : "TEACHER INPUT: none — use school defaults and make professional assumptions.\n\n";
 
-  return base + schoolBlock + styleBlock + adminBlock + referenceBlock + materialBlock + teacherBlock
+  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement.\n\n"
     + getLayoutInstructions(typeId, color, lc);
 }
@@ -963,20 +968,8 @@ function renderTypeList() {
 // ═══════════════════════════════════════════════════════════
 // DESCRIBE MODAL UI
 // ═══════════════════════════════════════════════════════════
-function renderQuestionsForm(questions) {
-  var html = "";
-  questions.forEach(function(q, i) {
-    html += '<div>'
-      + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">' + esc(q) + '</label>'
-      + '<input type="text" id="q-input-' + i + '" placeholder="Your answer..." style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;">'
-      + '</div>';
-  });
-  html += '<div>'
-    + '<label style="display:block;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Additional Notes — optional</label>'
-    + '<textarea id="q-notes" rows="3" placeholder="Any other details for the AI..." style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;"></textarea>'
-    + '</div>';
-  return html;
-}
+var DEFAULT_CHAT_HINT = 'Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong> Include the course name, topics, question types, timeline, or any specific requirements.';
+var DEFAULT_CHAT_PLACEHOLDER = "e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top.";
 
 function openChat(typeId) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
@@ -991,23 +984,18 @@ function openChat(typeId) {
 
   var questions = (adminSettings[typeId] || {}).questions || [];
   var hintEl = document.getElementById("chat-hint");
-  var formEl = document.getElementById("questions-form");
   var inputEl = document.getElementById("chat-input");
 
   if (questions.length > 0) {
-    hintEl.style.display = "none";
-    inputEl.style.display = "none";
-    formEl.innerHTML = renderQuestionsForm(questions);
-    formEl.style.display = "flex";
-    var first = document.getElementById("q-input-0");
-    if (first) first.focus();
+    hintEl.innerHTML = "Cover each of these in your own words — one paragraph is fine:<br>"
+      + questions.map(function(q) { return "• " + esc(q); }).join("<br>");
+    inputEl.placeholder = "Write a few sentences answering the questions above...";
   } else {
-    hintEl.style.display = "";
-    inputEl.style.display = "";
-    formEl.style.display = "none";
-    inputEl.value = "";
-    inputEl.focus();
+    hintEl.innerHTML = DEFAULT_CHAT_HINT;
+    inputEl.placeholder = DEFAULT_CHAT_PLACEHOLDER;
   }
+  inputEl.value = "";
+  inputEl.focus();
 
   document.getElementById("chat-overlay").style.display = "flex";
   renderTypeList();
@@ -1048,21 +1036,7 @@ function stripFences(s) {
 
 async function generate() {
   if (!state.selectedType) return;
-  var description;
-  var formEl = document.getElementById("questions-form");
-  if (formEl && formEl.style.display !== "none") {
-    var questions = (adminSettings[state.selectedType] || {}).questions || [];
-    var parts = [];
-    questions.forEach(function(q, i) {
-      var inp = document.getElementById("q-input-" + i);
-      if (inp && inp.value.trim()) parts.push(q + ": " + inp.value.trim());
-    });
-    var notesEl = document.getElementById("q-notes");
-    if (notesEl && notesEl.value.trim()) parts.push("Additional notes: " + notesEl.value.trim());
-    description = parts.join("\n");
-  } else {
-    description = document.getElementById("chat-input").value.trim();
-  }
+  var description = document.getElementById("chat-input").value.trim();
   closeChat();
   state.isGenerating = true;
   setMainState("loading");
