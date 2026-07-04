@@ -43,6 +43,7 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'funactivity',   label: 'Fun Activity',            icon: '🎯', color: '#B45309' },
   { id: 'creative',      label: 'Creative Assignment',     icon: '🎨', color: '#6D28D9' },
   { id: 'custom',        label: 'Custom Document',         icon: '📄', color: '#475569' },
+  { id: 'resourceguide', label: 'Resource Guide',          icon: '🔗', color: '#0F766E' },
 ];
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {
@@ -333,7 +334,12 @@ export default function AdminPage() {
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
         if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
         {
-          const types: DocType[] = d.docTypes?.length ? d.docTypes : DEFAULT_DOC_TYPES;
+          // A school's saved list is a snapshot from whenever it was last saved — merge in
+          // any built-in type added since then so new document types actually show up.
+          const types: DocType[] = d.docTypes?.length ? [...d.docTypes] : [...DEFAULT_DOC_TYPES];
+          DEFAULT_DOC_TYPES.forEach(def => {
+            if (!types.find(t => t.id === def.id)) types.push(def);
+          });
           setDocTypes(types);
           setSelectedDocTypeId(prev => prev && types.find(t => t.id === prev) ? prev : (types[0]?.id || ''));
           const notes: Record<string, string> = {};
