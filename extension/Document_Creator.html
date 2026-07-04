@@ -372,7 +372,8 @@ var DOC_TYPES_DEFAULT = [
   { id:"readingguide",  label:"Reading Guide",              icon:"📰", color:"#065F46", desc:"Guided questions and annotations for assigned readings" },
   { id:"funactivity",   label:"Fun Activity",               icon:"🎯", color:"#B45309", desc:"Engaging in-class activity, game, or group exercise" },
   { id:"creative",      label:"Creative Assignment",        icon:"🎨", color:"#6D28D9", desc:"Open-ended creative project with requirements and rubric" },
-  { id:"custom",        label:"Custom Document",            icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" }
+  { id:"custom",        label:"Custom Document",            icon:"📄", color:"#374151", desc:"Describe exactly what you need — AI builds it from scratch" },
+  { id:"resourceguide", label:"Resource Guide",             icon:"🔗", color:"#0F766E", desc:"Curated videos and links for a topic — YouTube, Khan Academy, and more" }
 ];
 
 var DOC_TYPES = (function(){
@@ -624,7 +625,7 @@ async function callClaude(promptOrMessages, onChunk) {
 // ═══════════════════════════════════════════════════════════
 // PROMPT BUILDERS
 // ═══════════════════════════════════════════════════════════
-function buildPromptFromInput(typeId, description) {
+function buildPromptFromInput(typeId, description, searchResults) {
   var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
   var color = getThemeColor(typeId);
   var lc = getThemeLightColor(typeId);
@@ -671,6 +672,11 @@ function buildPromptFromInput(typeId, description) {
       + selectedDocs.map(function(d) { return "[" + d.name + "]\n" + d.text; }).join("\n\n") + "\n\n"
     : "";
 
+  var searchResultsBlock = (searchResults && searchResults.length)
+    ? "REAL SEARCH RESULTS — these are the only links that exist; use ONLY these exact URLs verbatim, do not alter them or invent additional links:\n\n"
+      + searchResults.map(function(r) { return "[" + r.title + "](" + r.url + ") — " + r.snippet; }).join("\n") + "\n\n"
+    : "";
+
   var sessionTextFiles = sessionFiles.filter(function(f) { return !f.isImage; });
   var materialBlock = sessionTextFiles.length
     ? "SOURCE MATERIALS — this is the primary content basis for this document; ground all content in this text before adding anything else:\n\n"
@@ -687,7 +693,7 @@ function buildPromptFromInput(typeId, description) {
     ? "FOLLOW THE TEACHER'S INPUT LITERALLY: if it gives an exact count, quantity, or question type (e.g. '20 true/false questions', '5 short answer'), the document MUST contain exactly that — do not round, substitute a different type, or treat it as a loose suggestion. Only deviate where it conflicts with an admin requirement above.\n\n"
     : "";
 
-  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock + literalBlock
+  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + searchResultsBlock + materialBlock + teacherBlock + literalBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement or any specific count/format the teacher gave.\n\n"
     + getLayoutInstructions(typeId, color, lc);
 }
@@ -829,6 +835,13 @@ function getLayoutInstructions(typeId, color, lc) {
     + "7. GRADING RUBRIC — table: Criteria | Excellent (A) | Proficient (B/C) | Needs Work (D/F) | Points. Header: background:" + lc + "; color:" + color + "; font-weight:700; At least 4 criteria rows.\n"
     + "8. SUBMISSION — bulleted checklist with ☐ prefix: file format, naming convention, where/how to submit, deadline\n";
 
+  if (typeId === "resourceguide") return "LAYOUT:\n"
+    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Additional Resources: [topic]' (Georgia 26px color:" + color + " bold), one-line subtitle noting the topic\n"
+    + "2. INTRO — one short paragraph on how to use these resources\n"
+    + "3. RESOURCES — group into sections by type (e.g. Videos, Interactive Practice, Other Resources) based on what the search results actually are. For each resource: bold title as a real clickable link (<a href=\"EXACT_URL_FROM_RESULTS\" target=\"_blank\">) using the exact URL provided — never alter, shorten, or invent a URL — followed by a one-sentence description of what it covers.\n"
+    + "4. CRITICAL: only include links that appear in the REAL SEARCH RESULTS provided below. Do not add any resource, URL, or site you were not given. If fewer resources were found than expected, include only what's real rather than padding with invented ones.\n"
+    + "5. Footer note — small gray text: 'Links verified at time of generation — confirm they still work before sharing with students.'\n";
+
   if (typeId === "custom") return "Generate whatever document the teacher described. Infer the appropriate structure, sections, and format from the description. Use the school's color (" + color + ") for borders and accents; use the light tint (" + lc + ") for header backgrounds. Make it complete and professional.\n";
 
   return "Generate a complete, professional document using all the information provided.\n";
@@ -890,10 +903,12 @@ function openChat(typeId) {
 
   if (questions.length > 0) {
     hintEl.innerHTML = esc(questions.join("\n")).replace(/\n/g, "<br>");
+  } else if (typeId === "resourceguide") {
+    hintEl.innerHTML = "Enter just the topic — keep it short and specific. Real videos and links are looked up for this exact topic, so a focused phrase works best.";
   } else {
     hintEl.innerHTML = DEFAULT_CHAT_HINT;
   }
-  inputEl.placeholder = DEFAULT_CHAT_PLACEHOLDER;
+  inputEl.placeholder = typeId === "resourceguide" ? "e.g. Photosynthesis, or Ohm's Law basics" : DEFAULT_CHAT_PLACEHOLDER;
   inputEl.value = "";
   inputEl.focus();
 
@@ -928,15 +943,56 @@ function stripFences(s) {
   return s.replace(/^```(?:html)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
 }
 
+async function searchForResources(topic) {
+  var queries = [
+    topic + " site:youtube.com",
+    topic + " site:khanacademy.org",
+    topic + " educational resources"
+  ];
+  var resp = await fetch("/api/web-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ queries: queries })
+  });
+  var data = await resp.json();
+  if (!resp.ok) throw new Error(data.error || "Web search isn't set up yet — ask your admin to add a search API key.");
+  return Array.isArray(data.results) ? data.results : [];
+}
+
 async function generate() {
   if (!state.selectedType) return;
   var description = document.getElementById("chat-input").value.trim();
   closeChat();
-  state.isGenerating = true;
-  setMainState("loading");
+
+  var searchResults = null;
+  if (state.selectedType === "resourceguide") {
+    if (!description) { alert("Enter a topic before generating a Resource Guide."); return; }
+    state.isGenerating = true;
+    setMainState("loading");
+    document.getElementById("loading-text").textContent = "Searching for real resources…";
+    try {
+      searchResults = await searchForResources(description);
+    } catch (err) {
+      alert(err.message);
+      state.isGenerating = false;
+      setMainState(state.generatedHTML ? "doc" : "placeholder");
+      return;
+    }
+    if (!searchResults.length) {
+      alert("No resources were found for that topic. Try a shorter or more specific phrase.");
+      state.isGenerating = false;
+      setMainState(state.generatedHTML ? "doc" : "placeholder");
+      return;
+    }
+    document.getElementById("loading-text").textContent = "Generating document…";
+  } else {
+    state.isGenerating = true;
+    setMainState("loading");
+  }
+
   var paperEl = document.getElementById("doc-paper");
   var streaming = false;
-  var prompt = buildPromptFromInput(state.selectedType, description);
+  var prompt = buildPromptFromInput(state.selectedType, description, searchResults);
   var teacherImages = sessionFiles.filter(function(f) { return f.isImage; });
   var parts = [];
   teacherImages.forEach(function(f) {

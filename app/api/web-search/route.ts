@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const results: SearchResult[] = [];
     for (const query of queries) {
       const url = new URL('https://api.search.brave.com/res/v1/web/search');
-      url.searchParams.set('q', `"${query}"`);
+      url.searchParams.set('q', query);
       url.searchParams.set('count', '3');
       const res = await fetch(url, {
         headers: { Accept: 'application/json', 'X-Subscription-Token': braveKey },
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       const url = new URL('https://www.googleapis.com/customsearch/v1');
       url.searchParams.set('key', googleKey);
       url.searchParams.set('cx', googleCx);
-      url.searchParams.set('q', `"${query}"`);
+      url.searchParams.set('q', query);
       url.searchParams.set('num', '3');
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Google Search HTTP ${res.status}`);
