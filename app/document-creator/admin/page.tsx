@@ -434,7 +434,7 @@ export default function AdminPage() {
       docTypes.forEach(t => {
         updated[t.id] = {
           notes: docNotes[t.id] || '',
-          questions: docQuestions[t.id] ? docQuestions[t.id].split('\n').map(q => q.trim()).filter(Boolean) : [],
+          questions: docQuestions[t.id] ? [docQuestions[t.id]] : [],
           styleOptions: docStyles[t.id] || DEFAULT_STYLE_OPTIONS,
           theme: themeToHex(docThemes[t.id]),
           referenceDocs: docRefs[t.id] || [],

@@ -778,7 +778,7 @@ function buildPromptFromInput(typeId, description) {
   var typeQuestions = (adminSettings[typeId] && adminSettings[typeId].questions) || [];
   var questionsBlock = typeQuestions.length
     ? "THE TEACHER WAS ASKED TO COVER — they answered in their own words below, not necessarily point-by-point, so infer answers from their free-form text:\n"
-      + typeQuestions.map(function(q) { return "- " + q; }).join("\n") + "\n\n"
+      + typeQuestions.join("\n") + "\n\n"
     : "";
 
   var refIds = (adminSettings[typeId] && adminSettings[typeId].referenceDocs) || [];
@@ -987,13 +987,11 @@ function openChat(typeId) {
   var inputEl = document.getElementById("chat-input");
 
   if (questions.length > 0) {
-    hintEl.innerHTML = "Cover each of these in your own words — one paragraph is fine:<br>"
-      + questions.map(function(q) { return "• " + esc(q); }).join("<br>");
-    inputEl.placeholder = "Write a few sentences answering the questions above...";
+    hintEl.innerHTML = esc(questions.join("\n")).replace(/\n/g, "<br>");
   } else {
     hintEl.innerHTML = DEFAULT_CHAT_HINT;
-    inputEl.placeholder = DEFAULT_CHAT_PLACEHOLDER;
   }
+  inputEl.placeholder = DEFAULT_CHAT_PLACEHOLDER;
   inputEl.value = "";
   inputEl.focus();
 
