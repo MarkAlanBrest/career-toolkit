@@ -256,8 +256,8 @@ body {
       </span>
     </div>
     <div id="type-tabs">
-      <button type="button" class="type-tab" data-cat="teaching" onclick="setActiveCategory('teaching')">Teaching Materials</button>
-      <button type="button" class="type-tab" data-cat="admin" onclick="setActiveCategory('admin')">Administrative</button>
+      <button type="button" class="type-tab" data-cat="teaching" onclick="setActiveCategory('teaching')">Teaching</button>
+      <button type="button" class="type-tab" data-cat="admin" onclick="setActiveCategory('admin')">Operations</button>
       <button type="button" class="type-tab" data-cat="other" onclick="setActiveCategory('other')">Other</button>
     </div>
     <div id="type-list"></div>
@@ -839,7 +839,7 @@ function getLayoutInstructions(typeId, color, lc) {
   if (typeId === "resourceguide") return "LAYOUT:\n"
     + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Additional Resources: [topic]' (Georgia 26px color:" + color + " bold), one-line subtitle noting the topic\n"
     + "2. INTRO — one short paragraph on how to use these resources\n"
-    + "3. Use the web_search tool to find current, real videos and pages on this topic — prioritize YouTube and Khan Academy, plus other genuinely useful sites the search turns up.\n"
+    + "3. Use the web_search tool to find current, real videos and pages on this topic. Prioritize sources that are completely free with no login or paywall: Khan Academy, MIT OpenCourseWare, TED-Ed, and Crash Course or other reputable channels on YouTube. Only include Coursera or edX if the specific result is clearly free to audit, not a paid/certificate-only page. Do not include LinkedIn Learning, Pluralsight, Skillshare, Udemy, or other subscription-only platforms — students should never hit a paywall clicking a link from this document.\n"
     + "4. RESOURCES — group into sections by type (e.g. Videos, Interactive Practice, Other Resources). For each resource: bold title as a real clickable link (<a href=\"EXACT_URL_FROM_SEARCH\" target=\"_blank\">) using the exact URL your search returned — never alter, shorten, guess, or invent a URL — followed by a one-sentence description of what it covers.\n"
     + "5. CRITICAL: only include links your web_search tool actually returned. If search turns up nothing useful for a category, omit that section rather than inventing a resource.\n"
     + "6. Footer note — small gray text: 'Links verified at time of generation — confirm they still work before sharing with students.'\n";
