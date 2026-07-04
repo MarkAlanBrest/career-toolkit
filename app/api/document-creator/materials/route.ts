@@ -13,7 +13,10 @@ interface TeacherMaterial {
   id: string;
   name: string;
   filename: string;
-  text: string;
+  kind: 'text' | 'image';
+  text?: string;
+  mediaType?: string;
+  data?: string;
   chars: number;
   uploadedAt: string;
 }
@@ -44,7 +47,8 @@ export async function GET() {
   return NextResponse.json({ materials }, { headers: CORS });
 }
 
-// POST — save a new material (pasted text, or text already extracted client-side via /api/parse-file)
+// POST — save a new material: a text passage (pasted, or extracted client-side via /api/parse-file),
+// or an image, promoted from a normal document-creation attachment via "save for reuse"
 export async function POST(req: NextRequest) {
   const session = await getSessionFromCookie();
   if (!session) return NextResponse.json({ error: 'Not authenticated.' }, { status: 401, headers: CORS });
@@ -52,11 +56,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const name = String(body?.name || '').trim();
   const filename = String(body?.filename || '').trim();
-  const text = String(body?.text || '');
+  const kind = body?.kind === 'image' ? 'image' : 'text';
 
-  if (!name || !text.trim()) {
-    return NextResponse.json({ error: 'Name and text are required.' }, { status: 400, headers: CORS });
-  }
+  if (!name) return NextResponse.json({ error: 'Name is required.' }, { status: 400, headers: CORS });
 
   const email = session.email.toLowerCase();
   const materials = await getMaterials(email);
@@ -64,14 +66,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `You've reached the ${MAX_MATERIALS}-material limit. Delete an existing material to add a new one.` }, { status: 400, headers: CORS });
   }
 
-  const material: TeacherMaterial = {
-    id: generateId(),
-    name,
-    filename,
-    text,
-    chars: text.length,
-    uploadedAt: new Date().toISOString(),
-  };
+  let material: TeacherMaterial;
+  if (kind === 'image') {
+    const mediaType = String(body?.mediaType || '').trim();
+    const data = String(body?.data || '');
+    if (!mediaType || !data) {
+      return NextResponse.json({ error: 'Image data is required.' }, { status: 400, headers: CORS });
+    }
+    material = { id: generateId(), name, filename, kind, mediaType, data, chars: 0, uploadedAt: new Date().toISOString() };
+  } else {
+    const text = String(body?.text || '');
+    if (!text.trim()) return NextResponse.json({ error: 'Text is required.' }, { status: 400, headers: CORS });
+    material = { id: generateId(), name, filename, kind, text, chars: text.length, uploadedAt: new Date().toISOString() };
+  }
+
   materials.push(material);
   await saveMaterials(email, materials);
 

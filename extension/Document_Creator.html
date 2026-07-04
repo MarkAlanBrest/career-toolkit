@@ -223,13 +223,6 @@ body {
 
   <!-- SIDEBAR -->
   <div id="sidebar">
-    <div id="materials-sidebar" style="padding:10px 16px;border-bottom:1px solid #F1F5F9;flex-shrink:0;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94A3B8;">📚 Source Materials</span>
-        <button type="button" onclick="openMaterials()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">Manage</button>
-      </div>
-      <div id="materials-sidebar-checklist" style="max-height:130px;overflow-y:auto;"></div>
-    </div>
     <div class="sidebar-header">Create Document
       <span class="help-wrap">
         <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do I create a document?">?</span>
@@ -285,7 +278,6 @@ body {
       <button id="chat-close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
     </div>
     <div style="padding:24px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
-      <div id="chat-material-banner"></div>
       <p id="chat-hint" style="margin:0;font-size:13px;color:#475569;line-height:1.6;background:#F8FAFC;border-left:3px solid #CBD5E1;padding:12px 16px;border-radius:0 8px 8px 0;">
         Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong>
         Include the course name, topics, question types, timeline, or any specific requirements.
@@ -296,7 +288,7 @@ body {
         <label style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px;">Attachments — optional
           <span class="help-wrap">
             <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How do attachments work?">?</span>
-            <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Attached photos can be shown in the generated document if relevant — type a note under an image (e.g. "show this diagram after the intro") to tell the AI where and how to use it. Text files are used as background reference only.</span>
+            <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Attached photos can be shown in the generated document if relevant — type a note under an image (e.g. "show this diagram after the intro") to tell the AI where and how to use it. Text files are used as background reference only. Check "Save for reuse" on any attachment to keep it available for other documents too — manage saved materials from 📚 My Materials in the toolbar.</span>
           </span>
         </label>
         <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;" onclick="document.getElementById('doc-file-input').click()">
@@ -335,23 +327,8 @@ body {
       <button onclick="closeMaterials()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
     </div>
     <div style="padding:16px 20px;overflow-y:auto;">
-      <div id="materials-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;"></div>
-
-      <input type="text" id="mat-name-input" placeholder="Name (optional) — auto-filled from the file or text if left blank" style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;margin-bottom:8px;">
-
-      <div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;background:#FAFBFC;margin-bottom:10px;" onclick="document.getElementById('mat-file-input').click()">
-        <span style="font-size:20px;">📎</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:#334155;" id="mat-file-label">Choose a file — saves automatically</div>
-          <div style="font-size:11px;color:#94A3B8;margin-top:2px;">PDF, Word, Excel, or text. Max 8 MB.</div>
-        </div>
-      </div>
-      <input type="file" id="mat-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style="display:none;">
-
-      <div style="text-align:center;font-size:11px;color:#94A3B8;margin:10px 0;">— or paste text —</div>
-
-      <textarea id="mat-text-input" rows="5" placeholder="Paste text here..." style="width:100%;padding:9px 12px;border:1.5px solid #CBD5E1;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;margin-bottom:8px;"></textarea>
-      <button id="mat-save-btn" onclick="saveMaterial()" style="width:100%;padding:11px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save Text</button>
+      <div style="font-size:12px;color:#64748B;margin-bottom:12px;line-height:1.5;">Check which materials to use for the document you're about to create. To add a new one, attach a file or photo when creating a document and check "Save for reuse."</div>
+      <div id="materials-list" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
   </div>
 </div>
@@ -509,60 +486,8 @@ var selectedMaterialIds = [];
 function loadTeacherMaterials() {
   fetch("/api/document-creator/materials")
     .then(function(r) { return r.json(); })
-    .then(function(d) { if (Array.isArray(d.materials)) {
-      teacherMaterials = d.materials;
-      renderMaterialsList();
-      renderMaterialsChecklist("materials-sidebar-checklist");
-      renderMaterialsChecklist("chat-materials-checklist");
-    } })
+    .then(function(d) { if (Array.isArray(d.materials)) { teacherMaterials = d.materials; renderMaterialsList(); } })
     .catch(function() {});
-}
-
-// Read-only checklist used wherever a teacher picks which saved materials to use for a
-// generation (landing screen, chat modal) — no add/delete here, that only lives in the
-// My Materials manager overlay.
-function renderMaterialsChecklist(containerId) {
-  var el = document.getElementById(containerId);
-  if (!el) return;
-  if (!teacherMaterials.length) {
-    el.innerHTML = '<div style="font-size:12px;color:#94A3B8;padding:6px 0;">No saved materials yet — add one from 📚 My Materials in the toolbar.</div>';
-    return;
-  }
-  el.innerHTML = teacherMaterials.map(function(m) {
-    var checked = selectedMaterialIds.indexOf(m.id) !== -1;
-    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12px;color:#1E293B;' + (checked ? 'background:#F5F3FF;' : '') + '">'
-      + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleMaterialSelection(\'' + m.id + '\')" style="flex-shrink:0;">'
-      + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.name) + '</span>'
-      + '<span style="font-size:11px;color:#94A3B8;flex-shrink:0;">' + Math.round(m.chars / 1000) + 'k</span>'
-      + '</label>';
-  }).join('');
-}
-
-function toggleMaterialSelection(id) {
-  var idx = selectedMaterialIds.indexOf(id);
-  if (idx === -1) selectedMaterialIds.push(id); else selectedMaterialIds.splice(idx, 1);
-  renderMaterialsChecklist("materials-sidebar-checklist");
-  renderMaterialsChecklist("chat-materials-checklist");
-  renderMaterialsSidebar();
-}
-
-function renderMaterialsSidebar() {
-  renderMaterialsChecklist("materials-sidebar-checklist");
-}
-
-function renderMaterialBanner() {
-  var el = document.getElementById("chat-material-banner");
-  if (!el) return;
-  var count = selectedMaterialIds.length;
-  el.innerHTML = '<div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:10px 14px;">'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'
-    + '<span style="font-size:14px;">📚</span>'
-    + '<span style="flex:1;font-size:12px;font-weight:700;color:#475569;">' + (count ? ('Using ' + count + ' material' + (count > 1 ? 's' : '')) : 'Source materials (optional)') + '</span>'
-    + '<button type="button" onclick="openMaterials()" style="background:none;border:none;color:#4F46E5;font-size:11px;font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;">Manage</button>'
-    + '</div>'
-    + '<div id="chat-materials-checklist"></div>'
-    + '</div>';
-  renderMaterialsChecklist("chat-materials-checklist");
 }
 
 function openMaterials() {
@@ -574,7 +499,9 @@ function closeMaterials() {
   document.getElementById("materials-overlay").style.display = "none";
 }
 
-// Manager list (inside the My Materials overlay) — add/delete only, no selection here.
+// The single place to pick which saved materials to use for a generation AND to delete
+// them — everything else (attaching / adding a material) happens via the normal
+// document-creation attachment flow with "Save for reuse" (see renderFileList/toggleFileReuse).
 function renderMaterialsList() {
   var list = document.getElementById("materials-list");
   if (!list) return;
@@ -583,20 +510,30 @@ function renderMaterialsList() {
     return;
   }
   list.innerHTML = teacherMaterials.map(function(m) {
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid #E2E8F0;background:#fff;">'
-      + '<span style="font-size:18px;flex-shrink:0;">📄</span>'
+    var checked = selectedMaterialIds.indexOf(m.id) !== -1;
+    var icon = m.kind === "image" ? "🖼️" : "📄";
+    var meta = m.kind === "image" ? "image" : (Math.round(m.chars / 1000) + "k chars");
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid ' + (checked ? '#7C3AED' : '#E2E8F0') + ';background:' + (checked ? '#F5F3FF' : '#fff') + ';cursor:pointer;">'
+      + '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleMaterialSelection(\'' + m.id + '\')" style="flex-shrink:0;">'
+      + '<span style="font-size:18px;flex-shrink:0;">' + icon + '</span>'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:12px;font-weight:700;color:#1E293B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.name) + '</div>'
-      + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + Math.round(m.chars / 1000) + 'k chars &middot; ' + timeAgo(new Date(m.uploadedAt).getTime()) + '</div>'
+      + '<div style="font-size:11px;color:#94A3B8;margin-top:1px;">' + meta + ' &middot; ' + timeAgo(new Date(m.uploadedAt).getTime()) + '</div>'
       + '</div>'
-      + '<button type="button" onclick="deleteMaterial(\'' + m.id + '\')" style="background:none;border:none;color:#DC2626;cursor:pointer;font-size:13px;font-family:inherit;">Delete</button>'
-      + '</div>';
+      + '<button type="button" onclick="event.stopPropagation(); deleteMaterial(\'' + m.id + '\')" style="background:none;border:none;color:#DC2626;cursor:pointer;font-size:13px;font-family:inherit;">Delete</button>'
+      + '</label>';
   }).join('');
 }
 
-function deleteMaterial(id) {
-  if (!confirm("Delete this material? This cannot be undone.")) return;
-  fetch("/api/document-creator/materials", {
+function toggleMaterialSelection(id) {
+  var idx = selectedMaterialIds.indexOf(id);
+  if (idx === -1) selectedMaterialIds.push(id); else selectedMaterialIds.splice(idx, 1);
+  renderMaterialsList();
+}
+
+function deleteMaterial(id, skipConfirm) {
+  if (!skipConfirm && !confirm("Delete this material? This cannot be undone.")) return Promise.resolve();
+  return fetch("/api/document-creator/materials", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id: id })
@@ -605,56 +542,30 @@ function deleteMaterial(id) {
     var idx = selectedMaterialIds.indexOf(id);
     if (idx !== -1) selectedMaterialIds.splice(idx, 1);
     renderMaterialsList();
-    renderMaterialsChecklist("materials-sidebar-checklist");
-    renderMaterialsChecklist("chat-materials-checklist");
-    renderMaterialBanner();
-    renderMaterialsSidebar();
   }).catch(function() { alert("Could not delete material."); });
 }
 
 function deriveMaterialName(text, filename) {
   if (filename) return filename.replace(/\.[^./]+$/, "");
-  var firstLine = text.split(/\r?\n/).map(function(l) { return l.trim(); }).find(function(l) { return l.length; }) || "";
+  var firstLine = (text || "").split(/\r?\n/).map(function(l) { return l.trim(); }).find(function(l) { return l.length; }) || "";
   return firstLine.slice(0, 60) || ("Material " + new Date().toLocaleDateString());
 }
 
-async function persistMaterial(name, filename, text) {
+// Promotes a one-off attachment (text or image) into a persistent, reusable material.
+async function persistMaterial(name, filename, text, imageData) {
+  var body = imageData
+    ? { name: name, filename: filename, kind: "image", mediaType: imageData.mediaType, data: imageData.data }
+    : { name: name, filename: filename, text: text };
   var resp = await fetch("/api/document-creator/materials", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: name, filename: filename, text: text })
+    body: JSON.stringify(body)
   });
   var data = await resp.json();
   if (!resp.ok) { alert(data.error || "Could not save material."); return null; }
   teacherMaterials.push(data.material);
-  selectedMaterialIds.push(data.material.id);
-  document.getElementById("mat-name-input").value = "";
   renderMaterialsList();
-  renderMaterialsChecklist("materials-sidebar-checklist");
-  renderMaterialsChecklist("chat-materials-checklist");
-  renderMaterialBanner();
-  renderMaterialsSidebar();
   return data.material;
-}
-
-async function saveMaterial() {
-  var nameInput = document.getElementById("mat-name-input");
-  var text = document.getElementById("mat-text-input").value.trim();
-  if (!text) { alert("Paste some text, or choose a file above."); return; }
-  var name = nameInput.value.trim() || deriveMaterialName(text, "");
-  var btn = document.getElementById("mat-save-btn");
-  btn.disabled = true;
-  var origLabel = btn.textContent;
-  btn.textContent = "Saving...";
-  try {
-    var saved = await persistMaterial(name, "", text);
-    if (saved) document.getElementById("mat-text-input").value = "";
-  } catch (err) {
-    alert("Could not save material: " + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = origLabel;
-  }
 }
 
 var chatState = { typeId: null };
@@ -670,6 +581,11 @@ function renderFileList() {
     var noteInput = f.isImage
       ? '<input type="text" placeholder="How should this image be used? e.g. \'Show as a diagram after the intro\' (optional)" value="' + esc(f.note || '') + '" oninput="setFileNote(' + i + ', this.value)" style="width:100%;margin-top:5px;padding:6px 9px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;box-sizing:border-box;font-family:inherit;">'
       : '';
+    var reuseLabel = f.savingReuse ? "Saving…" : (f.reuse ? "✓ Saved for reuse in other documents" : "Save for reuse in other documents");
+    var reuseRow = '<label style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11px;color:#5B21B6;cursor:pointer;">'
+      + '<input type="checkbox" ' + (f.reuse ? 'checked' : '') + ' ' + (f.savingReuse ? 'disabled' : '') + ' onchange="toggleFileReuse(' + i + ')">'
+      + reuseLabel
+      + '</label>';
     return '<div style="background:#F1F5F9;padding:7px 10px;border-radius:8px;">'
       + '<div style="display:flex;align-items:center;gap:8px;">'
       + thumb
@@ -677,8 +593,36 @@ function renderFileList() {
       + '<button onclick="removeFile(' + i + ')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;line-height:1;padding:0;flex-shrink:0;">✕</button>'
       + '</div>'
       + noteInput
+      + reuseRow
       + '</div>';
   }).join('');
+}
+
+async function toggleFileReuse(i) {
+  var f = _pendingFiles[i];
+  if (!f) return;
+  if (!f.reuse) {
+    if (f.isImage && f.data && f.data.length * 0.75 > 8 * 1024 * 1024) {
+      alert("This image is too large to save for reuse (max 8 MB).");
+      return;
+    }
+    f.reuse = true;
+    f.savingReuse = true;
+    renderFileList();
+    var name = deriveMaterialName(f.isImage ? "" : f.text, f.name);
+    var material = f.isImage
+      ? await persistMaterial(name, f.name, "", { mediaType: f.mediaType, data: f.data })
+      : await persistMaterial(name, f.name, f.text);
+    f.savingReuse = false;
+    if (material) { f.materialId = material.id; } else { f.reuse = false; }
+    renderFileList();
+  } else {
+    var idToDelete = f.materialId;
+    f.reuse = false;
+    f.materialId = null;
+    renderFileList();
+    if (idToDelete) await deleteMaterial(idToDelete, true);
+  }
 }
 
 function setFileNote(index, value) {
@@ -840,9 +784,10 @@ function buildPromptFromInput(typeId, description) {
     : "";
 
   var selectedMaterials = selectedMaterialIds.map(function(id) { return teacherMaterials.find(function(m) { return m.id === id; }); }).filter(Boolean);
-  var materialBlock = selectedMaterials.length
+  var selectedTextMaterials = selectedMaterials.filter(function(m) { return m.kind !== "image"; });
+  var materialBlock = selectedTextMaterials.length
     ? "SOURCE MATERIALS — this is the primary content basis for this document; ground all content in this text before adding anything else:\n\n"
-      + selectedMaterials.map(function(m) { return "[" + m.name + "]\n" + m.text; }).join("\n\n") + "\n\n"
+      + selectedTextMaterials.map(function(m) { return "[" + m.name + "]\n" + m.text; }).join("\n\n") + "\n\n"
     : "";
 
   var teacherBlock = description
@@ -1066,7 +1011,6 @@ function openChat(typeId) {
 
   document.getElementById("chat-overlay").style.display = "flex";
   renderTypeList();
-  renderMaterialBanner();
 }
 
 function closeChat() {
@@ -1130,12 +1074,16 @@ async function generate() {
       prompt += "\n\nTEACHER-ATTACHED FILE — " + f.name + " (use as content reference, subject to admin requirements):\n\n" + f.text;
     }
   });
+  var selectedImageMaterials = selectedMaterialIds
+    .map(function(id) { return teacherMaterials.find(function(m) { return m.id === id; }); })
+    .filter(function(m) { return m && m.kind === "image"; })
+    .map(function(m) { return { name: m.name, isImage: true, mediaType: m.mediaType, data: m.data, note: "" }; });
+  var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; }).concat(selectedImageMaterials);
   var parts = [];
-  _pendingFiles.forEach(function(f) {
-    if (f.isImage) parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
+  teacherImages.forEach(function(f) {
+    parts.push({ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.data } });
   });
   var imageNote = "";
-  var teacherImages = _pendingFiles.filter(function(f) { return f.isImage; });
   if (teacherImages.length) {
     imageNote += " The teacher attached " + teacherImages.length + " image(s), 0-indexed in the order listed.";
     var instructed = teacherImages.map(function(f, i) { return f.note && f.note.trim() ? ("Image " + i + ": " + f.note.trim()) : null; }).filter(Boolean);
@@ -1359,42 +1307,6 @@ document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
 document.getElementById("btn-materials").addEventListener("click", openMaterials);
 document.getElementById("materials-overlay").addEventListener("click", function(e) { if (e.target === this) closeMaterials(); });
-document.getElementById("mat-file-input").addEventListener("change", async function(e) {
-  var file = e.target.files[0];
-  e.target.value = "";
-  if (!file) return;
-  if (file.size > 8 * 1024 * 1024) { alert("File must be under 8 MB."); return; }
-
-  var label = document.getElementById("mat-file-label");
-  var origLabel = label.textContent;
-  label.textContent = "Reading " + file.name + "...";
-  try {
-    var b64 = await new Promise(function(resolve, reject) {
-      var reader = new FileReader();
-      reader.onload = function(ev) { var d = ev.target.result; resolve(d.slice(d.indexOf(",") + 1)); };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-    label.textContent = "Extracting text from " + file.name + "...";
-    var parseResp = await fetch("/api/parse-file", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ b64: b64, filename: file.name, mimeType: file.type })
-    });
-    var parsed = await parseResp.json();
-    if (!parseResp.ok) { alert(parsed.error || "Could not extract text from this file."); return; }
-
-    label.textContent = "Saving...";
-    var nameInput = document.getElementById("mat-name-input");
-    var name = nameInput.value.trim() || deriveMaterialName("", file.name);
-    await persistMaterial(name, file.name, parsed.text);
-  } catch (err) {
-    alert("Could not save material: " + err.message);
-  } finally {
-    label.textContent = origLabel;
-  }
-});
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
@@ -1423,13 +1335,13 @@ document.getElementById("doc-file-input").addEventListener("change", function(e)
     if (isImage) {
       reader.onload = function(ev) {
         var d = ev.target.result, comma = d.indexOf(",");
-        _pendingFiles.push({ name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1) });
+        _pendingFiles.push({ name: file.name, isImage: true, mediaType: file.type, data: d.slice(comma + 1), reuse: false, materialId: null });
         renderFileList();
       };
       reader.readAsDataURL(file);
     } else if (isText) {
       reader.onload = function(ev) {
-        _pendingFiles.push({ name: file.name, isImage: false, text: ev.target.result });
+        _pendingFiles.push({ name: file.name, isImage: false, text: ev.target.result, reuse: false, materialId: null });
         renderFileList();
       };
       reader.readAsText(file);
@@ -1634,7 +1546,6 @@ async function initAuth() {
     document.getElementById("auth-overlay").style.display = "none";
     setMainState("placeholder");
     renderTypeList();
-    renderMaterialsSidebar();
   } catch(e) {
     window.location.href = "/document-creator/login";
   }
