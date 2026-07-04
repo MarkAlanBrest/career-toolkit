@@ -50,6 +50,28 @@ function htmlToStructuredText(html: string): string {
     .trim();
 }
 
+// pdf-parse's bundled engine has no recovery path for malformed PDFs (e.g. "bad XRef entry",
+// common with real-world files re-saved/exported by various tools). Fall back to Mozilla's
+// actively-maintained pdfjs-dist, which can recover by scanning for objects directly.
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(buffer);
+    return data.text;
+  } catch {
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer), stopAtErrors: false, verbosity: 0 }).promise;
+    let text = '';
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item: { str?: string }) => item.str || '').join(' ') + '\n\n';
+    }
+    return text;
+  }
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -122,10 +144,7 @@ export async function POST(req: NextRequest) {
   let text = '';
   try {
     if (isPdf) {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(buffer);
-      text = data.text;
+      text = await extractPdfText(buffer);
     } else if (isDocx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mammoth = require('mammoth');
