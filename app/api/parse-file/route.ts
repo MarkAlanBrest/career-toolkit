@@ -69,9 +69,21 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
     const { pathToFileURL } = await import('url');
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pkgPath = require.resolve('pdfjs-dist/package.json');
-    const workerPath = path.join(path.dirname(pkgPath), 'legacy/build/pdf.worker.mjs');
-    pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer), stopAtErrors: false, verbosity: 0 }).promise;
+    const pkgDir = path.dirname(pkgPath);
+    pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(path.join(pkgDir, 'legacy/build/pdf.worker.mjs')).href;
+    const doc = await pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      stopAtErrors: false,
+      verbosity: 0,
+      // Point directly at the font/CMap data bundled in the package instead of letting pdfjs-dist
+      // guess where to load it from — that guess is unreliable in serverless Node environments
+      // and is the likely source of internal errors on PDFs with non-embedded or CJK fonts.
+      standardFontDataUrl: pathToFileURL(path.join(pkgDir, 'standard_fonts') + path.sep).href,
+      cMapUrl: pathToFileURL(path.join(pkgDir, 'cmaps') + path.sep).href,
+      cMapPacked: true,
+      disableFontFace: true,
+      useSystemFonts: false,
+    }).promise;
     let text = '';
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
