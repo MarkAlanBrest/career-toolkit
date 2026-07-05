@@ -161,7 +161,7 @@ export default function AdminPage() {
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgColor, setMsgColor] = useState(green);
-  const [activeTab, setActiveTab] = useState<'overview' | 'school' | 'documents' | 'teachers'>('documents');
+  const [activeTab, setActiveTab] = useState<'school' | 'documents' | 'teachers'>('documents');
 
   // Add teacher form
   const [newEmail, setNewEmail] = useState('');
@@ -222,7 +222,6 @@ export default function AdminPage() {
         setLoading(false);
         loadTeachers();
         loadModel();
-        loadUsage();
         loadDocs();
       })
       .catch(() => { window.location.href = '/document-creator/login'; });
@@ -634,7 +633,6 @@ export default function AdminPage() {
             { id: 'documents', label: 'Documents' },
             { id: 'school', label: 'School' },
             { id: 'teachers', label: 'Teachers' },
-            { id: 'overview', label: 'Overview' },
           ] as { id: typeof activeTab; label: string }[]).map(tab => (
             <button
               key={tab.id}
@@ -646,97 +644,20 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {activeTab === 'overview' && (
-        <>
-        {/* Usage Dashboard */}
-        <Section title="Usage Dashboard">
-          {loadingUsage ? (
-            <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
-          ) : !usage || usage.totalAll === 0 ? (
-            <div style={{ color: muted, fontSize: 13 }}>No documents generated yet. Usage will appear here after your first generation.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {/* Stat cards */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                {[
-                  { label: 'This Month', value: usage.totalMonth },
-                  { label: 'All Time', value: usage.totalAll },
-                ].map(card => (
-                  <div key={card.label} style={{ flex: 1, background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 10, padding: '14px 18px' }}>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: navy }}>{card.value.toLocaleString()}</div>
-                    <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{card.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* By teacher */}
-              {usage.byTeacher.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>By Teacher</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: `1px solid ${border}` }}>
-                        <th style={{ textAlign: 'left', padding: '5px 8px', color: muted, fontWeight: 600 }}>Name</th>
-                        <th style={{ textAlign: 'right', padding: '5px 8px', color: muted, fontWeight: 600 }}>This Month</th>
-                        <th style={{ textAlign: 'right', padding: '5px 8px', color: muted, fontWeight: 600 }}>All Time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {usage.byTeacher.map(t => (
-                        <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
-                          <td style={{ padding: '7px 8px', color: navy, fontWeight: 500 }}>{t.name}<span style={{ color: muted, fontWeight: 400, fontSize: 11, marginLeft: 6 }}>{t.email}</span></td>
-                          <td style={{ padding: '7px 8px', textAlign: 'right', color: navy }}>{t.thisMonth}</td>
-                          <td style={{ padding: '7px 8px', textAlign: 'right', color: muted }}>{t.total}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* By doc type */}
-              {usage.byDocType.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Popular Document Types</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {usage.byDocType.map(dt => {
-                      const pct = Math.round((dt.count / usage.totalAll) * 100);
-                      return (
-                        <div key={dt.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ fontSize: 13, color: navy, width: 130, flexShrink: 0 }}>{dt.label}</div>
-                          <div style={{ flex: 1, background: '#E2E8F0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-                            <div style={{ width: `${pct}%`, background: blue, height: '100%', borderRadius: 4 }} />
-                          </div>
-                          <div style={{ fontSize: 12, color: muted, width: 36, textAlign: 'right', flexShrink: 0 }}>{dt.count}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent activity */}
-              {usage.recent.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Recent Activity</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                    {usage.recent.map((entry, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${border}`, fontSize: 12 }}>
-                        <div style={{ color: navy }}>{entry.name} <span style={{ color: muted }}>→</span> <span style={{ color: blue }}>{entry.docTypeLabel}</span></div>
-                        <div style={{ color: muted, flexShrink: 0, marginLeft: 12 }}>{timeAgo(entry.ts)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-        </>
-        )}
-
         {activeTab === 'school' && (
         <>
+        <Section title="School Details">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears." /></div>
+              <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
+            </div>
+            <div>
+              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save School Details'}</Btn>
+            </div>
+          </div>
+        </Section>
+
         {/* School Logo */}
         <Section title="School Logo">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -813,15 +734,9 @@ export default function AdminPage() {
           <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
         </Section>
 
-        {/* School Settings */}
-        <Section title="School Settings">
+        {/* Document Setup */}
+        <Section title="Document Setup">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            {/* School name */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears (headers, footers). Optional, but recommended for a professional look." /></div>
-              <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
-            </div>
-
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
@@ -878,16 +793,6 @@ export default function AdminPage() {
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: navy, marginBottom: 6 }}>{t.icon} {t.label}</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
-                        <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4 }}>Department</div>
-                          <select
-                            value={departmentForType(t)}
-                            onChange={e => setDocTypes(prev => prev.map(dt => dt.id === t.id ? { ...dt, departmentId: e.target.value } : dt))}
-                            style={{ width: '100%', fontSize: 12, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                          >
-                            {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
-                          </select>
-                        </div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
@@ -998,7 +903,7 @@ export default function AdminPage() {
             </div>
 
             <div>
-              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save School Settings'}</Btn>
+              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save Document Settings'}</Btn>
             </div>
           </div>
         </Section>
@@ -1006,31 +911,10 @@ export default function AdminPage() {
         </>
         )}
 
-        {activeTab === 'school' && (
-        <>
-        {/* AI Model */}
-        <Section title="AI Model">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { id: 'claude-haiku-4-5',  label: 'Haiku',  cost: '$0.03 / document', desc: 'Fast and affordable. Handles most documents well.' },
-            ].map(opt => (
-              <label key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', border: `2px solid ${model === opt.id ? blue : border}`, borderRadius: 10, cursor: savingModel ? 'not-allowed' : 'pointer', background: model === opt.id ? '#F0F4FF' : '#fff' }}>
-                <input type="radio" name="model" value={opt.id} checked={model === opt.id} onChange={() => saveModel(opt.id)} disabled={savingModel} style={{ marginTop: 2 }} />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: navy }}>{opt.label} <span style={{ fontWeight: 400, fontSize: 12, color: model === opt.id ? blue : muted }}>— {opt.cost}</span></div>
-                  <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{opt.desc}</div>
-                </div>
-              </label>
-            ))}
-          </div>
-        </Section>
-        </>
-        )}
-
         {activeTab === 'teachers' && (
         <>
         {/* Teachers */}
-        <Section title={`Teachers (${teachers.length})`}>
+        <Section title={`Teacher Management (${teachers.length})`}>
           {loadingTeachers ? (
             <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
           ) : teachers.length === 0 ? (
@@ -1061,10 +945,8 @@ export default function AdminPage() {
               </tbody>
             </table>
           )}
-        </Section>
-
-        {/* Add Teacher */}
-        <Section title="Add Teacher">
+          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Add Teacher</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <Input value={newName} onChange={setNewName} placeholder="Full Name" />
@@ -1076,19 +958,19 @@ export default function AdminPage() {
               <Btn onClick={addTeacher} disabled={adding}>{adding ? 'Adding...' : 'Add Teacher'}</Btn>
             </div>
           </div>
-        </Section>
+          </div>
 
-        {/* Reset Password */}
-        <Section title="Reset Teacher Password">
+          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Reset Password</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Input value={resetEmail} onChange={setResetEmail} placeholder="teacher@school.edu" type="email" />
             <Input value={resetPass} onChange={setResetPass} placeholder="New password (min 8 chars)" type="password" />
             <Btn onClick={resetPassword} disabled={resetting}>{resetting ? 'Saving...' : 'Reset'}</Btn>
           </div>
-        </Section>
+          </div>
 
-        {/* Set SharePoint Folder */}
-        <Section title="Set SharePoint Folder">
+          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>SharePoint Folder</div>
           <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>
             Documents that teacher saves via "Save to SharePoint" go into this subfolder of the shared site's document library. Leave blank to disable the button for that teacher.
             <Help text="Documents this teacher saves to SharePoint go into this subfolder of the shared site's document library. Leave blank to disable the Save to SharePoint button for this teacher." />
@@ -1097,6 +979,7 @@ export default function AdminPage() {
             <Input value={folderEmail} onChange={setFolderEmail} placeholder="teacher@school.edu" type="email" />
             <Input value={folderPath} onChange={setFolderPath} placeholder="SharePoint folder path (e.g. Teachers/Ms.Lee)" />
             <Btn onClick={saveFolderPath} disabled={savingFolder}>{savingFolder ? 'Saving...' : 'Save'}</Btn>
+          </div>
           </div>
         </Section>
         </>
