@@ -273,6 +273,8 @@ body {
     <div style="padding:12px 16px;border-bottom:1px solid #F1F5F9;display:flex;flex-direction:column;gap:8px;">
       <select id="department-select" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;"></select>
       <select id="document-select" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;"></select>
+      <p id="chat-hint" style="margin:0;font-size:11px;color:#475569;line-height:1.45;background:#F8FAFC;border-left:3px solid #CBD5E1;padding:9px 10px;border-radius:0 7px 7px 0;"></p>
+      <textarea id="chat-input" rows="7" style="padding:9px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;resize:vertical;outline:none;line-height:1.45;min-height:130px;color:#1E293B;"></textarea>
       <button id="document-open-btn" type="button" style="padding:9px 10px;background:#1E293B;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Create Document</button>
     </div>
   </div>
@@ -305,32 +307,6 @@ body {
         <button id="refine-btn" style="background:#4F46E5;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0;">Apply</button>
       </div>
       <div id="doc-paper"></div>
-    </div>
-  </div>
-</div>
-
-<!-- DESCRIBE MODAL -->
-<div id="chat-overlay" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:500;align-items:center;justify-content:center;">
-  <div id="chat-modal" style="background:#fff;border-radius:16px;width:640px;max-width:calc(100vw - 48px);max-height:calc(100vh - 80px);display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,0.3);overflow:hidden;">
-    <div id="chat-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E2E8F0;flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span id="chat-icon" style="font-size:22px;"></span>
-        <div>
-          <div id="chat-title" style="font-size:14px;font-weight:700;color:#1E293B;"></div>
-          <div style="font-size:11px;color:#94A3B8;margin-top:1px;">AI document builder</div>
-        </div>
-      </div>
-      <button id="chat-close-btn" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:2px 8px;border-radius:6px;line-height:1;">✕</button>
-    </div>
-    <div style="padding:24px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;">
-      <p id="chat-hint" style="margin:0;font-size:13px;color:#475569;line-height:1.6;background:#F8FAFC;border-left:3px solid #CBD5E1;padding:12px 16px;border-radius:0 8px 8px 0;">
-        Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong>
-        Include the course name, topics, question types, timeline, or any specific requirements.
-      </p>
-      <textarea id="chat-input" placeholder="e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top." rows="8" style="padding:12px 14px;border:1.5px solid #CBD5E1;border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none;line-height:1.5;transition:border-color 0.15s;min-height:160px;"></textarea>
-    </div>
-    <div style="padding:16px 24px;border-top:1px solid #E2E8F0;flex-shrink:0;">
-      <button id="chat-gen-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#4F46E5,#7C3AED);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:0.3px;">Generate Document</button>
     </div>
   </div>
 </div>
@@ -1058,6 +1034,7 @@ function renderTypeList() {
   var deptSelect = document.getElementById("department-select");
   var docSelect = document.getElementById("document-select");
   if (!deptSelect || !docSelect) return;
+  var priorDocId = state.selectedType || docSelect.value;
   var departments = getDepartments();
   if (!departments.find(function(d) { return d.id === activeDepartmentId; })) {
     activeDepartmentId = departments[0] ? departments[0].id : "other";
@@ -1077,32 +1054,35 @@ function renderTypeList() {
     return;
   }
   document.getElementById("document-open-btn").disabled = false;
-  if (!typesInDepartment.find(function(t) { return t.id === docSelect.value; })) docSelect.value = typesInDepartment[0].id;
+  if (typesInDepartment.find(function(t) { return t.id === priorDocId; })) {
+    docSelect.value = priorDocId;
+  } else {
+    docSelect.value = typesInDepartment[0].id;
+  }
+  state.selectedType = docSelect.value;
+  chatState.typeId = docSelect.value;
+  updateInlinePrompt(docSelect.value);
 }
 
 function openSelectedDocumentType() {
   var docSelect = document.getElementById("document-select");
-  if (docSelect && docSelect.value) openChat(docSelect.value);
+  if (docSelect && docSelect.value) {
+    selectType(docSelect.value);
+    generate();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
-// DESCRIBE MODAL UI
+// INLINE DESCRIPTION UI
 // ═══════════════════════════════════════════════════════════
 var DEFAULT_CHAT_HINT = 'Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong> Include the course name, topics, question types, timeline, or any specific requirements.';
 var DEFAULT_CHAT_PLACEHOLDER = "e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top.";
 
-function openChat(typeId) {
-  var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
-  if (!type) return;
-  state.selectedType = typeId;
-  chatState.typeId = typeId;
-  activeDepartmentId = departmentForType(type);
-  document.getElementById("chat-icon").textContent = type.icon;
-  document.getElementById("chat-title").textContent = type.label;
-
+function updateInlinePrompt(typeId) {
   var questions = (adminSettings[typeId] || {}).questions || [];
   var hintEl = document.getElementById("chat-hint");
   var inputEl = document.getElementById("chat-input");
+  if (!hintEl || !inputEl) return;
 
   if (questions.length > 0) {
     hintEl.innerHTML = esc(questions.join("\n")).replace(/\n/g, "<br>");
@@ -1112,22 +1092,21 @@ function openChat(typeId) {
     hintEl.innerHTML = DEFAULT_CHAT_HINT;
   }
   inputEl.placeholder = typeId === "resourceguide" ? "e.g. Photosynthesis, or Ohm's Law basics" : DEFAULT_CHAT_PLACEHOLDER;
-  inputEl.value = "";
-  inputEl.focus();
-
-  document.getElementById("chat-overlay").style.display = "flex";
-  renderTypeList();
 }
 
-function closeChat() {
-  document.getElementById("chat-overlay").style.display = "none";
+function selectType(typeId) {
+  var type = DOC_TYPES.find(function(t) { return t.id === typeId; });
+  if (!type) return;
+  state.selectedType = typeId;
+  chatState.typeId = typeId;
+  activeDepartmentId = departmentForType(type);
+  updateInlinePrompt(typeId);
+  renderTypeList();
 }
 
 // ═══════════════════════════════════════════════════════════
 // STATE TRANSITIONS
 // ═══════════════════════════════════════════════════════════
-function selectType(typeId) { openChat(typeId); }
-
 function setMainState(which) {
   document.getElementById("placeholder").style.display = which === "placeholder" ? "flex" : "none";
   document.getElementById("loading").style.display = which === "loading" ? "flex" : "none";
@@ -1155,7 +1134,6 @@ async function generate() {
   var description = document.getElementById("chat-input").value.trim();
   var useWebSearch = state.selectedType === "resourceguide";
   if (useWebSearch && !description) { alert("Enter a topic before generating a Resource Guide."); return; }
-  closeChat();
   state.isGenerating = true;
   setMainState("loading");
   document.getElementById("loading-text").textContent = useWebSearch ? "Searching for real resources…" : "Generating document…";
@@ -1390,6 +1368,7 @@ document.getElementById("btn-sharepoint").addEventListener("click", saveToShareP
 document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
 document.getElementById("department-select").addEventListener("change", function(e) { activeDepartmentId = e.target.value; renderTypeList(); });
+document.getElementById("document-select").addEventListener("change", function(e) { selectType(e.target.value); });
 document.getElementById("document-open-btn").addEventListener("click", openSelectedDocumentType);
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
@@ -1401,14 +1380,9 @@ document.getElementById("admin-close").addEventListener("click", closeAdmin);
 document.getElementById("admin-cancel").addEventListener("click", closeAdmin);
 document.getElementById("admin-save").addEventListener("click", saveAdmin);
 document.getElementById("admin-overlay").addEventListener("click", function(e) { if (e.target === document.getElementById("admin-overlay")) closeAdmin(); });
-document.getElementById("btn-regen").addEventListener("click", function() { openChat(state.selectedType); });
+document.getElementById("btn-regen").addEventListener("click", function() { if (state.selectedType) generate(); });
 document.getElementById("refine-btn").addEventListener("click", refineDocument);
 document.getElementById("refine-input").addEventListener("keydown", function(e) { if (e.key === "Enter") refineDocument(); });
-document.getElementById("chat-close-btn").addEventListener("click", closeChat);
-document.getElementById("chat-gen-btn").addEventListener("click", generate);
-document.getElementById("chat-overlay").addEventListener("click", function(e) {
-  if (e.target === document.getElementById("chat-overlay")) closeChat();
-});
 document.getElementById("session-file-input").addEventListener("change", function(e) {
   var files = Array.from(e.target.files);
   e.target.value = "";
@@ -1682,3 +1656,4 @@ initAuth();
 </script>
 </body>
 </html>
+
