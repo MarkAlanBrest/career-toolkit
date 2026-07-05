@@ -87,14 +87,19 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'datareport',      label: 'Data Report',              icon: '📊', color: '#166534' },
   { id: 'outcomesreport',  label: 'Program Outcomes Report',  icon: '🎓', color: '#1E40AF' },
   { id: 'attendancereport', label: 'Attendance Summary Report', icon: '📅', color: '#A16207' },
+  { id: 'enrollmentfunnel', label: 'Enrollment Funnel Report', icon: '🔻', color: '#BE185D' },
+  { id: 'aidsummary',      label: 'Financial Aid Summary Report', icon: '💰', color: '#4338CA' },
+  { id: 'placementreport', label: 'Employer & Salary Report',  icon: '💼', color: '#B91C1C' },
+  { id: 'classperformance', label: 'Class Performance Report', icon: '📈', color: '#134E4A' },
 ];
 const LEGACY_DEPARTMENT_BY_TYPE: Record<string, string> = {
   worksheet: 'teaching', studyguide: 'teaching', vocablist: 'teaching', readingguide: 'teaching',
   funactivity: 'teaching', creative: 'teaching', lessonplan: 'teaching', projectguide: 'teaching',
-  research: 'teaching', test: 'teaching', rubric: 'teaching', icebreaker: 'teaching',
+  research: 'teaching', test: 'teaching', rubric: 'teaching', icebreaker: 'teaching', classperformance: 'teaching',
   syllabus: 'operations', safetycontract: 'operations', missingwork: 'operations', obschecklist: 'operations',
   incident: 'operations', concernnotice: 'operations', advisingsummary: 'operations',
   outcomesreport: 'operations', attendancereport: 'operations',
+  enrollmentfunnel: 'admissions', aidsummary: 'financialaid', placementreport: 'careerplacement',
 };
 function slugDepartment(label: string): string {
   return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
