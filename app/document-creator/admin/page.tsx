@@ -209,6 +209,11 @@ export default function AdminPage() {
   const [newFolderPath, setNewFolderPath] = useState('');
   const [adding, setAdding] = useState(false);
   const [teacherFilters, setTeacherFilters] = useState({ name: '', email: '' });
+  // Chrome ignores autocomplete="off" and autofills these with the signed-in user's own email —
+  // keeping the fields read-only until actually clicked prevents the browser from targeting them
+  // for autofill in the first place.
+  const [teacherFilterNameUnlocked, setTeacherFilterNameUnlocked] = useState(false);
+  const [teacherFilterEmailUnlocked, setTeacherFilterEmailUnlocked] = useState(false);
   const [teacherFolderEdits, setTeacherFolderEdits] = useState<Record<string, string>>({});
   const [teacherPasswordEdits, setTeacherPasswordEdits] = useState<Record<string, string>>({});
   const [savingTeacherFolder, setSavingTeacherFolder] = useState<string | null>(null);
@@ -988,8 +993,27 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input value={teacherFilters.name} onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search name" name="teacher-filter-name" autoComplete="off" style={{ flex: 1, minWidth: 180, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
-                  <input value={teacherFilters.email} onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Search email" type="text" name="teacher-filter-email" autoComplete="off" style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
+                  <input
+                    value={teacherFilters.name}
+                    onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))}
+                    onFocus={() => setTeacherFilterNameUnlocked(true)}
+                    readOnly={!teacherFilterNameUnlocked}
+                    placeholder="Search name"
+                    name="teacher-filter-name"
+                    autoComplete="off"
+                    style={{ flex: 1, minWidth: 180, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', background: '#fff' }}
+                  />
+                  <input
+                    value={teacherFilters.email}
+                    onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))}
+                    onFocus={() => setTeacherFilterEmailUnlocked(true)}
+                    readOnly={!teacherFilterEmailUnlocked}
+                    placeholder="Search email"
+                    type="text"
+                    name="teacher-filter-email"
+                    autoComplete="off"
+                    style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', background: '#fff' }}
+                  />
                   {(teacherFilters.name || teacherFilters.email) && (
                     <button
                       onClick={() => setTeacherFilters({ name: '', email: '' })}
