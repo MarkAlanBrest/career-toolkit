@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       schoolName: school.name,
       accountId: school.accountId,
       accountToken: school.accountToken,
+      departmentIds: user.departmentIds || [],
     };
 
     const token = await createSession(session);

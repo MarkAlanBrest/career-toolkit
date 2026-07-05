@@ -23,6 +23,9 @@ export interface DcUser {
   active: boolean;
   createdAt: string;
   sharepointFolderPath?: string;
+  // Departments this teacher may create documents for. Empty/undefined = full access
+  // (unrestricted) — used both for legacy accounts and admins who haven't restricted anyone yet.
+  departmentIds?: string[];
 }
 
 export interface DcSession {
@@ -33,6 +36,7 @@ export interface DcSession {
   schoolName: string;
   accountId: string;
   accountToken: string;
+  departmentIds?: string[];
 }
 
 export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {

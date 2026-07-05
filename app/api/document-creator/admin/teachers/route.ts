@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest) {
   const teachers = await Promise.all(
     emails.map(async (email) => {
       const user = await getUser(email);
-      return user ? { email: user.email, name: user.name, active: user.active, createdAt: user.createdAt, sharepointFolderPath: user.sharepointFolderPath || '' } : null;
+      return user ? { email: user.email, name: user.name, active: user.active, createdAt: user.createdAt, sharepointFolderPath: user.sharepointFolderPath || '', departmentIds: user.departmentIds || [] } : null;
     })
   );
 
@@ -40,6 +40,7 @@ export async function GET(_req: NextRequest) {
     active: user.active,
     createdAt: user.createdAt,
     sharepointFolderPath: user.sharepointFolderPath || '',
+    departmentIds: user.departmentIds || [],
   }));
 
   return NextResponse.json({ teachers: mappedFallbackTeachers }, { headers: CORS });
@@ -120,9 +121,10 @@ export async function PATCH(req: NextRequest) {
   const email = String(body?.email || '').trim().toLowerCase();
   const password = String(body?.password || '').trim();
   const hasFolderPath = typeof body?.sharepointFolderPath === 'string';
+  const hasDepartmentIds = Array.isArray(body?.departmentIds);
 
-  if (!email || (!password && !hasFolderPath)) {
-    return NextResponse.json({ error: 'Email and a new password or SharePoint folder path are required.' }, { status: 400, headers: CORS });
+  if (!email || (!password && !hasFolderPath && !hasDepartmentIds)) {
+    return NextResponse.json({ error: 'Email and a new password, SharePoint folder path, or department list are required.' }, { status: 400, headers: CORS });
   }
   if (password && password.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400, headers: CORS });
 
@@ -139,6 +141,9 @@ export async function PATCH(req: NextRequest) {
   }
   if (hasFolderPath) {
     updated.sharepointFolderPath = normalizeFolderPath(body.sharepointFolderPath);
+  }
+  if (hasDepartmentIds) {
+    updated.departmentIds = (body.departmentIds as unknown[]).map(id => String(id)).filter(Boolean);
   }
   await saveUser(updated);
 

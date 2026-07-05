@@ -460,6 +460,14 @@ function getDepartments() {
   DEPARTMENTS_DEFAULT.forEach(function(d) {
     if (!list.find(function(x) { return x.id === d.id; })) list.push(d);
   });
+  // Teachers restricted to specific departments only see those; admins and unrestricted
+  // teachers (empty/missing departmentIds) see everything.
+  var allowed = _userSession && _userSession.role !== "admin" && Array.isArray(_userSession.departmentIds) && _userSession.departmentIds.length
+    ? _userSession.departmentIds
+    : null;
+  if (allowed) {
+    list = list.filter(function(d) { return allowed.indexOf(d.id) !== -1; });
+  }
   return list;
 }
 function departmentForType(type) {
@@ -1201,7 +1209,6 @@ function openSelectedDocumentType() {
 // INLINE DESCRIPTION UI
 // ═══════════════════════════════════════════════════════════
 var DEFAULT_CHAT_HINT = 'Describe the document you need. <strong>The more detail you provide, the less AI will fill in for you.</strong> Include the course name, topics, question types, timeline, or any specific requirements.';
-var DEFAULT_CHAT_PLACEHOLDER = "e.g. Worksheet for Unit 3 — Ohm's Law and basic circuit calculations. 10 questions: 4 multiple choice, 4 calculation problems with work boxes, 2 short answer. Include a formula reference box at the top.";
 
 function updateInlinePrompt(typeId) {
   var questions = (adminSettings[typeId] || {}).questions || [];
@@ -1216,7 +1223,7 @@ function updateInlinePrompt(typeId) {
   } else {
     hintEl.innerHTML = DEFAULT_CHAT_HINT;
   }
-  inputEl.placeholder = typeId === "resourceguide" ? "e.g. Photosynthesis, or Ohm's Law basics" : DEFAULT_CHAT_PLACEHOLDER;
+  inputEl.placeholder = "";
 }
 
 function selectType(typeId) {

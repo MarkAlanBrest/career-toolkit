@@ -16,7 +16,12 @@ export async function GET(_req: NextRequest) {
     const session = await getSession(token);
     if (!session) return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401, headers: CORS });
 
-    return NextResponse.json({ session }, { headers: CORS });
+    // Refresh department access from the user record on every check, so an admin's
+    // reassignment takes effect immediately instead of waiting for the 7-day session to expire.
+    const user = await getUser(session.email);
+    const freshSession = user ? { ...session, departmentIds: user.departmentIds || [] } : session;
+
+    return NextResponse.json({ session: freshSession }, { headers: CORS });
   } catch {
     return NextResponse.json({ error: 'Session check failed.' }, { status: 500, headers: CORS });
   }

@@ -19,7 +19,7 @@ function themeToHex(v: string | undefined): string {
 }
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
-type Teacher = { email: string; name: string; active: boolean; createdAt: string; sharepointFolderPath: string };
+type Teacher = { email: string; name: string; active: boolean; createdAt: string; sharepointFolderPath: string; departmentIds?: string[] };
 type Department = { id: string; label: string };
 type DocType = { id: string; label: string; icon: string; color: string; desc?: string; departmentId?: string };
 type StyleOptions = {
@@ -227,6 +227,9 @@ export default function AdminPage() {
   const [teacherFolderEdits, setTeacherFolderEdits] = useState<Record<string, string>>({});
   const [teacherPasswordEdits, setTeacherPasswordEdits] = useState<Record<string, string>>({});
   const [savingTeacherFolder, setSavingTeacherFolder] = useState<string | null>(null);
+  const [deptTeacher, setDeptTeacher] = useState<{ email: string; name: string } | null>(null);
+  const [teacherDeptEdits, setTeacherDeptEdits] = useState<Record<string, string[]>>({});
+  const [savingTeacherDepts, setSavingTeacherDepts] = useState(false);
 
   // My Account (admin's own password)
   const [myNewPassword, setMyNewPassword] = useState('');
@@ -293,6 +296,7 @@ export default function AdminPage() {
           setTeachers(data.teachers);
           setTeacherFolderEdits(Object.fromEntries(data.teachers.map((t: Teacher) => [t.email, t.sharepointFolderPath || ''])));
           setTeacherPasswordEdits(Object.fromEntries(data.teachers.map((t: Teacher) => [t.email, ''])));
+          setTeacherDeptEdits(Object.fromEntries(data.teachers.map((t: Teacher) => [t.email, t.departmentIds || []])));
         }
       })
       .catch(() => {})
@@ -350,6 +354,33 @@ export default function AdminPage() {
       loadTeachers();
     } finally {
       setSavingTeacherFolder(null);
+    }
+  }
+
+  function toggleTeacherDept(email: string, deptId: string) {
+    setTeacherDeptEdits(prev => {
+      const cur = prev[email] || [];
+      const next = cur.includes(deptId) ? cur.filter(id => id !== deptId) : [...cur, deptId];
+      return { ...prev, [email]: next };
+    });
+  }
+
+  async function saveTeacherDepartments() {
+    if (!deptTeacher) return;
+    setSavingTeacherDepts(true);
+    try {
+      const resp = await fetch('/api/document-creator/admin/teachers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: deptTeacher.email, departmentIds: teacherDeptEdits[deptTeacher.email] || [] }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { showMsg(data.error || 'Failed to save departments.', red); return; }
+      showMsg('Department access updated.');
+      setDeptTeacher(null);
+      loadTeachers();
+    } finally {
+      setSavingTeacherDepts(false);
     }
   }
 
@@ -1035,7 +1066,7 @@ export default function AdminPage() {
                   )}
                 </div>
                 <div style={{ border: `1px solid ${border}`, borderRadius: 10, background: '#fff', overflowX: 'auto' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 210px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Name</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Email</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Password</div>
@@ -1049,8 +1080,15 @@ export default function AdminPage() {
                         : 'No teachers match the current search. Try clearing the filters above.'}
                     </div>
                   ) : filteredTeachers.map((t, index) => (
-                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
-                      <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: navy, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
+                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 210px', borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
+                      <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: navy, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {t.name}
+                        <div style={{ fontSize: 10, fontWeight: 500, color: muted, marginTop: 2 }}>
+                          {(teacherDeptEdits[t.email] || []).length > 0
+                            ? `${teacherDeptEdits[t.email].length} dept${teacherDeptEdits[t.email].length > 1 ? 's' : ''}`
+                            : 'All departments'}
+                        </div>
+                      </div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: muted, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.email}</div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>
                         <input
@@ -1069,20 +1107,23 @@ export default function AdminPage() {
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
-                      <div style={{ padding: '10px 10px', display: 'flex', gap: 4 }}>
-                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ flex: 1, minWidth: 0, background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '6px 4px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
+                      <div style={{ padding: '10px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ minWidth: 0, background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '6px 4px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
                           {savingTeacherFolder === t.email ? '...' : 'Save'}
                         </button>
-                        <button onClick={() => setActivityTeacher({ email: t.email, name: t.name })} style={{ flex: 1, minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
+                        <button onClick={() => setActivityTeacher({ email: t.email, name: t.name })} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
                           Activity
                         </button>
-                        <button onClick={() => removeTeacher(t.email)} style={{ flex: 1, minWidth: 0, background: 'none', border: `1px solid ${red}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
+                        <button onClick={() => setDeptTeacher({ email: t.email, name: t.name })} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
+                          Departments
+                        </button>
+                        <button onClick={() => removeTeacher(t.email)} style={{ minWidth: 0, background: 'none', border: `1px solid ${red}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
                           Delete
                         </button>
                       </div>
                     </div>
                   ))}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 210px', background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Password" type="password" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
@@ -1154,6 +1195,57 @@ export default function AdminPage() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {deptTeacher && (
+        <div
+          onClick={() => setDeptTeacher(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 14, padding: 20, width: 400, maxWidth: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(15,23,42,.25)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: navy }}>{deptTeacher.name}</div>
+                <div style={{ fontSize: 12, color: muted }}>{deptTeacher.email}</div>
+              </div>
+              <button onClick={() => setDeptTeacher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: muted, lineHeight: 1 }}>✕</button>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: navy, padding: '8px 10px', background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 8, marginBottom: 10 }}>
+              <input
+                type="checkbox"
+                checked={(teacherDeptEdits[deptTeacher.email] || []).length === 0}
+                onChange={e => setTeacherDeptEdits(prev => ({ ...prev, [deptTeacher.email]: e.target.checked ? [] : departments.map(d => d.id) }))}
+              />
+              Full access — all departments
+            </label>
+
+            {(teacherDeptEdits[deptTeacher.email] || []).length === 0 ? (
+              <div style={{ fontSize: 12, color: muted }}>This teacher can create documents in every department, including any added later.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 11, color: muted }}>Only checked departments will be visible to this teacher.</div>
+                {departments.map(dep => (
+                  <label key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: navy }}>
+                    <input
+                      type="checkbox"
+                      checked={(teacherDeptEdits[deptTeacher.email] || []).includes(dep.id)}
+                      onChange={() => toggleTeacherDept(deptTeacher.email, dep.id)}
+                    />
+                    {dep.label}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}>
+              <Btn onClick={saveTeacherDepartments} disabled={savingTeacherDepts}>{savingTeacherDepts ? 'Saving...' : 'Save Departments'}</Btn>
+            </div>
           </div>
         </div>
       )}
