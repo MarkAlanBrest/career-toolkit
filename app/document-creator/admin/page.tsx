@@ -208,7 +208,7 @@ export default function AdminPage() {
   const [newPass, setNewPass] = useState('');
   const [newFolderPath, setNewFolderPath] = useState('');
   const [adding, setAdding] = useState(false);
-  const [teacherFilters, setTeacherFilters] = useState({ name: '', email: '', folder: '' });
+  const [teacherFilters, setTeacherFilters] = useState({ name: '', email: '' });
   const [teacherFolderEdits, setTeacherFolderEdits] = useState<Record<string, string>>({});
   const [teacherPasswordEdits, setTeacherPasswordEdits] = useState<Record<string, string>>({});
   const [savingTeacherFolder, setSavingTeacherFolder] = useState<string | null>(null);
@@ -670,11 +670,9 @@ export default function AdminPage() {
   const filteredTeachers = useMemo(() => teachers.filter(t => {
     const name = (t.name || '').toLowerCase();
     const email = (t.email || '').toLowerCase();
-    const folder = (t.sharepointFolderPath || '').toLowerCase();
     return (
       name.includes(teacherFilters.name.toLowerCase()) &&
-      email.includes(teacherFilters.email.toLowerCase()) &&
-      folder.includes(teacherFilters.folder.toLowerCase())
+      email.includes(teacherFilters.email.toLowerCase())
     );
   }), [teachers, teacherFilters]);
 
@@ -945,8 +943,8 @@ export default function AdminPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <input value={teacherFilters.name} onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search name" style={{ flex: 1, minWidth: 180, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
-                  <input value={teacherFilters.email} onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Search email" style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
+                  <input value={teacherFilters.name} onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search name" autoComplete="off" style={{ flex: 1, minWidth: 180, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
+                  <input value={teacherFilters.email} onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Search email" type="email" autoComplete="off" style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
                 </div>
                 <div style={{ border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
