@@ -404,7 +404,10 @@ var DOC_TYPES_DEFAULT = [
   { id:"certificate",   label:"Certificate of Completion",  icon:"🏆", color:"#92400E", desc:"Program or course completion certificate for a student" },
   { id:"icebreaker",    label:"Icebreaker Activity Guide",  icon:"🤝", color:"#0369A1", desc:"First-day-of-class team-building activity with instructions and debrief" },
   { id:"concernnotice", label:"Academic Concern Notice",    icon:"🚩", color:"#9F1239", desc:"Documents an attendance or performance concern, sent to the student" },
-  { id:"advisingsummary", label:"Advising/Progress Summary", icon:"🧭", color:"#5B21B6", desc:"Summary notes from a student-advisor check-in" }
+  { id:"advisingsummary", label:"Advising/Progress Summary", icon:"🧭", color:"#5B21B6", desc:"Summary notes from a student-advisor check-in" },
+  { id:"datareport",      label:"Data Report",                icon:"📊", color:"#166534", desc:"Upload data and describe what to analyze — narrative, tables, and simple charts" },
+  { id:"outcomesreport",  label:"Program Outcomes Report",     icon:"🎓", color:"#1E40AF", desc:"Completion, certification, and placement rates for a program or cohort" },
+  { id:"attendancereport", label:"Attendance Summary Report",  icon:"📅", color:"#A16207", desc:"Attendance trends and patterns for a class or program" }
 ];
 
 var DEPARTMENTS_DEFAULT = [
@@ -440,7 +443,7 @@ var DOC_TYPE_CATEGORIES = {
   funactivity: "teaching", creative: "teaching", lessonplan: "teaching", projectguide: "teaching",
   research: "teaching", test: "teaching", rubric: "teaching", icebreaker: "teaching",
   syllabus: "admin", safetycontract: "admin", missingwork: "admin", obschecklist: "admin", incident: "admin",
-  concernnotice: "admin", advisingsummary: "admin"
+  concernnotice: "admin", advisingsummary: "admin", outcomesreport: "admin", attendancereport: "admin"
 };
 function legacyDepartmentForType(typeId) {
   var cat = DOC_TYPE_CATEGORIES[typeId] || "other";
@@ -876,7 +879,46 @@ function buildPromptFromInput(typeId, description) {
     + getLayoutInstructions(typeId, color, lc);
 }
 
+// Shared recipe for report-style document types — gives the AI exact numeric formulas for
+// drawing charts as inline SVG (no JavaScript/canvas/charting libraries are available at
+// render time, so every chart must be plain, static SVG markup).
+function svgChartGuide(color) {
+  return "CHARTS — draw as inline SVG only (no JavaScript, no <canvas>, no external chart libraries):\n"
+    + "BAR CHART (preferred for comparing categories — most reliable): <svg viewBox=\"0 0 500 260\" style=\"width:100%;max-width:520px;height:auto;\">. One <rect> per category: height = (value / maxValue) * 200, y = 220 - height, width ~40, x spaced evenly starting at x=40 with ~70px between bars. fill=\"" + color + "\". Add a <text> label below each bar (y=240, text-anchor=\"middle\") and the numeric value above each bar (y = 220-height-8, text-anchor=\"middle\").\n"
+    + "LINE/TREND CHART (for a value changing over time): <polyline> with points spaced evenly left-to-right, y = 220 - (value/maxValue)*200 for each point (SVG y grows downward, so higher values need smaller y), stroke=\"" + color + "\" fill=\"none\" stroke-width=\"3\". Add a small <circle r=\"4\"> at each point and a <text> value label near it.\n"
+    + "PIE CHART (only for 2-6 slices of one whole): for each slice compute angle = (value/total)*360; track a running startAngle; convert startAngle/endAngle (in radians = degrees*PI/180) to points on a circle radius 100 centered at (120,120): x = 120 + 100*cos(angle), y = 120 + 100*sin(angle); draw <path d=\"M120,120 L{x1},{y1} A100,100 0 {largeArcFlag},1 {x2},{y2} Z\"> where largeArcFlag is 1 if that slice's angle > 180 else 0; use a distinct fill per slice; add a text legend below listing each label, color swatch, and percentage.\n"
+    + "CRITICAL: only chart numbers that actually appear in the supplied source data — never estimate, round unrealistically, or invent a data point to fill out a chart. If the data doesn't clearly support a chart, use a table instead.\n";
+}
+
 function getLayoutInstructions(typeId, color, lc) {
+  if (typeId === "datareport") return "LAYOUT:\n"
+    + "1. Header — padding:28px 40px; border-top:5px solid " + color + "; background:" + lc + "; — Title 'Data Report' (Georgia 26px color:" + color + " bold) with a one-line subtitle naming the dataset/topic\n"
+    + "2. EXECUTIVE SUMMARY — 2-3 sentences on what the data shows overall\n"
+    + "3. DATA OVERVIEW — a table presenting the key data supplied, clearly labeled columns\n"
+    + "4. VISUALIZATIONS — one or two charts using the guidance below, whichever type fits the data (bar for comparing categories, line for a trend over time, pie for parts of a whole)\n"
+    + "5. KEY FINDINGS — bulleted list of the most important takeaways, grounded strictly in the supplied data\n"
+    + "6. RECOMMENDATIONS — only include this section if the teacher's instructions specifically asked for recommendations\n"
+    + svgChartGuide(color);
+
+  if (typeId === "outcomesreport") return "LAYOUT:\n"
+    + "1. Header — padding:28px 40px; border-top:5px solid " + color + "; background:" + lc + "; — Title 'Program Outcomes Report' (Georgia 26px color:" + color + " bold) with program name and reporting period as subtitle\n"
+    + "2. OVERVIEW — one to two sentences on the program and the period this report covers\n"
+    + "3. KEY METRICS — a row of 3-4 stat callouts (large bold number, small label beneath, e.g. background:" + lc + "; padding:16px; border-radius:8px; text-align:center;) for headline figures such as Completion Rate, Certification Pass Rate, Job Placement Rate, Total Enrolled\n"
+    + "4. VISUALIZATIONS — a bar chart breaking down outcomes (e.g. completed / withdrew / in progress), or comparing metrics across terms/cohorts if more than one period is in the data\n"
+    + "5. DETAILED BREAKDOWN — table with the full numbers behind each headline metric\n"
+    + "6. NOTES — any caveats about the data (small sample size, single term of data, etc.) if relevant\n"
+    + "CRITICAL: use only real figures supplied by the teacher — never fabricate completion, certification, or placement numbers.\n"
+    + svgChartGuide(color);
+
+  if (typeId === "attendancereport") return "LAYOUT:\n"
+    + "1. Header — padding:28px 40px; border-top:5px solid " + color + "; background:" + lc + "; — Title 'Attendance Summary Report' (Georgia 26px color:" + color + " bold) with class/program and term as subtitle\n"
+    + "2. OVERVIEW — one sentence stating the overall/average attendance rate and reporting period\n"
+    + "3. VISUALIZATIONS — a line/trend chart of attendance rate over the weeks/period supplied, and/or a bar chart comparing attendance across students or sections if that breakdown is in the data\n"
+    + "4. DETAILED TABLE — week-by-week or student-by-student attendance figures\n"
+    + "5. PATTERNS & CONCERNS — bulleted notes on any students or periods with notably low attendance, grounded strictly in the actual numbers supplied\n"
+    + "CRITICAL: use only the real attendance figures supplied — never invent a number for a student or date not in the source data.\n"
+    + svgChartGuide(color);
+
   if (typeId === "syllabus") return "LAYOUT:\n"
     + "1. Clean header — padding:44px 48px; border-bottom:2px solid " + color + "; — Course title (Georgia 36px color:" + color + " bold), level/term subtitle (Arial 15px #475569)\n"
     + "2. Content area: padding:44px 48px; font-family:Arial,sans-serif;\n"

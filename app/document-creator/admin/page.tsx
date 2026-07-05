@@ -84,6 +84,9 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'icebreaker',    label: 'Icebreaker Activity Guide', icon: '🤝', color: '#0369A1' },
   { id: 'concernnotice', label: 'Academic Concern Notice', icon: '🚩', color: '#9F1239' },
   { id: 'advisingsummary', label: 'Advising/Progress Summary', icon: '🧭', color: '#5B21B6' },
+  { id: 'datareport',      label: 'Data Report',              icon: '📊', color: '#166534' },
+  { id: 'outcomesreport',  label: 'Program Outcomes Report',  icon: '🎓', color: '#1E40AF' },
+  { id: 'attendancereport', label: 'Attendance Summary Report', icon: '📅', color: '#A16207' },
 ];
 const LEGACY_DEPARTMENT_BY_TYPE: Record<string, string> = {
   worksheet: 'teaching', studyguide: 'teaching', vocablist: 'teaching', readingguide: 'teaching',
@@ -91,6 +94,7 @@ const LEGACY_DEPARTMENT_BY_TYPE: Record<string, string> = {
   research: 'teaching', test: 'teaching', rubric: 'teaching', icebreaker: 'teaching',
   syllabus: 'operations', safetycontract: 'operations', missingwork: 'operations', obschecklist: 'operations',
   incident: 'operations', concernnotice: 'operations', advisingsummary: 'operations',
+  outcomesreport: 'operations', attendancereport: 'operations',
 };
 function slugDepartment(label: string): string {
   return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
