@@ -213,6 +213,10 @@ export default function AdminPage() {
   const [teacherPasswordEdits, setTeacherPasswordEdits] = useState<Record<string, string>>({});
   const [savingTeacherFolder, setSavingTeacherFolder] = useState<string | null>(null);
 
+  // My Account (admin's own password)
+  const [myNewPassword, setMyNewPassword] = useState('');
+  const [savingMyPassword, setSavingMyPassword] = useState(false);
+
   // Set SharePoint folder
   const [folderEmail, setFolderEmail] = useState('');
   const [folderPath, setFolderPath] = useState('');
@@ -330,6 +334,25 @@ export default function AdminPage() {
       loadTeachers();
     } finally {
       setSavingTeacherFolder(null);
+    }
+  }
+
+  async function saveMyPassword() {
+    if (!session) return;
+    if (myNewPassword.length < 8) { showMsg('New password must be at least 8 characters.', red); return; }
+    setSavingMyPassword(true);
+    try {
+      const resp = await fetch('/api/document-creator/admin/teachers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: session.email, password: myNewPassword }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { showMsg(data.error || 'Failed to update password.', red); return; }
+      setMyNewPassword('');
+      showMsg('Your password was updated.');
+    } finally {
+      setSavingMyPassword(false);
     }
   }
 
@@ -715,6 +738,28 @@ export default function AdminPage() {
 
         {activeTab === 'school' && (
           <>
+            <Section title="My Account">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Name</div>
+                    <div style={{ fontSize: 14, color: navy, fontWeight: 600 }}>{session?.name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Email</div>
+                    <div style={{ fontSize: 14, color: navy, fontWeight: 600 }}>{session?.email}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Change My Password</div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <Input value={myNewPassword} onChange={setMyNewPassword} placeholder="New password (min 8 characters)" type="password" />
+                    <Btn onClick={saveMyPassword} disabled={savingMyPassword}>{savingMyPassword ? 'Saving...' : 'Update Password'}</Btn>
+                  </div>
+                </div>
+              </div>
+            </Section>
+
             <Section title="School Profile">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
@@ -942,9 +987,17 @@ export default function AdminPage() {
               <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input value={teacherFilters.name} onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search name" autoComplete="off" style={{ flex: 1, minWidth: 180, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
                   <input value={teacherFilters.email} onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Search email" type="email" autoComplete="off" style={{ flex: 1, minWidth: 220, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} />
+                  {(teacherFilters.name || teacherFilters.email) && (
+                    <button
+                      onClick={() => setTeacherFilters({ name: '', email: '' })}
+                      style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, padding: '8px 12px', fontSize: 12, fontWeight: 600, color: muted, cursor: 'pointer', fontFamily: font, whiteSpace: 'nowrap' }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
                 </div>
                 <div style={{ border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
@@ -955,7 +1008,11 @@ export default function AdminPage() {
                     <div style={{ padding: '10px 10px' }}>Save</div>
                   </div>
                   {filteredTeachers.length === 0 ? (
-                    <div style={{ padding: '16px 10px', color: muted, fontSize: 13 }}>No teachers match the current filters.</div>
+                    <div style={{ padding: '16px 10px', color: muted, fontSize: 13 }}>
+                      {teachers.length === 0
+                        ? 'No teachers yet — add one below.'
+                        : 'No teachers match the current search. Try clearing the filters above.'}
+                    </div>
                   ) : filteredTeachers.map((t, index) => (
                     <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px', borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: navy, fontWeight: 600 }}>{t.name}</div>
