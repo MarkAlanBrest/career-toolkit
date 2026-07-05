@@ -1,4 +1,6 @@
 import { createHash } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { Redis } from '@upstash/redis';
 
 export type PackageName = 'teaching' | 'creation' | 'owner';
@@ -13,146 +15,222 @@ export type AccountEntitlements = {
 };
 type LemonValidation = { valid?: boolean; error?: string; license_key?: { status?: string }; meta?: { variant_id?: number; customer_id?: number; customer_email?: string } };
 
-type MemoryStore = { data: Map<string, unknown>; sets: Map<string, Set<string>>; timers: Map<string, ReturnType<typeof setTimeout>> };
+type MemoryStoreValue = { value: unknown; expiresAt?: number };
+type MemoryStore = { data: Map<string, MemoryStoreValue>; sets: Map<string, Set<string>>; filePath: string };
 
-function getMemoryStore(): MemoryStore {
-  const globalWithStore = globalThis as typeof globalThis & { __memoryRedisStore?: MemoryStore };
-  if (!globalWithStore.__memoryRedisStore) {
-    globalWithStore.__memoryRedisStore = { data: new Map(), sets: new Map(), timers: new Map() };
+function getFallbackFilePath(): string {
+  const filePath = join(process.cwd(), '.next', 'cache', 'document-creator-redis.json');
+  mkdirSync(dirname(filePath), { recursive: true });
+  return filePath;
+}
+
+function loadMemoryStore(filePath: string): MemoryStore {
+  const store: MemoryStore = { data: new Map(), sets: new Map(), filePath };
+  if (!existsSync(filePath)) return store;
+
+  try {
+    const raw = JSON.parse(readFileSync(filePath, 'utf8')) as { data?: Array<[string, MemoryStoreValue]>; sets?: Array<[string, string[]]> };
+    if (raw.data) {
+      store.data = new Map(raw.data);
+    }
+    if (raw.sets) {
+      store.sets = new Map(raw.sets.map(([key, values]) => [key, new Set(values)]));
+    }
+  } catch {
+    // Fall back to an empty store if the file is corrupted.
   }
-  return globalWithStore.__memoryRedisStore;
+
+  return store;
+}
+
+function persistMemoryStore(store: MemoryStore): void {
+  const payload = {
+    data: Array.from(store.data.entries()),
+    sets: Array.from(store.sets.entries()).map(([key, values]) => [key, Array.from(values)]),
+  };
+  writeFileSync(store.filePath, JSON.stringify(payload), 'utf8');
 }
 
 function createInMemoryRedis() {
-  const store = getMemoryStore();
+  const store = loadMemoryStore(getFallbackFilePath());
+
+  const cleanupExpired = () => {
+    const now = Date.now();
+    for (const [key, value] of Array.from(store.data.entries())) {
+      if (value.expiresAt && value.expiresAt <= now) {
+        store.data.delete(key);
+      }
+    }
+    if (store.data.size || store.sets.size) {
+      persistMemoryStore(store);
+    }
+  };
+
+  const getStoredValue = (key: string): unknown => {
+    const entry = store.data.get(key);
+    if (!entry) return undefined;
+    if (entry.expiresAt && entry.expiresAt <= Date.now()) {
+      store.data.delete(key);
+      persistMemoryStore(store);
+      return undefined;
+    }
+    return entry.value;
+  };
+
   return {
     async get<T = unknown>(key: string): Promise<T | undefined> {
-      const value = store.data.get(key);
-      return value as T | undefined;
+      cleanupExpired();
+      return getStoredValue(key) as T | undefined;
     },
     async set(key: string, value: unknown, options?: { ex?: number; nx?: boolean }) {
-      if (options?.nx && store.data.has(key)) return null;
-      store.data.set(key, value);
-      const existingTimer = store.timers.get(key);
-      if (existingTimer) clearTimeout(existingTimer);
-      if (options?.ex) {
-        const timer = setTimeout(() => {
-          store.data.delete(key);
-          store.timers.delete(key);
-        }, options.ex * 1000);
-        store.timers.set(key, timer);
-      }
+      cleanupExpired();
+      if (options?.nx && store.data.has(key) && getStoredValue(key) !== undefined) return null;
+      store.data.set(key, { value, expiresAt: options?.ex ? Date.now() + options.ex * 1000 : undefined });
+      persistMemoryStore(store);
       return 'OK';
     },
     async del(...keys: string[]) {
+      cleanupExpired();
       let deleted = 0;
       keys.forEach(key => {
-        const existingTimer = store.timers.get(key);
-        if (existingTimer) { clearTimeout(existingTimer); store.timers.delete(key); }
         if (store.data.delete(key)) deleted += 1;
         if (store.sets.delete(key)) deleted += 1;
       });
+      if (deleted) persistMemoryStore(store);
       return deleted;
     },
     async keys(pattern: string) {
+      cleanupExpired();
       const regex = new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
       return Array.from(store.data.keys()).filter(key => regex.test(key));
     },
     async exists(key: string) {
-      return store.data.has(key) ? 1 : 0;
+      cleanupExpired();
+      return getStoredValue(key) !== undefined ? 1 : 0;
     },
     async sadd(key: string, ...values: string[]) {
+      cleanupExpired();
       const set = store.sets.get(key) || new Set<string>();
       values.forEach(value => set.add(value));
       store.sets.set(key, set);
+      persistMemoryStore(store);
       return set.size;
     },
     async srem(key: string, ...values: string[]) {
+      cleanupExpired();
       const set = store.sets.get(key);
       if (!set) return 0;
       values.forEach(value => set.delete(value));
       if (!set.size) store.sets.delete(key);
+      persistMemoryStore(store);
       return values.length;
     },
     async smembers(key: string) {
+      cleanupExpired();
       return Array.from(store.sets.get(key) || []);
     },
     async zadd(key: string, items: { score: number; member: string } | { score: number; member: string }[]) {
+      cleanupExpired();
       const entries = Array.isArray(items) ? items : [items];
-      const sorted = store.data.get(key) as Array<{ score: number; member: string }> | undefined || [];
+      const sorted = (getStoredValue(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
       const next = [...sorted.filter((entry: { score: number; member: string }) => !entries.some(item => item.member === entry.member))];
       next.push(...entries);
       next.sort((a, b) => a.score - b.score);
-      store.data.set(key, next);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next.length;
     },
     async zrange(key: string, start: number, stop: number) {
-      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      cleanupExpired();
+      const sorted = (getStoredValue(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
       if (start === 0 && stop === -1) return sorted.map(entry => entry.member);
       const items = sorted.slice(start, stop === -1 ? undefined : stop + 1);
       return items.map(entry => entry.member);
     },
     async zcard(key: string) {
-      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      cleanupExpired();
+      const sorted = (getStoredValue(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
       return sorted.length;
     },
     async zremrangebyrank(key: string, start: number, stop: number) {
-      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      cleanupExpired();
+      const sorted = (getStoredValue(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
       const next = sorted.filter((_, index) => index < start || index > stop);
-      store.data.set(key, next);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next.length;
     },
     async lpush(key: string, ...values: string[]) {
-      const list = (store.data.get(key) as string[] | undefined) || [];
-      store.data.set(key, [...values, ...list]);
-      return (store.data.get(key) as string[]).length;
+      cleanupExpired();
+      const list = (getStoredValue(key) as string[] | undefined) || [];
+      const next = [...values, ...list];
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
+      return next.length;
     },
     async lrange(key: string, start: number, stop: number) {
-      const list = (store.data.get(key) as string[] | undefined) || [];
+      cleanupExpired();
+      const list = (getStoredValue(key) as string[] | undefined) || [];
       if (stop === -1) return list.slice(start);
       return list.slice(start, stop + 1);
     },
     async lrem(key: string, count: number, value: string) {
-      const list = (store.data.get(key) as string[] | undefined) || [];
-      const next = count === 0 ? list.filter(item => item !== value) : list.filter(item => item !== value).slice(0);
-      store.data.set(key, next);
+      cleanupExpired();
+      const list = (getStoredValue(key) as string[] | undefined) || [];
+      const next = list.filter(item => item !== value);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next.length;
     },
     async rpush(key: string, ...values: string[]) {
-      const list = (store.data.get(key) as string[] | undefined) || [];
-      store.data.set(key, [...list, ...values]);
-      return (store.data.get(key) as string[]).length;
+      cleanupExpired();
+      const list = (getStoredValue(key) as string[] | undefined) || [];
+      const next = [...list, ...values];
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
+      return next.length;
     },
     async ltrim(key: string, start: number, stop: number) {
-      const list = (store.data.get(key) as string[] | undefined) || [];
+      cleanupExpired();
+      const list = (getStoredValue(key) as string[] | undefined) || [];
       const next = stop === -1 ? list.slice(start) : list.slice(start, stop + 1);
-      store.data.set(key, next);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return 'OK';
     },
     async llen(key: string) {
-      return (store.data.get(key) as string[] | undefined || []).length;
+      cleanupExpired();
+      return (getStoredValue(key) as string[] | undefined || []).length;
     },
     async eval(_script: string, _keys: string[] = [], _args: Array<string | number> = []) {
       return ['denied', 0];
     },
     async incr(key: string) {
-      const next = (Number(store.data.get(key) || 0) + 1);
-      store.data.set(key, next);
+      cleanupExpired();
+      const next = (Number(getStoredValue(key) || 0) + 1);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next;
     },
     async decr(key: string) {
-      const next = (Number(store.data.get(key) || 0) - 1);
-      store.data.set(key, next);
+      cleanupExpired();
+      const next = (Number(getStoredValue(key) || 0) - 1);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next;
     },
     async incrby(key: string, amount: number) {
-      const next = (Number(store.data.get(key) || 0) + amount);
-      store.data.set(key, next);
+      cleanupExpired();
+      const next = (Number(getStoredValue(key) || 0) + amount);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next;
     },
     async decrby(key: string, amount: number) {
-      const next = (Number(store.data.get(key) || 0) - amount);
-      store.data.set(key, next);
+      cleanupExpired();
+      const next = (Number(getStoredValue(key) || 0) - amount);
+      store.data.set(key, { value: next });
+      persistMemoryStore(store);
       return next;
     },
   };
