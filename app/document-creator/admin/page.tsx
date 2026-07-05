@@ -766,13 +766,13 @@ export default function AdminPage() {
                       <button onClick={() => selectedDocType && removeDocType(selectedDocType.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, cursor: 'pointer', color: muted, fontSize: 11, padding: '4px 8px', fontFamily: font }}>Remove</button>
                     </div>
                     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
+                      <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
                         <textarea value={docNotes[selectedDocType?.id || ''] || ''} onChange={e => selectedDocType && setDocNotes({ ...docNotes, [selectedDocType.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
-                      <div>
+                      <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style<Help text="Optional formatting touches applied throughout the document for this type — e.g. numbered sections or a signature block. Leave all unchecked to let the AI choose formatting freely." /></div>
                         <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, alignItems: 'start', marginBottom: 10 }}>
                           <div>
@@ -813,7 +813,7 @@ export default function AdminPage() {
                           })}
                         </div>
                       </div>
-                      <div>
+                      <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme<Help text="Sets the accent color used for this document type's header, borders, and table headings." /></div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <input type="color" value={themeToHex(docThemes[selectedDocType?.id || ''])} onChange={e => selectedDocType && setDocThemes(prev => ({ ...prev, [selectedDocType.id]: e.target.value }))}
@@ -822,7 +822,7 @@ export default function AdminPage() {
                         </div>
                         <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
                       </div>
-                      <div>
+                      <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Attached Files<Help text="Upload files here and attach them to this document type for use as source material during generation." /></div>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
                           <label style={{ display: 'inline-flex', alignItems: 'center', background: blue, color: '#fff', borderRadius: 999, padding: '8px 14px', fontSize: 13, fontWeight: 700, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1, whiteSpace: 'nowrap' }}>
@@ -851,7 +851,7 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
-                      <div>
+                      <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Detailed Instructions<Help text="Shown to teachers as guidance above the description box when creating this document type — useful for telling them exactly what details the AI needs." /></div>
                         <textarea
                           value={docQuestions[selectedDocType?.id || ''] || ''}
