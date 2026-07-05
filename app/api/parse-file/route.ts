@@ -116,6 +116,13 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   throw new Error(`PDF text extraction failed after ${errors.length} attempts: ${errors.join(' | ')}`);
 }
 
+// .docx is a ZIP container (starts with the "PK" signature); legacy .doc is an OLE binary format
+// that only shares the file extension with it. Mammoth can only read the former, so sniff the
+// actual bytes rather than trusting the filename/mimetype to pick the right parser.
+function isZipFile(buffer: Buffer): boolean {
+  return buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -189,7 +196,7 @@ export async function POST(req: NextRequest) {
   try {
     if (isPdf) {
       text = await extractPdfText(buffer);
-    } else if (isDocx) {
+    } else if (isDocx && isZipFile(buffer)) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mammoth = require('mammoth');
       const styleMap = [
@@ -212,6 +219,13 @@ export async function POST(req: NextRequest) {
       ];
       const result = await mammoth.convertToHtml({ buffer }, { styleMap });
       text = htmlToStructuredText(result.value);
+    } else if (isDocx) {
+      // Legacy Word 97-2003 .doc (OLE binary, not a ZIP) — mammoth can't read these at all.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const WordExtractor = require('word-extractor');
+      const extractor = new WordExtractor();
+      const doc = await extractor.extract(buffer);
+      text = doc.getBody();
     } else if (isXlsx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const xlsx = require('xlsx');
