@@ -586,12 +586,25 @@ export default function AdminPage() {
   }
 
   function removeDepartment(id: string) {
+    const target = departments.find(d => d.id === id);
     if (departments.length <= 1) { showMsg('Keep at least one department.', red); return; }
     if (docTypes.some(t => departmentForType(t) === id)) { showMsg('Move or remove documents in this department first.', red); return; }
+    if (!confirm(`Delete the "${target?.label || 'selected'}" department?`)) return;
     const remaining = departments.filter(d => d.id !== id);
     setDepartments(remaining);
     if (selectedDepartmentId === id) setSelectedDepartmentId(remaining[0]?.id || 'other');
     if (newTypeDepartmentId === id) setNewTypeDepartmentId(remaining[0]?.id || 'other');
+    showMsg(`Department "${target?.label || 'selected'}" removed.`);
+  }
+
+  function moveSelectedDocType(targetDepartmentId: string) {
+    if (!selectedDocType) return;
+    setDocTypes(prev => prev.map(t => t.id === selectedDocType.id ? { ...t, departmentId: targetDepartmentId } : t));
+    setSelectedDepartmentId(targetDepartmentId);
+    setNewTypeDepartmentId(targetDepartmentId);
+    setSelectedDocTypeId(selectedDocType.id);
+    const deptLabel = departments.find(dep => dep.id === targetDepartmentId)?.label || targetDepartmentId;
+    showMsg(`Moved "${selectedDocType.label}" to ${deptLabel}.`);
   }
 
   async function removeDocType(id: string) {
@@ -753,17 +766,48 @@ export default function AdminPage() {
                   <div style={{ fontSize: 12, color: muted }}>No document types yet — add one above.</div>
                 ) : (
                   <div style={{ border: `1px solid ${border}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 6px 16px rgba(15,23,42,0.04)' }}>
-                    <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
-                      <select
-                        value={selectedDocType?.id || ''}
-                        onChange={e => setSelectedDocTypeId(e.target.value)}
-                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '7px 8px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: 'pointer' }}
+                    <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}`, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 180, flex: 1 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Department</div>
+                        <select
+                          value={selectedDepartmentId}
+                          onChange={e => setSelectedDepartmentId(e.target.value)}
+                          style={{ width: '100%', fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '7px 8px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: 'pointer' }}
+                        >
+                          {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        onClick={() => removeDepartment(selectedDepartmentId)}
+                        disabled={departments.length <= 1}
+                        style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, cursor: departments.length <= 1 ? 'not-allowed' : 'pointer', color: departments.length <= 1 ? '#94A3B8' : muted, fontSize: 11, padding: '8px 10px', fontFamily: font, whiteSpace: 'nowrap' }}
                       >
-                        {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
-                          <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
-                        ))}
-                      </select>
-                      <button onClick={() => selectedDocType && removeDocType(selectedDocType.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, cursor: 'pointer', color: muted, fontSize: 11, padding: '4px 8px', fontFamily: font }}>Remove</button>
+                        Delete Department
+                      </button>
+                      <div style={{ minWidth: 220, flex: 1 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Document</div>
+                        <select
+                          value={selectedDocType?.id || ''}
+                          onChange={e => setSelectedDocTypeId(e.target.value)}
+                          style={{ width: '100%', fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '7px 8px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: 'pointer' }}
+                        >
+                          {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
+                            <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ minWidth: 180 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Move To</div>
+                        <select
+                          value={selectedDocType?.departmentId || selectedDepartmentId}
+                          onChange={e => moveSelectedDocType(e.target.value)}
+                          disabled={!selectedDocType}
+                          style={{ width: '100%', fontSize: 13, color: navy, fontFamily: font, padding: '7px 8px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: selectedDocType ? 'pointer' : 'not-allowed', opacity: selectedDocType ? 1 : 0.7 }}
+                        >
+                          {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+                        </select>
+                      </div>
+                      <button onClick={() => selectedDocType && removeDocType(selectedDocType.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, cursor: 'pointer', color: muted, fontSize: 11, padding: '8px 10px', fontFamily: font, whiteSpace: 'nowrap' }}>Remove Document</button>
                     </div>
                     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 12, padding: 12 }}>
