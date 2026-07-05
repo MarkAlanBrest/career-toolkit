@@ -30,7 +30,8 @@ function createInMemoryRedis() {
       const value = store.data.get(key);
       return value as T | undefined;
     },
-    async set(key: string, value: unknown, options?: { ex?: number }) {
+    async set(key: string, value: unknown, options?: { ex?: number; nx?: boolean }) {
+      if (options?.nx && store.data.has(key)) return null;
       store.data.set(key, value);
       const existingTimer = store.timers.get(key);
       if (existingTimer) clearTimeout(existingTimer);
@@ -46,7 +47,10 @@ function createInMemoryRedis() {
     async del(...keys: string[]) {
       let deleted = 0;
       keys.forEach(key => {
+        const existingTimer = store.timers.get(key);
+        if (existingTimer) { clearTimeout(existingTimer); store.timers.delete(key); }
         if (store.data.delete(key)) deleted += 1;
+        if (store.sets.delete(key)) deleted += 1;
       });
       return deleted;
     },
@@ -54,14 +58,79 @@ function createInMemoryRedis() {
       const regex = new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
       return Array.from(store.data.keys()).filter(key => regex.test(key));
     },
+    async exists(key: string) {
+      return store.data.has(key) ? 1 : 0;
+    },
     async sadd(key: string, ...values: string[]) {
       const set = store.sets.get(key) || new Set<string>();
       values.forEach(value => set.add(value));
       store.sets.set(key, set);
       return set.size;
     },
+    async srem(key: string, ...values: string[]) {
+      const set = store.sets.get(key);
+      if (!set) return 0;
+      values.forEach(value => set.delete(value));
+      if (!set.size) store.sets.delete(key);
+      return values.length;
+    },
     async smembers(key: string) {
       return Array.from(store.sets.get(key) || []);
+    },
+    async zadd(key: string, items: { score: number; member: string } | { score: number; member: string }[]) {
+      const entries = Array.isArray(items) ? items : [items];
+      const sorted = store.data.get(key) as Array<{ score: number; member: string }> | undefined || [];
+      const next = [...sorted.filter((entry: { score: number; member: string }) => !entries.some(item => item.member === entry.member))];
+      next.push(...entries);
+      next.sort((a, b) => a.score - b.score);
+      store.data.set(key, next);
+      return next.length;
+    },
+    async zrange(key: string, start: number, stop: number) {
+      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      if (start === 0 && stop === -1) return sorted.map(entry => entry.member);
+      const items = sorted.slice(start, stop === -1 ? undefined : stop + 1);
+      return items.map(entry => entry.member);
+    },
+    async zcard(key: string) {
+      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      return sorted.length;
+    },
+    async zremrangebyrank(key: string, start: number, stop: number) {
+      const sorted = (store.data.get(key) as Array<{ score: number; member: string }> | undefined || []) as Array<{ score: number; member: string }>;
+      const next = sorted.filter((_, index) => index < start || index > stop);
+      store.data.set(key, next);
+      return next.length;
+    },
+    async lpush(key: string, ...values: string[]) {
+      const list = (store.data.get(key) as string[] | undefined) || [];
+      store.data.set(key, [...values, ...list]);
+      return (store.data.get(key) as string[]).length;
+    },
+    async lrange(key: string, start: number, stop: number) {
+      const list = (store.data.get(key) as string[] | undefined) || [];
+      if (stop === -1) return list.slice(start);
+      return list.slice(start, stop + 1);
+    },
+    async lrem(key: string, count: number, value: string) {
+      const list = (store.data.get(key) as string[] | undefined) || [];
+      const next = count === 0 ? list.filter(item => item !== value) : list.filter(item => item !== value).slice(0);
+      store.data.set(key, next);
+      return next.length;
+    },
+    async rpush(key: string, ...values: string[]) {
+      const list = (store.data.get(key) as string[] | undefined) || [];
+      store.data.set(key, [...list, ...values]);
+      return (store.data.get(key) as string[]).length;
+    },
+    async ltrim(key: string, start: number, stop: number) {
+      const list = (store.data.get(key) as string[] | undefined) || [];
+      const next = stop === -1 ? list.slice(start) : list.slice(start, stop + 1);
+      store.data.set(key, next);
+      return 'OK';
+    },
+    async llen(key: string) {
+      return (store.data.get(key) as string[] | undefined || []).length;
     },
     async eval(_script: string, _keys: string[] = [], _args: Array<string | number> = []) {
       return ['denied', 0];
@@ -78,6 +147,11 @@ function createInMemoryRedis() {
     },
     async incrby(key: string, amount: number) {
       const next = (Number(store.data.get(key) || 0) + amount);
+      store.data.set(key, next);
+      return next;
+    },
+    async decrby(key: string, amount: number) {
+      const next = (Number(store.data.get(key) || 0) - amount);
       store.data.set(key, next);
       return next;
     },
