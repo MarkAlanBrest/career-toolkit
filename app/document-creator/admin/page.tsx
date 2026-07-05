@@ -989,7 +989,7 @@ export default function AdminPage() {
                           <td style={{ padding: '10px 8px', color: muted }}>{t.email}</td>
                           <td style={{ padding: '10px 8px' }}>
                             <input
-                              value={teacherFolderEdits[t.email] ?? t.sharepointFolderPath || ''}
+                              value={(teacherFolderEdits[t.email] ?? t.sharepointFolderPath) || ''}
                               onChange={e => setTeacherFolderEdits(prev => ({ ...prev, [t.email]: e.target.value }))}
                               placeholder="Folder path"
                               style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }}
