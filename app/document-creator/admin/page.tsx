@@ -1026,12 +1026,11 @@ export default function AdminPage() {
                   )}
                 </div>
                 <div style={{ border: `1px solid ${border}`, borderRadius: 10, background: '#fff', overflowX: 'auto' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Name</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Email</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Password</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>SharePoint Path</div>
-                    <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Save</div>
                     <div style={{ padding: '10px 10px' }}>Actions</div>
                   </div>
                   {filteredTeachers.length === 0 ? (
@@ -1041,7 +1040,7 @@ export default function AdminPage() {
                         : 'No teachers match the current search. Try clearing the filters above.'}
                     </div>
                   ) : filteredTeachers.map((t, index) => (
-                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
+                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: navy, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: muted, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.email}</div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>
@@ -1061,32 +1060,29 @@ export default function AdminPage() {
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }}
                         />
                       </div>
-                      <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>
-                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ width: '100%', background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '7px 10px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
-                          {savingTeacherFolder === t.email ? 'Saving...' : 'Save'}
+                      <div style={{ padding: '10px 10px', display: 'flex', gap: 4 }}>
+                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ flex: 1, minWidth: 0, background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '6px 4px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
+                          {savingTeacherFolder === t.email ? '...' : 'Save'}
                         </button>
-                      </div>
-                      <div style={{ padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <button onClick={() => setActivityTeacher({ email: t.email, name: t.name })} style={{ width: '100%', background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 8px', cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
+                        <button onClick={() => setActivityTeacher({ email: t.email, name: t.name })} style={{ flex: 1, minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
                           Activity
                         </button>
-                        <button onClick={() => removeTeacher(t.email)} style={{ width: '100%', background: 'none', border: `1px solid ${red}`, borderRadius: 999, padding: '6px 8px', cursor: 'pointer', fontSize: 11, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
+                        <button onClick={() => removeTeacher(t.email)} style={{ flex: 1, minWidth: 0, background: 'none', border: `1px solid ${red}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
                           Delete
                         </button>
                       </div>
                     </div>
                   ))}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 190px', background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Password" type="password" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newFolderPath} onChange={e => setNewFolderPath(e.target.value)} placeholder="SharePoint path" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
-                    <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>
+                    <div style={{ padding: '10px 10px' }}>
                       <button onClick={addTeacher} disabled={adding} style={{ width: '100%', background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '7px 10px', cursor: adding ? 'wait' : 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
                         {adding ? 'Saving...' : 'Save'}
                       </button>
                     </div>
-                    <div style={{ padding: '10px 10px' }} />
                   </div>
                 </div>
               </div>
