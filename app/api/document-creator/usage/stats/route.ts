@@ -22,7 +22,7 @@ export async function GET() {
   if (session.role !== 'admin') return NextResponse.json({ error: 'Admin only.' }, { status: 403 });
 
   const key = `dc:usage:${session.schoolId}`;
-  const raw = await redis.zrange(key, 0, -1) as string[];
+  const raw = await redis.zrange(key, 0, -1) as (string | UsageEntry)[];
 
   const monthStart = new Date();
   monthStart.setDate(1);
@@ -36,8 +36,10 @@ export async function GET() {
   const allEntries: UsageEntry[] = [];
 
   for (const item of raw) {
+    // The Redis client auto-deserializes JSON-shaped members, so entries may already be objects,
+    // not strings — only parse when we actually got a string back.
     let parsed: UsageEntry;
-    try { parsed = JSON.parse(item); } catch { continue; }
+    try { parsed = typeof item === 'string' ? (JSON.parse(item) as UsageEntry) : item; } catch { continue; }
     allEntries.push(parsed);
 
     totalAll++;

@@ -22,10 +22,15 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Session expired.' }, { status: 401 });
 
   const key = `dc:history:${session.schoolId}:${session.email}`;
-  const raw = await redis.zrange(key, 0, -1) as string[];
+  const raw = await redis.zrange(key, 0, -1) as (string | HistoryEntry)[];
 
+  // The Redis client auto-deserializes JSON-shaped members, so entries may already be objects,
+  // not strings — only parse when we actually got a string back.
   const docs = raw
-    .map(item => { try { return JSON.parse(item) as HistoryEntry; } catch { return null; } })
+    .map(item => {
+      try { return typeof item === 'string' ? (JSON.parse(item) as HistoryEntry) : item; }
+      catch { return null; }
+    })
     .filter((d): d is HistoryEntry => d !== null)
     .sort((a, b) => b.ts - a.ts);
 
