@@ -275,7 +275,6 @@ body {
       <select id="document-select" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;"></select>
       <button id="document-open-btn" type="button" style="padding:9px 10px;background:#1E293B;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Create Document</button>
     </div>
-    <div id="type-list"></div>
   </div>
 
   <!-- MAIN -->
@@ -1058,8 +1057,7 @@ var activeDepartmentId = "teaching";
 function renderTypeList() {
   var deptSelect = document.getElementById("department-select");
   var docSelect = document.getElementById("document-select");
-  var list = document.getElementById("type-list");
-  if (!deptSelect || !docSelect || !list) return;
+  if (!deptSelect || !docSelect) return;
   var departments = getDepartments();
   if (!departments.find(function(d) { return d.id === activeDepartmentId; })) {
     activeDepartmentId = departments[0] ? departments[0].id : "other";
@@ -1075,23 +1073,11 @@ function renderTypeList() {
   }).join("");
 
   if (!typesInDepartment.length) {
-    list.innerHTML = '<div style="padding:16px 10px;color:#94A3B8;font-size:12px;text-align:center;">No documents in this department yet.</div>';
     document.getElementById("document-open-btn").disabled = true;
     return;
   }
   document.getElementById("document-open-btn").disabled = false;
   if (!typesInDepartment.find(function(t) { return t.id === docSelect.value; })) docSelect.value = typesInDepartment[0].id;
-
-  list.innerHTML = '<div style="padding:10px 16px;color:#94A3B8;font-size:11px;border-bottom:1px solid #F1F5F9;">' + typesInDepartment.length + ' document type' + (typesInDepartment.length === 1 ? '' : 's') + '</div>';
-  typesInDepartment.forEach(function(type) {
-    var el = document.createElement("div");
-    el.className = "type-item" + (state.selectedType === type.id ? " active" : "");
-    el.innerHTML = '<span class="type-icon">' + type.icon + '</span>'
-      + '<div><div class="type-label">' + esc(type.label) + '</div>'
-      + '<div class="type-desc">' + esc(type.desc) + '</div></div>';
-    el.addEventListener("click", function() { openChat(type.id); });
-    list.appendChild(el);
-  });
 }
 
 function openSelectedDocumentType() {

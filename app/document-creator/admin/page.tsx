@@ -187,6 +187,7 @@ export default function AdminPage() {
   const [schoolName, setSchoolName] = useState('');
   const [departments, setDepartments] = useState<Department[]>(DEFAULT_DEPARTMENTS);
   const [newDepartmentName, setNewDepartmentName] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('teaching');
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
   const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
@@ -398,6 +399,7 @@ export default function AdminPage() {
           });
           setDepartments(savedDepartments);
           setNewTypeDepartmentId(prev => savedDepartments.find(dep => dep.id === prev) ? prev : (savedDepartments[0]?.id || 'other'));
+          setSelectedDepartmentId(prev => savedDepartments.find(dep => dep.id === prev) ? prev : (savedDepartments[0]?.id || 'other'));
           // A school's saved list is a snapshot from whenever it was last saved — merge in
           // any built-in type added since then so new document types actually show up.
           const types: DocType[] = d.docTypes?.length ? [...d.docTypes] : [...DEFAULT_DOC_TYPES];
@@ -539,6 +541,7 @@ export default function AdminPage() {
     if (!id) { showMsg('Use letters or numbers in the department name.', red); return; }
     if (departments.find(d => d.id === id)) { showMsg('That department already exists.', red); return; }
     setDepartments([...departments, { id, label }]);
+    setSelectedDepartmentId(id);
     setNewTypeDepartmentId(id);
     setNewDepartmentName('');
   }
@@ -546,8 +549,10 @@ export default function AdminPage() {
   function removeDepartment(id: string) {
     if (departments.length <= 1) { showMsg('Keep at least one department.', red); return; }
     if (docTypes.some(t => departmentForType(t) === id)) { showMsg('Move or remove documents in this department first.', red); return; }
-    setDepartments(departments.filter(d => d.id !== id));
-    if (newTypeDepartmentId === id) setNewTypeDepartmentId(departments.find(d => d.id !== id)?.id || 'other');
+    const remaining = departments.filter(d => d.id !== id);
+    setDepartments(remaining);
+    if (selectedDepartmentId === id) setSelectedDepartmentId(remaining[0]?.id || 'other');
+    if (newTypeDepartmentId === id) setNewTypeDepartmentId(remaining[0]?.id || 'other');
   }
 
   async function removeDocType(id: string) {
@@ -812,16 +817,29 @@ export default function AdminPage() {
               {docTypes.length === 0 ? (
                 <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
               ) : (() => {
-                const t = docTypes.find(dt => dt.id === selectedDocTypeId) || docTypes[0];
+                const docsInDepartment = docTypes.filter(dt => departmentForType(dt) === selectedDepartmentId);
+                const t = docsInDepartment.find(dt => dt.id === selectedDocTypeId) || docsInDepartment[0] || docTypes[0];
                 return (
                   <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
                     <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
+                      <select
+                        value={selectedDepartmentId}
+                        onChange={e => {
+                          const deptId = e.target.value;
+                          setSelectedDepartmentId(deptId);
+                          const first = docTypes.find(dt => departmentForType(dt) === deptId);
+                          setSelectedDocTypeId(first?.id || '');
+                        }}
+                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                      >
+                        {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+                      </select>
                       <select
                         value={t.id}
                         onChange={e => setSelectedDocTypeId(e.target.value)}
                         style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
                       >
-                        {docTypes.map(dt => (
+                        {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
                           <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
                         ))}
                       </select>
