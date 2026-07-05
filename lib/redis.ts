@@ -217,5 +217,10 @@ function createFileBackedRedis() {
   };
 }
 
-const hasRedisConfig = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-export const redis = hasRedisConfig ? UpstashRedis.fromEnv() : createFileBackedRedis();
+// Vercel's "Upstash for Redis" marketplace integration names these KV_REST_API_* rather than
+// UPSTASH_REDIS_REST_*, which is what Redis.fromEnv() looks for by default — support both so the
+// real database is used whichever naming this project actually has configured.
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const hasRedisConfig = Boolean(redisUrl && redisToken);
+export const redis = hasRedisConfig ? new UpstashRedis({ url: redisUrl!, token: redisToken! }) : createFileBackedRedis();
