@@ -161,6 +161,7 @@ export default function AdminPage() {
   const [loadingTeachers, setLoadingTeachers] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgColor, setMsgColor] = useState(green);
+  const [activeTab, setActiveTab] = useState<'overview' | 'school' | 'documents' | 'teachers'>('documents');
 
   // Add teacher form
   const [newEmail, setNewEmail] = useState('');
@@ -628,6 +629,25 @@ export default function AdminPage() {
           </div>
         )}
 
+        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 10, marginBottom: 18 }}>
+          {([
+            { id: 'documents', label: 'Documents' },
+            { id: 'school', label: 'School' },
+            { id: 'teachers', label: 'Teachers' },
+            { id: 'overview', label: 'Overview' },
+          ] as { id: typeof activeTab; label: string }[]).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{ flex: 1, border: 'none', borderRadius: 8, padding: '9px 10px', background: activeTab === tab.id ? '#fff' : 'transparent', color: activeTab === tab.id ? navy : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font, boxShadow: activeTab === tab.id ? '0 1px 3px rgba(15,23,42,.12)' : 'none' }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'overview' && (
+        <>
         {/* Usage Dashboard */}
         <Section title="Usage Dashboard">
           {loadingUsage ? (
@@ -712,7 +732,11 @@ export default function AdminPage() {
             </div>
           )}
         </Section>
+        </>
+        )}
 
+        {activeTab === 'school' && (
+        <>
         {/* School Logo */}
         <Section title="School Logo">
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -737,7 +761,11 @@ export default function AdminPage() {
             </div>
           </div>
         </Section>
+        </>
+        )}
 
+        {activeTab === 'documents' && (
+        <>
         {/* Reference Documents */}
         <Section title="Reference Documents">
           <div style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
@@ -975,6 +1003,11 @@ export default function AdminPage() {
           </div>
         </Section>
 
+        </>
+        )}
+
+        {activeTab === 'school' && (
+        <>
         {/* AI Model */}
         <Section title="AI Model">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -991,7 +1024,11 @@ export default function AdminPage() {
             ))}
           </div>
         </Section>
+        </>
+        )}
 
+        {activeTab === 'teachers' && (
+        <>
         {/* Teachers */}
         <Section title={`Teachers (${teachers.length})`}>
           {loadingTeachers ? (
@@ -1062,6 +1099,8 @@ export default function AdminPage() {
             <Btn onClick={saveFolderPath} disabled={savingFolder}>{savingFolder ? 'Saving...' : 'Save'}</Btn>
           </div>
         </Section>
+        </>
+        )}
 
         <div style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: 8 }}>
           Account ID: <span style={{ fontFamily: 'monospace' }}>{session?.accountId}</span>
