@@ -107,21 +107,13 @@ type UsageStats = {
   recent: UsageEntry[];
 };
 
-function Section({ title, subtitle, icon, children }: { title: string; subtitle?: string; icon?: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${border}`, boxShadow: '0 12px 30px rgba(15,23,42,.05)', marginBottom: 18, overflow: 'hidden' }}>
-      <div style={{ padding: '16px 20px 14px', borderBottom: `1px solid ${border}`, background: 'linear-gradient(90deg, #F8FAFC 0%, #F1F5F9 100%)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', color: blue, fontSize: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' }}>
-            {icon || '✦'}
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 14, color: navy }}>{title}</div>
-            {subtitle && <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{subtitle}</div>}
-          </div>
-        </div>
+    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid ${border}`, marginBottom: 12, overflow: 'hidden' }}>
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${border}` }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: navy }}>{title}</div>
       </div>
-      <div style={{ padding: 20 }}>{children}</div>
+      <div style={{ padding: 14 }}>{children}</div>
     </div>
   );
 }
@@ -198,18 +190,6 @@ function Help({ text }: { text: string }) {
   );
 }
 
-function StatCard({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
-  return (
-    <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${border}`, padding: 14, boxShadow: '0 8px 24px rgba(15,23,42,.04)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</span>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: accent }} />
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: navy, marginBottom: 4 }}>{value}</div>
-      <div style={{ fontSize: 12, color: muted }}>{detail}</div>
-    </div>
-  );
-}
 
 export default function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -663,60 +643,24 @@ export default function AdminPage() {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: font, color: muted }}>Loading...</div>;
   }
 
-  const summaryCards = [
-    { label: 'School profile', value: schoolName || 'Set school name', detail: 'Institution name, branding, and logo', accent: '#1E4D8C' },
-    { label: 'Document types', value: `${docTypes.length}`, detail: 'Templates, rules, themes, and instructions', accent: '#16A34A' },
-    { label: 'Teachers', value: `${teachers.length}`, detail: 'Access, passwords, and SharePoint routing', accent: '#7C3AED' },
-  ];
-
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2F7 100%)', fontFamily: font }}>
-      <div style={{ background: navy, color: '#fff', padding: '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 10px 28px rgba(15,23,42,.16)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.12)', fontSize: 18 }}>🗂️</div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>Document Creator Admin</div>
-            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Control center for {session?.schoolName || 'your school'}</div>
-          </div>
-        </div>
+    <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: font }}>
+      <div style={{ background: navy, color: '#fff', padding: '0 24px', minHeight: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Document Creator Admin</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <a href="/document-creator" style={{ color: '#CBD5E1', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>Open App →</a>
-          <button onClick={logout} style={{ background: 'transparent', border: '1px solid #475569', color: '#CBD5E1', borderRadius: 999, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 600 }}>Sign Out</button>
+          <a href="/document-creator" style={{ color: '#CBD5E1', fontSize: 13, textDecoration: 'none' }}>Open App</a>
+          <button onClick={logout} style={{ background: 'transparent', border: '1px solid #475569', color: '#CBD5E1', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontFamily: font }}>Sign Out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '28px auto', padding: '0 20px 32px' }}>
+      <div style={{ maxWidth: 960, margin: '16px auto 24px', padding: '0 16px 24px' }}>
         {msg && (
           <div style={{ background: msgColor === green ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${msgColor === green ? '#86EFAC' : '#FCA5A5'}`, borderRadius: 12, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: msgColor }}>
             {msg}
           </div>
         )}
 
-        <div style={{ background: '#fff', borderRadius: 24, border: `1px solid ${border}`, boxShadow: '0 18px 40px rgba(15,23,42,.06)', padding: 24, marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ maxWidth: 620 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: blue, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Welcome back</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: navy, lineHeight: 1.2 }}>Manage your document workflow with less friction.</div>
-              <div style={{ fontSize: 14, color: muted, marginTop: 8, lineHeight: 1.5 }}>
-                Set school branding, tune document generation rules, and manage teacher accounts from one streamlined workspace.
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 999, padding: '8px 12px', fontSize: 12, color: muted }}>
-                Model: <span style={{ color: navy, fontWeight: 700 }}>{model === 'claude-haiku-4-5' ? 'Haiku' : 'Sonnet'}</span>
-              </div>
-              <Btn onClick={() => setActiveTab('documents')}>Open document setup</Btn>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: 18 }}>
-            {summaryCards.map(card => (
-              <StatCard key={card.label} label={card.label} value={card.value} detail={card.detail} accent={card.accent} />
-            ))}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 14, marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 12, marginBottom: 12 }}>
           {([
             { id: 'documents', label: 'Documents' },
             { id: 'school', label: 'School' },
@@ -734,8 +678,8 @@ export default function AdminPage() {
 
         {activeTab === 'school' && (
           <>
-            <Section title="School Profile" subtitle="Set the institution name and your brand assets for every generated document." icon="🏫">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Section title="School Profile">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears." /></div>
                   <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
@@ -746,7 +690,7 @@ export default function AdminPage() {
               </div>
             </Section>
 
-            <Section title="Brand Assets" subtitle="Upload a logo that will appear throughout generated documents." icon="🎨">
+            <Section title="Brand Assets">
               <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 {logo ? (
                   <div style={{ background: '#1E293B', borderRadius: 16, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 170 }}>
@@ -774,17 +718,17 @@ export default function AdminPage() {
 
         {activeTab === 'documents' && (
           <>
-            <Section title="Reference Library" subtitle="Upload source documents teachers can pull from for smarter generation." icon="📚">
-              <div style={{ fontSize: 12, color: muted, marginBottom: 14 }}>
+            <Section title="Reference Library">
+              <div style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
                 Keep school catalogs, program descriptions, and other source-of-truth files here so each document type can reference the right documents.
               </div>
 
               {loadingDocs ? (
                 <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
               ) : refDocs.length === 0 ? (
-                <div style={{ color: muted, fontSize: 13, marginBottom: 14 }}>No reference documents yet. Add one below.</div>
+                <div style={{ color: muted, fontSize: 13, marginBottom: 10 }}>No reference documents yet. Add one below.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 10 }}>
                   <thead>
                     <tr style={{ borderBottom: `1px solid ${border}` }}>
                       <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
@@ -817,10 +761,10 @@ export default function AdminPage() {
                   <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleDocUpload} disabled={uploadingDoc} style={{ display: 'none' }} />
                 </label>
               </div>
-              <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
+              <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
             </Section>
 
-            <Section title="Document Setup" subtitle="Organize departments, configure rules, and tailor each document type." icon="⚙️">
+            <Section title="Document Setup">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
@@ -840,7 +784,7 @@ export default function AdminPage() {
 
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions -- settings don't carry over between types." /></div>
-                  <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
+                  <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override teacher input.</div>
                   {docTypes.length === 0 ? (
                     <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
                   ) : (() => {
@@ -956,7 +900,7 @@ export default function AdminPage() {
                   })()}
                 </div>
 
-                <div style={{ paddingTop: 12, borderTop: `1px solid ${border}` }}>
+                <div style={{ paddingTop: 10, borderTop: `1px solid ${border}` }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Add Document Type</div>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                     <Input value={newTypeName} onChange={setNewTypeName} placeholder="Type name (e.g. Parent Letter)" />
@@ -982,7 +926,7 @@ export default function AdminPage() {
 
         {activeTab === 'teachers' && (
           <>
-            <Section title={`Teacher Management (${teachers.length})`} subtitle="Create accounts, reset access, and manage SharePoint destinations from one place." icon="👩‍🏫">
+            <Section title={`Teacher Management (${teachers.length})`}>
               {loadingTeachers ? (
                 <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
               ) : teachers.length === 0 ? (
@@ -1013,7 +957,7 @@ export default function AdminPage() {
                   </tbody>
                 </table>
               )}
-              <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
+              <div style={{ borderTop: `1px solid ${border}`, marginTop: 12, paddingTop: 12 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Add Teacher</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1029,7 +973,7 @@ export default function AdminPage() {
               </div>
             </Section>
 
-            <Section title="Access & Delivery" subtitle="Manage password resets and Save to SharePoint destinations." icon="🔐">
+            <Section title="Access & Delivery">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 <div>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Reset Password</div>
@@ -1040,7 +984,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ borderTop: `1px solid ${border}`, paddingTop: 18 }}>
+                <div style={{ borderTop: `1px solid ${border}`, paddingTop: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>SharePoint Folder</div>
                   <div style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
                     Documents that teacher saves via "Save to SharePoint" go into this subfolder of the shared site's document library. Leave blank to disable the button for that teacher.
