@@ -792,7 +792,7 @@ function buildPromptFromInput(typeId, description) {
     + "PRIMARY COLOR: " + color + " — borders, section headings, accent elements. LIGHT TINT: " + lc + " — header backgrounds, table header backgrounds.\n"
     + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n"
     + "PRINT-FIRST DESIGN: All documents must print clearly in black and white. NEVER use dark background fills with white text. Table headers use light tint background with colored bold text. All body text is dark (#1E293B or #475569). No white-on-dark anywhere.\n"
-    + "HEADER STYLE IS MANDATORY and overrides generic layout defaults. Use the selected header style for the document header and make it polished, institutional, and spacious. Do not use a large gray bar, heavy dark banner, or overly bulky top panel. Prefer a clean, modern header with subtle accent color and clear hierarchy.\n"
+    + "HEADER STYLE IS MANDATORY and overrides generic layout defaults. Use the selected header style for the document header and make it polished, institutional, and spacious. Keep the header clean and lightweight, with subtle accent color and clear hierarchy.\n"
     + getHeaderStyleInstructions(so.headerStyle, color, lc) + "\n";
 
   var schoolBlock = adminSettings.schoolName
@@ -851,7 +851,7 @@ function buildPromptFromInput(typeId, description) {
 
 function getLayoutInstructions(typeId, color, lc) {
   if (typeId === "syllabus") return "LAYOUT:\n"
-    + "1. Full-width header — background:" + lc + "; border-top:5px solid " + color + "; padding:44px 48px; — Course title (Georgia 36px color:" + color + " bold), level/term subtitle (Arial 15px #475569)\n"
+    + "1. Clean header — padding:44px 48px; border-bottom:2px solid " + color + "; — Course title (Georgia 36px color:" + color + " bold), level/term subtitle (Arial 15px #475569)\n"
     + "2. Content area: padding:44px 48px; font-family:Arial,sans-serif;\n"
     + "3. Section headings: Georgia 18px bold; color:" + color + "; border-bottom:2px solid " + color + "; padding-bottom:8px; margin:32px 0 14px;\n"
     + "4. COURSE DESCRIPTION — paragraph\n5. LEARNING OUTCOMES — 4–6 measurable outcomes with action verbs\n6. REQUIRED MATERIALS — bulleted list\n"
@@ -859,21 +859,21 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. GRADING BREAKDOWN — table with categories and percentages\n9. COURSE POLICIES — all provided policies clearly labeled\n10. Footer — small gray text\n";
 
   if (typeId === "worksheet") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 28px color:" + color + " bold), Name/Date/Class info line (Arial 13px #475569)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title (Georgia 28px color:" + color + " bold), Name/Date/Class info line (Arial 13px #475569)\n"
     + "2. INSTRUCTIONS — one concise paragraph\n"
     + "3. QUESTIONS — each numbered, bold question text + appropriate response space (lines, boxes, options). Match the format discussed.\n"
     + "   Multiple Choice: A–D options. Short Answer: 3 ruled lines. True/False: T / F before statement. Calculations: Given/Find/Work/Answer with bordered box.\n"
     + "4. Score footer — 'Score: _______ / [total]' centered\n";
 
   if (typeId === "projectguide") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:40px 48px; — Project title (Georgia 34px color:" + color + " bold), course + level subtitle (Arial 15px #475569)\n"
+    + "1. Header — padding:40px 48px; border-bottom:2px solid " + color + "; — Project title (Georgia 34px color:" + color + " bold), course + level subtitle (Arial 15px #475569)\n"
     + "2. PROJECT OVERVIEW — what students will build or accomplish\n3. LEARNING OBJECTIVES — 3–5 measurable outcomes\n"
     + "4. MATERIALS & TOOLS — checklist with ☐ prefix\n5. PHASE TIMELINE — table (Phase | Activities | Duration | Due Date)\n"
     + "6. STEP-BY-STEP INSTRUCTIONS — numbered imperative steps\n7. DELIVERABLES — bulleted list of what to submit\n"
     + "8. TIPS FOR SUCCESS — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:16px 20px;\n9. GRADING — assessment criteria table\n";
 
   if (typeId === "research") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:40px 48px; — Assignment title (Georgia 32px color:" + color + " bold)\n"
+    + "1. Header — padding:40px 48px; border-bottom:2px solid " + color + "; — Assignment title (Georgia 32px color:" + color + " bold)\n"
     + "2. OVERVIEW — purpose and expectations\n"
     + "3. RESEARCH QUESTION — callout: background:#F8FAFC; border-left:4px solid " + color + "; padding:14px 20px;\n"
     + "4. LEARNING OBJECTIVES — 3–4 research skills\n5. PAPER REQUIREMENTS — length, citation style, formatting\n"
@@ -882,7 +882,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. GRADING BREAKDOWN — table distributing points\n9. SUBMISSION CHECKLIST — ☐ items\n";
 
   if (typeId === "lessonplan") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Lesson title (Georgia 32px color:" + color + " bold), Subject | Level | Duration (Arial 14px #475569)\n"
+    + "1. Header — padding:36px 48px; border-bottom:2px solid " + color + "; — Lesson title (Georgia 32px color:" + color + " bold), Subject | Level | Duration (Arial 14px #475569)\n"
     + "2. AT A GLANCE — 3-cell grid (Duration | Level | Materials): background:#F8FAFC; border:1px solid #E2E8F0; padding:14px 18px; text-align:center;\n"
     + "3. LEARNING OBJECTIVES — numbered with action verbs (Bloom's taxonomy)\n4. MATERIALS & PREPARATION — checklist + prep notes\n"
     + "5. LESSON TIMELINE — table: Time | Phase | Instructor Activity | Student Activity (Opening/Hook, Direct Instruction, Guided Practice, Independent Practice, Closure)\n"
@@ -890,7 +890,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. ASSESSMENT — formative check + summative connection\n9. REFLECTION — blank dashed box: border:1px dashed #CBD5E1; min-height:80px;\n";
 
   if (typeId === "rubric") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Assignment name (Georgia 30px color:" + color + " bold)\n"
+    + "1. Header — padding:32px 48px; border-bottom:2px solid " + color + "; — Assignment name (Georgia 30px color:" + color + " bold)\n"
     + "2. RUBRIC TABLE — Columns: Criteria | Excellent | Proficient | Developing | Beginning | Points\n"
     + "   Header row: background:" + lc + "; color:" + color + "; font-size:12px; font-weight:700;\n"
     + "   Write SPECIFIC, CONCRETE descriptors for every cell. Distribute total points across criteria.\n"
@@ -898,7 +898,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "3. TOTAL ROW — bold totals, background:" + lc + ";\n4. GRADING SCALE — points to letter grade table\n";
 
   if (typeId === "studyguide") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Topic (Georgia 32px color:" + color + " bold), course subtitle (Arial 15px #475569)\n"
+    + "1. Header — padding:36px 48px; border-bottom:2px solid " + color + "; — Topic (Georgia 32px color:" + color + " bold), course subtitle (Arial 15px #475569)\n"
     + "2. KEY CONCEPTS — for each concept: H3 (Georgia 18px color:" + color + "; border-bottom:1px solid #E2E8F0), definition, formula callout (background:#F1F5F9; border-left:4px solid " + color + "; font-family:Courier New; font-size:13px), example\n"
     + "3. VOCABULARY TABLE — two-column Term | Definition. Header: background:" + lc + "; color:" + color + "; font-weight:700;\n"
     + "4. COMMON MISTAKES — callout: background:#FFF7ED; border-left:4px solid #F59E0B; padding:16px 20px;\n"
@@ -906,7 +906,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "6. PRACTICE QUESTIONS — 5 questions with hidden answers: <details><summary>Show Answers</summary>…</details>\n";
 
   if (typeId === "test") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Test title (Georgia 30px color:" + color + " bold), Course | Level | Time row (Arial 14px #475569)\n"
+    + "1. Header — padding:32px 48px; border-bottom:2px solid " + color + "; — Test title (Georgia 30px color:" + color + " bold), Course | Level | Time row (Arial 14px #475569)\n"
     + "2. Student info bar — Name / Date / Period with ruled lines\n3. GENERAL INSTRUCTIONS — 2–3 formal sentences\n"
     + "4. QUESTION SECTIONS — each section has a header: background:#F1F5F9; border-left:4px solid " + color + "; padding:10px 16px; Georgia bold 15px; includes point value per question.\n"
     + "   Multiple Choice: A–D, one correct. Short Answer: 3 ruled lines. True/False: T/F before statement. Calculations: Given/Find/Work/Answer box.\n"
@@ -914,7 +914,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "5. ANSWER KEY (if requested) — page-break section: header background:" + lc + "; border-top:5px solid " + color + "; title color:" + color + "; answers by number with model answers for open-ended items.\n";
 
   if (typeId === "safetycontract") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Title (Georgia 30px color:" + color + " bold: 'Laboratory Safety Agreement'), course/lab name subtitle (Arial 14px #475569)\n"
+    + "1. Header — padding:36px 48px; border-bottom:2px solid " + color + "; — Title (Georgia 30px color:" + color + " bold: 'Laboratory Safety Agreement'), course/lab name subtitle (Arial 14px #475569)\n"
     + "2. INTRODUCTION — 2-sentence formal statement of purpose and expectation\n"
     + "3. SAFETY RULES — numbered list, bold rule title + one-sentence explanation each. Minimum 8 rules.\n"
     + "4. PPE REQUIREMENTS — bulleted list with ☐ checkbox prefix for each item\n"
@@ -924,7 +924,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. SIGNATURE BLOCK — table: Student Name (print) | Signature | Date, then Parent/Guardian (if under 18) row, then Instructor row. Ruled lines for each field.\n";
 
   if (typeId === "missingwork") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Missing Work Request'), school name subtitle (Arial 13px #475569)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title (Georgia 26px color:" + color + " bold: 'Missing Work Request'), school name subtitle (Arial 13px #475569)\n"
     + "2. STUDENT INFORMATION — two-column table: Student Name | Date Submitted, Course | Period, Instructor | Date of Absence/Missed Work\n"
     + "3. ASSIGNMENT INFORMATION — Assignment Name, Original Due Date, Point Value — ruled line fields\n"
     + "4. REASON FOR MISSING WORK — checkboxes for common reasons (Absence / Personal Emergency / Misunderstood Assignment / Other) + open lines for explanation\n"
@@ -933,7 +933,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "7. INSTRUCTOR DECISION — callout box: ☐ Approved  ☐ Denied  ☐ Partial Credit Only. Conditions/Notes: ruled lines. Instructor Signature + Date.\n";
 
   if (typeId === "obschecklist") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Performance Observation Checklist'), task/skill name subtitle (Arial 13px #475569)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title (Georgia 26px color:" + color + " bold: 'Performance Observation Checklist'), task/skill name subtitle (Arial 13px #475569)\n"
     + "2. SESSION INFO — two-column table: Student Name | Date, Instructor | Course\n"
     + "3. SKILLS CHECKLIST TABLE — Columns: # | Skill / Step | Pass | Needs Improvement | Not Observed\n"
     + "   Header: background:" + lc + "; color:" + color + "; font-size:12px; font-weight:700;\n"
@@ -943,7 +943,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "6. SIGNATURES — Instructor Signature + Date, Student Signature + Date (ruled lines)\n";
 
   if (typeId === "incident") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title (Georgia 26px color:" + color + " bold: 'Incident Report'), 'CONFIDENTIAL' in small caps top-right (color:#64748B)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title (Georgia 26px color:" + color + " bold: 'Incident Report'), 'CONFIDENTIAL' in small caps top-right (color:#64748B)\n"
     + "2. INCIDENT DETAILS — table: Date | Time | Location, Type of Incident checkboxes: ☐ Injury ☐ Safety Violation ☐ Conduct ☐ Property Damage ☐ Other\n"
     + "3. PERSONS INVOLVED — fields: Name(s) of student(s), Grade/Level, Reporting Instructor\n"
     + "4. DESCRIPTION OF INCIDENT — large lined area with label: 'Provide a factual, chronological account of what occurred:'\n"
@@ -953,14 +953,14 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. SIGNATURE BLOCK — table rows: Reporting Instructor (signature + date), Administrator (signature + date), Student Acknowledgment (signature + date, labeled optional)\n";
 
   if (typeId === "vocablist") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Title (Georgia 30px color:" + color + " bold: 'Vocabulary List'), course + unit/topic subtitle (Arial 14px #475569)\n"
+    + "1. Header — padding:32px 48px; border-bottom:2px solid " + color + "; — Title (Georgia 30px color:" + color + " bold: 'Vocabulary List'), course + unit/topic subtitle (Arial 14px #475569)\n"
     + "2. TERMS — for each term, a card-style block: background:#F8FAFC; border-left:4px solid " + color + "; border-radius:0 8px 8px 0; padding:14px 18px; margin-bottom:10px;\n"
     + "   Inside each card: Term (Georgia 16px bold color:" + color + "), Part of speech (italic 12px #64748B), Definition (Arial 13px #1E293B), Example sentence (italic 13px #475569 border-top:1px solid #E2E8F0 padding-top:8px margin-top:8px)\n"
     + "3. QUICK REFERENCE TABLE (after all cards) — two-column: Term | Definition only. Header: background:" + lc + "; color:" + color + "; font-weight:700;\n"
     + "4. SELF-QUIZ — 'Cover the right column and test yourself.' Same table reproduced with definition column cells containing faint dashes instead of text.\n";
 
   if (typeId === "readingguide") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — 'Reading Guide' label (Georgia 13px color:" + color + " uppercase letter-spacing:2px), Title (Georgia 32px color:" + color + " bold), Author + Pages/Chapter subtitle (Arial 14px #475569)\n"
+    + "1. Header — padding:36px 48px; border-bottom:2px solid " + color + "; — 'Reading Guide' label (Georgia 13px color:" + color + " uppercase letter-spacing:2px), Title (Georgia 32px color:" + color + " bold), Author + Pages/Chapter subtitle (Arial 14px #475569)\n"
     + "2. BEFORE READING — callout: background:#F0F9FF; border-left:4px solid " + color + "; padding:14px 18px; Contains: 2–3 pre-reading questions and a key vocabulary preview (terms only, no definitions — students define as they read)\n"
     + "3. DURING READING — section-by-section (use chapter names or page ranges as subheadings: Georgia 16px bold color:" + color + "; border-bottom:1px solid). Under each: 3–5 comprehension questions with 4–5 ruled response lines each\n"
     + "4. AFTER READING — H2 section: 2 synthesis questions requiring multi-sentence responses (8 ruled lines each)\n"
@@ -968,7 +968,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "6. DISCUSSION QUESTIONS — 3 open-ended questions in a callout: background:#F8FAFC; border:1px solid #E2E8F0; padding:16px 20px;\n";
 
   if (typeId === "funactivity") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:32px 48px; — Activity name (Georgia 30px color:" + color + " bold). Info bar below header: background:" + lc + "; border-bottom:2px solid " + color + "; padding:10px 48px; — Time | Group Size | Materials as inline badges (background:" + color + "22; color:" + color + "; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600;)\n"
+    + "1. Header — padding:32px 48px; border-bottom:2px solid " + color + "; — Activity name (Georgia 30px color:" + color + " bold). Info row below header: padding:10px 48px; border-bottom:1px solid #E2E8F0; — Time | Group Size | Materials as inline badges (background:" + color + "22; color:" + color + "; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600;)\n"
     + "2. LEARNING OBJECTIVE — callout: background:#F0FDF4; border-left:4px solid " + color + "; padding:12px 18px; One clear measurable objective\n"
     + "3. SETUP — brief instructor-facing preparation note (background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:12px 16px; font-size:12px italic)\n"
     + "4. INSTRUCTIONS — numbered bold steps, each step 1–2 sentences. Clear, imperative language.\n"
@@ -977,7 +977,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "7. EXTENSION (optional) — one sentence in italic suggesting a follow-up or harder variation\n";
 
   if (typeId === "creative") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:36px 48px; — Assignment title (Georgia 32px color:" + color + " bold), course + due date subtitle (Arial 14px #475569)\n"
+    + "1. Header — padding:36px 48px; border-bottom:2px solid " + color + "; — Assignment title (Georgia 32px color:" + color + " bold), course + due date subtitle (Arial 14px #475569)\n"
     + "2. OVERVIEW — 2–3 sentence description of the assignment and its purpose\n"
     + "3. LEARNING OBJECTIVES — 3–4 measurable outcomes (bulleted)\n"
     + "4. THE ASSIGNMENT — detailed description of what students will create. Be specific about format, length, or scope.\n"
@@ -987,7 +987,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. SUBMISSION — bulleted checklist with ☐ prefix: file format, naming convention, where/how to submit, deadline\n";
 
   if (typeId === "resourceguide") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Additional Resources: [topic]' (Georgia 26px color:" + color + " bold), one-line subtitle noting the topic\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title 'Additional Resources: [topic]' (Georgia 26px color:" + color + " bold), one-line subtitle noting the topic\n"
     + "2. INTRO — one short paragraph on how to use these resources\n"
     + "3. Use the web_search tool to find current, real videos and pages on this topic. Prioritize sources that are completely free with no login or paywall: Khan Academy, MIT OpenCourseWare, TED-Ed, and Crash Course or other reputable channels on YouTube. Only include Coursera or edX if the specific result is clearly free to audit, not a paid/certificate-only page. Do not include LinkedIn Learning, Pluralsight, Skillshare, Udemy, or other subscription-only platforms — students should never hit a paywall clicking a link from this document.\n"
     + "4. RESOURCES — group into sections by type (e.g. Videos, Interactive Practice, Other Resources). For each resource: bold title as a real clickable link (<a href=\"EXACT_URL_FROM_SEARCH\" target=\"_blank\">) using the exact URL your search returned — never alter, shorten, guess, or invent a URL — followed by a one-sentence description of what it covers.\n"
@@ -1008,15 +1008,15 @@ function getLayoutInstructions(typeId, color, lc) {
     + "9. Optional small decorative seal element — a circle (border-radius:50%; border:3px solid " + color + "; width:70px; height:70px;) with a star or short text inside, positioned near the signature block\n";
 
   if (typeId === "icebreaker") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Activity title (Georgia 26px color:" + color + " bold), subtitle noting best use (e.g. 'First day of class' or 'New group icebreaker')\n"
-    + "2. AT A GLANCE — info bar: Time Needed | Group Size | Materials Needed (three columns or a compact table)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Activity title (Georgia 26px color:" + color + " bold), subtitle noting best use (e.g. 'First day of class' or 'New group icebreaker')\n"
+    + "2. AT A GLANCE — compact info row: Time Needed | Group Size | Materials Needed (three columns or a compact table)\n"
     + "3. OBJECTIVE — one sentence on what this activity accomplishes\n"
     + "4. INSTRUCTIONS — numbered step-by-step directions to run the activity\n"
     + "5. DEBRIEF QUESTIONS — 3-5 discussion questions to ask afterward, bulleted\n"
     + "6. VARIATIONS — optional callout box with 1-2 adaptations (larger/smaller group, virtual/remote version, shy-group alternative)\n";
 
   if (typeId === "concernnotice") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Academic Concern Notice' (Georgia 26px color:" + color + " bold)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title 'Academic Concern Notice' (Georgia 26px color:" + color + " bold)\n"
     + "2. Info bar: Student Name: _____________ | Course: _____________ | Date: _____________\n"
     + "3. NATURE OF CONCERN — one clear paragraph describing the issue (attendance, performance, conduct — whichever applies)\n"
     + "4. SPECIFIC INSTANCES — table: Date | Description | Action Taken So Far. At least 2 example rows if the teacher didn't provide specifics.\n"
@@ -1026,7 +1026,7 @@ function getLayoutInstructions(typeId, color, lc) {
     + "8. Footer note, small gray text: 'cc: Academic Advisor / Department' \n";
 
   if (typeId === "advisingsummary") return "LAYOUT:\n"
-    + "1. Header — background:" + lc + "; border-top:5px solid " + color + "; padding:28px 40px; — Title 'Advising Summary' (Georgia 26px color:" + color + " bold)\n"
+    + "1. Header — padding:28px 40px; border-bottom:2px solid " + color + "; — Title 'Advising Summary' (Georgia 26px color:" + color + " bold)\n"
     + "2. Info bar: Student Name: _____________ | Advisor: _____________ | Date: _____________ | Term: _____________\n"
     + "3. DISCUSSION SUMMARY — one or two paragraphs on what was covered in the meeting\n"
     + "4. ACADEMIC STANDING — compact table or bullet list of relevant status info (e.g. credits completed, current standing, progress toward program)\n"
