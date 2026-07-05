@@ -621,28 +621,31 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 760, margin: '32px auto', padding: '0 20px' }}>
+      <div style={{ maxWidth: 1080, margin: '28px auto', padding: '0 20px' }}>
         {msg && (
           <div style={{ background: msgColor === green ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${msgColor === green ? '#86EFAC' : '#FCA5A5'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msgColor }}>
             {msg}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 10, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22, alignItems: 'start' }}>
+        <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 12, padding: 8, position: 'sticky', top: 72 }}>
           {([
-            { id: 'documents', label: 'Documents' },
-            { id: 'school', label: 'School' },
-            { id: 'teachers', label: 'Teachers' },
-          ] as { id: typeof activeTab; label: string }[]).map(tab => (
+            { id: 'documents', label: 'Documents', desc: 'Departments, templates, files' },
+            { id: 'school', label: 'School', desc: 'Name and logo' },
+            { id: 'teachers', label: 'Teachers', desc: 'Accounts and folders' },
+          ] as { id: typeof activeTab; label: string; desc: string }[]).map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{ flex: 1, border: 'none', borderRadius: 8, padding: '9px 10px', background: activeTab === tab.id ? '#fff' : 'transparent', color: activeTab === tab.id ? navy : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font, boxShadow: activeTab === tab.id ? '0 1px 3px rgba(15,23,42,.12)' : 'none' }}
+              style={{ width: '100%', textAlign: 'left', border: 'none', borderRadius: 8, padding: '10px 12px', marginBottom: 4, background: activeTab === tab.id ? '#EEF2FF' : 'transparent', color: activeTab === tab.id ? navy : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font }}
             >
-              {tab.label}
+              <span style={{ display: 'block' }}>{tab.label}</span>
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 500, color: muted, marginTop: 2 }}>{tab.desc}</span>
             </button>
           ))}
         </div>
+        <div>
 
         {activeTab === 'school' && (
         <>
@@ -705,7 +708,7 @@ export default function AdminPage() {
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>File</th>
                   <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Size</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
-                  <th style={{ width: 60 }}></th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -735,63 +738,59 @@ export default function AdminPage() {
         </Section>
 
         {/* Document Setup */}
-        <Section title="Document Setup">
+        <Section title="Document Types">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: muted, marginBottom: 14 }}>Pick a department, choose a document type, then edit how that document should behave.</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>1. Departments</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                 {departments.map(dep => (
-                  <span key={dep.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${border}`, borderRadius: 7, padding: '5px 8px', fontSize: 12, color: navy }}>
+                  <button key={dep.id} onClick={() => {
+                    setSelectedDepartmentId(dep.id);
+                    const first = docTypes.find(dt => departmentForType(dt) === dep.id);
+                    setSelectedDocTypeId(first?.id || '');
+                    setNewTypeDepartmentId(dep.id);
+                  }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${selectedDepartmentId === dep.id ? blue : border}`, background: selectedDepartmentId === dep.id ? '#EFF6FF' : '#fff', borderRadius: 7, padding: '7px 10px', fontSize: 12, color: navy, fontWeight: 700, cursor: 'pointer', fontFamily: font }}>
                     {dep.label}
-                    <button onClick={() => removeDepartment(dep.id)} style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', fontSize: 12 }}>x</button>
-                  </span>
+                  </button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <Input value={newDepartmentName} onChange={setNewDepartmentName} placeholder="Add department" />
                 <Btn onClick={addDepartment}>+ Add</Btn>
+                <button onClick={() => removeDepartment(selectedDepartmentId)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 7, padding: '8px 12px', fontSize: 13, color: muted, cursor: 'pointer', fontFamily: font }}>Delete selected</button>
               </div>
             </div>
 
             {/* Per-type notes */}
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions — settings don't carry over between types." /></div>
-              <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>2. Choose Document<Help text="Each document type has its own requirements, style, theme, reference documents, and teacher instructions." /></div>
               {docTypes.length === 0 ? (
                 <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
               ) : (() => {
                 const docsInDepartment = docTypes.filter(dt => departmentForType(dt) === selectedDepartmentId);
                 const t = docsInDepartment.find(dt => dt.id === selectedDocTypeId) || docsInDepartment[0] || docTypes[0];
                 return (
-                  <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
-                    <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
-                      <select
-                        value={selectedDepartmentId}
-                        onChange={e => {
-                          const deptId = e.target.value;
-                          setSelectedDepartmentId(deptId);
-                          const first = docTypes.find(dt => departmentForType(dt) === deptId);
-                          setSelectedDocTypeId(first?.id || '');
-                        }}
-                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                      >
-                        {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
-                      </select>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <select
                         value={t.id}
                         onChange={e => setSelectedDocTypeId(e.target.value)}
-                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                        style={{ flex: 1, fontSize: 13, fontWeight: 700, color: navy, fontFamily: font, padding: '9px 10px', border: `1px solid ${border}`, borderRadius: 7, background: '#fff', cursor: 'pointer' }}
                       >
                         {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
                           <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
                         ))}
                       </select>
-                      <button onClick={() => removeDocType(t.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 5, cursor: 'pointer', color: muted, fontSize: 11, padding: '2px 8px', fontFamily: font }}>Remove</button>
+                      <button onClick={() => removeDocType(t.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 7, cursor: 'pointer', color: muted, fontSize: 13, padding: '9px 12px', fontFamily: font }}>Remove</button>
                     </div>
-                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ border: `1px solid ${border}`, borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>3. Edit Selected Document</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: navy }}>{t.icon} {t.label}</div>
+                      </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: navy, marginBottom: 6 }}>{t.icon} {t.label}</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
@@ -927,7 +926,7 @@ export default function AdminPage() {
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Email</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
                   <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
-                  <th style={{ width: 60 }}></th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -937,8 +936,10 @@ export default function AdminPage() {
                     <td style={{ padding: '8px 8px', color: muted }}>{t.email}</td>
                     <td style={{ padding: '8px 8px', color: muted }}>{t.sharepointFolderPath || <span style={{ fontStyle: 'italic' }}>Not set</span>}</td>
                     <td style={{ padding: '8px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
-                    <td style={{ padding: '8px 4px', textAlign: 'right' }}>
-                      <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
+                    <td style={{ padding: '8px 4px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => setResetEmail(t.email)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 6, color: muted, cursor: 'pointer', fontSize: 12, fontFamily: font, padding: '4px 8px', marginRight: 5 }}>Reset</button>
+                      <button onClick={() => { setFolderEmail(t.email); setFolderPath(t.sharepointFolderPath || ''); }} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 6, color: muted, cursor: 'pointer', fontSize: 12, fontFamily: font, padding: '4px 8px', marginRight: 5 }}>Folder</button>
+                      <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 12, fontFamily: font }}>Remove</button>
                     </td>
                   </tr>
                 ))}
@@ -987,6 +988,8 @@ export default function AdminPage() {
 
         <div style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: 8 }}>
           Account ID: <span style={{ fontFamily: 'monospace' }}>{session?.accountId}</span>
+        </div>
+        </div>
         </div>
       </div>
     </div>
