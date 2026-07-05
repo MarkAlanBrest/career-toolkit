@@ -1108,7 +1108,7 @@ export default function AdminPage() {
                         />
                       </div>
                       <div style={{ padding: '10px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ minWidth: 0, background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '6px 4px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, boxSizing: 'border-box' }}>
+                        <button onClick={() => saveTeacherRow(t.email)} disabled={savingTeacherFolder === t.email} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
                           {savingTeacherFolder === t.email ? '...' : 'Save'}
                         </button>
                         <button onClick={() => setActivityTeacher({ email: t.email, name: t.name })} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
@@ -1117,7 +1117,7 @@ export default function AdminPage() {
                         <button onClick={() => setDeptTeacher({ email: t.email, name: t.name })} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: navy, boxSizing: 'border-box' }}>
                           Departments
                         </button>
-                        <button onClick={() => removeTeacher(t.email)} style={{ minWidth: 0, background: 'none', border: `1px solid ${red}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
+                        <button onClick={() => removeTeacher(t.email)} style={{ minWidth: 0, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '6px 4px', cursor: 'pointer', fontSize: 10.5, fontFamily: font, fontWeight: 700, color: red, boxSizing: 'border-box' }}>
                           Delete
                         </button>
                       </div>
@@ -1216,32 +1216,40 @@ export default function AdminPage() {
               <button onClick={() => setDeptTeacher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: muted, lineHeight: 1 }}>✕</button>
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: navy, padding: '8px 10px', background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 8, marginBottom: 10 }}>
-              <input
-                type="checkbox"
-                checked={(teacherDeptEdits[deptTeacher.email] || []).length === 0}
-                onChange={e => setTeacherDeptEdits(prev => ({ ...prev, [deptTeacher.email]: e.target.checked ? [] : departments.map(d => d.id) }))}
-              />
-              Full access — all departments
-            </label>
-
-            {(teacherDeptEdits[deptTeacher.email] || []).length === 0 ? (
-              <div style={{ fontSize: 12, color: muted }}>This teacher can create documents in every department, including any added later.</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 11, color: muted }}>Only checked departments will be visible to this teacher.</div>
-                {departments.map(dep => (
-                  <label key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: navy }}>
+            {(() => {
+              const fullAccess = (teacherDeptEdits[deptTeacher.email] || []).length === 0;
+              return (
+                <>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: navy, padding: '8px 10px', background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 8, marginBottom: 10 }}>
                     <input
                       type="checkbox"
-                      checked={(teacherDeptEdits[deptTeacher.email] || []).includes(dep.id)}
-                      onChange={() => toggleTeacherDept(deptTeacher.email, dep.id)}
+                      checked={fullAccess}
+                      onChange={e => setTeacherDeptEdits(prev => ({ ...prev, [deptTeacher.email]: e.target.checked ? [] : departments.map(d => d.id) }))}
                     />
-                    {dep.label}
+                    Full access — all departments
                   </label>
-                ))}
-              </div>
-            )}
+
+                  <div style={{ fontSize: 11, color: muted, marginBottom: 8 }}>
+                    {fullAccess
+                      ? 'Uncheck full access to restrict this teacher to specific departments.'
+                      : 'Only checked departments will be visible to this teacher.'}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, opacity: fullAccess ? 0.5 : 1 }}>
+                    {departments.map(dep => (
+                      <label key={dep.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: fullAccess ? 'not-allowed' : 'pointer', fontSize: 13, color: navy }}>
+                        <input
+                          type="checkbox"
+                          disabled={fullAccess}
+                          checked={fullAccess || (teacherDeptEdits[deptTeacher.email] || []).includes(dep.id)}
+                          onChange={() => toggleTeacherDept(deptTeacher.email, dep.id)}
+                        />
+                        {dep.label}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
 
             <div style={{ marginTop: 16 }}>
               <Btn onClick={saveTeacherDepartments} disabled={savingTeacherDepts}>{savingTeacherDepts ? 'Saving...' : 'Save Departments'}</Btn>
