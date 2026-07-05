@@ -270,10 +270,10 @@ body {
         <span class="help-pop" style="text-transform:none;letter-spacing:normal;font-weight:400;">Click a document type below to open a guided form. Your school admin may have set required questions or built-in requirements for each type.</span>
       </span>
     </div>
-    <div id="type-tabs">
-      <button type="button" class="type-tab" data-cat="teaching" onclick="setActiveCategory('teaching')">Teaching</button>
-      <button type="button" class="type-tab" data-cat="admin" onclick="setActiveCategory('admin')">Operations</button>
-      <button type="button" class="type-tab" data-cat="other" onclick="setActiveCategory('other')">Other</button>
+    <div style="padding:12px 16px;border-bottom:1px solid #F1F5F9;display:flex;flex-direction:column;gap:8px;">
+      <select id="department-select" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;"></select>
+      <select id="document-select" style="width:100%;padding:8px 10px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;"></select>
+      <button id="document-open-btn" type="button" style="padding:9px 10px;background:#1E293B;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Create Document</button>
     </div>
     <div id="type-list"></div>
   </div>
@@ -395,6 +395,15 @@ var DOC_TYPES_DEFAULT = [
   { id:"advisingsummary", label:"Advising/Progress Summary", icon:"🧭", color:"#5B21B6", desc:"Summary notes from a student-advisor check-in" }
 ];
 
+var DEPARTMENTS_DEFAULT = [
+  { id:"teaching", label:"Teaching" },
+  { id:"admissions", label:"Admissions" },
+  { id:"financialaid", label:"Financial Aid" },
+  { id:"careerplacement", label:"Career Placement" },
+  { id:"operations", label:"Operations" },
+  { id:"other", label:"Other" }
+];
+
 var DOC_TYPES = (function(){
   try {
     var s = localStorage.getItem("doc_creator_types");
@@ -421,7 +430,21 @@ var DOC_TYPE_CATEGORIES = {
   syllabus: "admin", safetycontract: "admin", missingwork: "admin", obschecklist: "admin", incident: "admin",
   concernnotice: "admin", advisingsummary: "admin"
 };
-function categoryForType(typeId) { return DOC_TYPE_CATEGORIES[typeId] || "other"; }
+function legacyDepartmentForType(typeId) {
+  var cat = DOC_TYPE_CATEGORIES[typeId] || "other";
+  return cat === "admin" ? "operations" : cat;
+}
+function getDepartments() {
+  var saved = Array.isArray(adminSettings.departments) ? adminSettings.departments : [];
+  var list = saved.length ? saved.slice() : DEPARTMENTS_DEFAULT.slice();
+  DEPARTMENTS_DEFAULT.forEach(function(d) {
+    if (!list.find(function(x) { return x.id === d.id; })) list.push(d);
+  });
+  return list;
+}
+function departmentForType(type) {
+  return (type && type.departmentId) || legacyDepartmentForType(type && type.id);
+}
 
 var TYPE_COLORS = ["#1E3A5F","#1E4D8C","#14532D","#78350F","#312E81","#7F1D1D","#155E75","#1E293B","#3B1F5C","#065F46","#831843","#1C3557"];
 
@@ -569,6 +592,7 @@ var ADMIN_DEFAULTS = {
   schoolName: "Riverside Technical College",
   model: "claude-haiku-4-5",
   logo: "",
+  departments: DEPARTMENTS_DEFAULT.slice(),
   syllabus:     { notes: "Include attendance policy: max 3 unexcused absences before grade reduction. Include late work policy: 10% per day, not accepted after 3 days. Include AI policy: brainstorming only, submitting AI work as original is academic dishonesty. Include safety policy: PPE required in lab at all times." },
   worksheet:    { notes: "Always include a header line for Name / Date / Class. Show all work for full credit. Circle or box the final answer for calculation problems." },
   projectguide: { notes: "Include OSHA PPE requirement. Students must complete a Job Hazard Analysis before hands-on work. All project documentation submitted before leaving class on the due date." },
@@ -597,6 +621,7 @@ var adminSettings = (function(){
     if (saved.schoolName) out.schoolName = saved.schoolName;
     if (saved.model) out.model = saved.model;
     if (saved.logo !== undefined) out.logo = saved.logo;
+    if (Array.isArray(saved.departments)) out.departments = saved.departments;
     DOC_TYPES.forEach(function(t) {
       if (!out[t.id]) out[t.id] = { notes: "" };
       if (saved[t.id] && saved[t.id].notes !== undefined) out[t.id].notes = saved[t.id].notes;
@@ -1028,28 +1053,37 @@ function getLayoutInstructions(typeId, color, lc) {
 // ═══════════════════════════════════════════════════════════
 // UI — TYPE LIST
 // ═══════════════════════════════════════════════════════════
-var activeTypeCategory = "teaching";
-
-function setActiveCategory(cat) {
-  activeTypeCategory = cat;
-  renderTypeList();
-}
+var activeDepartmentId = "teaching";
 
 function renderTypeList() {
-  document.querySelectorAll(".type-tab").forEach(function(btn) {
-    btn.classList.toggle("active", btn.getAttribute("data-cat") === activeTypeCategory);
-  });
-
+  var deptSelect = document.getElementById("department-select");
+  var docSelect = document.getElementById("document-select");
   var list = document.getElementById("type-list");
-  list.innerHTML = "";
-  var typesInCategory = DOC_TYPES.filter(function(type) { return categoryForType(type.id) === activeTypeCategory; });
+  if (!deptSelect || !docSelect || !list) return;
+  var departments = getDepartments();
+  if (!departments.find(function(d) { return d.id === activeDepartmentId; })) {
+    activeDepartmentId = departments[0] ? departments[0].id : "other";
+  }
+  deptSelect.innerHTML = departments.map(function(d) {
+    return '<option value="' + esc(d.id) + '">' + esc(d.label) + '</option>';
+  }).join("");
+  deptSelect.value = activeDepartmentId;
 
-  if (!typesInCategory.length) {
-    list.innerHTML = '<div style="padding:16px 10px;color:#94A3B8;font-size:12px;text-align:center;">No document types in this category yet.</div>';
+  var typesInDepartment = DOC_TYPES.filter(function(type) { return departmentForType(type) === activeDepartmentId; });
+  docSelect.innerHTML = typesInDepartment.map(function(type) {
+    return '<option value="' + esc(type.id) + '">' + esc(type.label) + '</option>';
+  }).join("");
+
+  if (!typesInDepartment.length) {
+    list.innerHTML = '<div style="padding:16px 10px;color:#94A3B8;font-size:12px;text-align:center;">No documents in this department yet.</div>';
+    document.getElementById("document-open-btn").disabled = true;
     return;
   }
+  document.getElementById("document-open-btn").disabled = false;
+  if (!typesInDepartment.find(function(t) { return t.id === docSelect.value; })) docSelect.value = typesInDepartment[0].id;
 
-  typesInCategory.forEach(function(type) {
+  list.innerHTML = '<div style="padding:10px 16px;color:#94A3B8;font-size:11px;border-bottom:1px solid #F1F5F9;">' + typesInDepartment.length + ' document type' + (typesInDepartment.length === 1 ? '' : 's') + '</div>';
+  typesInDepartment.forEach(function(type) {
     var el = document.createElement("div");
     el.className = "type-item" + (state.selectedType === type.id ? " active" : "");
     el.innerHTML = '<span class="type-icon">' + type.icon + '</span>'
@@ -1058,6 +1092,11 @@ function renderTypeList() {
     el.addEventListener("click", function() { openChat(type.id); });
     list.appendChild(el);
   });
+}
+
+function openSelectedDocumentType() {
+  var docSelect = document.getElementById("document-select");
+  if (docSelect && docSelect.value) openChat(docSelect.value);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1071,7 +1110,7 @@ function openChat(typeId) {
   if (!type) return;
   state.selectedType = typeId;
   chatState.typeId = typeId;
-  activeTypeCategory = categoryForType(typeId);
+  activeDepartmentId = departmentForType(type);
   document.getElementById("chat-icon").textContent = type.icon;
   document.getElementById("chat-title").textContent = type.label;
 
@@ -1311,7 +1350,7 @@ function addDocTypeFromAdmin() {
   var id = baseId, n = 2;
   while (DOC_TYPES.find(function(t) { return t.id === id; })) { id = baseId + "_" + (n++); }
   var desc = descEl && descEl.value.trim() ? descEl.value.trim() : name;
-  DOC_TYPES.push({ id: id, label: name, icon: "📄", color: _newTypeColor, desc: desc });
+  DOC_TYPES.push({ id: id, label: name, icon: "📄", color: _newTypeColor, desc: desc, departmentId: activeDepartmentId });
   if (!adminSettings[id]) adminSettings[id] = { notes: "" };
   saveDocTypes();
   saveAdminSettings();
@@ -1364,6 +1403,8 @@ document.getElementById("btn-word").addEventListener("click", downloadWord);
 document.getElementById("btn-sharepoint").addEventListener("click", saveToSharePoint);
 document.getElementById("btn-history").addEventListener("click", openHistory);
 document.getElementById("history-overlay").addEventListener("click", function(e) { if (e.target === this) closeHistory(); });
+document.getElementById("department-select").addEventListener("change", function(e) { activeDepartmentId = e.target.value; renderTypeList(); });
+document.getElementById("document-open-btn").addEventListener("click", openSelectedDocumentType);
 document.getElementById("btn-admin").addEventListener("click", function() { window.location.href = "/document-creator/admin"; });
 document.getElementById("btn-signout").addEventListener("click", function() {
   fetch("/api/document-creator/auth/logout", { method: "POST" }).finally(function() {
@@ -1523,7 +1564,7 @@ function restoreFromHistory(idx) {
   if (!doc) return;
   state.generatedHTML = doc.html;
   state.selectedType = doc.docType;
-  activeTypeCategory = categoryForType(doc.docType);
+  activeDepartmentId = departmentForType(DOC_TYPES.find(function(t) { return t.id === doc.docType; }));
   renderGeneratedDocument(doc.html);
   setMainState("doc");
   renderTypeList();
@@ -1573,6 +1614,7 @@ function applyServerSettings(data) {
       if (data.adminSettings.schoolName) s.schoolName = data.adminSettings.schoolName;
       if (data.adminSettings.model) s.model = data.adminSettings.model;
       if (data.adminSettings.logo !== undefined) s.logo = data.adminSettings.logo;
+      if (Array.isArray(data.adminSettings.departments)) s.departments = data.adminSettings.departments;
       DOC_TYPES.forEach(function(t) {
         if (!s[t.id]) s[t.id] = { notes: "", questions: [] };
         var src = data.adminSettings[t.id];

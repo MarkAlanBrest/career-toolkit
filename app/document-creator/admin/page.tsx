@@ -20,7 +20,8 @@ function themeToHex(v: string | undefined): string {
 
 type Session = { email: string; name: string; role: string; schoolId: string; schoolName: string; accountId: string; accountToken: string };
 type Teacher = { email: string; name: string; active: boolean; createdAt: string; sharepointFolderPath: string };
-type DocType = { id: string; label: string; icon: string; color: string; desc?: string };
+type Department = { id: string; label: string };
+type DocType = { id: string; label: string; icon: string; color: string; desc?: string; departmentId?: string };
 type StyleOptions = {
   lines: boolean;
   numbered: boolean;
@@ -51,6 +52,15 @@ const HEADER_STYLE_OPTIONS = [
 ];
 type RefDoc = { id: string; name: string; filename: string; chars: number; uploadedAt: string };
 
+const DEFAULT_DEPARTMENTS: Department[] = [
+  { id: 'teaching', label: 'Teaching' },
+  { id: 'admissions', label: 'Admissions' },
+  { id: 'financialaid', label: 'Financial Aid' },
+  { id: 'careerplacement', label: 'Career Placement' },
+  { id: 'operations', label: 'Operations' },
+  { id: 'other', label: 'Other' },
+];
+
 const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'syllabus',       label: 'Syllabus',               icon: '📋', color: '#7C3AED' },
   { id: 'worksheet',      label: 'Worksheet',              icon: '📝', color: '#2563EB' },
@@ -75,6 +85,19 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'concernnotice', label: 'Academic Concern Notice', icon: '🚩', color: '#9F1239' },
   { id: 'advisingsummary', label: 'Advising/Progress Summary', icon: '🧭', color: '#5B21B6' },
 ];
+const LEGACY_DEPARTMENT_BY_TYPE: Record<string, string> = {
+  worksheet: 'teaching', studyguide: 'teaching', vocablist: 'teaching', readingguide: 'teaching',
+  funactivity: 'teaching', creative: 'teaching', lessonplan: 'teaching', projectguide: 'teaching',
+  research: 'teaching', test: 'teaching', rubric: 'teaching', icebreaker: 'teaching',
+  syllabus: 'operations', safetycontract: 'operations', missingwork: 'operations', obschecklist: 'operations',
+  incident: 'operations', concernnotice: 'operations', advisingsummary: 'operations',
+};
+function slugDepartment(label: string): string {
+  return label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+function departmentForType(type: DocType): string {
+  return type.departmentId || LEGACY_DEPARTMENT_BY_TYPE[type.id] || 'other';
+}
 type UsageEntry = { email: string; name: string; docType: string; docTypeLabel: string; model: string; ts: number };
 type UsageStats = {
   totalAll: number;
@@ -162,6 +185,8 @@ export default function AdminPage() {
   const [savingLogo, setSavingLogo] = useState(false);
 
   const [schoolName, setSchoolName] = useState('');
+  const [departments, setDepartments] = useState<Department[]>(DEFAULT_DEPARTMENTS);
+  const [newDepartmentName, setNewDepartmentName] = useState('');
   const [docTypes, setDocTypes] = useState<DocType[]>([]);
   const [docNotes, setDocNotes] = useState<Record<string, string>>({});
   const [docQuestions, setDocQuestions] = useState<Record<string, string>>({});
@@ -170,6 +195,7 @@ export default function AdminPage() {
   const [savingSchool, setSavingSchool] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
   const [newTypeDesc, setNewTypeDesc] = useState('');
+  const [newTypeDepartmentId, setNewTypeDepartmentId] = useState('teaching');
   const [selectedDocTypeId, setSelectedDocTypeId] = useState<string>('');
 
   const [usage, setUsage] = useState<UsageStats | null>(null);
@@ -364,20 +390,29 @@ export default function AdminPage() {
         if (d.adminSettings?.logo !== undefined) setLogo(d.adminSettings.logo || '');
         if (d.adminSettings?.schoolName) setSchoolName(d.adminSettings.schoolName);
         {
+          const savedDepartments: Department[] = Array.isArray(d.adminSettings?.departments) && d.adminSettings.departments.length
+            ? [...d.adminSettings.departments]
+            : [...DEFAULT_DEPARTMENTS];
+          DEFAULT_DEPARTMENTS.forEach(def => {
+            if (!savedDepartments.find(dep => dep.id === def.id)) savedDepartments.push(def);
+          });
+          setDepartments(savedDepartments);
+          setNewTypeDepartmentId(prev => savedDepartments.find(dep => dep.id === prev) ? prev : (savedDepartments[0]?.id || 'other'));
           // A school's saved list is a snapshot from whenever it was last saved — merge in
           // any built-in type added since then so new document types actually show up.
           const types: DocType[] = d.docTypes?.length ? [...d.docTypes] : [...DEFAULT_DOC_TYPES];
           DEFAULT_DOC_TYPES.forEach(def => {
             if (!types.find(t => t.id === def.id)) types.push(def);
           });
-          setDocTypes(types);
-          setSelectedDocTypeId(prev => prev && types.find(t => t.id === prev) ? prev : (types[0]?.id || ''));
+          const normalizedTypes = types.map(t => ({ ...t, departmentId: departmentForType(t) }));
+          setDocTypes(normalizedTypes);
+          setSelectedDocTypeId(prev => prev && normalizedTypes.find(t => t.id === prev) ? prev : (normalizedTypes[0]?.id || ''));
           const notes: Record<string, string> = {};
           const questions: Record<string, string> = {};
           const styles: Record<string, StyleOptions> = {};
           const themes: Record<string, string> = {};
           const refs: Record<string, string[]> = {};
-          types.forEach((t: DocType) => {
+          normalizedTypes.forEach((t: DocType) => {
             notes[t.id] = d.adminSettings?.[t.id]?.notes || '';
             const q = d.adminSettings?.[t.id]?.questions;
             questions[t.id] = Array.isArray(q) ? q.join('\n') : '';
@@ -466,7 +501,7 @@ export default function AdminPage() {
     try {
       const settingsResp = await fetch('/api/document-creator/settings');
       const settingsData = await settingsResp.json();
-      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}), schoolName };
+      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}), schoolName, departments };
       docTypes.forEach(t => {
         updated[t.id] = {
           notes: docNotes[t.id] || '',
@@ -490,11 +525,29 @@ export default function AdminPage() {
     if (!newTypeName.trim()) { showMsg('Enter a document type name.', red); return; }
     const id = newTypeName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     if (docTypes.find(t => t.id === id)) { showMsg('A type with that name already exists.', red); return; }
-    setDocTypes([...docTypes, { id, label: newTypeName.trim(), icon: '📄', color: '#475569', desc: newTypeDesc.trim() }]);
+    setDocTypes([...docTypes, { id, label: newTypeName.trim(), icon: '📄', color: '#475569', desc: newTypeDesc.trim(), departmentId: newTypeDepartmentId }]);
     setDocNotes({ ...docNotes, [id]: '' });
     setSelectedDocTypeId(id);
     setNewTypeName('');
     setNewTypeDesc('');
+  }
+
+  function addDepartment() {
+    const label = newDepartmentName.trim();
+    if (!label) { showMsg('Enter a department name.', red); return; }
+    const id = slugDepartment(label);
+    if (!id) { showMsg('Use letters or numbers in the department name.', red); return; }
+    if (departments.find(d => d.id === id)) { showMsg('That department already exists.', red); return; }
+    setDepartments([...departments, { id, label }]);
+    setNewTypeDepartmentId(id);
+    setNewDepartmentName('');
+  }
+
+  function removeDepartment(id: string) {
+    if (departments.length <= 1) { showMsg('Keep at least one department.', red); return; }
+    if (docTypes.some(t => departmentForType(t) === id)) { showMsg('Move or remove documents in this department first.', red); return; }
+    setDepartments(departments.filter(d => d.id !== id));
+    if (newTypeDepartmentId === id) setNewTypeDepartmentId(departments.find(d => d.id !== id)?.id || 'other');
   }
 
   async function removeDocType(id: string) {
@@ -517,7 +570,7 @@ export default function AdminPage() {
     try {
       const settingsResp = await fetch('/api/document-creator/settings');
       const settingsData = await settingsResp.json();
-      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}) };
+      const updated: Record<string, unknown> = { ...(settingsData.adminSettings || {}), departments };
       delete updated[id];
       remaining.forEach(t => {
         updated[t.id] = {
@@ -736,6 +789,22 @@ export default function AdminPage() {
               <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
             </div>
 
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {departments.map(dep => (
+                  <span key={dep.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${border}`, borderRadius: 7, padding: '5px 8px', fontSize: 12, color: navy }}>
+                    {dep.label}
+                    <button onClick={() => removeDepartment(dep.id)} style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', fontSize: 12 }}>x</button>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Input value={newDepartmentName} onChange={setNewDepartmentName} placeholder="Add department" />
+                <Btn onClick={addDepartment}>+ Add</Btn>
+              </div>
+            </div>
+
             {/* Per-type notes */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions — settings don't carry over between types." /></div>
@@ -763,6 +832,16 @@ export default function AdminPage() {
                         <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: navy, marginBottom: 6 }}>{t.icon} {t.label}</div>
                         <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4 }}>Department</div>
+                          <select
+                            value={departmentForType(t)}
+                            onChange={e => setDocTypes(prev => prev.map(dt => dt.id === t.id ? { ...dt, departmentId: e.target.value } : dt))}
+                            style={{ width: '100%', fontSize: 12, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                          >
+                            {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+                          </select>
+                        </div>
                         <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
                           style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
                       </div>
@@ -862,6 +941,13 @@ export default function AdminPage() {
                 <Input value={newTypeName} onChange={setNewTypeName} placeholder="Type name (e.g. Parent Letter)" />
                 <Input value={newTypeDesc} onChange={setNewTypeDesc} placeholder="Short description (optional)" />
               </div>
+              <select
+                value={newTypeDepartmentId}
+                onChange={e => setNewTypeDepartmentId(e.target.value)}
+                style={{ width: '100%', fontSize: 13, color: navy, fontFamily: font, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 7, background: '#fff', cursor: 'pointer', marginBottom: 8 }}
+              >
+                {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+              </select>
               <Btn onClick={addDocType}>+ Add Type</Btn>
             </div>
 
