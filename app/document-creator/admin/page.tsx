@@ -1025,8 +1025,8 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-                <div style={{ border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
+                <div style={{ border: `1px solid ${border}`, borderRadius: 10, background: '#fff', overflowX: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, background: '#F8FAFC', borderBottom: `1px solid ${border}`, fontSize: 12, fontWeight: 700, color: muted }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Name</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Email</div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>Password</div>
@@ -1041,7 +1041,7 @@ export default function AdminPage() {
                         : 'No teachers match the current search. Try clearing the filters above.'}
                     </div>
                   ) : filteredTeachers.map((t, index) => (
-                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
+                    <div key={t.email} style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, borderBottom: index === filteredTeachers.length - 1 ? 'none' : `1px solid ${border}`, background: index % 2 === 0 ? '#fff' : '#F8FAFC' }}>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: navy, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.name}</div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}`, color: muted, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.email}</div>
                       <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}>
@@ -1076,7 +1076,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 1.1fr) minmax(180px, 1.2fr) minmax(180px, 1fr) minmax(220px, 1.4fr) 110px 160px', minWidth: 990, background: '#F8FAFC', borderTop: `1px solid ${border}` }}>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Email" type="email" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
                     <div style={{ padding: '10px 10px', borderRight: `1px solid ${border}` }}><input value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Password" type="password" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }} /></div>
