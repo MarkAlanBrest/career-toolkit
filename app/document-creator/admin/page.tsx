@@ -107,10 +107,20 @@ type UsageStats = {
   recent: UsageEntry[];
 };
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, subtitle, icon, children }: { title: string; subtitle?: string; icon?: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid ${border}`, marginBottom: 20 }}>
-      <div style={{ padding: '14px 20px', borderBottom: `1px solid ${border}`, fontWeight: 700, fontSize: 13, color: navy, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{title}</div>
+    <div style={{ background: '#fff', borderRadius: 20, border: `1px solid ${border}`, boxShadow: '0 12px 30px rgba(15,23,42,.05)', marginBottom: 18, overflow: 'hidden' }}>
+      <div style={{ padding: '16px 20px 14px', borderBottom: `1px solid ${border}`, background: 'linear-gradient(90deg, #F8FAFC 0%, #F1F5F9 100%)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', color: blue, fontSize: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)' }}>
+            {icon || '✦'}
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: navy }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 12, color: muted, marginTop: 2 }}>{subtitle}</div>}
+          </div>
+        </div>
+      </div>
       <div style={{ padding: 20 }}>{children}</div>
     </div>
   );
@@ -118,7 +128,24 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Btn({ onClick, disabled, color = blue, children }: { onClick?: () => void; disabled?: boolean; color?: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} disabled={disabled} style={{ background: color, color: '#fff', border: 'none', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1, fontFamily: font }}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: color,
+        color: '#fff',
+        border: 'none',
+        borderRadius: 999,
+        padding: '9px 16px',
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.6 : 1,
+        fontFamily: font,
+        boxShadow: '0 8px 16px rgba(15,23,42,.12)',
+        transition: 'transform 120ms ease, box-shadow 120ms ease',
+      }}
+    >
       {children}
     </button>
   );
@@ -126,8 +153,25 @@ function Btn({ onClick, disabled, color = blue, children }: { onClick?: () => vo
 
 function Input({ value, onChange, placeholder, type = 'text' }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
-    <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      style={{ flex: 1, padding: '8px 11px', border: `1px solid ${border}`, borderRadius: 7, fontSize: 13, fontFamily: font, color: navy, outline: 'none', minWidth: 0 }} />
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{
+        flex: 1,
+        padding: '10px 12px',
+        border: `1px solid ${border}`,
+        borderRadius: 10,
+        fontSize: 13,
+        fontFamily: font,
+        color: navy,
+        outline: 'none',
+        minWidth: 0,
+        background: '#fff',
+        boxShadow: 'inset 0 1px 2px rgba(15,23,42,.03)',
+      }}
+    />
   );
 }
 
@@ -140,17 +184,30 @@ function Help({ text }: { text: string }) {
         role="button"
         tabIndex={0}
         aria-label="Help"
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 15, height: 15, borderRadius: '50%', background: '#EFF6FF', color: blue, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: '1px solid #BFDBFE', lineHeight: 1, userSelect: 'none', flexShrink: 0 }}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: '50%', background: '#EFF6FF', color: blue, fontSize: 10, fontWeight: 700, cursor: 'pointer', border: '1px solid #BFDBFE', lineHeight: 1, userSelect: 'none', flexShrink: 0 }}
       >?</span>
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-          <div style={{ position: 'absolute', top: 20, left: 0, zIndex: 50, width: 240, background: navy, color: '#E2E8F0', fontSize: 11, fontWeight: 400, lineHeight: 1.5, padding: '10px 12px', borderRadius: 8, boxShadow: '0 10px 24px rgba(15,23,42,.3)' }}>
+          <div style={{ position: 'absolute', top: 22, left: 0, zIndex: 50, width: 260, background: navy, color: '#E2E8F0', fontSize: 11, fontWeight: 400, lineHeight: 1.5, padding: '10px 12px', borderRadius: 10, boxShadow: '0 10px 24px rgba(15,23,42,.3)' }}>
             {text}
           </div>
         </>
       )}
     </span>
+  );
+}
+
+function StatCard({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: `1px solid ${border}`, padding: 14, boxShadow: '0 8px 24px rgba(15,23,42,.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</span>
+        <span style={{ width: 10, height: 10, borderRadius: '50%', background: accent }} />
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: navy, marginBottom: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: muted }}>{detail}</div>
+    </div>
   );
 }
 
@@ -606,29 +663,60 @@ export default function AdminPage() {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: font, color: muted }}>Loading...</div>;
   }
 
+  const summaryCards = [
+    { label: 'School profile', value: schoolName || 'Set school name', detail: 'Institution name, branding, and logo', accent: '#1E4D8C' },
+    { label: 'Document types', value: `${docTypes.length}`, detail: 'Templates, rules, themes, and instructions', accent: '#16A34A' },
+    { label: 'Teachers', value: `${teachers.length}`, detail: 'Access, passwords, and SharePoint routing', accent: '#7C3AED' },
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', background: '#F8FAFC', fontFamily: font }}>
-      {/* Header */}
-      <div style={{ background: navy, color: '#fff', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 20 }}>🗂️</span>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>Document Creator</span>
-          <span style={{ fontSize: 12, color: '#94A3B8', marginLeft: 4 }}>Admin · {session?.schoolName}</span>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F8FAFC 0%, #EEF2F7 100%)', fontFamily: font }}>
+      <div style={{ background: navy, color: '#fff', padding: '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 10px 28px rgba(15,23,42,.16)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,.12)', fontSize: 18 }}>🗂️</div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>Document Creator Admin</div>
+            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>Control center for {session?.schoolName || 'your school'}</div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <a href="/document-creator" style={{ color: '#94A3B8', fontSize: 13, textDecoration: 'none' }}>Open App →</a>
-          <button onClick={logout} style={{ background: 'transparent', border: '1px solid #475569', color: '#CBD5E1', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 12, fontFamily: font }}>Sign Out</button>
+          <a href="/document-creator" style={{ color: '#CBD5E1', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>Open App →</a>
+          <button onClick={logout} style={{ background: 'transparent', border: '1px solid #475569', color: '#CBD5E1', borderRadius: 999, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 600 }}>Sign Out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth: 760, margin: '32px auto', padding: '0 20px' }}>
+      <div style={{ maxWidth: 1100, margin: '28px auto', padding: '0 20px 32px' }}>
         {msg && (
-          <div style={{ background: msgColor === green ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${msgColor === green ? '#86EFAC' : '#FCA5A5'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msgColor }}>
+          <div style={{ background: msgColor === green ? '#F0FDF4' : '#FEF2F2', border: `1px solid ${msgColor === green ? '#86EFAC' : '#FCA5A5'}`, borderRadius: 12, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: msgColor }}>
             {msg}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 10, marginBottom: 18 }}>
+        <div style={{ background: '#fff', borderRadius: 24, border: `1px solid ${border}`, boxShadow: '0 18px 40px rgba(15,23,42,.06)', padding: 24, marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ maxWidth: 620 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: blue, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Welcome back</div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: navy, lineHeight: 1.2 }}>Manage your document workflow with less friction.</div>
+              <div style={{ fontSize: 14, color: muted, marginTop: 8, lineHeight: 1.5 }}>
+                Set school branding, tune document generation rules, and manage teacher accounts from one streamlined workspace.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ background: '#F8FAFC', border: `1px solid ${border}`, borderRadius: 999, padding: '8px 12px', fontSize: 12, color: muted }}>
+                Model: <span style={{ color: navy, fontWeight: 700 }}>{model === 'claude-haiku-4-5' ? 'Haiku' : 'Sonnet'}</span>
+              </div>
+              <Btn onClick={() => setActiveTab('documents')}>Open document setup</Btn>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: 18 }}>
+            {summaryCards.map(card => (
+              <StatCard key={card.label} label={card.label} value={card.value} detail={card.detail} accent={card.accent} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, background: '#E2E8F0', padding: 4, borderRadius: 14, marginBottom: 18 }}>
           {([
             { id: 'documents', label: 'Documents' },
             { id: 'school', label: 'School' },
@@ -637,7 +725,7 @@ export default function AdminPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{ flex: 1, border: 'none', borderRadius: 8, padding: '9px 10px', background: activeTab === tab.id ? '#fff' : 'transparent', color: activeTab === tab.id ? navy : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font, boxShadow: activeTab === tab.id ? '0 1px 3px rgba(15,23,42,.12)' : 'none' }}
+              style={{ flex: 1, border: 'none', borderRadius: 10, padding: '10px 12px', background: activeTab === tab.id ? '#fff' : 'transparent', color: activeTab === tab.id ? navy : muted, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: font, boxShadow: activeTab === tab.id ? '0 2px 8px rgba(15,23,42,.08)' : 'none' }}
             >
               {tab.label}
             </button>
@@ -645,331 +733,328 @@ export default function AdminPage() {
         </div>
 
         {activeTab === 'school' && (
-        <>
-        <Section title="School Details">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears." /></div>
-              <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
-            </div>
-            <div>
-              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save School Details'}</Btn>
-            </div>
-          </div>
-        </Section>
+          <>
+            <Section title="School Profile" subtitle="Set the institution name and your brand assets for every generated document." icon="🏫">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>School / Institution Name<Help text="Shown on generated documents wherever the school name appears." /></div>
+                  <Input value={schoolName} onChange={setSchoolName} placeholder="e.g. Riverside Technical College" />
+                </div>
+                <div>
+                  <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save School Details'}</Btn>
+                </div>
+              </div>
+            </Section>
 
-        {/* School Logo */}
-        <Section title="School Logo">
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            {logo ? (
-              <div style={{ background: '#1E293B', borderRadius: 8, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <img src={logo} style={{ height: 48, maxWidth: 160, objectFit: 'contain', display: 'block' }} alt="School logo" />
+            <Section title="Brand Assets" subtitle="Upload a logo that will appear throughout generated documents." icon="🎨">
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                {logo ? (
+                  <div style={{ background: '#1E293B', borderRadius: 16, padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, minWidth: 170 }}>
+                    <img src={logo} style={{ height: 54, maxWidth: 180, objectFit: 'contain', display: 'block' }} alt="School logo" />
+                  </div>
+                ) : (
+                  <div style={{ width: 160, height: 86, background: '#F8FAFC', border: `2px dashed ${border}`, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, color: muted }}>No logo yet</span>
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 240 }}>
+                  <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 999, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: savingLogo ? 'not-allowed' : 'pointer', opacity: savingLogo ? 0.6 : 1 }}>
+                    {savingLogo ? 'Saving...' : logo ? 'Replace Logo' : 'Upload Logo'}
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={savingLogo} style={{ display: 'none' }} />
+                  </label>
+                  {logo && (
+                    <button onClick={removeLogo} disabled={savingLogo} style={{ marginLeft: 8, background: 'none', border: `1px solid ${border}`, borderRadius: 999, padding: '8px 14px', fontSize: 13, color: muted, cursor: 'pointer', fontFamily: font }}>Remove</button>
+                  )}
+                  <div style={{ fontSize: 12, color: muted, marginTop: 10 }}>PNG, SVG, or JPG. Max 1 MB. Shown in the top-left of every generated document.</div>
+                </div>
               </div>
-            ) : (
-              <div style={{ width: 120, height: 72, background: '#F8FAFC', border: `2px dashed ${border}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <span style={{ fontSize: 11, color: muted }}>No logo</span>
-              </div>
-            )}
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: savingLogo ? 'not-allowed' : 'pointer', opacity: savingLogo ? 0.6 : 1 }}>
-                {savingLogo ? 'Saving...' : logo ? 'Replace Logo' : 'Upload Logo'}
-                <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={savingLogo} style={{ display: 'none' }} />
-              </label>
-              {logo && (
-                <button onClick={removeLogo} disabled={savingLogo} style={{ marginLeft: 8, background: 'none', border: `1px solid ${border}`, borderRadius: 7, padding: '8px 14px', fontSize: 13, color: muted, cursor: 'pointer', fontFamily: font }}>Remove</button>
-              )}
-              <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PNG, SVG, or JPG. Max 1 MB. Shown in the top-left of every document.</div>
-            </div>
-          </div>
-        </Section>
-        </>
+            </Section>
+          </>
         )}
 
         {activeTab === 'documents' && (
-        <>
-        {/* Reference Documents */}
-        <Section title="Reference Documents">
-          <div style={{ fontSize: 11, color: muted, marginBottom: 14 }}>
-            Upload the school catalog, course list, program descriptions, or other source-of-truth documents. Below, each document type can be told to reference specific uploads — e.g. have Resume generation pull course descriptions from the catalog.
-          </div>
-
-          {loadingDocs ? (
-            <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
-          ) : refDocs.length === 0 ? (
-            <div style={{ color: muted, fontSize: 13, marginBottom: 14 }}>No reference documents yet. Add one below.</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>File</th>
-                  <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Size</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
-                  <th style={{ width: 60 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {refDocs.map(d => (
-                  <tr key={d.id} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{d.name}</td>
-                    <td style={{ padding: '8px 8px', color: muted }}>{d.filename}</td>
-                    <td style={{ padding: '8px 8px', textAlign: 'right', color: muted }}>{Math.round(d.chars / 1000).toLocaleString()}k chars</td>
-                    <td style={{ padding: '8px 8px', color: muted }}>{new Date(d.uploadedAt).toLocaleDateString()}</td>
-                    <td style={{ padding: '8px 4px', textAlign: 'right' }}>
-                      <button onClick={() => removeDoc(d.id, d.name)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input value={newDocName} onChange={setNewDocName} placeholder='Name (optional — e.g. "School Catalog 2026")' />
-            <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 7, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1, whiteSpace: 'nowrap' }}>
-              {uploadingDoc ? 'Uploading...' : 'Upload File'}
-              <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleDocUpload} disabled={uploadingDoc} style={{ display: 'none' }} />
-            </label>
-          </div>
-          <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
-        </Section>
-
-        {/* Document Setup */}
-        <Section title="Document Setup">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                {departments.map(dep => (
-                  <span key={dep.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${border}`, borderRadius: 7, padding: '5px 8px', fontSize: 12, color: navy }}>
-                    {dep.label}
-                    <button onClick={() => removeDepartment(dep.id)} style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', fontSize: 12 }}>x</button>
-                  </span>
-                ))}
+          <>
+            <Section title="Reference Library" subtitle="Upload source documents teachers can pull from for smarter generation." icon="📚">
+              <div style={{ fontSize: 12, color: muted, marginBottom: 14 }}>
+                Keep school catalogs, program descriptions, and other source-of-truth files here so each document type can reference the right documents.
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Input value={newDepartmentName} onChange={setNewDepartmentName} placeholder="Add department" />
-                <Btn onClick={addDepartment}>+ Add</Btn>
-              </div>
-            </div>
 
-            {/* Per-type notes */}
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions -- settings don't carry over between types." /></div>
-              <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
-              {docTypes.length === 0 ? (
-                <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
-              ) : (() => {
-                const docsInDepartment = docTypes.filter(dt => departmentForType(dt) === selectedDepartmentId);
-                const t = docsInDepartment.find(dt => dt.id === selectedDocTypeId) || docsInDepartment[0] || docTypes[0];
-                return (
-                  <div style={{ border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
-                    <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
-                      <select
-                        value={t.id}
-                        onChange={e => setSelectedDocTypeId(e.target.value)}
-                        style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                      >
-                        {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
-                          <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
-                        ))}
-                      </select>
-                      <button onClick={() => removeDocType(t.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 5, cursor: 'pointer', color: muted, fontSize: 11, padding: '2px 8px', fontFamily: font }}>Remove</button>
-                    </div>
-                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
-                        <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
-                        <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
-                          style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style<Help text="Optional formatting touches applied throughout the document for this type — e.g. numbered sections or a signature block. Leave all unchecked to let the AI choose formatting freely." /></div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, alignItems: 'start', marginBottom: 10 }}>
-                          <div>
-                            <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4 }}>Header style</div>
-                            <select
-                              value={(docStyles[t.id] || DEFAULT_STYLE_OPTIONS).headerStyle || 'classic'}
-                              onChange={e => {
-                                const cur = docStyles[t.id] || DEFAULT_STYLE_OPTIONS;
-                                setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, headerStyle: e.target.value } }));
-                              }}
-                              style={{ width: '100%', fontSize: 12, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
-                            >
-                              {HEADER_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
-                            </select>
-                          </div>
-                          <div style={{ fontSize: 11, color: muted, lineHeight: 1.45, paddingTop: 20 }}>
-                            {HEADER_STYLE_OPTIONS.find(opt => opt.id === ((docStyles[t.id] || DEFAULT_STYLE_OPTIONS).headerStyle || 'classic'))?.desc}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
-                          {([
-                            { key: 'lines'     as const, label: 'Divider lines' },
-                            { key: 'numbered'  as const, label: 'Numbered sections' },
-                            { key: 'infoBar'   as const, label: 'Teacher info bar' },
-                            { key: 'callouts'  as const, label: 'Callout boxes' },
-                            { key: 'checklist' as const, label: 'Checklist bullets' },
-                            { key: 'signature' as const, label: 'Signature block' },
-                            { key: 'pageNumbers' as const, label: 'Page numbers' },
-                            { key: 'icons' as const, label: 'Section icons' },
-                          ] as { key: Exclude<keyof StyleOptions, 'headerStyle'>; label: string }[]).map(opt => {
-                            const cur = docStyles[t.id] || DEFAULT_STYLE_OPTIONS;
-                            return (
-                              <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
-                                <input type="checkbox" checked={cur[opt.key]} onChange={() => setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, [opt.key]: !cur[opt.key] } }))} style={{ flexShrink: 0 }} />
-                                {opt.label}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme<Help text="Sets the accent color used for this document type's header, borders, and table headings." /></div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <input type="color" value={themeToHex(docThemes[t.id])} onChange={e => setDocThemes(prev => ({ ...prev, [t.id]: e.target.value }))}
-                            style={{ width: 44, height: 32, padding: 0, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer', background: 'none' }} />
-                          <span style={{ fontSize: 12, color: muted, fontFamily: 'monospace' }}>{themeToHex(docThemes[t.id]).toUpperCase()}</span>
-                        </div>
-                        <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reference Documents<Help text="Check any uploaded files (course catalogs, program descriptions, etc.) that should be pulled from as source material specifically for this document type. Upload new files from the Reference Documents section further up this page." /></div>
-                        <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>Selected documents are included as source material when generating this document type.</div>
-                        {refDocs.length === 0 ? (
-                          <div style={{ fontSize: 12, color: muted }}>No reference documents uploaded yet — see the Reference Documents section above.</div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            {refDocs.map(d => {
-                              const selected = (docRefs[t.id] || []).includes(d.id);
-                              return (
-                                <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
-                                  <input type="checkbox" checked={selected} onChange={() => {
-                                    const cur = docRefs[t.id] || [];
-                                    const next = selected ? cur.filter(id => id !== d.id) : [...cur, d.id];
-                                    setDocRefs(prev => ({ ...prev, [t.id]: next }));
-                                  }} style={{ flexShrink: 0 }} />
-                                  {d.name}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Detailed Instructions<Help text="Shown to teachers as guidance above the description box when creating this document type — useful for telling them exactly what details the AI needs." /></div>
-                        <textarea
-                          value={docQuestions[t.id] || ''}
-                          onChange={e => setDocQuestions({ ...docQuestions, [t.id]: e.target.value })}
-                          rows={4}
-                          placeholder={'What subject or course is this for?\nWhat level or grade?\nWhat topic or chapter?\nWhat types of questions? (multiple choice, short answer, etc.)'}
-                          style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 6, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }}
-                        />
-                      </div>
-                    </div>
+              {loadingDocs ? (
+                <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
+              ) : refDocs.length === 0 ? (
+                <div style={{ color: muted, fontSize: 13, marginBottom: 14 }}>No reference documents yet. Add one below.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 14 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${border}` }}>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>File</th>
+                      <th style={{ textAlign: 'right', padding: '6px 8px', color: muted, fontWeight: 600 }}>Size</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
+                      <th style={{ width: 60 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refDocs.map(d => (
+                      <tr key={d.id} style={{ borderBottom: `1px solid ${border}` }}>
+                        <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{d.name}</td>
+                        <td style={{ padding: '8px 8px', color: muted }}>{d.filename}</td>
+                        <td style={{ padding: '8px 8px', textAlign: 'right', color: muted }}>{Math.round(d.chars / 1000).toLocaleString()}k chars</td>
+                        <td style={{ padding: '8px 8px', color: muted }}>{new Date(d.uploadedAt).toLocaleDateString()}</td>
+                        <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                          <button onClick={() => removeDoc(d.id, d.name)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <Input value={newDocName} onChange={setNewDocName} placeholder='Name (optional — e.g. "School Catalog 2026")' />
+                <label style={{ display: 'inline-block', background: blue, color: '#fff', borderRadius: 999, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: uploadingDoc ? 'not-allowed' : 'pointer', opacity: uploadingDoc ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                  {uploadingDoc ? 'Uploading...' : 'Upload File'}
+                  <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={handleDocUpload} disabled={uploadingDoc} style={{ display: 'none' }} />
+                </label>
+              </div>
+              <div style={{ fontSize: 11, color: muted, marginTop: 8 }}>PDF, Word, Excel, or plain text. Max 8 MB. Text is extracted automatically. If you leave the name blank, the filename is used.</div>
+            </Section>
+
+            <Section title="Document Setup" subtitle="Organize departments, configure rules, and tailor each document type." icon="⚙️">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Departments</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    {departments.map(dep => (
+                      <span key={dep.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${border}`, borderRadius: 999, padding: '6px 10px', fontSize: 12, color: navy, background: '#F8FAFC' }}>
+                        {dep.label}
+                        <button onClick={() => removeDepartment(dep.id)} style={{ border: 'none', background: 'transparent', color: muted, cursor: 'pointer', fontSize: 12 }}>×</button>
+                      </span>
+                    ))}
                   </div>
-                );
-              })()}
-            </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Input value={newDepartmentName} onChange={setNewDepartmentName} placeholder="Add department" />
+                    <Btn onClick={addDepartment}>+ Add</Btn>
+                  </div>
+                </div>
 
-            {/* Add doc type */}
-            <div style={{ paddingTop: 12, borderTop: `1px solid ${border}` }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Add Document Type</div>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <Input value={newTypeName} onChange={setNewTypeName} placeholder="Type name (e.g. Parent Letter)" />
-                <Input value={newTypeDesc} onChange={setNewTypeDesc} placeholder="Short description (optional)" />
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Requirements Per Document Type<Help text="Pick a document type from the dropdown to configure it. Each type has its own requirements, style, theme, reference documents, and teacher questions -- settings don't carry over between types." /></div>
+                  <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>AI follows these exactly and they override teacher input.</div>
+                  {docTypes.length === 0 ? (
+                    <div style={{ fontSize: 12, color: muted }}>No document types yet — add one below.</div>
+                  ) : (() => {
+                    const docsInDepartment = docTypes.filter(dt => departmentForType(dt) === selectedDepartmentId);
+                    const t = docsInDepartment.find(dt => dt.id === selectedDocTypeId) || docsInDepartment[0] || docTypes[0];
+                    return (
+                      <div style={{ border: `1px solid ${border}`, borderRadius: 16, overflow: 'hidden' }}>
+                        <div style={{ background: '#F8FAFC', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${border}` }}>
+                          <select
+                            value={t.id}
+                            onChange={e => setSelectedDocTypeId(e.target.value)}
+                            style={{ flex: 1, fontSize: 13, fontWeight: 600, color: navy, fontFamily: font, padding: '7px 8px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: 'pointer' }}
+                          >
+                            {(docsInDepartment.length ? docsInDepartment : docTypes).map(dt => (
+                              <option key={dt.id} value={dt.id}>{dt.icon} {dt.label}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => removeDocType(t.id)} style={{ background: 'none', border: `1px solid ${border}`, borderRadius: 8, cursor: 'pointer', color: muted, fontSize: 11, padding: '4px 8px', fontFamily: font }}>Remove</button>
+                        </div>
+                        <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Admin Requirements<Help text="Rules the AI must follow exactly for this document type, overriding anything the teacher enters. Keep it as a tight, specific list — very long or open-ended requirements make the AI more likely to run out of room and cut the document short." /></div>
+                            <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>AI follows these exactly and they override the teacher.</div>
+                            <textarea value={docNotes[t.id] || ''} onChange={e => setDocNotes({ ...docNotes, [t.id]: e.target.value })} rows={5} placeholder={"e.g. Always include the attendance policy. Require OSHA PPE language.\nIf no grading scale is provided, use: 90-100 A, 80-89 B, 70-79 C, below 70 F.\nAlways format Teacher Name, Course, and Date at the top and bottom.\nDo not include a grading scale unless provided by the teacher."}
+                              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Style<Help text="Optional formatting touches applied throughout the document for this type — e.g. numbered sections or a signature block. Leave all unchecked to let the AI choose formatting freely." /></div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 10, alignItems: 'start', marginBottom: 10 }}>
+                              <div>
+                                <div style={{ fontSize: 11, color: muted, fontWeight: 700, marginBottom: 4 }}>Header style</div>
+                                <select
+                                  value={(docStyles[t.id] || DEFAULT_STYLE_OPTIONS).headerStyle || 'classic'}
+                                  onChange={e => {
+                                    const cur = docStyles[t.id] || DEFAULT_STYLE_OPTIONS;
+                                    setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, headerStyle: e.target.value } }));
+                                  }}
+                                  style={{ width: '100%', fontSize: 12, color: navy, fontFamily: font, padding: '6px 8px', border: `1px solid ${border}`, borderRadius: 6, background: '#fff', cursor: 'pointer' }}
+                                >
+                                  {HEADER_STYLE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                                </select>
+                              </div>
+                              <div style={{ fontSize: 11, color: muted, lineHeight: 1.45, paddingTop: 20 }}>
+                                {HEADER_STYLE_OPTIONS.find(opt => opt.id === ((docStyles[t.id] || DEFAULT_STYLE_OPTIONS).headerStyle || 'classic'))?.desc}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px' }}>
+                              {([
+                                { key: 'lines' as const, label: 'Divider lines' },
+                                { key: 'numbered' as const, label: 'Numbered sections' },
+                                { key: 'infoBar' as const, label: 'Teacher info bar' },
+                                { key: 'callouts' as const, label: 'Callout boxes' },
+                                { key: 'checklist' as const, label: 'Checklist bullets' },
+                                { key: 'signature' as const, label: 'Signature block' },
+                                { key: 'pageNumbers' as const, label: 'Page numbers' },
+                                { key: 'icons' as const, label: 'Section icons' },
+                              ] as { key: Exclude<keyof StyleOptions, 'headerStyle'>; label: string }[]).map(opt => {
+                                const cur = docStyles[t.id] || DEFAULT_STYLE_OPTIONS;
+                                return (
+                                  <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
+                                    <input type="checkbox" checked={cur[opt.key]} onChange={() => setDocStyles(prev => ({ ...prev, [t.id]: { ...cur, [opt.key]: !cur[opt.key] } }))} style={{ flexShrink: 0 }} />
+                                    {opt.label}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Document Theme<Help text="Sets the accent color used for this document type's header, borders, and table headings." /></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <input type="color" value={themeToHex(docThemes[t.id])} onChange={e => setDocThemes(prev => ({ ...prev, [t.id]: e.target.value }))}
+                                style={{ width: 44, height: 32, padding: 0, border: `1px solid ${border}`, borderRadius: 6, cursor: 'pointer', background: 'none' }} />
+                              <span style={{ fontSize: 12, color: muted, fontFamily: 'monospace' }}>{themeToHex(docThemes[t.id]).toUpperCase()}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>Header background, section borders, and table headers for this document type.</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Reference Documents<Help text="Check any uploaded files (course catalogs, program descriptions, etc.) that should be pulled from as source material specifically for this document type. Upload new files from the Reference Documents section further up this page." /></div>
+                            <div style={{ fontSize: 11, color: muted, marginBottom: 6 }}>Selected documents are included as source material when generating this document type.</div>
+                            {refDocs.length === 0 ? (
+                              <div style={{ fontSize: 12, color: muted }}>No reference documents uploaded yet — see the Reference Documents section above.</div>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {refDocs.map(d => {
+                                  const selected = (docRefs[t.id] || []).includes(d.id);
+                                  return (
+                                    <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: navy }}>
+                                      <input type="checkbox" checked={selected} onChange={() => {
+                                        const cur = docRefs[t.id] || [];
+                                        const next = selected ? cur.filter(id => id !== d.id) : [...cur, d.id];
+                                        setDocRefs(prev => ({ ...prev, [t.id]: next }));
+                                      }} style={{ flexShrink: 0 }} />
+                                      {d.name}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Detailed Instructions<Help text="Shown to teachers as guidance above the description box when creating this document type — useful for telling them exactly what details the AI needs." /></div>
+                            <textarea
+                              value={docQuestions[t.id] || ''}
+                              onChange={e => setDocQuestions({ ...docQuestions, [t.id]: e.target.value })}
+                              rows={4}
+                              placeholder={'What subject or course is this for?\nWhat level or grade?\nWhat topic or chapter?\nWhat types of questions? (multiple choice, short answer, etc.)'}
+                              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, fontFamily: font, resize: 'vertical', boxSizing: 'border-box', lineHeight: 1.5, outline: 'none' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ paddingTop: 12, borderTop: `1px solid ${border}` }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Add Document Type</div>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <Input value={newTypeName} onChange={setNewTypeName} placeholder="Type name (e.g. Parent Letter)" />
+                    <Input value={newTypeDesc} onChange={setNewTypeDesc} placeholder="Short description (optional)" />
+                  </div>
+                  <select
+                    value={newTypeDepartmentId}
+                    onChange={e => setNewTypeDepartmentId(e.target.value)}
+                    style={{ width: '100%', fontSize: 13, color: navy, fontFamily: font, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, background: '#fff', cursor: 'pointer', marginBottom: 8 }}
+                  >
+                    {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
+                  </select>
+                  <Btn onClick={addDocType}>+ Add Type</Btn>
+                </div>
+
+                <div>
+                  <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save Document Settings'}</Btn>
+                </div>
               </div>
-              <select
-                value={newTypeDepartmentId}
-                onChange={e => setNewTypeDepartmentId(e.target.value)}
-                style={{ width: '100%', fontSize: 13, color: navy, fontFamily: font, padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 7, background: '#fff', cursor: 'pointer', marginBottom: 8 }}
-              >
-                {departments.map(dep => <option key={dep.id} value={dep.id}>{dep.label}</option>)}
-              </select>
-              <Btn onClick={addDocType}>+ Add Type</Btn>
-            </div>
-
-            <div>
-              <Btn onClick={saveSchoolSettings} disabled={savingSchool}>{savingSchool ? 'Saving...' : 'Save Document Settings'}</Btn>
-            </div>
-          </div>
-        </Section>
-
-        </>
+            </Section>
+          </>
         )}
 
         {activeTab === 'teachers' && (
-        <>
-        {/* Teachers */}
-        <Section title={`Teacher Management (${teachers.length})`}>
-          {loadingTeachers ? (
-            <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
-          ) : teachers.length === 0 ? (
-            <div style={{ color: muted, fontSize: 13 }}>No teachers yet. Add one below.</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${border}` }}>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Email</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
-                  <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
-                  <th style={{ width: 60 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {teachers.map(t => (
-                  <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
-                    <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{t.name}</td>
-                    <td style={{ padding: '8px 8px', color: muted }}>{t.email}</td>
-                    <td style={{ padding: '8px 8px', color: muted }}>{t.sharepointFolderPath || <span style={{ fontStyle: 'italic' }}>Not set</span>}</td>
-                    <td style={{ padding: '8px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
-                    <td style={{ padding: '8px 4px', textAlign: 'right' }}>
-                      <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Add Teacher</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <Input value={newName} onChange={setNewName} placeholder="Full Name" />
-              <Input value={newEmail} onChange={setNewEmail} placeholder="email@school.edu" type="email" />
-            </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Input value={newPass} onChange={setNewPass} placeholder="Temporary password (min 8 chars)" type="password" />
-              <Input value={newFolderPath} onChange={setNewFolderPath} placeholder="SharePoint folder (optional, e.g. Teachers/Ms.Lee)" />
-              <Btn onClick={addTeacher} disabled={adding}>{adding ? 'Adding...' : 'Add Teacher'}</Btn>
-            </div>
-          </div>
-          </div>
+          <>
+            <Section title={`Teacher Management (${teachers.length})`} subtitle="Create accounts, reset access, and manage SharePoint destinations from one place." icon="👩‍🏫">
+              {loadingTeachers ? (
+                <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
+              ) : teachers.length === 0 ? (
+                <div style={{ color: muted, fontSize: 13 }}>No teachers yet. Add one below.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${border}` }}>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Email</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
+                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
+                      <th style={{ width: 60 }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teachers.map(t => (
+                      <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
+                        <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{t.name}</td>
+                        <td style={{ padding: '8px 8px', color: muted }}>{t.email}</td>
+                        <td style={{ padding: '8px 8px', color: muted }}>{t.sharepointFolderPath || <span style={{ fontStyle: 'italic' }}>Not set</span>}</td>
+                        <td style={{ padding: '8px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
+                        <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                          <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Add Teacher</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Input value={newName} onChange={setNewName} placeholder="Full Name" />
+                    <Input value={newEmail} onChange={setNewEmail} placeholder="email@school.edu" type="email" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Input value={newPass} onChange={setNewPass} placeholder="Temporary password (min 8 chars)" type="password" />
+                    <Input value={newFolderPath} onChange={setNewFolderPath} placeholder="SharePoint folder (optional, e.g. Teachers/Ms.Lee)" />
+                    <Btn onClick={addTeacher} disabled={adding}>{adding ? 'Adding...' : 'Add Teacher'}</Btn>
+                  </div>
+                </div>
+              </div>
+            </Section>
 
-          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Reset Password</div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input value={resetEmail} onChange={setResetEmail} placeholder="teacher@school.edu" type="email" />
-            <Input value={resetPass} onChange={setResetPass} placeholder="New password (min 8 chars)" type="password" />
-            <Btn onClick={resetPassword} disabled={resetting}>{resetting ? 'Saving...' : 'Reset'}</Btn>
-          </div>
-          </div>
+            <Section title="Access & Delivery" subtitle="Manage password resets and Save to SharePoint destinations." icon="🔐">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Reset Password</div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Input value={resetEmail} onChange={setResetEmail} placeholder="teacher@school.edu" type="email" />
+                    <Input value={resetPass} onChange={setResetPass} placeholder="New password (min 8 chars)" type="password" />
+                    <Btn onClick={resetPassword} disabled={resetting}>{resetting ? 'Saving...' : 'Reset'}</Btn>
+                  </div>
+                </div>
 
-          <div style={{ borderTop: `1px solid ${border}`, marginTop: 18, paddingTop: 18 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>SharePoint Folder</div>
-          <div style={{ fontSize: 11, color: muted, marginBottom: 10 }}>
-            Documents that teacher saves via "Save to SharePoint" go into this subfolder of the shared site's document library. Leave blank to disable the button for that teacher.
-            <Help text="Documents this teacher saves to SharePoint go into this subfolder of the shared site's document library. Leave blank to disable the Save to SharePoint button for this teacher." />
-          </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input value={folderEmail} onChange={setFolderEmail} placeholder="teacher@school.edu" type="email" />
-            <Input value={folderPath} onChange={setFolderPath} placeholder="SharePoint folder path (e.g. Teachers/Ms.Lee)" />
-            <Btn onClick={saveFolderPath} disabled={savingFolder}>{savingFolder ? 'Saving...' : 'Save'}</Btn>
-          </div>
-          </div>
-        </Section>
-        </>
+                <div style={{ borderTop: `1px solid ${border}`, paddingTop: 18 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>SharePoint Folder</div>
+                  <div style={{ fontSize: 12, color: muted, marginBottom: 10 }}>
+                    Documents that teacher saves via "Save to SharePoint" go into this subfolder of the shared site's document library. Leave blank to disable the button for that teacher.
+                    <Help text="Documents this teacher saves to SharePoint go into this subfolder of the shared site's document library. Leave blank to disable the Save to SharePoint button for this teacher." />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Input value={folderEmail} onChange={setFolderEmail} placeholder="teacher@school.edu" type="email" />
+                    <Input value={folderPath} onChange={setFolderPath} placeholder="SharePoint folder path (e.g. Teachers/Ms.Lee)" />
+                    <Btn onClick={saveFolderPath} disabled={savingFolder}>{savingFolder ? 'Saving...' : 'Save'}</Btn>
+                  </div>
+                </div>
+              </div>
+            </Section>
+          </>
         )}
 
         <div style={{ fontSize: 11, color: '#94A3B8', textAlign: 'center', marginTop: 8 }}>
