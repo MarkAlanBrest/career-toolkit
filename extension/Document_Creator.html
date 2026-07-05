@@ -1385,6 +1385,7 @@ function closeAdmin() {
 
 function saveAdmin() {
   adminSettings.schoolName = document.getElementById("adm-schoolName").value.trim();
+  updatePlaceholderBranding();
   DOC_TYPES.forEach(function(type) {
     var el = document.getElementById("adm-notes-" + type.id);
     if (el) {
@@ -1695,6 +1696,15 @@ function applyServerSettings(data) {
       if (!DOC_TYPES.find(function(t) { return t.id === d.id; })) DOC_TYPES.push(d);
     });
   }
+  updatePlaceholderBranding();
+}
+
+function updatePlaceholderBranding() {
+  var titleEl = document.getElementById("placeholder-title");
+  if (!titleEl) return;
+  titleEl.textContent = adminSettings.schoolName
+    ? adminSettings.schoolName + " Document Creator"
+    : "Document Creator";
 }
 
 async function saveSettingsToServer() {
