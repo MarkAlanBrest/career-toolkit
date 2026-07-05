@@ -1,7 +1,5 @@
 import { createHash } from 'crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { Redis } from '@upstash/redis';
+import { redis } from '@/lib/redis';
 
 export type PackageName = 'teaching' | 'creation' | 'owner';
 export type MeterName = 'teaching' | 'creation';

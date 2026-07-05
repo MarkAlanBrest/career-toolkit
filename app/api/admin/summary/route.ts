@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PRODUCTS } from '@/lib/products';
-import { redis } from '@/lib/billing';
+import { redis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
 
