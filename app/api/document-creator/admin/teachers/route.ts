@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, getUser, saveUser, getSchoolTeacherEmails, addTeacherToSchool, removeTeacherFromSchool, hashPassword, normalizeFolderPath, DcUser } from '@/lib/dcAuth';
+import { getSession, getUser, saveUser, getSchoolTeacherEmails, getSchoolTeachers, addTeacherToSchool, removeTeacherFromSchool, hashPassword, normalizeFolderPath, DcUser } from '@/lib/dcAuth';
 import { cookies } from 'next/headers';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -28,7 +28,21 @@ export async function GET(_req: NextRequest) {
     })
   );
 
-  return NextResponse.json({ teachers: teachers.filter(Boolean) }, { headers: CORS });
+  const indexedTeachers = teachers.filter(Boolean);
+  if (indexedTeachers.length > 0) {
+    return NextResponse.json({ teachers: indexedTeachers }, { headers: CORS });
+  }
+
+  const fallbackTeachers = await getSchoolTeachers(session.schoolId);
+  const mappedFallbackTeachers = fallbackTeachers.map((user) => ({
+    email: user.email,
+    name: user.name,
+    active: user.active,
+    createdAt: user.createdAt,
+    sharepointFolderPath: user.sharepointFolderPath || '',
+  }));
+
+  return NextResponse.json({ teachers: mappedFallbackTeachers }, { headers: CORS });
 }
 
 // POST — create a new teacher

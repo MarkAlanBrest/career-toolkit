@@ -150,6 +150,25 @@ export async function getSchoolTeacherEmails(schoolId: string): Promise<string[]
   }
 }
 
+export async function getSchoolTeachers(schoolId: string): Promise<DcUser[]> {
+  try {
+    const keys = await redis.keys('dc:user:*');
+    const users = await Promise.all(keys.map(async (key) => {
+      try {
+        const raw = await redis.get<string>(key);
+        if (!raw) return null;
+        const user = typeof raw === 'string' ? JSON.parse(raw) : raw as DcUser;
+        return user.schoolId === schoolId && user.role === 'teacher' ? user : null;
+      } catch {
+        return null;
+      }
+    }));
+    return users.filter((u): u is DcUser => Boolean(u));
+  } catch {
+    return [];
+  }
+}
+
 export async function addTeacherToSchool(schoolId: string, email: string): Promise<void> {
   const emails = await getSchoolTeacherEmails(schoolId);
   if (!emails.includes(email)) {
