@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 const navy = '#1E293B';
@@ -208,6 +208,9 @@ export default function AdminPage() {
   const [newPass, setNewPass] = useState('');
   const [newFolderPath, setNewFolderPath] = useState('');
   const [adding, setAdding] = useState(false);
+  const [teacherFilters, setTeacherFilters] = useState({ name: '', email: '', folder: '', added: '' });
+  const [teacherFolderEdits, setTeacherFolderEdits] = useState<Record<string, string>>({});
+  const [savingTeacherFolder, setSavingTeacherFolder] = useState<string | null>(null);
 
   // Reset password
   const [resetEmail, setResetEmail] = useState('');
@@ -269,7 +272,12 @@ export default function AdminPage() {
     setLoadingTeachers(true);
     fetch('/api/document-creator/admin/teachers')
       .then(r => r.json())
-      .then(data => { if (data.teachers) setTeachers(data.teachers); })
+      .then(data => {
+        if (data.teachers) {
+          setTeachers(data.teachers);
+          setTeacherFolderEdits(Object.fromEntries(data.teachers.map((t: Teacher) => [t.email, t.sharepointFolderPath || ''])));
+        }
+      })
       .catch(() => {})
       .finally(() => setLoadingTeachers(false));
   }
@@ -302,6 +310,23 @@ export default function AdminPage() {
     });
     if (resp.ok) { showMsg('Teacher removed.'); loadTeachers(); }
     else { const d = await resp.json(); showMsg(d.error || 'Failed.', red); }
+  }
+
+  async function saveTeacherFolder(email: string) {
+    setSavingTeacherFolder(email);
+    try {
+      const resp = await fetch('/api/document-creator/admin/teachers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, sharepointFolderPath: teacherFolderEdits[email] || '' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { showMsg(data.error || 'Failed to save folder.', red); return; }
+      showMsg('Folder path saved.');
+      loadTeachers();
+    } finally {
+      setSavingTeacherFolder(null);
+    }
   }
 
   async function resetPassword() {
@@ -656,6 +681,18 @@ export default function AdminPage() {
 
   const docsInDepartment = docTypes.filter(dt => departmentForType(dt) === selectedDepartmentId);
   const selectedDocType = docsInDepartment.find(dt => dt.id === selectedDocTypeId) || docsInDepartment[0] || docTypes[0];
+  const filteredTeachers = useMemo(() => teachers.filter(t => {
+    const name = (t.name || '').toLowerCase();
+    const email = (t.email || '').toLowerCase();
+    const folder = (t.sharepointFolderPath || '').toLowerCase();
+    const added = new Date(t.createdAt).toLocaleDateString().toLowerCase();
+    return (
+      name.includes(teacherFilters.name.toLowerCase()) &&
+      email.includes(teacherFilters.email.toLowerCase()) &&
+      folder.includes(teacherFilters.folder.toLowerCase()) &&
+      added.includes(teacherFilters.added.toLowerCase())
+    );
+  }), [teachers, teacherFilters]);
 
   if (loading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: font, color: muted }}>Loading...</div>;
@@ -922,48 +959,72 @@ export default function AdminPage() {
             <Section title={`Teacher Management (${teachers.length})`}>
               {loadingTeachers ? (
                 <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
-              ) : teachers.length === 0 ? (
-                <div style={{ color: muted, fontSize: 13 }}>No teachers yet. Add one below.</div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: `1px solid ${border}` }}>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Name</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Email</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
-                      <th style={{ textAlign: 'left', padding: '6px 8px', color: muted, fontWeight: 600 }}>Added</th>
-                      <th style={{ width: 60 }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teachers.map(t => (
-                      <tr key={t.email} style={{ borderBottom: `1px solid ${border}` }}>
-                        <td style={{ padding: '8px 8px', color: navy, fontWeight: 500 }}>{t.name}</td>
-                        <td style={{ padding: '8px 8px', color: muted }}>{t.email}</td>
-                        <td style={{ padding: '8px 8px', color: muted }}>{t.sharepointFolderPath || <span style={{ fontStyle: 'italic' }}>Not set</span>}</td>
-                        <td style={{ padding: '8px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
-                        <td style={{ padding: '8px 4px', textAlign: 'right' }}>
-                          <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 13, fontFamily: font }}>Remove</button>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 860 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${border}` }}>
+                        <th style={{ textAlign: 'left', padding: '8px 8px', color: muted, fontWeight: 600 }}>Name</th>
+                        <th style={{ textAlign: 'left', padding: '8px 8px', color: muted, fontWeight: 600 }}>Email</th>
+                        <th style={{ textAlign: 'left', padding: '8px 8px', color: muted, fontWeight: 600 }}>SharePoint Folder</th>
+                        <th style={{ textAlign: 'left', padding: '8px 8px', color: muted, fontWeight: 600 }}>Added</th>
+                        <th style={{ width: 150, padding: '8px 8px' }}></th>
+                      </tr>
+                      <tr style={{ borderBottom: `1px solid ${border}` }}>
+                        <th style={{ padding: '8px 8px' }}><input value={teacherFilters.name} onChange={e => setTeacherFilters(prev => ({ ...prev, name: e.target.value }))} placeholder="Search name" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></th>
+                        <th style={{ padding: '8px 8px' }}><input value={teacherFilters.email} onChange={e => setTeacherFilters(prev => ({ ...prev, email: e.target.value }))} placeholder="Search email" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></th>
+                        <th style={{ padding: '8px 8px' }}><input value={teacherFilters.folder} onChange={e => setTeacherFilters(prev => ({ ...prev, folder: e.target.value }))} placeholder="Search folder" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></th>
+                        <th style={{ padding: '8px 8px' }}><input value={teacherFilters.added} onChange={e => setTeacherFilters(prev => ({ ...prev, added: e.target.value }))} placeholder="Search date" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></th>
+                        <th style={{ padding: '8px 8px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTeachers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '16px 8px', color: muted, fontSize: 13 }}>No teachers match the current filters.</td>
+                        </tr>
+                      ) : filteredTeachers.map(t => (
+                        <tr key={t.email} style={{ borderBottom: `1px solid ${border}`, background: '#fff' }}>
+                          <td style={{ padding: '10px 8px', color: navy, fontWeight: 600 }}>{t.name}</td>
+                          <td style={{ padding: '10px 8px', color: muted }}>{t.email}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <input
+                              value={teacherFolderEdits[t.email] ?? t.sharepointFolderPath || ''}
+                              onChange={e => setTeacherFolderEdits(prev => ({ ...prev, [t.email]: e.target.value }))}
+                              placeholder="Folder path"
+                              style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }}
+                            />
+                          </td>
+                          <td style={{ padding: '10px 8px', color: muted }}>{new Date(t.createdAt).toLocaleDateString()}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                              <button onClick={() => saveTeacherFolder(t.email)} disabled={savingTeacherFolder === t.email} style={{ background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '7px 12px', cursor: savingTeacherFolder === t.email ? 'wait' : 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                                {savingTeacherFolder === t.email ? 'Saving...' : 'Save'}
+                              </button>
+                              <button onClick={() => removeTeacher(t.email)} style={{ background: 'none', border: `1px solid ${border}`, color: red, borderRadius: 999, padding: '7px 12px', cursor: 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ background: '#F8FAFC' }}>
+                        <td style={{ padding: '10px 8px' }}><input value={newName} onChange={setNewName} placeholder="Full name" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></td>
+                        <td style={{ padding: '10px 8px' }}><input value={newEmail} onChange={setNewEmail} placeholder="email@school.edu" type="email" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></td>
+                        <td style={{ padding: '10px 8px' }}><input value={newFolderPath} onChange={setNewFolderPath} placeholder="Folder path" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></td>
+                        <td style={{ padding: '10px 8px' }}><input value={newPass} onChange={setNewPass} placeholder="Temp password" type="password" style={{ width: '100%', padding: '8px 10px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 12, fontFamily: font, color: navy, outline: 'none' }} /></td>
+                        <td style={{ padding: '10px 8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button onClick={addTeacher} disabled={adding} style={{ background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '8px 14px', cursor: adding ? 'wait' : 'pointer', fontSize: 12, fontFamily: font, fontWeight: 700 }}>
+                              {adding ? 'Adding...' : 'Add'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <div style={{ borderTop: `1px solid ${border}`, marginTop: 12, paddingTop: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>Add Teacher</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Input value={newName} onChange={setNewName} placeholder="Full Name" />
-                    <Input value={newEmail} onChange={setNewEmail} placeholder="email@school.edu" type="email" />
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Input value={newPass} onChange={setNewPass} placeholder="Temporary password (min 8 chars)" type="password" />
-                    <Input value={newFolderPath} onChange={setNewFolderPath} placeholder="SharePoint folder (optional, e.g. Teachers/Ms.Lee)" />
-                    <Btn onClick={addTeacher} disabled={adding}>{adding ? 'Adding...' : 'Add Teacher'}</Btn>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              )}
             </Section>
 
             <Section title="Access & Delivery">
