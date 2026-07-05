@@ -55,8 +55,9 @@ export async function GET() {
     byDocType[parsed.docType].count++;
   }
 
-  // Most recent 15 entries
-  const recent = [...allEntries].sort((a, b) => b.ts - a.ts).slice(0, 15);
+  // Capped at 1000 per school (see usage/record route) — safe to return in full so per-teacher
+  // activity views can filter client-side without missing older entries from less-active teachers.
+  const recent = [...allEntries].sort((a, b) => b.ts - a.ts);
 
   return NextResponse.json({
     totalAll,
