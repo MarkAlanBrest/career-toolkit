@@ -1098,6 +1098,60 @@ export default function AdminPage() {
           Account ID: <span style={{ fontFamily: 'monospace' }}>{session?.accountId}</span>
         </div>
       </div>
+
+      {activityTeacher && (
+        <div
+          onClick={() => setActivityTeacher(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 14, padding: 20, width: 440, maxWidth: '100%', maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(15,23,42,.25)' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: navy }}>{activityTeacher.name}</div>
+                <div style={{ fontSize: 12, color: muted }}>{activityTeacher.email}</div>
+              </div>
+              <button onClick={() => setActivityTeacher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: muted, lineHeight: 1 }}>✕</button>
+            </div>
+
+            {!usage ? (
+              <div style={{ color: muted, fontSize: 13 }}>Loading...</div>
+            ) : (() => {
+              const stat = usage.byTeacher.find(t => t.email === activityTeacher.email);
+              const recentForTeacher = usage.recent.filter(e => e.email === activityTeacher.email);
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: 20, marginBottom: 18 }}>
+                    <div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: navy }}>{stat?.thisMonth ?? 0}</div>
+                      <div style={{ fontSize: 11, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>This Month</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: navy }}>{stat?.total ?? 0}</div>
+                      <div style={{ fontSize: 11, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>All Time</div>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Recent Documents</div>
+                  {recentForTeacher.length === 0 ? (
+                    <div style={{ fontSize: 13, color: muted }}>No activity yet.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {recentForTeacher.slice(0, 30).map((entry, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: i === recentForTeacher.slice(0, 30).length - 1 ? 'none' : `1px solid ${border}`, fontSize: 12 }}>
+                          <span style={{ color: navy }}>{entry.docTypeLabel}</span>
+                          <span style={{ color: muted }}>{new Date(entry.ts).toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
