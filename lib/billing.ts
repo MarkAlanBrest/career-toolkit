@@ -13,7 +13,79 @@ export type AccountEntitlements = {
 };
 type LemonValidation = { valid?: boolean; error?: string; license_key?: { status?: string }; meta?: { variant_id?: number; customer_id?: number; customer_email?: string } };
 
-const redis = Redis.fromEnv();
+type MemoryStore = { data: Map<string, unknown>; sets: Map<string, Set<string>>; timers: Map<string, ReturnType<typeof setTimeout>> };
+
+function getMemoryStore(): MemoryStore {
+  const globalWithStore = globalThis as typeof globalThis & { __memoryRedisStore?: MemoryStore };
+  if (!globalWithStore.__memoryRedisStore) {
+    globalWithStore.__memoryRedisStore = { data: new Map(), sets: new Map(), timers: new Map() };
+  }
+  return globalWithStore.__memoryRedisStore;
+}
+
+function createInMemoryRedis() {
+  const store = getMemoryStore();
+  return {
+    async get<T = unknown>(key: string): Promise<T | undefined> {
+      const value = store.data.get(key);
+      return value as T | undefined;
+    },
+    async set(key: string, value: unknown, options?: { ex?: number }) {
+      store.data.set(key, value);
+      const existingTimer = store.timers.get(key);
+      if (existingTimer) clearTimeout(existingTimer);
+      if (options?.ex) {
+        const timer = setTimeout(() => {
+          store.data.delete(key);
+          store.timers.delete(key);
+        }, options.ex * 1000);
+        store.timers.set(key, timer);
+      }
+      return 'OK';
+    },
+    async del(...keys: string[]) {
+      let deleted = 0;
+      keys.forEach(key => {
+        if (store.data.delete(key)) deleted += 1;
+      });
+      return deleted;
+    },
+    async keys(pattern: string) {
+      const regex = new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+      return Array.from(store.data.keys()).filter(key => regex.test(key));
+    },
+    async sadd(key: string, ...values: string[]) {
+      const set = store.sets.get(key) || new Set<string>();
+      values.forEach(value => set.add(value));
+      store.sets.set(key, set);
+      return set.size;
+    },
+    async smembers(key: string) {
+      return Array.from(store.sets.get(key) || []);
+    },
+    async eval(_script: string, _keys: string[] = [], _args: Array<string | number> = []) {
+      return ['denied', 0];
+    },
+    async incr(key: string) {
+      const next = (Number(store.data.get(key) || 0) + 1);
+      store.data.set(key, next);
+      return next;
+    },
+    async decr(key: string) {
+      const next = (Number(store.data.get(key) || 0) - 1);
+      store.data.set(key, next);
+      return next;
+    },
+    async incrby(key: string, amount: number) {
+      const next = (Number(store.data.get(key) || 0) + amount);
+      store.data.set(key, next);
+      return next;
+    },
+  };
+}
+
+const hasRedisConfig = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+const redis = hasRedisConfig ? Redis.fromEnv() : createInMemoryRedis();
 const LIMITS: Record<MeterName, number> = { teaching: 500, creation: 100 };
 const envList = (name: string) => new Set((process.env[name] || '').split(',').map(v => v.trim()).filter(Boolean));
 
