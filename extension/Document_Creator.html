@@ -461,15 +461,15 @@ function getStyleOptions(typeId) {
 }
 function getHeaderStyleInstructions(styleId, color, lc) {
   if (styleId === "letterhead") {
-    return "HEADER STYLE: Formal letterhead. Use a white header with school name/logo area at top, title beneath it, and a clean 2px " + color + " rule under the header. Avoid large color-filled header blocks.\n";
+    return "HEADER STYLE: Formal letterhead. Use a white header with school name/logo area at top, title beneath it, and a clean 2px " + color + " rule under the header. Keep it elegant and spacious, with generous white space, no bulky gray bar, and no dark filled panel.\n";
   }
   if (styleId === "sidebar") {
-    return "HEADER STYLE: Modern sidebar. Put a vertical accent bar on the left (width 10-14px, background:" + color + ") and place title/subtitle in a clean white title block beside it. Use restrained spacing and no dark fills.\n";
+    return "HEADER STYLE: Modern sidebar. Put a vertical accent bar on the left (width 10-14px, background:" + color + ") and place title/subtitle in a clean white title block beside it. Use restrained spacing, a refined layout, and no heavy gray banner.\n";
   }
   if (styleId === "minimal") {
-    return "HEADER STYLE: Minimal top rule. Use a white header, compact title typography, and one thin top or bottom rule in " + color + ". Keep decorative elements minimal.\n";
+    return "HEADER STYLE: Minimal top rule. Use a white header, compact title typography, and one thin top or bottom rule in " + color + ". Keep decorative elements minimal and sophisticated, with plenty of open space.\n";
   }
-  return "HEADER STYLE: Classic band. Use a light tinted header background (" + lc + ") with a 5px solid colored top border (border-top:5px solid " + color + ") and dark readable text.\n";
+  return "HEADER STYLE: Classic band. Use a light tinted header with a subtle top accent line in " + color + ", a clean title block, and dark readable text. Avoid a large gray or dark banner and keep the header polished and professional.\n";
 }
 
 function serializeCurrentDocument() {
@@ -792,6 +792,7 @@ function buildPromptFromInput(typeId, description) {
     + "PRIMARY COLOR: " + color + " — borders, section headings, accent elements. LIGHT TINT: " + lc + " — header backgrounds, table header backgrounds.\n"
     + "TYPOGRAPHY: Georgia serif for headings; Arial sans-serif for body copy, tables, labels.\n"
     + "PRINT-FIRST DESIGN: All documents must print clearly in black and white. NEVER use dark background fills with white text. Table headers use light tint background with colored bold text. All body text is dark (#1E293B or #475569). No white-on-dark anywhere.\n"
+    + "HEADER STYLE IS MANDATORY and overrides generic layout defaults. Use the selected header style for the document header and make it polished, institutional, and spacious. Do not use a large gray bar, heavy dark banner, or overly bulky top panel. Prefer a clean, modern header with subtle accent color and clear hierarchy.\n"
     + getHeaderStyleInstructions(so.headerStyle, color, lc) + "\n";
 
   var schoolBlock = adminSettings.schoolName
