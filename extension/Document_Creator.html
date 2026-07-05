@@ -1574,12 +1574,27 @@ function loadHistoryList() {
   var list = document.getElementById("history-list");
   if (list) list.innerHTML = '<div style="padding:24px 16px;color:#94A3B8;text-align:center;">Loading...</div>';
   fetch("/api/document-creator/history")
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      _historyDocs = Array.isArray(data.docs) ? data.docs : [];
+    .then(function(r) {
+      return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; });
+    })
+    .then(function(result) {
+      if (!result.ok) {
+        _historyDocs = [];
+        if (list) {
+          if (result.status === 401) {
+            list.innerHTML = '<div style="padding:24px 16px;color:#DC2626;text-align:center;line-height:1.6;">Your session has expired.<br>Please sign out and sign back in to see your history.</div>';
+          } else {
+            list.innerHTML = '<div style="padding:24px 16px;color:#DC2626;text-align:center;line-height:1.6;">' + esc((result.data && result.data.error) || "Could not load history.") + '</div>';
+          }
+        }
+        return;
+      }
+      _historyDocs = Array.isArray(result.data.docs) ? result.data.docs : [];
       renderHistoryList();
     })
-    .catch(function() { _historyDocs = []; renderHistoryList(); });
+    .catch(function() {
+      if (list) list.innerHTML = '<div style="padding:24px 16px;color:#DC2626;text-align:center;">Could not reach the server. Check your connection and try again.</div>';
+    });
 }
 
 function renderHistoryList() {
