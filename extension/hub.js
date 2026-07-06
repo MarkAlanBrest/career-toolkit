@@ -2,6 +2,11 @@
   'use strict';
   if (document.getElementById('ce-hub') || document.getElementById('ce-settings-modal')) return;
 
+  // Never activate during login/logout, including MFA steps like /login/otp — Canvas (a Rails
+  // app) emits its CSRF meta tag on these pages too since they contain a form, which would
+  // otherwise pass the DOM check below and mount the toolbar on top of the verification screen.
+  if (/^\/(login|logout)(\/|$)/.test(window.location.pathname)) return;
+
   // Only activate on Canvas pages (always run on SpeedGrader so audit events work)
   if (!document.querySelector('#global_nav_logo, meta[name="canvas-csrf-token"], .ic-app') &&
       !/speed_grader/.test(window.location.href)) return;
