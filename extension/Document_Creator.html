@@ -458,7 +458,13 @@ var DOC_TYPES_DEFAULT = [
   { id:"enrollmentfunnel", label:"Enrollment Funnel Report",   icon:"🔻", color:"#BE185D", desc:"Inquiries through enrollment, conversion rates by stage and program" },
   { id:"aidsummary",       label:"Financial Aid Summary Report", icon:"💰", color:"#4338CA", desc:"Aid awarded by type, recipients, and average award size" },
   { id:"placementreport",  label:"Employer & Salary Report",   icon:"💼", color:"#B91C1C", desc:"Placement timelines, starting salaries, and employer partners" },
-  { id:"classperformance", label:"Class Performance Report",   icon:"📈", color:"#134E4A", desc:"Grade distribution and topic-level strengths/weaknesses from your own gradebook data" }
+  { id:"classperformance", label:"Class Performance Report",   icon:"📈", color:"#134E4A", desc:"Grade distribution and topic-level strengths/weaknesses from your own gradebook data" },
+  { id:"selfstudy",          label:"Self-Study Report",                 icon:"📘", color:"#1E3A8A", desc:"Comprehensive institutional report submitted to the accrediting body", departmentId:"accreditation" },
+  { id:"programreview",      label:"Program Review Report",             icon:"🔍", color:"#0F766E", desc:"Periodic review of a program's curriculum, outcomes, and resources", departmentId:"accreditation" },
+  { id:"annualaccreditation", label:"Annual Accreditation Report",      icon:"📅", color:"#4338CA", desc:"Yearly compliance and progress report to the accrediting body", departmentId:"accreditation" },
+  { id:"substantivechange",  label:"Substantive Change Report",         icon:"📝", color:"#B45309", desc:"Reports a significant institutional change — new program, location, or ownership — to the accreditor", departmentId:"accreditation" },
+  { id:"outcomesassessment", label:"Learning Outcomes Assessment Report", icon:"🎯", color:"#166534", desc:"Assessment data mapped to accreditation standards for student learning outcomes", departmentId:"accreditation" },
+  { id:"compliancecert",     label:"Compliance Certification",          icon:"✅", color:"#7C2D12", desc:"Documents institutional compliance with specific accreditation standards or criteria", departmentId:"accreditation" }
 ];
 
 var DEPARTMENTS_DEFAULT = [
@@ -467,6 +473,7 @@ var DEPARTMENTS_DEFAULT = [
   { id:"financialaid", label:"Financial Aid" },
   { id:"careerplacement", label:"Career Placement" },
   { id:"operations", label:"Operations" },
+  { id:"accreditation", label:"Accreditation" },
   { id:"other", label:"Other" }
 ];
 

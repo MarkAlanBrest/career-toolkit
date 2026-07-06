@@ -58,6 +58,7 @@ const DEFAULT_DEPARTMENTS: Department[] = [
   { id: 'financialaid', label: 'Financial Aid' },
   { id: 'careerplacement', label: 'Career Placement' },
   { id: 'operations', label: 'Operations' },
+  { id: 'accreditation', label: 'Accreditation' },
   { id: 'other', label: 'Other' },
 ];
 
@@ -91,6 +92,12 @@ const DEFAULT_DOC_TYPES: DocType[] = [
   { id: 'aidsummary',      label: 'Financial Aid Summary Report', icon: '💰', color: '#4338CA' },
   { id: 'placementreport', label: 'Employer & Salary Report',  icon: '💼', color: '#B91C1C' },
   { id: 'classperformance', label: 'Class Performance Report', icon: '📈', color: '#134E4A' },
+  { id: 'selfstudy',          label: 'Self-Study Report',                 icon: '📘', color: '#1E3A8A', departmentId: 'accreditation' },
+  { id: 'programreview',      label: 'Program Review Report',             icon: '🔍', color: '#0F766E', departmentId: 'accreditation' },
+  { id: 'annualaccreditation', label: 'Annual Accreditation Report',      icon: '📅', color: '#4338CA', departmentId: 'accreditation' },
+  { id: 'substantivechange',  label: 'Substantive Change Report',         icon: '📝', color: '#B45309', departmentId: 'accreditation' },
+  { id: 'outcomesassessment', label: 'Learning Outcomes Assessment Report', icon: '🎯', color: '#166534', departmentId: 'accreditation' },
+  { id: 'compliancecert',     label: 'Compliance Certification',          icon: '✅', color: '#7C2D12', departmentId: 'accreditation' },
 ];
 const LEGACY_DEPARTMENT_BY_TYPE: Record<string, string> = {
   worksheet: 'teaching', studyguide: 'teaching', vocablist: 'teaching', readingguide: 'teaching',
