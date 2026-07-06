@@ -116,11 +116,33 @@ async function extractPdfText(buffer: Buffer): Promise<string> {
   throw new Error(`PDF text extraction failed after ${errors.length} attempts: ${errors.join(' | ')}`);
 }
 
-// .docx is a ZIP container (starts with the "PK" signature); legacy .doc is an OLE binary format
-// that only shares the file extension with it. Mammoth can only read the former, so sniff the
-// actual bytes rather than trusting the filename/mimetype to pick the right parser.
+// Files named ".doc"/".docx" in the wild aren't always real Word documents — sniff the actual
+// bytes rather than trusting the filename/mimetype, since each format needs a different reader.
 function isZipFile(buffer: Buffer): boolean {
   return buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+}
+function isOleFile(buffer: Buffer): boolean {
+  return buffer.length > 4 && buffer[0] === 0xd0 && buffer[1] === 0xcf && buffer[2] === 0x11 && buffer[3] === 0xe0;
+}
+function isRtfFile(buffer: Buffer): boolean {
+  return buffer.slice(0, 5).toString('latin1') === '{\\rtf';
+}
+function looksLikeHtml(buffer: Buffer): boolean {
+  return /^\s*<(!doctype|html)/i.test(buffer.slice(0, 512).toString('utf8'));
+}
+
+// A best-effort flatten of an RTF document tree into plain text — good enough for feeding an
+// AI prompt, even though rtf-parser doesn't support every RTF feature (e.g. tables).
+async function extractRtfText(buffer: Buffer): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const parseRTF = require('rtf-parser');
+  const doc: any = await new Promise((resolve, reject) => {
+    parseRTF.string(buffer.toString('binary'), (err: any, result: any) => (err ? reject(err) : resolve(result)));
+  });
+  return (doc.content || [])
+    .map((paragraph: any) => (paragraph.content ? paragraph.content.map((span: any) => span.value || '').join('') : (paragraph.value || '')))
+    .join('\n\n')
+    .trim();
 }
 
 const CORS = {
@@ -219,13 +241,21 @@ export async function POST(req: NextRequest) {
       ];
       const result = await mammoth.convertToHtml({ buffer }, { styleMap });
       text = htmlToStructuredText(result.value);
-    } else if (isDocx) {
+    } else if (isDocx && isOleFile(buffer)) {
       // Legacy Word 97-2003 .doc (OLE binary, not a ZIP) — mammoth can't read these at all.
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const WordExtractor = require('word-extractor');
       const extractor = new WordExtractor();
       const doc = await extractor.extract(buffer);
       text = doc.getBody();
+    } else if (isDocx && isRtfFile(buffer)) {
+      // Files saved from web templates or older tools are often actually RTF despite the .doc name.
+      text = await extractRtfText(buffer);
+    } else if (isDocx && looksLikeHtml(buffer)) {
+      // "Save as Word Document" from a web page frequently produces plain HTML with a .doc name.
+      text = htmlToStructuredText(buffer.toString('utf8'));
+    } else if (isDocx) {
+      throw new Error("This file isn't a real Word document (or RTF/HTML export) — it may be corrupted or a different file type renamed to .doc/.docx. Try re-saving it from Word, or paste the text directly.");
     } else if (isXlsx) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const xlsx = require('xlsx');
