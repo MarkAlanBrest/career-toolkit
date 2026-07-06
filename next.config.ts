@@ -15,9 +15,7 @@ const config: NextConfig = {
   },
   // Load pdfjs-dist directly from node_modules at runtime instead of bundling it — bundling
   // rewrites its internal worker-file path in a way that doesn't resolve on Vercel.
-  // music-metadata is ESM-only (no CommonJS export at all), which webpack's production build
-  // can fail to bundle correctly for a Node.js serverless function — same fix as pdfjs-dist.
-  serverExternalPackages: ['pdfjs-dist', 'music-metadata'],
+  serverExternalPackages: ['pdfjs-dist'],
   async headers() {
     return [
       {
