@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { upload } from '@vercel/blob/client';
 
 const OPENAI_KEY_STORAGE = 'ppt_narrator_openai_key';
 
@@ -32,6 +33,7 @@ export default function PptNarratorPage() {
   const [results, setResults] = useState<SlideResult[] | null>(null);
   const [openaiKey, setOpenaiKey] = useState('');
   const [keySaved, setKeySaved] = useState(false);
+  const [stage, setStage] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem(OPENAI_KEY_STORAGE);
@@ -61,20 +63,19 @@ export default function PptNarratorPage() {
     setError('');
     setResults(null);
     try {
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = String(reader.result || '');
-          resolve(result.slice(result.indexOf(',') + 1));
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
+      setStage('Uploading presentation…');
+      // Uploaded directly to Blob storage from the browser — a serverless function's request
+      // body is capped around 4.5MB, which most real .pptx files (especially with images) exceed.
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/ppt-narrator/upload-token',
       });
 
+      setStage('Generating narration…');
       const resp = await fetch('/api/ppt-narrator/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ b64, voice, polish, openaiKey: openaiKey.trim() }),
+        body: JSON.stringify({ fileUrl: blob.url, voice, polish, openaiKey: openaiKey.trim() }),
       });
 
       if (!resp.ok) {
@@ -101,6 +102,7 @@ export default function PptNarratorPage() {
       setError(err?.message || 'Something went wrong.');
     } finally {
       setWorking(false);
+      setStage('');
     }
   }
 
@@ -163,7 +165,7 @@ export default function PptNarratorPage() {
             disabled={working || !file || !openaiKey.trim()}
             style={{ background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: working || !file || !openaiKey.trim() ? 'not-allowed' : 'pointer', opacity: working || !file || !openaiKey.trim() ? 0.6 : 1 }}
           >
-            {working ? 'Generating narration…' : 'Generate Narrated PPTX'}
+            {working ? (stage || 'Working…') : 'Generate Narrated PPTX'}
           </button>
           {working && (
             <div style={{ fontSize: 12, color: muted, marginTop: 10 }}>This can take a little while for decks with many slides — don&apos;t close this tab.</div>

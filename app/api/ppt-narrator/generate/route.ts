@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseBuffer } from 'music-metadata';
+import { del } from '@vercel/blob';
 import { loadPptx, listSlidePaths, slideNumberFromPath, getSlideNotesText, getSlideSizeEmu, embedAutoplayAudio } from '@/lib/pptxNarration';
 
 export const maxDuration = 60;
@@ -49,15 +50,31 @@ async function generateTTS(text: string, voice: string, userApiKey: string): Pro
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  if (!body?.b64) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+  if (!body?.fileUrl && !body?.b64) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
 
   const voice = OPENAI_VOICES.includes(body.voice) ? body.voice : 'alloy';
   const polish = body.polish !== false;
   const openaiKey = typeof body.openaiKey === 'string' ? body.openaiKey.trim() : '';
 
+  // Large decks are uploaded straight to Vercel Blob from the browser (see upload-token/route.ts)
+  // to avoid the ~4.5MB request body limit on serverless functions — fetch it here by URL rather
+  // than requiring the whole file inline as base64. b64 is kept as a fallback for small files.
+  let fileBuffer: Buffer;
+  try {
+    if (body.fileUrl) {
+      const fileRes = await fetch(body.fileUrl, { signal: AbortSignal.timeout(60000) });
+      if (!fileRes.ok) throw new Error(`Could not fetch uploaded file (HTTP ${fileRes.status}).`);
+      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
+    } else {
+      fileBuffer = Buffer.from(body.b64, 'base64');
+    }
+  } catch (err: any) {
+    return NextResponse.json({ error: err?.message || 'Could not read the uploaded file.' }, { status: 400 });
+  }
+
   let zip;
   try {
-    zip = await loadPptx(Buffer.from(body.b64, 'base64'));
+    zip = await loadPptx(fileBuffer);
   } catch {
     return NextResponse.json({ error: 'Could not read this file — is it a valid .pptx?' }, { status: 400 });
   }
@@ -93,6 +110,12 @@ export async function POST(req: NextRequest) {
     if (item.status !== 'ok') { results.push({ slide: item.slideNumber, status: item.status }); continue; }
     const embed = await embedAutoplayAudio(zip, item.slidePath, item.audioBuffer!, item.duration!, slideSize);
     results.push({ slide: item.slideNumber, status: embed.ok ? 'narrated (auto-play)' : (embed.warning || 'embedded') });
+  }
+
+  // Clean up the uploaded original from Blob storage now that we're done with it — it's a
+  // presentation that may contain non-public content, so it shouldn't linger indefinitely.
+  if (body.fileUrl) {
+    del(body.fileUrl).catch(() => {});
   }
 
   const outBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
