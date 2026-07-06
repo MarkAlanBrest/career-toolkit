@@ -1232,12 +1232,15 @@
     // slow, blocked by an ad-blocker, or blocked by Canvas's own CSP.
     let pnJSZipPromise = null;
     function pnLoadJSZip() {
-        if (window.JSZip) return Promise.resolve(window.JSZip);
+        // A dynamically injected <script> tag executes in the real page's global scope
+        // (hostWindow/unsafeWindow), not this userscript's own sandboxed `window` — same reason
+        // this file defines hostWindow at the top for CanvasDash.
+        if (hostWindow.JSZip) return Promise.resolve(hostWindow.JSZip);
         if (pnJSZipPromise) return pnJSZipPromise;
         pnJSZipPromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
             script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-            script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error("JSZip loaded but window.JSZip is missing."));
+            script.onload = () => hostWindow.JSZip ? resolve(hostWindow.JSZip) : reject(new Error("JSZip loaded but window.JSZip is missing."));
             script.onerror = () => { pnJSZipPromise = null; reject(new Error("Could not load JSZip from the CDN — check your network/ad-blocker.")); };
             document.head.appendChild(script);
         });
