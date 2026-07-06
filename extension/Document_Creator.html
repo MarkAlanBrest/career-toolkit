@@ -887,7 +887,9 @@ function buildPromptFromInput(typeId, description) {
     ? "FOLLOW THE TEACHER'S INPUT LITERALLY: if it gives an exact count, quantity, or question type (e.g. '20 true/false questions', '5 short answer'), the document MUST contain exactly that — do not round, substitute a different type, or treat it as a loose suggestion. Only deviate where it conflicts with an admin requirement above.\n\n"
     : "";
 
-  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock + literalBlock
+  var imageBlock = "PHOTOS: Only if the teacher's input above explicitly asks for a picture, photo, or image of something real (not a diagram, chart, or icon you would draw yourself), insert one tag per distinct photo requested: <img data-unsplash-query=\"SHORT SEARCH TERMS\" style=\"width:100%;max-width:600px;height:auto;border-radius:8px;\"> at the best location, where SHORT SEARCH TERMS is a concise, concrete, photographable search phrase (e.g. \"oak tree autumn leaves\", not an abstract idea). Do not set a src attribute — it is filled in automatically. Never insert a photo the teacher didn't ask for.\n\n";
+
+  return base + schoolBlock + styleBlock + adminBlock + questionsBlock + referenceBlock + materialBlock + teacherBlock + literalBlock + imageBlock
     + "Generate a complete, professional " + type.label + ". Do not omit any admin requirement or any specific count/format the teacher gave.\n\n"
     + getLayoutInstructions(typeId, color, lc);
 }
@@ -1253,6 +1255,42 @@ function setMainState(which) {
 // ═══════════════════════════════════════════════════════════
 // GENERATE
 // ═══════════════════════════════════════════════════════════
+// Resolves <img data-unsplash-query="..."> placeholders Claude inserts (only when the teacher
+// explicitly asked for a photo — see the PHOTOS instruction in buildPromptFromInput) into real
+// Unsplash photos, with the attribution Unsplash's API terms require.
+async function resolveUnsplashImages(html) {
+  var regex = /<img\b[^>]*\bdata-unsplash-query=["']([^"']*)["'][^>]*>/gi;
+  if (!regex.test(html)) return html;
+  regex.lastIndex = 0;
+
+  var queries = [];
+  var m;
+  while ((m = regex.exec(html))) { if (queries.indexOf(m[1]) === -1) queries.push(m[1]); }
+
+  var results = {};
+  await Promise.all(queries.map(async function(q) {
+    try {
+      var resp = await fetch("/api/document-creator/unsplash/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q })
+      });
+      if (resp.ok) results[q] = await resp.json();
+    } catch (e) {}
+  }));
+
+  return html.replace(regex, function(full, query) {
+    var r = results[query];
+    if (!r) return ""; // no match / search failed — drop the placeholder rather than show a broken image
+    return '<figure style="margin:16px 0;">'
+      + '<img src="' + esc(r.url) + '" alt="' + esc(query) + '" style="width:100%;max-width:600px;height:auto;border-radius:8px;display:block;">'
+      + '<figcaption style="font-size:11px;color:#94A3B8;margin-top:4px;">Photo by '
+      + '<a href="' + esc(r.photographerUrl) + '" target="_blank" rel="noopener" style="color:#94A3B8;">' + esc(r.photographerName) + '</a> on '
+      + '<a href="' + esc(r.unsplashUrl) + '" target="_blank" rel="noopener" style="color:#94A3B8;">Unsplash</a></figcaption>'
+      + '</figure>';
+  });
+}
+
 function stripFences(s) {
   var cleaned = s.replace(/^```(?:html)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
   // Safety net: if the model narrates before the document ("I'll search for...") despite being
@@ -1296,6 +1334,8 @@ async function generate() {
       var img = teacherImages[parseInt(idxStr, 10)];
       return img ? '<img src="data:' + img.mediaType + ';base64,' + img.data + '" style="max-width:100%;height:auto;">' : "";
     });
+    // Resolve any Unsplash photo requests (only present if the teacher explicitly asked for one)
+    state.generatedHTML = await resolveUnsplashImages(state.generatedHTML);
     // Overlay logo in top-right of the document header
     if (adminSettings.logo) {
       state.generatedHTML = '<div style="position:relative;">'
