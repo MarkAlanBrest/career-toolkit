@@ -220,6 +220,7 @@ body {
   #main { overflow: visible; padding: 0; background: #fff; }
   #doc-wrap { display: block !important; max-width: 100%; margin: 0; }
   #doc-actions { display: none !important; }
+  #format-bar { display: none !important; }
   #refine-bar { display: none !important; }
   #history-overlay { display: none !important; }
   #doc-paper { box-shadow: none; border-radius: 0; }
@@ -308,6 +309,46 @@ body {
       <div id="doc-actions">
         <button class="tb-btn" id="btn-regen">↺ Regenerate</button>
         <button class="tb-btn" id="btn-copy">⎘ Copy HTML</button>
+      </div>
+      <div id="format-bar" style="display:none;margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:6px 10px;align-items:center;gap:6px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+        <select id="fmt-font" title="Font" style="padding:6px 8px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;cursor:pointer;">
+          <option value="">Font</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="'Times New Roman', serif">Times New Roman</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+          <option value="'Courier New', monospace">Courier New</option>
+          <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+        </select>
+        <select id="fmt-size" title="Font size" style="padding:6px 8px;border:1px solid #CBD5E1;border-radius:7px;font-size:12px;font-family:inherit;color:#1E293B;background:#fff;cursor:pointer;">
+          <option value="">Size</option>
+          <option value="10">10</option>
+          <option value="12">12</option>
+          <option value="14">14</option>
+          <option value="16">16</option>
+          <option value="18">18</option>
+          <option value="20">20</option>
+          <option value="24">24</option>
+          <option value="28">28</option>
+          <option value="32">32</option>
+          <option value="36">36</option>
+          <option value="48">48</option>
+        </select>
+        <span class="tb-divider"></span>
+        <button type="button" class="tb-btn" id="fmt-bold" title="Bold"><b>B</b></button>
+        <button type="button" class="tb-btn" id="fmt-italic" title="Italic"><i>I</i></button>
+        <button type="button" class="tb-btn" id="fmt-underline" title="Underline"><u>U</u></button>
+        <span class="tb-divider"></span>
+        <input type="color" id="fmt-color" title="Text color" value="#1e293b" style="width:28px;height:28px;padding:0;border:1px solid #CBD5E1;border-radius:6px;cursor:pointer;background:none;">
+        <span class="tb-divider"></span>
+        <label class="tb-btn" id="fmt-image-label" style="cursor:pointer;">
+          🖼 Insert Image
+          <input type="file" id="fmt-image-input" accept="image/*" style="display:none;">
+        </label>
+        <span class="help-wrap">
+          <span class="help-icon" onclick="toggleHelp(this)" role="button" tabindex="0" aria-label="How does formatting work?">?</span>
+          <span class="help-pop">Select text in the document to change its font, size, or color. Click where you'd like a picture and use Insert Image to add your own.</span>
+        </span>
       </div>
       <div id="refine-bar" style="display:none;margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:10px;padding:10px 14px;align-items:center;gap:8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
         <span style="font-size:14px;flex-shrink:0;color:#7C3AED;">✦</span>
@@ -1245,6 +1286,7 @@ function setMainState(which) {
   document.getElementById("placeholder").style.display = which === "placeholder" ? "flex" : "none";
   document.getElementById("loading").style.display = which === "loading" ? "flex" : "none";
   document.getElementById("doc-wrap").style.display = which === "doc" ? "block" : "none";
+  document.getElementById("format-bar").style.display = which === "doc" ? "flex" : "none";
   document.getElementById("refine-bar").style.display = which === "doc" ? "flex" : "none";
   var hasDoc = which === "doc";
   document.getElementById("btn-pdf").disabled = !hasDoc;
@@ -1623,6 +1665,93 @@ document.getElementById("btn-copy").addEventListener("click", function() {
     setTimeout(function() { btn.textContent = orig; }, 2000);
   });
 });
+
+// ═══════════════════════════════════════════════════════════
+// FORMAT BAR — simple WYSIWYG controls (font, size, bold/italic/underline,
+// color, insert own image) applied to whichever .doc-editable block the
+// teacher last had a selection in.
+// ═══════════════════════════════════════════════════════════
+var fmtSavedRange = null;
+var fmtSavedEditable = null;
+document.addEventListener("selectionchange", function() {
+  var sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  var range = sel.getRangeAt(0);
+  var node = range.commonAncestorContainer;
+  var el = node.nodeType === 1 ? node : node.parentElement;
+  var editable = el && el.closest ? el.closest(".doc-editable") : null;
+  if (editable) {
+    fmtSavedRange = range.cloneRange();
+    fmtSavedEditable = editable;
+  }
+});
+
+function fmtRestoreSelection() {
+  if (!fmtSavedRange || !fmtSavedEditable || !document.body.contains(fmtSavedEditable)) return false;
+  fmtSavedEditable.focus();
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(fmtSavedRange);
+  return true;
+}
+
+function fmtApply(cmd, value) {
+  if (!fmtRestoreSelection()) { alert("Click into the document text first, then select what you'd like to change."); return; }
+  document.execCommand("styleWithCSS", false, true);
+  document.execCommand(cmd, false, value);
+  state.generatedHTML = serializeCurrentDocument();
+}
+
+document.getElementById("fmt-font").addEventListener("change", function(e) {
+  var value = e.target.value;
+  e.target.value = "";
+  if (!value) return;
+  fmtApply("fontName", value);
+});
+
+document.getElementById("fmt-size").addEventListener("change", function(e) {
+  var px = e.target.value;
+  e.target.value = "";
+  if (!px) return;
+  if (!fmtRestoreSelection()) { alert("Click into the document text first, then select what you'd like to change."); return; }
+  // execCommand("fontSize") only supports legacy sizes 1-7, not arbitrary px — use size 7 as a
+  // marker, then swap the <font> tags it creates for a span with the exact pixel size requested.
+  // styleWithCSS must be off here or some browsers emit a CSS keyword size instead of a <font> tag.
+  document.execCommand("styleWithCSS", false, false);
+  document.execCommand("fontSize", false, "7");
+  document.getElementById("doc-paper").querySelectorAll('font[size="7"]').forEach(function(f) {
+    var span = document.createElement("span");
+    span.style.fontSize = px + "px";
+    while (f.firstChild) span.appendChild(f.firstChild);
+    f.parentNode.replaceChild(span, f);
+  });
+  state.generatedHTML = serializeCurrentDocument();
+});
+
+document.getElementById("fmt-bold").addEventListener("click", function() { fmtApply("bold"); });
+document.getElementById("fmt-italic").addEventListener("click", function() { fmtApply("italic"); });
+document.getElementById("fmt-underline").addEventListener("click", function() { fmtApply("underline"); });
+document.getElementById("fmt-color").addEventListener("input", function(e) { fmtApply("foreColor", e.target.value); });
+
+document.getElementById("fmt-image-input").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { alert("Please choose an image file."); return; }
+  if (!fmtRestoreSelection()) { alert("Click where you'd like the image to go first."); return; }
+  var reader = new FileReader();
+  reader.onload = function() {
+    document.execCommand("insertImage", false, String(reader.result));
+    document.getElementById("doc-paper").querySelectorAll("img:not([data-fmt-sized])").forEach(function(img) {
+      img.style.maxWidth = "100%";
+      img.style.height = "auto";
+      img.setAttribute("data-fmt-sized", "true");
+    });
+    state.generatedHTML = serializeCurrentDocument();
+  };
+  reader.readAsDataURL(file);
+});
+
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT HISTORY
 // ═══════════════════════════════════════════════════════════
