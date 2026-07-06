@@ -11,7 +11,6 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // @connect      api.openai.com
 // @connect      api.anthropic.com
 // @run-at       document-start
@@ -1227,6 +1226,24 @@
     // relationship exists (PowerPoint's audio object is always a <p:pic> shape backed by one).
     const PN_ICON_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
+    // JSZip is loaded lazily (only when PPT Narrator is actually opened) rather than via
+    // @require — a @require'd script must load successfully before Tampermonkey runs ANY of
+    // this file, which would take the whole toolbar down with it if that one CDN request is
+    // slow, blocked by an ad-blocker, or blocked by Canvas's own CSP.
+    let pnJSZipPromise = null;
+    function pnLoadJSZip() {
+        if (window.JSZip) return Promise.resolve(window.JSZip);
+        if (pnJSZipPromise) return pnJSZipPromise;
+        pnJSZipPromise = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+            script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error("JSZip loaded but window.JSZip is missing."));
+            script.onerror = () => { pnJSZipPromise = null; reject(new Error("Could not load JSZip from the CDN — check your network/ad-blocker.")); };
+            document.head.appendChild(script);
+        });
+        return pnJSZipPromise;
+    }
+
     function pnGmRequest(opts) {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
@@ -1617,6 +1634,9 @@
         btn.disabled = true;
 
         try {
+            pnSetStage("Loading PPTX library…");
+            const JSZip = await pnLoadJSZip();
+
             pnSetStage("Reading file…");
             const fileBuffer = await pnSelectedFile.arrayBuffer();
             let zip;
