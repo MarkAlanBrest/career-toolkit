@@ -66,7 +66,7 @@ export default function PptNarratorPage() {
       setStage('Uploading presentation…');
       // Uploaded directly to Blob storage from the browser — a serverless function's request
       // body is capped around 4.5MB, which most real .pptx files (especially with images) exceed.
-      const blob = await upload(file.name, file, {
+      const uploadedBlob = await upload(file.name, file, {
         access: 'public',
         handleUploadUrl: '/api/ppt-narrator/upload-token',
       });
@@ -75,7 +75,7 @@ export default function PptNarratorPage() {
       const resp = await fetch('/api/ppt-narrator/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: blob.url, voice, polish, openaiKey: openaiKey.trim() }),
+        body: JSON.stringify({ fileUrl: uploadedBlob.url, voice, polish, openaiKey: openaiKey.trim() }),
       });
 
       if (!resp.ok) {
