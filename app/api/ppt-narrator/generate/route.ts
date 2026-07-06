@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseBuffer } from 'music-metadata';
 import { del } from '@vercel/blob';
 import { loadPptx, listSlidePaths, slideNumberFromPath, getSlideNotesText, getSlideSizeEmu, embedAutoplayAudio } from '@/lib/pptxNarration';
 
@@ -95,6 +94,9 @@ export async function POST(req: NextRequest) {
     try {
       const narration = polish ? await polishNarration(rawNotes) : rawNotes;
       const audioBuffer = await generateTTS(narration, voice, openaiKey);
+      // Dynamic import — music-metadata is ESM-only and excluded from webpack bundling via
+      // serverExternalPackages in next.config.ts, so it must be loaded at runtime, not statically.
+      const { parseBuffer } = await import('music-metadata');
       const meta = await parseBuffer(audioBuffer, 'audio/mpeg');
       const duration = meta.format.duration || Math.max(3, narration.split(/\s+/).length / 2.5);
       return { slidePath, slideNumber, status: 'ok' as const, audioBuffer, duration };
