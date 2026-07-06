@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { upload } from '@vercel/blob/client';
 
 const OPENAI_KEY_STORAGE = 'ppt_narrator_openai_key';
 
@@ -50,7 +49,9 @@ export default function PptNarratorPage() {
     const f = e.target.files?.[0];
     if (!f) return;
     if (!/\.pptx$/i.test(f.name)) { setError('Please choose a .pptx file.'); return; }
-    if (f.size > 40 * 1024 * 1024) { setError('File must be under 40 MB.'); return; }
+    // The file is sent inline as base64 in the request body, which Vercel caps around 4.5MB —
+    // base64 inflates size by ~33%, so keep real files comfortably under that.
+    if (f.size > 3 * 1024 * 1024) { setError('File must be under 3 MB — decks with a lot of embedded images may not fit.'); return; }
     setFile(f);
     setError('');
     setResults(null);
@@ -63,19 +64,22 @@ export default function PptNarratorPage() {
     setError('');
     setResults(null);
     try {
-      setStage('Uploading presentation…');
-      // Uploaded directly to Blob storage from the browser — a serverless function's request
-      // body is capped around 4.5MB, which most real .pptx files (especially with images) exceed.
-      const uploadedBlob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/ppt-narrator/upload-token',
+      setStage('Reading file…');
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          resolve(result.slice(result.indexOf(',') + 1));
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
 
-      setStage('Generating narration…');
+      setStage('Generating narration — one slide at a time…');
       const resp = await fetch('/api/ppt-narrator/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: uploadedBlob.url, voice, polish, openaiKey: openaiKey.trim() }),
+        body: JSON.stringify({ b64, voice, polish, openaiKey: openaiKey.trim() }),
       });
 
       if (!resp.ok) {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { del } from '@vercel/blob';
 import { loadPptx, listSlidePaths, slideNumberFromPath, getSlideNotesText, getSlideSizeEmu, embedAutoplayAudio } from '@/lib/pptxNarration';
 
 export const maxDuration = 60;
@@ -49,31 +48,15 @@ async function generateTTS(text: string, voice: string, userApiKey: string): Pro
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  if (!body?.fileUrl && !body?.b64) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+  if (!body?.b64) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
 
   const voice = OPENAI_VOICES.includes(body.voice) ? body.voice : 'alloy';
   const polish = body.polish !== false;
   const openaiKey = typeof body.openaiKey === 'string' ? body.openaiKey.trim() : '';
 
-  // Large decks are uploaded straight to Vercel Blob from the browser (see upload-token/route.ts)
-  // to avoid the ~4.5MB request body limit on serverless functions — fetch it here by URL rather
-  // than requiring the whole file inline as base64. b64 is kept as a fallback for small files.
-  let fileBuffer: Buffer;
-  try {
-    if (body.fileUrl) {
-      const fileRes = await fetch(body.fileUrl, { signal: AbortSignal.timeout(60000) });
-      if (!fileRes.ok) throw new Error(`Could not fetch uploaded file (HTTP ${fileRes.status}).`);
-      fileBuffer = Buffer.from(await fileRes.arrayBuffer());
-    } else {
-      fileBuffer = Buffer.from(body.b64, 'base64');
-    }
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Could not read the uploaded file.' }, { status: 400 });
-  }
-
   let zip;
   try {
-    zip = await loadPptx(fileBuffer);
+    zip = await loadPptx(Buffer.from(body.b64, 'base64'));
   } catch {
     return NextResponse.json({ error: 'Could not read this file — is it a valid .pptx?' }, { status: 400 });
   }
@@ -85,12 +68,15 @@ export async function POST(req: NextRequest) {
 
   const slideSize = await getSlideSizeEmu(zip);
 
-  // Phase 1 — generate narration text + audio for every slide in parallel (the slow, I/O-bound
-  // part). Nothing here touches the zip yet, so it's safe to run concurrently.
-  const perSlide = await Promise.all(slidePaths.map(async (slidePath) => {
+  // Slides are processed one at a time, in order — simpler to reason about and follow in the
+  // results list, and avoids bursting OpenAI's rate limits with many concurrent requests. The
+  // tradeoff is total time is the sum of every slide's processing time rather than the slowest
+  // one, so very large decks may need more than maxDuration below to finish.
+  const results: { slide: number; status: string }[] = [];
+  for (const slidePath of slidePaths) {
     const slideNumber = slideNumberFromPath(slidePath);
     const rawNotes = (await getSlideNotesText(zip, slidePath)).trim();
-    if (!rawNotes) return { slidePath, slideNumber, status: 'skipped — no speaker notes' as const };
+    if (!rawNotes) { results.push({ slide: slideNumber, status: 'skipped — no speaker notes' }); continue; }
     try {
       const narration = polish ? await polishNarration(rawNotes) : rawNotes;
       const audioBuffer = await generateTTS(narration, voice, openaiKey);
@@ -99,25 +85,11 @@ export async function POST(req: NextRequest) {
       const { parseBuffer } = await import('music-metadata');
       const meta = await parseBuffer(audioBuffer, 'audio/mpeg');
       const duration = meta.format.duration || Math.max(3, narration.split(/\s+/).length / 2.5);
-      return { slidePath, slideNumber, status: 'ok' as const, audioBuffer, duration };
+      const embed = await embedAutoplayAudio(zip, slidePath, audioBuffer, duration, slideSize);
+      results.push({ slide: slideNumber, status: embed.ok ? 'narrated (auto-play)' : (embed.warning || 'embedded') });
     } catch (err: any) {
-      return { slidePath, slideNumber, status: `failed — ${err.message}` as const };
+      results.push({ slide: slideNumber, status: `failed — ${err.message}` });
     }
-  }));
-
-  // Phase 2 — embed into the shared zip one at a time (fast, in-memory, and mutates shared state
-  // so it isn't parallelized).
-  const results: { slide: number; status: string }[] = [];
-  for (const item of perSlide) {
-    if (item.status !== 'ok') { results.push({ slide: item.slideNumber, status: item.status }); continue; }
-    const embed = await embedAutoplayAudio(zip, item.slidePath, item.audioBuffer!, item.duration!, slideSize);
-    results.push({ slide: item.slideNumber, status: embed.ok ? 'narrated (auto-play)' : (embed.warning || 'embedded') });
-  }
-
-  // Clean up the uploaded original from Blob storage now that we're done with it — it's a
-  // presentation that may contain non-public content, so it shouldn't linger indefinitely.
-  if (body.fileUrl) {
-    del(body.fileUrl).catch(() => {});
   }
 
   const outBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
