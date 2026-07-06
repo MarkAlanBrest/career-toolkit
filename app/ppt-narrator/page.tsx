@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+const OPENAI_KEY_STORAGE = 'ppt_narrator_openai_key';
 
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 const navy = '#1E293B';
@@ -28,6 +30,19 @@ export default function PptNarratorPage() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState<SlideResult[] | null>(null);
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [keySaved, setKeySaved] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(OPENAI_KEY_STORAGE);
+    if (stored) { setOpenaiKey(stored); setKeySaved(true); }
+  }, []);
+
+  function handleKeyChange(value: string) {
+    setOpenaiKey(value);
+    if (value.trim()) { localStorage.setItem(OPENAI_KEY_STORAGE, value.trim()); setKeySaved(true); }
+    else { localStorage.removeItem(OPENAI_KEY_STORAGE); setKeySaved(false); }
+  }
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -41,6 +56,7 @@ export default function PptNarratorPage() {
 
   async function generate() {
     if (!file) { setError('Choose a .pptx file first.'); return; }
+    if (!openaiKey.trim()) { setError('Enter your OpenAI API key first.'); return; }
     setWorking(true);
     setError('');
     setResults(null);
@@ -58,7 +74,7 @@ export default function PptNarratorPage() {
       const resp = await fetch('/api/ppt-narrator/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ b64, voice, polish }),
+        body: JSON.stringify({ b64, voice, polish, openaiKey: openaiKey.trim() }),
       });
 
       if (!resp.ok) {
@@ -102,6 +118,22 @@ export default function PptNarratorPage() {
           </div>
 
           <div style={{ marginBottom: 14 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+              OpenAI API Key {keySaved && <span style={{ color: green, fontWeight: 700, textTransform: 'none', letterSpacing: 0 }}>— saved in this browser</span>}
+            </label>
+            <input
+              type="password"
+              value={openaiKey}
+              onChange={e => handleKeyChange(e.target.value)}
+              placeholder="sk-..."
+              style={{ width: '100%', padding: '9px 12px', border: `1px solid ${border}`, borderRadius: 8, fontSize: 13, fontFamily: font, color: navy, outline: 'none', boxSizing: 'border-box' }}
+            />
+            <div style={{ fontSize: 11, color: muted, marginTop: 6 }}>
+              Stored only in this browser (localStorage) — never sent anywhere except directly to OpenAI via this tool. Get a key at platform.openai.com/api-keys.
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>PowerPoint file</label>
             <input type="file" accept=".pptx" onChange={handleFile} style={{ fontSize: 13, fontFamily: font }} />
             {file && <div style={{ fontSize: 12, color: muted, marginTop: 6 }}>{file.name} — {(file.size / 1024 / 1024).toFixed(1)} MB</div>}
@@ -128,8 +160,8 @@ export default function PptNarratorPage() {
 
           <button
             onClick={generate}
-            disabled={working || !file}
-            style={{ background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: working || !file ? 'not-allowed' : 'pointer', opacity: working || !file ? 0.6 : 1 }}
+            disabled={working || !file || !openaiKey.trim()}
+            style={{ background: blue, color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: working || !file || !openaiKey.trim() ? 'not-allowed' : 'pointer', opacity: working || !file || !openaiKey.trim() ? 0.6 : 1 }}
           >
             {working ? 'Generating narration…' : 'Generate Narrated PPTX'}
           </button>

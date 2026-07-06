@@ -32,9 +32,9 @@ async function polishNarration(rawNotes: string): Promise<string> {
   }
 }
 
-async function generateTTS(text: string, voice: string): Promise<Buffer> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured on the server.');
+async function generateTTS(text: string, voice: string, userApiKey: string): Promise<Buffer> {
+  const apiKey = userApiKey || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('No OpenAI API key provided — enter one on the page, or configure OPENAI_API_KEY on the server.');
   const resp = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
 
   const voice = OPENAI_VOICES.includes(body.voice) ? body.voice : 'alloy';
   const polish = body.polish !== false;
+  const openaiKey = typeof body.openaiKey === 'string' ? body.openaiKey.trim() : '';
 
   let zip;
   try {
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     if (!rawNotes) return { slidePath, slideNumber, status: 'skipped — no speaker notes' as const };
     try {
       const narration = polish ? await polishNarration(rawNotes) : rawNotes;
-      const audioBuffer = await generateTTS(narration, voice);
+      const audioBuffer = await generateTTS(narration, voice, openaiKey);
       const meta = await parseBuffer(audioBuffer, 'audio/mpeg');
       const duration = meta.format.duration || Math.max(3, narration.split(/\s+/).length / 2.5);
       return { slidePath, slideNumber, status: 'ok' as const, audioBuffer, duration };
