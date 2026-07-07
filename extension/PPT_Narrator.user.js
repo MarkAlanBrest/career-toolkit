@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PPT Narrator
 // @namespace    https://github.com/MarkAlanBrest/career-toolkit
-// @version      1.0.0
-// @description  Turns each slide's speaker notes into auto-playing narration audio embedded in the slide, ready for PowerPoint's Export to Video
+// @version      1.1.0
+// @description  Turns each slide's speaker notes into a narration MP3, packaged as a zip for you to insert into each slide yourself in PowerPoint
 // @match        https://career-toolkit-ruby.vercel.app/ppt-narrator*
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -41,24 +41,12 @@
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PPTX / OOXML HELPERS — ported from the web app's lib/pptxNarration.ts,
-  // using ArrayBuffer/Uint8Array (JSZip's browser API) instead of Node Buffers.
+  // PPTX HELPERS — reads speaker notes only. This deliberately does NOT modify the .pptx's
+  // internal XML — an earlier version tried to embed audio directly with auto-play/auto-advance
+  // timing, but that hand-crafted OOXML produced a file PowerPoint reported as damaged.
+  // Generating audio only (see UI below) avoids that risk entirely.
   // ═══════════════════════════════════════════════════════════
   const REL_TYPE_NOTES = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide';
-  const REL_TYPE_AUDIO = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/audio';
-  const REL_TYPE_MEDIA = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/media';
-  const REL_TYPE_IMAGE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image';
-
-  // 1x1 transparent PNG — the audio icon's appearance doesn't matter, only that a valid image
-  // relationship exists (PowerPoint's audio object is always a <p:pic> shape backed by one).
-  const PLACEHOLDER_ICON_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-
-  function base64ToUint8Array(b64) {
-    const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    return arr;
-  }
 
   function decodeXmlEntities(s) {
     return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
@@ -68,13 +56,6 @@
     const file = zip.file(path);
     if (!file) return null;
     return file.async('string');
-  }
-
-  async function getSlideSizeEmu(zip) {
-    const xml = await readText(zip, 'ppt/presentation.xml');
-    const m = xml && xml.match(/<p:sldSz\b[^>]*\bcx="(\d+)"[^>]*\bcy="(\d+)"/);
-    if (m) return { cx: parseInt(m[1], 10), cy: parseInt(m[2], 10) };
-    return { cx: 9144000, cy: 6858000 };
   }
 
   function listSlidePaths(zip) {
@@ -130,130 +111,6 @@
       [...pMatch[1].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map(t => decodeXmlEntities(t[1])).join('')
     );
     return paragraphs.filter(p => p.trim()).join('\n').trim();
-  }
-
-  function nextRelId(rels) {
-    let max = 0;
-    for (const r of rels) {
-      const m = r.id.match(/^rId(\d+)$/);
-      if (m) max = Math.max(max, parseInt(m[1], 10));
-    }
-    return `rId${max + 1}`;
-  }
-
-  function nextShapeId(slideXml) {
-    let max = 1;
-    const re = /<p:cNvPr\b[^>]*\bid="(\d+)"/g;
-    let m;
-    while ((m = re.exec(slideXml))) max = Math.max(max, parseInt(m[1], 10));
-    return max + 1;
-  }
-
-  async function ensureContentTypeDefault(zip, extension, contentType) {
-    const path = '[Content_Types].xml';
-    const xml = (await readText(zip, path)) || '';
-    if (new RegExp(`<Default\\b[^>]*Extension="${extension}"`, 'i').test(xml)) return;
-    zip.file(path, xml.replace('</Types>', `<Default Extension="${extension}" ContentType="${contentType}"/></Types>`));
-  }
-
-  // Embeds an MP3 (as a Uint8Array) into the slide as an audio object set to play automatically
-  // when the slide starts, and sets the slide's auto-advance time to the audio's duration — the
-  // combination PowerPoint's own Export to Video reads to bake narration into the output.
-  async function embedAutoplayAudio(zip, slidePath, audioBytes, durationSeconds, slideSize) {
-    const slideNumber = slideNumberFromPath(slidePath);
-    const relsPath = relsPathFor(slidePath);
-    let slideXml = (await readText(zip, slidePath)) || '';
-    let relsXml = (await readText(zip, relsPath)) || '';
-    const rels = await getRelationships(zip, relsPath);
-
-    const hasExistingTiming = /<p:timing>/.test(slideXml);
-
-    await ensureContentTypeDefault(zip, 'mp3', 'audio/mpeg');
-    await ensureContentTypeDefault(zip, 'png', 'image/png');
-
-    const iconMediaPath = 'ppt/media/ce-narration-icon.png';
-    if (!zip.file(iconMediaPath)) {
-      zip.file(iconMediaPath, base64ToUint8Array(PLACEHOLDER_ICON_PNG_BASE64));
-    }
-    zip.file(`ppt/media/ce-narration-audio${slideNumber}.mp3`, audioBytes);
-
-    const rIdAudio = nextRelId(rels);
-    const audioNum = parseInt(rIdAudio.slice(3), 10);
-    const rIdMedia = `rId${audioNum + 1}`;
-    const rIdIcon = `rId${audioNum + 2}`;
-
-    const newRels = [
-      `<Relationship Id="${rIdAudio}" Type="${REL_TYPE_AUDIO}" Target="../media/ce-narration-audio${slideNumber}.mp3"/>`,
-      `<Relationship Id="${rIdMedia}" Type="${REL_TYPE_MEDIA}" Target="../media/ce-narration-audio${slideNumber}.mp3"/>`,
-      `<Relationship Id="${rIdIcon}" Type="${REL_TYPE_IMAGE}" Target="../media/ce-narration-icon.png"/>`,
-    ].join('');
-    relsXml = relsXml.replace('</Relationships>', `${newRels}</Relationships>`);
-
-    const shapeId = nextShapeId(slideXml);
-    const iconSize = 457200;
-    const margin = 91440;
-    const x = Math.max(0, slideSize.cx - iconSize - margin);
-    const y = Math.max(0, slideSize.cy - iconSize - margin);
-    const durMs = Math.max(1, Math.round(durationSeconds * 1000));
-
-    const picXml = '<p:pic>'
-      + '<p:nvPicPr>'
-      + `<p:cNvPr id="${shapeId}" name="Narration Audio ${slideNumber}"/>`
-      + '<p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>'
-      + '<p:nvPr>'
-      + `<a:audioFile r:link="${rIdAudio}"/>`
-      + '<p:extLst><p:ext uri="{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}">'
-      + `<p14:media xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" r:embed="${rIdMedia}"/>`
-      + '</p:ext></p:extLst>'
-      + '</p:nvPr>'
-      + '</p:nvPicPr>'
-      + `<p:blipFill><a:blip r:embed="${rIdIcon}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>`
-      + '<p:spPr>'
-      + `<a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${iconSize}" cy="${iconSize}"/></a:xfrm>`
-      + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
-      + '</p:spPr>'
-      + '</p:pic>';
-
-    slideXml = slideXml.replace('</p:spTree>', `${picXml}</p:spTree>`);
-
-    if (hasExistingTiming) {
-      zip.file(slidePath, slideXml);
-      zip.file(relsPath, relsXml);
-      return { slideNumber, ok: false, warning: 'Slide already had animation timing — narration added as click-to-play instead of automatic.' };
-    }
-
-    const timingXml = '<p:timing><p:tnLst><p:par>'
-      + '<p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot">'
-      + '<p:childTnLst><p:seq concurrent="1" nextAc="seek">'
-      + '<p:cTn id="2" dur="indefinite" nodeType="mainSeq">'
-      + '<p:childTnLst><p:par><p:cTn id="3" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst>'
-      + '<p:childTnLst><p:par><p:cTn id="4" fill="hold"><p:stCondLst><p:cond delay="0"/></p:stCondLst>'
-      + `<p:childTnLst><p:par><p:cTn id="5" presetID="1" presetClass="mediacall" presetSubtype="0" fill="hold" nodeType="clickEffect">`
-      + '<p:stCondLst><p:cond delay="0"/></p:stCondLst>'
-      + '<p:childTnLst><p:cmd type="call" cmd="playFrom(0.0)">'
-      + `<p:cBhvr><p:cTn id="6" dur="${durMs}" fill="hold"/><p:tgtEl><p:spTgt spid="${shapeId}"/></p:tgtEl></p:cBhvr>`
-      + '</p:cmd></p:childTnLst>'
-      + '</p:cTn></p:par></p:childTnLst>'
-      + '</p:cTn></p:par></p:childTnLst>'
-      + '</p:cTn></p:par></p:childTnLst>'
-      + '</p:cTn></p:seq></p:childTnLst>'
-      + '</p:cTn>'
-      + '</p:par></p:tnLst><p:bldLst/></p:timing>';
-
-    const transitionXml = `<p:transition advClick="0" advTm="${durMs}"/>`;
-
-    const transitionRe = /<p:transition\b[^>]*\/>|<p:transition\b[^>]*>[\s\S]*?<\/p:transition>/;
-    if (transitionRe.test(slideXml)) {
-      slideXml = slideXml.replace(transitionRe, transitionXml);
-    } else {
-      slideXml = slideXml.replace('</p:cSld>', `</p:cSld>${transitionXml}`);
-    }
-    slideXml = slideXml.replace(transitionXml, `${transitionXml}${timingXml}`);
-
-    zip.file(slidePath, slideXml);
-    zip.file(relsPath, relsXml);
-
-    return { slideNumber, ok: true };
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -338,7 +195,7 @@
     card.innerHTML = `
       <div style="font-weight:700;font-size:16px;color:${navy};margin-bottom:6px;">Turn speaker notes into narration</div>
       <div style="font-size:13px;color:${muted};line-height:1.5;margin-bottom:18px;">
-        Choose a .pptx. Each slide's speaker notes are converted to narration audio and embedded into that slide, set to play automatically and advance the slide when it finishes — so PowerPoint's own <strong>Export to Video</strong> picks it up correctly. Everything happens in this browser tab — nothing is uploaded anywhere except directly to OpenAI/Anthropic.
+        Choose a .pptx. Each slide's speaker notes are converted to a narration MP3, and all of them download together as one zip, named by slide number (<code>Slide 01.mp3</code>, <code>Slide 02.mp3</code>, ...). Insert each one into its matching slide yourself in PowerPoint (<strong>Insert &gt; Audio</strong>). Everything happens in this browser tab — nothing is uploaded anywhere except directly to OpenAI/Anthropic, and your original .pptx is never modified.
       </div>
       <div style="margin-bottom:14px;">
         <label style="display:block;font-size:11px;font-weight:700;color:${muted};text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">OpenAI API Key</label>
@@ -367,7 +224,7 @@
         </div>
       </div>
       <div id="pn-error" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 12px;font-size:13px;color:${red};margin-bottom:14px;"></div>
-      <button id="pn-generate" style="background:${blue};color:#fff;border:none;border-radius:999px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">Generate Narrated PPTX</button>
+      <button id="pn-generate" style="background:${blue};color:#fff;border:none;border-radius:999px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;">Generate Narration Audio</button>
       <div id="pn-stage" style="font-size:12px;color:${muted};margin-top:10px;"></div>
     `;
 
@@ -419,7 +276,7 @@
       rc.innerHTML = `<div style="font-weight:700;font-size:14px;color:${navy};margin-bottom:10px;">Per-slide results</div>`
         + `<div style="display:flex;flex-direction:column;gap:6px;">`
         + results.map(r => {
-          const ok = r.status.startsWith('narrated');
+          const ok = r.status.startsWith('ready');
           const skipped = r.status.startsWith('skipped');
           const color = ok ? green : skipped ? muted : red;
           return `<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid ${border};">`
@@ -457,9 +314,11 @@
 
         const slidePaths = listSlidePaths(zip);
         if (!slidePaths.length) throw new Error('No slides found in this file.');
-        const slideSize = await getSlideSizeEmu(zip);
 
+        const outZip = new JSZip();
         const results = [];
+        let anyAudio = false;
+
         for (let i = 0; i < slidePaths.length; i++) {
           const slidePath = slidePaths[i];
           const slideNumber = slideNumberFromPath(slidePath);
@@ -469,26 +328,30 @@
           try {
             const narration = polish ? await polishNarration(rawNotes, anthropicKey) : rawNotes;
             const audioArrayBuffer = await generateTTS(narration, voice, openaiKey);
-            const duration = await getAudioDurationSeconds(audioArrayBuffer).catch(() => Math.max(3, narration.split(/\s+/).length / 2.5));
-            const embed = await embedAutoplayAudio(zip, slidePath, new Uint8Array(audioArrayBuffer), duration, slideSize);
-            results.push({ slide: slideNumber, status: embed.ok ? 'narrated (auto-play)' : (embed.warning || 'embedded') });
+            const duration = await getAudioDurationSeconds(audioArrayBuffer).catch(() => null);
+            const paddedNum = String(slideNumber).padStart(2, '0');
+            outZip.file(`Slide ${paddedNum}.mp3`, audioArrayBuffer);
+            anyAudio = true;
+            results.push({ slide: slideNumber, status: duration ? `ready — ${duration.toFixed(1)}s` : 'ready' });
           } catch (err) {
             results.push({ slide: slideNumber, status: `failed — ${err.message}` });
           }
           renderResults(results);
         }
 
-        setStage('Building final file…');
-        const outBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+        if (!anyAudio) throw new Error('No narration audio was generated — none of the slides had speaker notes.');
+
+        setStage('Building zip…');
+        const outBlob = await outZip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
         const url = URL.createObjectURL(outBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = selectedFile.name.replace(/\.pptx$/i, '') + '-narrated.pptx';
+        a.download = selectedFile.name.replace(/\.pptx$/i, '') + '-narration-audio.zip';
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        setStage('Done — file downloaded.');
+        setStage('Done — audio files downloaded as a zip. Insert each into its matching slide in PowerPoint (Insert > Audio).');
       } catch (err) {
         showError(err.message || 'Something went wrong.');
         setStage('');
