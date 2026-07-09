@@ -32,6 +32,9 @@
 
     const APIKEY_KEY = "AIgrader_APIKey";
     const UNSPLASH_KEY = "AIgrader_UnsplashKey";
+    // Personal default Unsplash Access Key — used only if no key has been saved yet.
+    // Don't share this file publicly (e.g. a public GitHub repo) with this left in.
+    const UNSPLASH_KEY_DEFAULT = "TC22qvOXtRU4QhE3x7JmucTZ9_SSp5G3f06Lz010hAU";
     const AI_MODEL_CONTENT = "claude-sonnet-4-6";
     const AI_MODEL_CONTENT_FAST = "claude-haiku-4-5-20251001";
     const AI_MODEL_QUIZ = "claude-haiku-4-5-20251001";
@@ -257,6 +260,7 @@
 
     try { state.unsplashKey = GM_getValue(UNSPLASH_KEY, ""); } catch(e) {}
     if(!state.unsplashKey){ try { state.unsplashKey = localStorage.getItem(UNSPLASH_KEY) || ""; } catch(e) {} }
+    if(!state.unsplashKey) state.unsplashKey = UNSPLASH_KEY_DEFAULT;
 
     function curMod() { return state.modules[state.currentModuleIndex] || null; }
     function esc(s){var d=document.createElement("div");d.textContent=s||"";return d.innerHTML;}
@@ -993,8 +997,12 @@ COLOR DISCIPLINE:
             p += "- Do NOT truncate or abbreviate any section — complete every element fully\n";
             p += "- Target output: rich, thorough, textbook-quality page content\n\n";
         } else {
-            p += "\nCONTENT DEPTH — STANDARD MODE\n";
-            p += "Write well-developed content with 2-3 paragraphs per section. Cover the topic thoroughly.\n";
+            p += "\nCONTENT DEPTH — STANDARD MODE (BE CONCISE)\n";
+            p += "Keep this page notably shorter and tighter than you might default to — err on the side of brevity:\n";
+            p += "- 1 short paragraph per section (2-4 sentences) — never 2-3 paragraphs\n";
+            p += "- Cover the topic in 3-4 focused sections total, not 6 or more — pick only the most essential subtopics\n";
+            p += "- Skip minor tangents, exhaustive lists, or repeated framing — say each point once, clearly, and move on\n";
+            p += "- If a summary section is included, keep it to 3-4 bullet points max, not a full paragraph\n";
             p += "CRITICAL: You MUST complete every HTML element you open. Never cut off mid-tag or mid-section.\n";
             p += "If you are running low on space, wrap up cleanly — do not leave any tag unclosed.\n\n";
         }

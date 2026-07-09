@@ -1,0 +1,227 @@
+/* Canvas Enhancer toolbar */
+
+#ce-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  height: 40px;
+  background: #fff;
+  border-bottom: 1px solid #c7cdd1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #2d3b45;
+  z-index: 9000;
+  position: relative;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.ce-group {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ce-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #0770B8;
+  border: 1px solid #0770B8;
+  border-radius: 4px;
+  padding: 5px 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  color: #fff;
+  white-space: nowrap;
+  transition: background 0.12s;
+  line-height: 1.4;
+  flex-shrink: 0;
+  height: 30px;
+  box-sizing: border-box;
+}
+
+.ce-btn:hover,
+.ce-btn.ce-open {
+  background: #055f9e;
+  border-color: #055f9e;
+  color: #fff;
+}
+
+/* AI actions are white pill buttons */
+#ce-toolbar .ce-btn-ai {
+  background: #fff;
+  color: #0770B8;
+  font-weight: 800;
+  border: 1px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.16);
+}
+#ce-toolbar .ce-btn-ai:hover {
+  background: #f2f8fd;
+  color: #055a96;
+  border-color: #fff;
+}
+
+.ce-icon {
+  font-style: normal;
+  font-size: 13px;
+}
+
+/* Vertical separator */
+.ce-sep {
+  width: 1px;
+  height: 20px;
+  background: #dde1e4;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* Brand mark — compact single line */
+.ce-studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  border-right: 1px solid #dde1e4;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.ce-studio-mark {
+  color: #0770B8;
+  font-size: 14px;
+  line-height: 1;
+}
+.ce-studio-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #394B58;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* Pushes Settings / Help / Hide to the right edge */
+.ce-studio-spacer {
+  margin-left: auto;
+}
+
+.ce-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  background: #fff;
+  border: 1px solid #c7cdd1;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  min-width: 180px;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.ce-panel.ce-open {
+  display: block;
+}
+
+.ce-mega-panel {
+  min-width: 220px;
+}
+
+.ce-menu-section {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  padding: 10px 14px 4px;
+}
+
+.ce-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #2d3b45;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ce-item:last-child {
+  border-bottom: none;
+}
+
+.ce-item:hover {
+  background: #e8f0f8;
+  color: #0770B8;
+}
+
+/* Props row */
+#ce-row-props {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 10px;
+  border-top: 1px solid #e8e8e8;
+  background: #f8fafc;
+}
+
+#ce-row-props.open {
+  display: flex;
+}
+
+/* Reopen button */
+.ce-studio-reopen {
+  display: none;
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #394B58;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+.ce-studio-reopen:hover {
+  background: #2d3b45;
+}
+
+/* Notice toast */
+#ce-notice {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #333;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+#ce-notice.ce-notice-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

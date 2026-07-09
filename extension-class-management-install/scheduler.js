@@ -1,0 +1,1637 @@
+(async function () {
+  'use strict';
+
+  if (document.getElementById('csch-app')) return;
+
+  const STORAGE_KEY = 'canvas_scheduler_settings_v1';
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const TYPE_COLORS = {
+    Assignment: '#2563eb',
+    Discussion: '#c2410c',
+    Test: '#0f766e'
+  };
+
+  const MODULE_PALETTE = [
+    '#C0392B', '#D35400', '#1A7A4A', '#6C3483',
+    '#1566A0', '#C0175C', '#0A7E78', '#8A6914',
+    '#2471A3', '#7D3C98', '#117A65', '#A04000',
+  ];
+
+  const _store = await new Promise(resolve =>
+    chrome.storage.local.get([STORAGE_KEY, 'ce_canvas_token'], resolve)
+  );
+
+  function GM_getValue(key, def) { return _store[key] ?? def; }
+  function GM_setValue(key, val) {
+    _store[key] = val;
+    chrome.storage.local.set({ [key]: val });
+  }
+
+  function normalizeInt(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  }
+
+  function normalizeWeekdays(value) {
+    if (!Array.isArray(value)) return [1, 3];
+    const normalized = value
+      .map((entry) => Number(entry))
+      .filter((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 6);
+    const unique = [...new Set(normalized)];
+    return unique.length ? unique : [1, 3];
+  }
+
+  function todayKey() { return toDateKey(new Date()); }
+
+  function toDateKey(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function fromDateKey(dateKey) {
+    const [year, month, day] = String(dateKey).split('-').map(Number);
+    return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0);
+  }
+
+  function addDays(dateKey, delta) {
+    const date = fromDateKey(dateKey);
+    date.setDate(date.getDate() + delta);
+    return toDateKey(date);
+  }
+
+  function combineLocalDateAndTime(dateKey, timeValue) {
+    const [hours, minutes] = String(timeValue || '23:59').split(':').map(Number);
+    const date = fromDateKey(dateKey);
+    date.setHours(Number.isFinite(hours) ? hours : 23, Number.isFinite(minutes) ? minutes : 59, 0, 0);
+    return date.toISOString();
+  }
+
+  function formatDateLabel(dateKey) {
+    return fromDateKey(dateKey).toLocaleDateString(undefined, {
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+
+  function formatFullDateLabel(dateKey) {
+    return fromDateKey(dateKey).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+  }
+
+  function formatCompactCanvasDate(isoValue) {
+    if (!isoValue) return 'No due date';
+    const date = new Date(isoValue);
+    if (Number.isNaN(date.getTime())) return 'No due date';
+    return date.toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  function getCourseId() {
+    const match = window.location.pathname.match(/\/courses\/(\d+)/);
+    return match ? match[1] : null;
+  }
+
+  function getCSRF() {
+    const cookieMatch = document.cookie.match(/(?:^|;\s*)_csrf_token=([^;]+)/);
+    if (cookieMatch) return decodeURIComponent(cookieMatch[1]);
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  function getHolidayName(dateKey) {
+    const [year, month, day] = String(dateKey).split('-').map(Number);
+
+    // Fixed-date holidays
+    const fixed = {
+      '01-01': "New Year's Day",
+      '01-15': null, // MLK lower bound guard
+      '06-19': 'Juneteenth',
+      '07-04': 'Independence Day',
+      '11-11': 'Veterans Day',
+      '12-24': 'Christmas Eve',
+      '12-25': 'Christmas Day',
+      '12-31': "New Year's Eve",
+    };
+    const mmdd = `${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    if (fixed[mmdd] !== undefined) return fixed[mmdd] || null;
+
+    function nthWeekday(y, m, wd, n) {
+      const first = new Date(y, m - 1, 1);
+      const offset = (wd - first.getDay() + 7) % 7;
+      return 1 + offset + (n - 1) * 7;
+    }
+    function lastWeekday(y, m, wd) {
+      const last = new Date(y, m, 0);
+      return last.getDate() - (last.getDay() - wd + 7) % 7;
+    }
+
+    if (month === 1  && day === nthWeekday(year, 1,  1, 3)) return 'MLK Day';
+    if (month === 2  && day === nthWeekday(year, 2,  1, 3)) return "Presidents' Day";
+    if (month === 5  && day === lastWeekday(year, 5,  1))   return 'Memorial Day';
+    if (month === 9  && day === nthWeekday(year, 9,  1, 1)) return 'Labor Day';
+    if (month === 10 && day === nthWeekday(year, 10, 1, 2)) return 'Columbus Day';
+    if (month === 11) {
+      const tgiving = nthWeekday(year, 11, 4, 4);
+      if (day === tgiving)     return 'Thanksgiving';
+      if (day === tgiving + 1) return 'Day After Thanksgiving';
+    }
+
+    // Easter / Good Friday
+    const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m2 = Math.floor((a + 11 * h + 22 * l) / 451);
+    const eMonth = Math.floor((h + l - 7 * m2 + 114) / 31);
+    const eDay   = (h + l - 7 * m2 + 114) % 31 + 1;
+    const gfMonth = eMonth - (eDay <= 2 ? 1 : 0);
+    const gfDay   = eDay <= 2 ? new Date(year, eMonth - 1, 0).getDate() + eDay - 2 : eDay - 2;
+    if (month === gfMonth && day === gfDay) return 'Good Friday';
+
+    return null;
+  }
+
+  function escHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  const savedSettings = GM_getValue(STORAGE_KEY, {});
+
+  const state = {
+    open: false,
+    loading: false,
+    saving: false,
+    notice: '',
+    noticeType: 'info',
+    courseId: null,
+    selectedCourseId: getCourseId() || null,
+    allCourses: [],
+    dashboardIds: new Set(),
+    draggedItemId: null,
+    slotCount: Math.max(12, Number(savedSettings.slotCount) || 12),
+    settings: {
+      startDate: savedSettings.startDate || todayKey(),
+      weekdays: normalizeWeekdays(savedSettings.weekdays),
+      dueTime: savedSettings.dueTime || '23:59',
+      openDaysBefore: normalizeInt(savedSettings.openDaysBefore, 2),
+      closeDaysAfter: normalizeInt(savedSettings.closeDaysAfter, 2),
+      answersDaysAfter: normalizeInt(savedSettings.answersDaysAfter, 1)
+    },
+    modules: [],
+    items: [],
+    generatedDateKeys: [],
+    schedule: {},
+    itemOverrides: savedSettings.itemOverrides || {}
+  };
+
+  function getItemSetting(itemId, key) {
+    return state.itemOverrides[itemId]?.[key] ?? state.settings[key];
+  }
+
+  function setItemOverride(itemId, key, value) {
+    if (!state.itemOverrides[itemId]) state.itemOverrides[itemId] = {};
+    state.itemOverrides[itemId][key] = value;
+    persistSettings();
+  }
+
+  function setNotice(message, type) {
+    state.notice = message;
+    state.noticeType = type || 'info';
+    render();
+  }
+
+  function persistSettings() {
+    GM_setValue(STORAGE_KEY, {
+      startDate: state.settings.startDate,
+      weekdays: state.settings.weekdays,
+      dueTime: state.settings.dueTime,
+      openDaysBefore: state.settings.openDaysBefore,
+      closeDaysAfter: state.settings.closeDaysAfter,
+      answersDaysAfter: state.settings.answersDaysAfter,
+      slotCount: state.slotCount,
+      itemOverrides: state.itemOverrides,
+      savedSchedule: state.courseId ? { courseId: state.courseId, schedule: state.schedule } : ((_store[STORAGE_KEY] || savedSettings).savedSchedule || null),
+    });
+  }
+
+  function getGeneratedDates() {
+    const selected = [...state.settings.weekdays].sort((a, b) => a - b);
+    if (!selected.length) return [];
+    const dates = [];
+    const seen = new Set();
+    const cursor = fromDateKey(state.settings.startDate);
+    let attempts = 0;
+    const target = Math.max(4, state.slotCount);
+    while (dates.length < target && attempts < 500) {
+      const key = toDateKey(cursor);
+      if (selected.includes(cursor.getDay()) && !seen.has(key)) {
+        seen.add(key);
+        dates.push(key);
+      }
+      cursor.setDate(cursor.getDate() + 1);
+      attempts += 1;
+    }
+    return dates;
+  }
+
+  function syncGeneratedDates() {
+    const generated = getGeneratedDates();
+    const assignedDates = Object.values(state.schedule).filter(Boolean);
+    const merged = [...generated];
+    assignedDates.forEach((dateKey) => {
+      if (!merged.includes(dateKey)) merged.push(dateKey);
+    });
+    merged.sort();
+    state.generatedDateKeys = merged;
+  }
+
+  function isScheduled(itemId) { return Boolean(state.schedule[itemId]); }
+
+  function getUnscheduledItems() {
+    return state.items.filter((item) => !isScheduled(item.id));
+  }
+
+  function getItemsForDate(dateKey) {
+    return state.items.filter((item) => state.schedule[item.id] === dateKey);
+  }
+
+  function getPrimaryModuleLabel(item) {
+    if (!item.primaryModuleName) return 'No module';
+    if (item.moduleNames.length <= 1) return item.primaryModuleName;
+    return `${item.primaryModuleName} +${item.moduleNames.length - 1}`;
+  }
+
+  function inferItemType(assignment, quiz) {
+    if (quiz || assignment.is_quiz_assignment) return 'Test';
+    if (Array.isArray(assignment.submission_types) && assignment.submission_types.includes('discussion_topic')) return 'Discussion';
+    return 'Assignment';
+  }
+
+  function buildItems(modules, assignments, quizzes) {
+    const quizByAssignmentId = new Map();
+    const quizById = new Map();
+    quizzes.forEach((quiz) => {
+      quizById.set(Number(quiz.id), quiz);
+      if (quiz.assignment_id) quizByAssignmentId.set(Number(quiz.assignment_id), quiz);
+    });
+
+    const moduleLookup = new Map();
+    const discussionAssignmentsByName = new Map();
+
+    assignments.forEach((assignment) => {
+      if (Array.isArray(assignment.submission_types) && assignment.submission_types.includes('discussion_topic')) {
+        const list = discussionAssignmentsByName.get(assignment.name) || [];
+        list.push(assignment);
+        discussionAssignmentsByName.set(assignment.name, list);
+      }
+    });
+
+    modules.forEach((module) => {
+      (module.items || []).forEach((moduleItem) => {
+        let assignmentId = null;
+        if (moduleItem.type === 'Assignment') {
+          assignmentId = Number(moduleItem.content_id);
+        } else if (moduleItem.type === 'Quiz') {
+          const quiz = quizById.get(Number(moduleItem.content_id));
+          assignmentId = quiz ? Number(quiz.assignment_id) : null;
+        } else if (moduleItem.type === 'Discussion') {
+          const match = (discussionAssignmentsByName.get(moduleItem.title) || []).find(
+            (a) => !moduleLookup.has(Number(a.id))
+          );
+          assignmentId = match ? Number(match.id) : null;
+        }
+        if (!assignmentId) return;
+        const list = moduleLookup.get(assignmentId) || [];
+        list.push({
+          moduleId: module.id,
+          moduleName: module.name,
+          modulePosition: Number(module.position) || 9999,
+          itemPosition: Number(moduleItem.position) || 9999
+        });
+        moduleLookup.set(assignmentId, list);
+      });
+    });
+
+    const items = assignments.flatMap((assignment) => {
+      const modulesForItem = (moduleLookup.get(Number(assignment.id)) || []).sort((a, b) => {
+        if (a.modulePosition !== b.modulePosition) return a.modulePosition - b.modulePosition;
+        return a.itemPosition - b.itemPosition;
+      });
+      if (!modulesForItem.length) return [];
+      const quiz = quizByAssignmentId.get(Number(assignment.id)) || null;
+      const moduleNames = modulesForItem.map((e) => e.moduleName);
+      const type = inferItemType(assignment, quiz);
+      return [{
+        id: `assignment-${assignment.id}`,
+        assignmentId: Number(assignment.id),
+        quizId: quiz ? Number(quiz.id) : null,
+        title: assignment.name || 'Untitled item',
+        type,
+        color: TYPE_COLORS[type] || '#2563eb',
+        moduleNames,
+        primaryModuleName: moduleNames[0] || '',
+        currentDueAt: assignment.due_at || '',
+        currentUnlockAt: assignment.unlock_at || '',
+        currentLockAt: assignment.lock_at || '',
+        currentAnswersAt: quiz ? (quiz.show_correct_answers_at || '') : '',
+        published: assignment.published !== false,
+        htmlUrl: assignment.html_url || '',
+        orderKey: [
+          String(modulesForItem[0]?.modulePosition || 9999).padStart(4, '0'),
+          String(modulesForItem[0]?.itemPosition || 9999).padStart(4, '0'),
+          (assignment.name || '').toLowerCase()
+        ].join('-')
+      }];
+    });
+
+    items.sort((a, b) => a.orderKey.localeCompare(b.orderKey));
+    return items;
+  }
+
+  async function canvasRequest(url, options) {
+    const canvasToken = await new Promise(resolve =>
+      chrome.storage.local.get('ce_canvas_token', result => resolve(result.ce_canvas_token || ''))
+    );
+    const headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    };
+    if (canvasToken) {
+      headers['Authorization'] = `Bearer ${canvasToken}`;
+    } else {
+      headers['X-CSRF-Token'] = getCSRF();
+    }
+    const response = await fetch(url, {
+      method: options.method || 'GET',
+      headers,
+      credentials: canvasToken ? 'omit' : 'same-origin',
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Canvas API ${response.status}: ${text.slice(0, 200)}`);
+    }
+    if (response.status === 204) return { data: null, response };
+    return { data: await response.json(), response };
+  }
+
+  function getNextLink(linkHeader) {
+    if (!linkHeader) return null;
+    for (const part of linkHeader.split(',')) {
+      const match = part.match(/<([^>]+)>;\s*rel="([^"]+)"/);
+      if (match && match[2] === 'next') return match[1];
+    }
+    return null;
+  }
+
+  async function canvasList(path) {
+    let nextUrl = path.startsWith('http') ? path : `${window.location.origin}${path}`;
+    const all = [];
+    while (nextUrl) {
+      const { data, response } = await canvasRequest(nextUrl, { method: 'GET' });
+      if (Array.isArray(data)) all.push(...data);
+      nextUrl = getNextLink(response.headers.get('Link'));
+    }
+    return all;
+  }
+
+  async function canvasAPI(method, path, body) {
+    const url = path.startsWith('http') ? path : `${window.location.origin}${path}`;
+    const { data } = await canvasRequest(url, { method, body });
+    return data;
+  }
+
+  async function loadModules(courseId) {
+    const modules = await canvasList(`/api/v1/courses/${courseId}/modules?per_page=100`);
+    return Promise.all(
+      modules.map(async (module) => ({
+        ...module,
+        items: await canvasList(`/api/v1/courses/${courseId}/modules/${module.id}/items?per_page=100`)
+      }))
+    );
+  }
+
+  function hydrateExistingSchedule() {
+    const nextSchedule = {};
+    state.items.forEach((item) => {
+      if (!item.currentDueAt) return;
+      const dueDate = new Date(item.currentDueAt);
+      if (Number.isNaN(dueDate.getTime())) return;
+      nextSchedule[item.id] = toDateKey(dueDate);
+    });
+    // Read from _store (always current) not savedSettings (stale snapshot from page load)
+    const liveSettings = _store[STORAGE_KEY] || savedSettings;
+    const saved = liveSettings.savedSchedule;
+    if (saved && saved.courseId === state.courseId && saved.schedule) {
+      Object.assign(nextSchedule, saved.schedule);
+    }
+    state.schedule = nextSchedule;
+  }
+
+  async function loadCourseData() {
+    const courseId = state.selectedCourseId || getCourseId();
+    if (!courseId) { setNotice('Select a course from the dropdown above.', 'err'); return; }
+    const token = await new Promise(r => chrome.storage.local.get('ce_canvas_token', s => r(s.ce_canvas_token || '')));
+    if (!token) { setNotice('No Canvas API token found — add one in Canvas Enhancer Settings before loading course data.', 'err'); return; }
+    state.loading = true;
+    state.courseId = courseId;
+    setNotice('Loading course items from Canvas...', 'info');
+    try {
+      const [modules, assignments, quizzes] = await Promise.all([
+        loadModules(courseId),
+        canvasList(`/api/v1/courses/${courseId}/assignments?per_page=100`),
+        canvasList(`/api/v1/courses/${courseId}/quizzes?per_page=100`)
+      ]);
+      state.modules = modules;
+      state.items = buildItems(modules, assignments, quizzes);
+      hydrateExistingSchedule();
+      // Remove schedule entries for items that no longer exist in Canvas
+      const liveIds = new Set(state.items.map(i => i.id));
+      Object.keys(state.schedule).forEach(id => { if (!liveIds.has(id)) delete state.schedule[id]; });
+      syncGeneratedDates();
+      const skipped = assignments.length - state.items.length;
+      const skipNote = skipped > 0 ? ` (${skipped} assignment${skipped === 1 ? '' : 's'} not in any module were skipped)` : '';
+      setNotice(`Loaded ${state.items.length} module items from this course.${skipNote}`, 'ok');
+    } catch (error) {
+      setNotice(`Could not load Canvas data: ${error.message}`, 'err');
+    } finally {
+      state.loading = false;
+      render();
+    }
+  }
+
+  function updateSetting(name, value) {
+    state.settings[name] = value;
+    persistSettings();
+    syncGeneratedDates();
+    render();
+  }
+
+  function toggleWeekday(dayIndex) {
+    const selected = [...state.settings.weekdays];
+    const existingIndex = selected.indexOf(dayIndex);
+    if (existingIndex >= 0) {
+      selected.splice(existingIndex, 1);
+    } else {
+      selected.push(dayIndex);
+    }
+    selected.sort((a, b) => a - b);
+    state.settings.weekdays = selected;
+    persistSettings();
+    syncGeneratedDates();
+    render();
+  }
+
+  function updateSchedule(itemId, dateKey) {
+    if (dateKey) {
+      state.schedule[itemId] = dateKey;
+    } else {
+      delete state.schedule[itemId];
+    }
+    persistSettings();
+    syncGeneratedDates();
+    render();
+  }
+
+  function buildModuleColorMap() {
+    const map = {};
+    (state.modules || []).forEach((module, index) => {
+      map[module.name] = MODULE_PALETTE[index % MODULE_PALETTE.length];
+    });
+    return map;
+  }
+
+  function buildTileMarkup(item, moduleColor) {
+    const dueLabel = formatCompactCanvasDate(item.currentDueAt);
+    const statusLabel = item.published ? dueLabel : `Draft | ${dueLabel}`;
+    const modColor = moduleColor || '#0770B8';
+    return `
+      <div class="csch-item-top">
+        <span class="csch-type-pill" style="background:${item.color}">${escHtml(item.type)}</span>
+      </div>
+      <div class="csch-item-title">${escHtml(item.title)}</div>
+      <div class="csch-item-module" style="color:${modColor}">${escHtml(getPrimaryModuleLabel(item))}</div>
+      <div class="csch-item-meta-row">
+        <span class="csch-item-meta">${escHtml(statusLabel)}</span>
+        ${item.htmlUrl ? `<a class="csch-item-link" href="${escHtml(item.htmlUrl)}" target="_blank" rel="noopener noreferrer">Open</a>` : ''}
+      </div>
+    `;
+  }
+
+  function groupItemsByModule(items) {
+    const grouped = new Map();
+    items.forEach((item) => {
+      const key = item.primaryModuleName || 'No module';
+      const list = grouped.get(key) || [];
+      list.push(item);
+      grouped.set(key, list);
+    });
+    return [...grouped.entries()];
+  }
+
+  async function publishSchedule() {
+    if (state.saving) return; // prevent double-click
+    const scheduledItems = state.items.filter((item) => Boolean(state.schedule[item.id]));
+    if (!scheduledItems.length) { setNotice('Drag at least one item onto a date before publishing.', 'err'); return; }
+    if (!state.courseId) { setNotice('Open a Canvas course first.', 'err'); return; }
+
+    const confirmed = window.confirm(
+      `Publish ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'} to Canvas?\n\nThis will overwrite existing due dates.`
+    );
+    if (!confirmed) return;
+
+    state.saving = true;
+    try { await _publishScheduleInner(scheduledItems); } finally { state.saving = false; render(); }
+  }
+
+  async function _publishScheduleInner(scheduledItems) {
+    setNotice(`Publishing ${scheduledItems.length} item${scheduledItems.length === 1 ? '' : 's'} to Canvas...`, 'info');
+    render();
+
+    const errors = [];
+    const succeeded = [];
+
+    for (const item of scheduledItems) {
+      try {
+        const dueDateKey  = state.schedule[item.id];
+        const openBefore  = getItemSetting(item.id, 'openDaysBefore');
+        const closAfter   = getItemSetting(item.id, 'closeDaysAfter');
+        const ansAfter    = getItemSetting(item.id, 'answersDaysAfter');
+        const dueAt    = combineLocalDateAndTime(dueDateKey, state.settings.dueTime);
+        const unlockAt = combineLocalDateAndTime(addDays(dueDateKey, -openBefore), '00:00');
+        const lockAt   = combineLocalDateAndTime(addDays(dueDateKey, closAfter), '23:59');
+
+        await canvasAPI('PUT', `/api/v1/courses/${state.courseId}/assignments/${item.assignmentId}`, {
+          assignment: { due_at: dueAt, unlock_at: unlockAt, lock_at: lockAt }
+        });
+
+        if (item.quizId) {
+          const answersAt = combineLocalDateAndTime(addDays(dueDateKey, ansAfter), state.settings.dueTime);
+          await canvasAPI('PUT', `/api/v1/courses/${state.courseId}/quizzes/${item.quizId}`, {
+            quiz: { due_at: dueAt, show_correct_answers: true, show_correct_answers_at: answersAt }
+          });
+        }
+
+        succeeded.push(item);
+      } catch (error) {
+        console.error('[Canvas Scheduler] Failed to update item:', item.id, error);
+        errors.push({
+          id: item.id,
+          title: item.title || `Item ${item.id}`,
+          message: error?.message || 'Unknown Canvas error'
+        });
+      }
+    }
+
+    const failedIds = new Set(errors.map(error => error.id));
+
+    state.items = state.items.map((item) => {
+      const dueDateKey = state.schedule[item.id];
+      if (!dueDateKey || failedIds.has(item.id)) return item;
+      return {
+        ...item,
+        currentDueAt:    combineLocalDateAndTime(dueDateKey, state.settings.dueTime),
+        currentUnlockAt: combineLocalDateAndTime(addDays(dueDateKey, -getItemSetting(item.id, 'openDaysBefore')), '00:00'),
+        currentLockAt:   combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'closeDaysAfter')), '23:59'),
+        currentAnswersAt: item.quizId
+          ? combineLocalDateAndTime(addDays(dueDateKey, getItemSetting(item.id, 'answersDaysAfter')), state.settings.dueTime)
+          : item.currentAnswersAt
+      };
+    });
+
+    persistSettings();
+    if (errors.length === 0) {
+      setNotice(`Canvas updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}.`, 'ok');
+    } else if (succeeded.length === 0) {
+      const detail = errors.slice(0, 5).map(error => `- ${error.title}: ${error.message}`).join('\n');
+      setNotice(`All ${errors.length} update${errors.length === 1 ? '' : 's'} failed.\n${detail}`, 'err');
+    } else {
+      const detail = errors.slice(0, 5).map(error => `- ${error.title}: ${error.message}`).join('\n');
+      const more = errors.length > 5 ? `\n...and ${errors.length - 5} more.` : '';
+      setNotice(`Updated ${succeeded.length} item${succeeded.length === 1 ? '' : 's'}. ${errors.length} failed.\n${detail}${more}`, 'err');
+    }
+  }
+
+  function handleTileDragStart(itemId, event) {
+    state.draggedItemId = itemId;
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', itemId);
+  }
+
+  function wireDragAndDrop() {
+    document.querySelectorAll('[data-csch-item-id]').forEach((element) => {
+      element.addEventListener('dragstart', (event) => {
+        if (event.target.closest('.csch-item-overrides')) { event.preventDefault(); return; }
+        handleTileDragStart(element.getAttribute('data-csch-item-id'), event);
+      });
+    });
+
+    document.querySelectorAll('[data-csch-drop-date]').forEach((zone) => {
+      zone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        zone.classList.add('csch-drop-active');
+      });
+      zone.addEventListener('dragleave', () => zone.classList.remove('csch-drop-active'));
+      zone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        zone.classList.remove('csch-drop-active');
+        const itemId = event.dataTransfer.getData('text/plain') || state.draggedItemId;
+        if (!itemId) return;
+        updateSchedule(itemId, zone.getAttribute('data-csch-drop-date') || '');
+      });
+    });
+  }
+
+  function render() {
+    const leftBody = document.getElementById('csch-left-body');
+    const rightBody = document.getElementById('csch-board');
+    if (!leftBody || !rightBody) return;
+
+    const notice = document.getElementById('csch-notice');
+    if (notice) {
+      notice.textContent = state.notice || '';
+      notice.className = `csch-notice csch-notice-${state.noticeType || 'info'}`;
+      notice.style.display = state.notice ? 'block' : 'none';
+    }
+
+    const unscheduledItems = getUnscheduledItems();
+    const grouped = groupItemsByModule(unscheduledItems);
+    const moduleColorMap = buildModuleColorMap();
+
+    leftBody.innerHTML = `
+      <div class="csch-dropzone csch-unscheduled" data-csch-drop-date="">
+        <div class="csch-dropzone-head">
+          <strong>Unscheduled</strong>
+          <span>${unscheduledItems.length}</span>
+        </div>
+        <div class="csch-dropzone-help">Drag any tile back here to clear its due date slot.</div>
+      </div>
+      ${grouped.length ? grouped.map(([moduleName, items]) => `
+        <section class="csch-module-group">
+          <div class="csch-module-head">${escHtml(moduleName)}</div>
+          <div class="csch-tile-stack">
+            ${items.map((item) => {
+              const mc = moduleColorMap[item.primaryModuleName] || '#C7CDD1';
+              return `
+              <article class="csch-item" draggable="true" data-csch-item-id="${item.id}" style="border-left: 3px solid ${mc};">
+                ${buildTileMarkup(item, mc)}
+              </article>`;
+            }).join('')}
+          </div>
+        </section>
+      `).join('') : `
+        <div class="csch-empty-state">
+          ${state.items.length ? 'No items to display.' : 'Load a Canvas course to see module items here.'}
+        </div>
+      `}
+    `;
+
+    rightBody.innerHTML = state.generatedDateKeys.length ? state.generatedDateKeys.map((dateKey) => {
+      const items = getItemsForDate(dateKey);
+      const holiday = getHolidayName(dateKey);
+      return `
+        <section class="csch-date-col">
+          <div class="csch-date-head">
+            <div class="csch-date-head-main">
+              <div class="csch-date-title">${escHtml(formatDateLabel(dateKey))}</div>
+              <div class="csch-date-count">${items.length}</div>
+            </div>
+            <div class="csch-date-sub">${escHtml(formatFullDateLabel(dateKey))}</div>
+            ${holiday ? `<div class="csch-holiday-badge">${escHtml(holiday)}</div>` : ''}
+          </div>
+          <div class="csch-dropzone csch-date-drop" data-csch-drop-date="${dateKey}">
+            ${items.length ? items.map((item) => {
+              const openVal = getItemSetting(item.id, 'openDaysBefore');
+              const lockVal = getItemSetting(item.id, 'closeDaysAfter');
+              const ansVal  = getItemSetting(item.id, 'answersDaysAfter');
+              const hasOvr  = state.itemOverrides[item.id];
+              const mc = moduleColorMap[item.primaryModuleName] || '#C7CDD1';
+              return `
+              <article class="csch-item csch-item-scheduled" draggable="true" data-csch-item-id="${item.id}" style="border-left: 3px solid ${mc};">
+                ${buildTileMarkup(item, mc)}
+                <button class="csch-ovr-toggle" data-toggle-id="${item.id}">Assignment Timing${hasOvr ? '<span class="csch-ovr-dot">●</span>' : ''}</button>
+                <div class="csch-item-overrides${hasOvr ? ' csch-item-overrides-custom' : ''}" data-ovr-panel="${item.id}" style="display:none">
+                  <div class="csch-ovr-cols">
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Opens</span>
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="openDaysBefore" value="${openVal}">
+                    </div>
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Locks</span>
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="closeDaysAfter" value="${lockVal}">
+                    </div>
+                    <div class="csch-ovr-col">
+                      <span class="csch-ovr-col-lbl">Answers</span>
+                      <input class="csch-ovr-num" type="number" min="0" data-ovr-id="${item.id}" data-ovr-key="answersDaysAfter" value="${item.quizId ? ansVal : ''}">
+                    </div>
+                  </div>
+                  ${hasOvr ? `<button class="csch-ovr-reset" data-reset-id="${item.id}">↺ reset</button>` : ''}
+                </div>
+              </article>
+            `}).join('') : `
+              <div class="csch-empty-slot">Drop items here</div>
+            `}
+          </div>
+        </section>
+      `;
+    }).join('') : `
+      <div class="csch-empty-board">Pick one or more weekdays to generate due-date columns.</div>
+    `;
+
+    document.getElementById('csch-publish-btn').disabled = state.loading || state.saving || !state.items.length;
+    document.getElementById('csch-publish-btn').textContent = state.saving ? 'Publishing...' : 'Publish';
+
+    document.querySelectorAll('[data-weekday]').forEach((button) => {
+      const dayIndex = Number(button.getAttribute('data-weekday'));
+      button.classList.toggle('active', state.settings.weekdays.includes(dayIndex));
+    });
+
+    document.getElementById('csch-start-date').value = state.settings.startDate;
+    document.getElementById('csch-due-time').value = state.settings.dueTime;
+    document.getElementById('csch-open-offset').value = String(state.settings.openDaysBefore);
+    document.getElementById('csch-close-offset').value = String(state.settings.closeDaysAfter);
+    document.getElementById('csch-answer-offset').value = String(state.settings.answersDaysAfter);
+
+    wireDragAndDrop();
+    wireOverrideControls();
+  }
+
+  function wireOverrideControls() {
+    document.querySelectorAll('.csch-ovr-toggle').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panel = document.querySelector(`[data-ovr-panel="${btn.getAttribute('data-toggle-id')}"]`);
+        if (!panel) return;
+        const opening = panel.style.display === 'none';
+        panel.style.display = opening ? '' : 'none';
+        btn.classList.toggle('csch-ovr-toggle-open', opening);
+      });
+      btn.addEventListener('mousedown', (e) => e.stopPropagation());
+    });
+    document.querySelectorAll('.csch-ovr-num').forEach((input) => {
+      input.addEventListener('change', (e) => {
+        const id  = e.target.getAttribute('data-ovr-id');
+        const key = e.target.getAttribute('data-ovr-key');
+        if (!id || !key) return;
+        setItemOverride(id, key, normalizeInt(e.target.value, state.settings[key]));
+        render();
+      });
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('click',     (e) => e.stopPropagation());
+    });
+    document.querySelectorAll('.csch-ovr-reset').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-reset-id');
+        delete state.itemOverrides[id];
+        persistSettings();
+        render();
+      });
+    });
+  }
+
+  function openApp() {
+    const urlCourseId = getCourseId();
+    if (urlCourseId && urlCourseId !== state.selectedCourseId) {
+      state.selectedCourseId = urlCourseId;
+      state.items = [];
+      state.schedule = {};
+      state.modules = [];
+    }
+    app.classList.add('open');
+    state.open = true;
+    if (!state.items.length && !state.loading) loadCourseData();
+    render();
+    loadCoursesForSelector();
+  }
+
+  async function loadCoursesForSelector() {
+    if (state.allCourses.length) { renderCourseOptions(); return; }
+    try {
+      const [courses, dashCards] = await Promise.all([
+        canvasList('/api/v1/courses?enrollment_type=teacher&per_page=100'),
+        canvasList('/api/v1/dashboard/dashboard_cards'),
+      ]);
+      state.allCourses  = courses || [];
+      state.dashboardIds = new Set((dashCards || []).map(d => String(d.id)));
+      renderCourseOptions();
+    } catch (e) { /* non-fatal */ }
+  }
+
+  function renderCourseOptions() {
+    const sel    = document.getElementById('csch-course-sel');
+    if (!sel) return;
+    const cbPub  = document.getElementById('csch-cb-published');
+    const cbDash = document.getElementById('csch-cb-dashboard');
+    const prev   = sel.value || String(state.selectedCourseId || getCourseId() || '');
+    sel.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value = ''; ph.textContent = '— select course —';
+    sel.appendChild(ph);
+    for (const c of state.allCourses) {
+      if (cbPub?.checked  && c.workflow_state !== 'available') continue;
+      if (cbDash?.checked && !state.dashboardIds.has(String(c.id))) continue;
+      const o = document.createElement('option');
+      o.value = String(c.id); o.textContent = c.course_code || c.name;
+      if (String(c.id) === prev) o.selected = true;
+      sel.appendChild(o);
+    }
+    if (sel.value) state.selectedCourseId = sel.value;
+  }
+
+  function closeApp() {
+    app.classList.remove('open');
+    state.open = false;
+  }
+
+  /* ── DOM ─────────────────────────────────────────────────────────────── */
+
+  const app = document.createElement('div');
+  app.id = 'csch-app';
+  app.innerHTML = `
+    <div id="csch-shell">
+      <div id="csch-topbar">
+        <span id="csch-brand">Assignment Scheduler</span>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-course-btn">Course ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-course-panel">
+            <div class="csch-dd-row csch-dd-row-checks">
+              <label class="csch-cb-lbl csch-cb-light"><input type="checkbox" id="csch-cb-published" checked> Published</label>
+              <label class="csch-cb-lbl csch-cb-light"><input type="checkbox" id="csch-cb-dashboard" checked> Dashboard</label>
+            </div>
+            <div class="csch-dd-row csch-dd-row-sel">
+              <select id="csch-course-sel" class="csch-course-sel csch-course-sel-light"><option value="">Select a course…</option></select>
+            </div>
+          </div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="csch-tb-sep"></div>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-schedule-btn">Schedule ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-schedule-panel">
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Start date</span>
+              <input id="csch-start-date" type="date" class="csch-dd-input">
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Due days</span>
+              <div class="csch-weekdays">
+                ${DAY_NAMES.map((day, index) => `<button type="button" class="csch-day-btn" data-weekday="${index}">${day}</button>`).join('')}
+              </div>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Due time</span>
+              <input id="csch-due-time" type="time" class="csch-dd-input">
+            </div>
+          </div>
+        </div>
+        <div class="csch-dd-wrap">
+          <button type="button" class="csch-btn csch-dd-btn" id="csch-dd-window-btn">Window ▾</button>
+          <div class="csch-dd-panel" id="csch-dd-window-panel">
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Opens</span>
+              <input id="csch-open-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days before</span>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Locks</span>
+              <input id="csch-close-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days after</span>
+            </div>
+            <div class="csch-dd-row">
+              <span class="csch-dd-lbl">Answers</span>
+              <input id="csch-answer-offset" type="number" min="0" step="1" class="csch-num-input"> <span class="csch-dd-txt">days after</span>
+            </div>
+          </div>
+        </div>
+        <div class="csch-tb-sep"></div>
+        <button type="button" class="csch-btn" id="csch-more-dates-btn">+ Dates</button>
+        <button type="button" class="csch-btn csch-btn-primary" id="csch-publish-btn">Publish</button>
+        <button type="button" class="csch-btn csch-btn-ghost" id="csch-close-btn">✕</button>
+      </div>
+
+      <div id="csch-notice" class="csch-notice" style="display:none"></div>
+
+      <div id="csch-layout">
+        <aside id="csch-left">
+          <div class="csch-pane-head">
+            <h2>Course Items</h2>
+          </div>
+          <div id="csch-left-body"></div>
+        </aside>
+        <main id="csch-right">
+          <div class="csch-pane-head">
+            <h2>Schedule Board</h2>
+            <span class="csch-pane-note">Any weekdays</span>
+          </div>
+          <div id="csch-board"></div>
+        </main>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(app);
+
+  /* ── Canvas Enhancer hub integration ────────────────────────────────── */
+
+  document.addEventListener('ce-toggle-scheduler', () => {
+    if (app.classList.contains('open')) closeApp(); else openApp();
+  });
+
+  document.addEventListener('ce-close-scheduler', () => {
+    if (app.classList.contains('open')) closeApp();
+  });
+
+  /* ── Event listeners ─────────────────────────────────────────────────── */
+
+  document.getElementById('csch-close-btn').addEventListener('click', closeApp);
+  document.getElementById('csch-course-sel').addEventListener('change', (e) => {
+    state.selectedCourseId = e.target.value || null;
+    if (state.selectedCourseId) {
+      state.items = []; state.schedule = {}; state.modules = [];
+      loadCourseData();
+    }
+  });
+  document.getElementById('csch-cb-published').addEventListener('change', renderCourseOptions);
+  document.getElementById('csch-cb-dashboard').addEventListener('change', renderCourseOptions);
+  document.getElementById('csch-publish-btn').addEventListener('click', publishSchedule);
+  document.getElementById('csch-more-dates-btn').addEventListener('click', () => {
+    state.slotCount += 6;
+    persistSettings();
+    syncGeneratedDates();
+    render();
+  });
+  document.getElementById('csch-start-date').addEventListener('change', (e) =>
+    updateSetting('startDate', e.target.value || todayKey())
+  );
+  document.getElementById('csch-due-time').addEventListener('change', (e) =>
+    updateSetting('dueTime', e.target.value || '23:59')
+  );
+  document.getElementById('csch-open-offset').addEventListener('change', (e) =>
+    updateSetting('openDaysBefore', normalizeInt(e.target.value, 0))
+  );
+  document.getElementById('csch-close-offset').addEventListener('change', (e) =>
+    updateSetting('closeDaysAfter', normalizeInt(e.target.value, 0))
+  );
+  document.getElementById('csch-answer-offset').addEventListener('change', (e) =>
+    updateSetting('answersDaysAfter', normalizeInt(e.target.value, 0))
+  );
+  document.querySelectorAll('[data-weekday]').forEach((button) => {
+    button.addEventListener('click', () => toggleWeekday(Number(button.getAttribute('data-weekday'))));
+  });
+
+  function closeAllDropdowns() {
+    document.querySelectorAll('.csch-dd-panel').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.csch-dd-btn').forEach(b => b.classList.remove('csch-dd-open'));
+  }
+  function toggleDropdown(panelId, btn) {
+    const panel = document.getElementById(panelId);
+    const isOpen = panel.classList.contains('open');
+    closeAllDropdowns();
+    if (!isOpen) { panel.classList.add('open'); btn.classList.add('csch-dd-open'); }
+  }
+  document.getElementById('csch-dd-course-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-course-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-course-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.getElementById('csch-dd-schedule-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-schedule-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-window-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown('csch-dd-window-panel', e.currentTarget);
+  });
+  document.getElementById('csch-dd-schedule-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.getElementById('csch-dd-window-panel').addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', closeAllDropdowns);
+
+  /* ── Styles ──────────────────────────────────────────────────────────── */
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    #csch-app {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 2147483640;
+      background: transparent;
+      pointer-events: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Lato", "Segoe UI", Arial, sans-serif;
+      color: #2D3B45;
+    }
+
+    #csch-app.open { display: block; }
+
+    #csch-app * { box-sizing: border-box; }
+
+    #csch-shell {
+      position: absolute;
+      top: 48px;
+      bottom: 8px;
+      left: 94px;
+      right: 8px;
+      border-radius: 6px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      background: #F2F4F5;
+      box-shadow: 0 8px 32px rgba(45, 59, 69, 0.28);
+      pointer-events: auto;
+    }
+
+    #csch-topbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 44px;
+      background: #394B58;
+      color: #fff;
+      border-radius: 6px 6px 0 0;
+      border-bottom: 1px solid #2D3B45;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    #csch-brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-right: 10px;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      margin-right: 2px;
+    }
+
+    .csch-tb-sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+
+    .csch-tb-label2 {
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .csch-pane-head h2, .csch-pane-head p { margin: 0; }
+
+    .csch-num-input {
+      width: 42px;
+      border: 1px solid #c7cdd1;
+      border-radius: 3px;
+      background: #fff;
+      color: #2d3b45;
+      font: 700 13px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      text-align: center;
+      padding: 3px 4px;
+    }
+
+    .csch-num-input:focus {
+      outline: none;
+      border-color: #0770B8;
+    }
+
+    /* ── Dropdown menus ── */
+    .csch-dd-wrap { position: relative; flex-shrink: 0; }
+
+    .csch-dd-btn {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+    }
+    .csch-dd-btn:hover, .csch-dd-btn.csch-dd-open {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.4);
+      color: #fff;
+    }
+
+    .csch-dd-panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #d0d5da;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      padding: 10px 14px;
+      z-index: 99999;
+      min-width: 280px;
+    }
+    .csch-dd-panel.open { display: block; }
+
+    .csch-dd-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 13px;
+      color: #2d3b45;
+    }
+    .csch-dd-row:not(:last-child) { border-bottom: 1px solid #f0f0f0; }
+
+    .csch-dd-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      width: 68px;
+      flex-shrink: 0;
+    }
+
+    .csch-dd-input {
+      border: 1px solid #c7cdd1;
+      border-radius: 3px;
+      padding: 4px 7px;
+      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      color: #2d3b45;
+      background: #fff;
+    }
+    .csch-dd-input:focus { outline: none; border-color: #0770B8; }
+
+    .csch-dd-txt { font-size: 12px; color: #6b7280; white-space: nowrap; }
+
+    .csch-dd-row-checks { gap: 14px; border-bottom: 1px solid #eaeaea; }
+    .csch-dd-row-sel { padding-top: 8px; border-bottom: none; }
+    .csch-cb-light { color: #2d3b45 !important; font-size: 13px; font-weight: 500; }
+    .csch-course-sel-light {
+      background: #fff !important;
+      color: #2d3b45 !important;
+      border-color: #c7cdd1 !important;
+      max-width: 100%;
+      width: 100%;
+      font: 600 13px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+    }
+    .csch-course-sel-light option { background: #fff; color: #2d3b45; }
+
+
+    .csch-course-sel {
+      display: block;
+      padding: 4px 6px;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 3px;
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      font: 600 12px -apple-system,BlinkMacSystemFont,Lato,sans-serif;
+      cursor: pointer;
+      outline: none;
+      max-width: 240px;
+    }
+    .csch-course-sel option { background: #394B58; color: #fff; }
+    .csch-course-sel:focus { border-color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.2); }
+
+    .csch-tb-checks {
+      display: inline-flex;
+      gap: 8px;
+    }
+
+    .csch-cb-lbl {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.72);
+      cursor: pointer;
+      user-select: none;
+    }
+    .csch-cb-lbl input { margin: 0; cursor: pointer; }
+
+    .csch-ovr-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 5px;
+      padding: 0;
+      font-size: 10px;
+      font-weight: 700;
+      color: #0770B8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      justify-self: end;
+      text-decoration: none;
+    }
+    .csch-ovr-toggle:hover { text-decoration: underline; }
+    .csch-ovr-dot { color: #2563EB; font-size: 8px; line-height: 1; }
+
+    .csch-item-overrides {
+      margin-top: 4px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(0,0,0,0.09);
+    }
+    .csch-item-overrides-custom {
+      border-top-color: rgba(37,99,235,0.3);
+      background: rgba(37,99,235,0.04);
+      margin-left: -8px; margin-right: -8px; padding-left: 8px; padding-right: 8px;
+      border-radius: 0 0 3px 3px;
+    }
+
+    .csch-ovr-cols {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .csch-ovr-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .csch-ovr-col-lbl {
+      font-size: 9px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .csch-ovr-num {
+      width: 44px;
+      padding: 2px 3px;
+      border: 1px solid #D1D5DB;
+      border-radius: 2px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #374151;
+      text-align: center;
+      background: #F9FAFB;
+      -moz-appearance: textfield;
+    }
+    .csch-ovr-num::-webkit-inner-spin-button,
+    .csch-ovr-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .csch-ovr-num:focus { outline: none; border-color: #2563EB; background: #fff; }
+
+    .csch-ovr-reset {
+      font-size: 9px;
+      color: #2563EB;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 1px 3px;
+      border-radius: 2px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+    .csch-ovr-reset:hover { background: rgba(37,99,235,0.08); }
+
+    .csch-weekdays { display: flex; gap: 3px; flex-wrap: wrap; }
+
+    .csch-day-btn, .csch-btn {
+      border: 1px solid #C7CDD1;
+      border-radius: 3px;
+      background: #fff;
+      color: #2D3B45;
+      padding: 5px 8px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.1;
+      cursor: pointer;
+      transition: background 0.1s ease;
+    }
+
+    .csch-day-btn:hover { background: #E8F1F8; border-color: #0770B8; color: #0770B8; }
+    .csch-btn:hover     { background: #E8F1F8; }
+
+    .csch-day-btn.active {
+      background: #0770B8;
+      border-color: #0770B8;
+      color: #fff;
+    }
+
+    .csch-btn-primary {
+      background: #0770B8;
+      border-color: #0770B8;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .csch-btn-primary:hover { background: #0860A8; }
+
+    .csch-btn-ghost {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+
+    .csch-btn-ghost:hover { background: rgba(255,255,255,0.22); }
+
+    .csch-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .csch-notice {
+      padding: 8px 12px;
+      border-bottom: 1px solid #C7CDD1;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    .csch-notice-info { background: #E8F1F8; color: #075985; }
+    .csch-notice-ok   { background: #ECFDF5; color: #047857; }
+    .csch-notice-err  { background: #FEF2F2; color: #991B1B; }
+
+    #csch-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(240px, 280px) 1fr;
+      overflow: hidden;
+      border-radius: 0 0 6px 6px;
+    }
+
+    #csch-left, #csch-right {
+      min-height: 0;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    #csch-left  { border-right: 1px solid #C7CDD1; background: #fff; }
+    #csch-right { background: #F2F4F5; }
+
+    .csch-pane-head {
+      padding: 10px 12px 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid #C7CDD1;
+      background: #fff;
+    }
+
+    .csch-pane-head h2 { font-size: 13px; font-weight: 700; line-height: 1.1; color: #2D3B45; }
+
+    .csch-pane-note {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    #csch-left-body {
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    #csch-board {
+      overflow: auto;
+      padding: 10px;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(176px, 200px);
+      gap: 10px;
+      align-content: start;
+    }
+
+    .csch-module-group { display: grid; gap: 6px; }
+
+    .csch-module-head {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6B7280;
+    }
+
+    .csch-tile-stack { display: grid; gap: 6px; }
+
+    .csch-item {
+      padding: 8px 9px 8px 7px;
+      border-radius: 3px;
+      border: 1px solid #C7CDD1;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(45,59,69,0.08);
+      cursor: grab;
+      display: grid;
+      gap: 5px;
+    }
+
+    .csch-item:hover { border-color: #0770B8; box-shadow: 0 2px 6px rgba(7,112,184,0.12); }
+    .csch-item:active { cursor: grabbing; }
+
+    .csch-item-top { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .csch-type-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.15;
+    }
+
+    .csch-item-title { font-size: 12px; font-weight: 700; color: #2D3B45; line-height: 1.25; }
+
+    .csch-item-module {
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .csch-item-meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+    .csch-item-meta {
+      font-size: 10px;
+      color: #6B7280;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .csch-item-link { font-size: 10px; font-weight: 700; color: #0770B8; text-decoration: none; flex: 0 0 auto; }
+    .csch-item-link:hover { text-decoration: underline; }
+
+    .csch-date-col { min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: 6px; }
+
+    .csch-date-head {
+      padding: 8px 9px;
+      border-radius: 3px;
+      background: #fff;
+      border: 1px solid #C7CDD1;
+      box-shadow: 0 1px 3px rgba(45,59,69,0.06);
+    }
+
+    .csch-date-head-main { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .csch-date-title { font-size: 13px; font-weight: 700; color: #2D3B45; line-height: 1.15; }
+    .csch-date-sub { margin-top: 2px; font-size: 10px; color: #6B7280; line-height: 1.2; }
+
+    .csch-holiday-badge {
+      margin-top: 4px;
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: #FEF3C7;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .csch-date-count {
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #E8F1F8;
+      color: #0770B8;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1.2;
+      flex: 0 0 auto;
+    }
+
+    .csch-dropzone {
+      min-height: 84px;
+      border: 1px dashed #C7CDD1;
+      border-radius: 3px;
+      padding: 8px;
+      background: #fff;
+      transition: border-color 0.1s ease, background 0.1s ease;
+    }
+
+    .csch-drop-active { border-color: #0770B8; background: #E8F1F8; }
+
+    .csch-dropzone-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; color: #2D3B45; margin-bottom: 6px; }
+
+    .csch-dropzone-help, .csch-empty-slot, .csch-empty-board, .csch-empty-state {
+      font-size: 10px;
+      color: #6B7280;
+      line-height: 1.35;
+    }
+
+    .csch-date-drop { display: grid; gap: 6px; align-content: start; min-height: 160px; }
+
+    .csch-unscheduled { background: #FFFBEB; border: 1px dashed #C7CDD1; }
+
+    @media (max-width: 1100px) {
+      #csch-shell { top: 48px; bottom: 6px; left: 94px; right: 33px; }
+      #csch-topbar { height: auto; padding: 6px 12px; flex-wrap: wrap; border-radius: 6px 6px 0 0; }
+      #csch-layout { grid-template-columns: 1fr; grid-template-rows: minmax(220px, 34%) 1fr; }
+      #csch-left { border-right: none; border-bottom: 1px solid #C7CDD1; }
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  syncGeneratedDates();
+  render();
+
+  /* ── Assignment-page toolbar ─────────────────────────────────────────── */
+  (function installSchedulerToolbar() {
+    if (document.getElementById('csch-toolbar')) return;
+
+    const font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
+
+    const st = document.createElement('style');
+    st.textContent = 'body.csch-page-mode #ce-hub{display:none!important}body.csch-page-mode #ce-hub-panel{display:none!important}body.csch-page-mode:not(.csch-toolbar-collapsed){padding-top:40px!important;box-sizing:border-box!important}body.csch-page-mode.csch-toolbar-collapsed{padding-top:28px!important;box-sizing:border-box!important}@media(max-width:767px){#csch-toolbar{left:0!important}}';
+    (document.head || document.documentElement).appendChild(st);
+
+    // Collapsed tab (top-right, shows when bar is hidden)
+    const colTab = document.createElement('button');
+    colTab.id = 'csch-toolbar-tab';
+    colTab.type = 'button';
+    colTab.textContent = 'Assignment Pulse  ▾';
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => { colTab.style.color = '#fff'; });
+    colTab.addEventListener('mouseleave', () => { colTab.style.color = 'rgba(255,255,255,0.85)'; });
+    document.body.appendChild(colTab);
+
+    // Full toolbar bar
+    const bar = document.createElement('div');
+    bar.id = 'csch-toolbar';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:40px;z-index:2147483640;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+
+    const brand = document.createElement('div');
+    brand.style.cssText = 'display:flex;align-items:center;gap:8px;padding:0 12px 0 4px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:12px;">◆</span><strong style="font-size:12px;letter-spacing:.2px;font-weight:700;">Assignment Pulse</strong>';
+
+    function mkBtn(icon, text) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
+      b.style.cssText = 'height:28px;padding:0 10px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:5px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:6px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
+      return b;
+    }
+
+    const schedBtn = mkBtn('📅', 'Scheduler');
+    schedBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-toggle-scheduler')));
+
+    const settingsBtn=mkBtn('⚙','Settings');
+    globalThis.CECanvasToken?.bindIndicator(settingsBtn);
+    settingsBtn.onclick=()=>document.dispatchEvent(new CustomEvent('ce-open-settings'));
+
+    const helpBtn = document.createElement('button');
+    helpBtn.type='button';helpBtn.textContent='?';helpBtn.title='How Assignment Pulse works';
+    helpBtn.style.cssText='width:28px;height:28px;border-radius:50%;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:'+font+';margin-left:2px;';
+    helpBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-help', { detail: 'scheduler' })));
+
+    const hideBtn = mkBtn('—', 'Hide');
+    hideBtn.style.marginLeft = 'auto';
+    hideBtn.addEventListener('click', () => {
+      bar.style.display = 'none';
+      colTab.style.display = 'block';
+      document.body.classList.add('csch-toolbar-collapsed');
+    });
+    colTab.addEventListener('click', () => {
+      colTab.style.display = 'none';
+      bar.style.display = 'flex';
+      document.body.classList.remove('csch-toolbar-collapsed');
+    });
+
+    bar.append(brand, schedBtn, settingsBtn, helpBtn, hideBtn);
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    let _onPage = false;
+    function updateBar() {
+      const onPage = /\/courses\/\d+\/assignments/.test(window.location.pathname);
+      if (onPage && !_onPage) {
+        document.body.classList.add('csch-page-mode');
+        document.body.classList.remove('csch-toolbar-collapsed');
+        bar.style.display = 'flex';
+        colTab.style.display = 'none';
+      } else if (!onPage && _onPage) {
+        document.body.classList.remove('csch-page-mode', 'csch-toolbar-collapsed');
+        bar.style.display = 'none';
+        colTab.style.display = 'none';
+      }
+      _onPage = onPage;
+    }
+
+    updateBar();
+    new MutationObserver(() => setTimeout(updateBar, 200)).observe(document.body, { childList: true, subtree: false });
+  })();
+})();
