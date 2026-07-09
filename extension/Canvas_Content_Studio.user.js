@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Canvas Content Studio
 // @namespace    https://github.com/MarkAlanBrest/canvas-content-studio
-// @version      2.5.0
+// @version      2.5.1
 // @description  Content design toolbar for the Canvas rich content editor — themed components, icons, AI Assist page builder, and an AI quiz maker
 // @author       MarkAlanBrest
-// @homepageURL  https://career-toolkit-ruby.vercel.app/content-studio
-// @supportURL   https://career-toolkit-ruby.vercel.app/content-studio
+// @homepageURL  https://career-toolkit-ruby.vercel.app/
+// @supportURL   https://career-toolkit-ruby.vercel.app/
 // @updateURL    https://career-toolkit-ruby.vercel.app/content-studio.user.js
 // @downloadURL  https://career-toolkit-ruby.vercel.app/content-studio.user.js
 // @match        *://*.instructure.com/courses/*
