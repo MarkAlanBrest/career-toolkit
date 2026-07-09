@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Teacher Activity Tool
 // @namespace    https://github.com/MarkAlanBrest/canvas-teacher-activity
-// @version      1.2.0
+// @version      1.3.0
 // @description  Fast teacher login and ungraded work report for Canvas LMS admins
 // @author       MarkAlanBrest
 // @match        *://*.instructure.com/*
@@ -21,9 +21,10 @@
   window.__CTA_TEACHER_ACTIVITY__ = true;
   if (window.top !== window.self) return;
 
-  var VERSION = "1.2.0";
+  var VERSION = "1.3.0";
   var PER_PAGE = 100;
   var API_DELAY_MS = 120;
+  var QUICK_SCAN_CONCURRENCY = 8;
   var overlayEl = null;
 
   function apiBase() {
@@ -203,6 +204,80 @@
     };
   }
 
+  async function collectQuickActivity(courses, onProgress) {
+    var teachers = {};
+    var index = 0;
+    var completed = 0;
+
+    async function readCourse(course) {
+      var studentCount = catalogStudentCount(course);
+      if (studentCount === 0) return;
+
+      var teacherEnrollments = [];
+      try {
+        teacherEnrollments = await fetchEnrollments(course.id, "TeacherEnrollment");
+      } catch (err) {
+        console.warn("[CTA] Quick teacher lookup failed for course " + course.id, err);
+      }
+
+      var listedTeachers = teacherEnrollments.length ? teacherEnrollments : courseTeachers(course);
+      listedTeachers.forEach(function (teacher) {
+        var id = teacherKey(teacher);
+        if (!id || id === "unknown") return;
+        if (!teachers[id]) {
+          teachers[id] = {
+            id: id,
+            name: teacherName(teacher),
+            courses: [],
+            students: 0,
+            lastActivity: null,
+            assignments: 0,
+            ungradedAssignments: 0,
+            avgUngradedDays: 0,
+            oldestUngradedDays: 0,
+            needsGrading: 0,
+          };
+        }
+        var row = teachers[id];
+        row.courses.push(courseLabel(course));
+        row.students += studentCount || 0;
+        if (teacher.last_activity_at && (!row.lastActivity || new Date(teacher.last_activity_at) > new Date(row.lastActivity))) {
+          row.lastActivity = teacher.last_activity_at;
+        }
+      });
+    }
+
+    async function worker() {
+      while (index < courses.length) {
+        var course = courses[index++];
+        if (onProgress) onProgress("Quick scanning " + courseLabel(course) + " (" + (completed + 1) + "/" + courses.length + ")...");
+        await readCourse(course);
+        completed++;
+      }
+    }
+
+    var workers = [];
+    var count = Math.min(QUICK_SCAN_CONCURRENCY, courses.length);
+    for (var i = 0; i < count; i++) workers.push(worker());
+    await Promise.all(workers);
+
+    return Object.keys(teachers).map(function (id) {
+      var row = teachers[id];
+      row.level = activityLevel(row);
+      row.reasons = supportReasons(row).filter(function (reason) {
+        return reason.indexOf("ungraded") === -1 && reason.indexOf("assignments have") === -1 && reason.indexOf("submissions currently") === -1;
+      });
+      if (!row.reasons.length) row.reasons = ["login activity looks current"];
+      return row;
+    }).sort(function (a, b) {
+      var levelOrder = { "Needs check-in": 0, "Watch": 1, "Current": 2 };
+      return levelOrder[a.level] - levelOrder[b.level] ||
+        (daysSince(b.lastActivity) || 9999) - (daysSince(a.lastActivity) || 9999) ||
+        b.courses.length - a.courses.length ||
+        a.name.localeCompare(b.name);
+    });
+  }
+
   async function collectActivity(courses, onProgress) {
     var teachers = {};
     for (var i = 0; i < courses.length; i++) {
@@ -294,10 +369,12 @@
       ".cta-title{font-size:18px;font-weight:800;}.cta-sub{font-size:12px;color:#cbd5e1;margin-top:3px;}",
       ".cta-close{border:0;background:rgba(255,255,255,.12);color:#fff;border-radius:7px;height:32px;padding:0 12px;cursor:pointer;}",
       ".cta-body{padding:20px 22px;}.cta-card{background:#fff;border:1px solid #d8dee4;border-radius:8px;padding:16px;margin-bottom:14px;}",
-      ".cta-controls{display:grid;grid-template-columns:minmax(220px,1fr) 160px;gap:12px;align-items:end;}",
+      ".cta-controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,360px);gap:12px;align-items:end;}",
       ".cta-label{display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:6px;}",
       ".cta-select{width:100%;height:38px;border:1px solid #cbd5e1;border-radius:7px;padding:0 10px;background:#fff;color:#1e293b;}",
       ".cta-btn{height:38px;border:0;border-radius:7px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer;}",
+      ".cta-btn-secondary{background:#0f766e;}",
+      ".cta-button-row{display:grid;grid-template-columns:160px 190px;gap:10px;}",
       ".cta-note{font-size:12px;color:#64748b;line-height:1.45;margin-top:10px;}",
       ".cta-status{font-size:13px;color:#475569;padding:18px;text-align:center;}",
       ".cta-stats{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-bottom:14px;}",
@@ -346,11 +423,12 @@
         '<div class="cta-card">' +
           '<div class="cta-controls">' +
             '<div><span class="cta-label">Report</span><div class="cta-note" style="margin-top:0;">All published courses with enrolled students</div></div>' +
-            '<button class="cta-btn" id="cta-run">Show Activity</button>' +
+            '<div class="cta-button-row"><button class="cta-btn cta-btn-secondary" id="cta-quick-run">Quick Scan</button><button class="cta-btn" id="cta-run">Full Backlog Report</button></div>' +
           '</div>' +
-          '<div class="cta-note">Fast report: last Canvas activity, total assignments, assignments with ungraded work, average days ungraded, and grading backlog.</div>' +
+          '<div class="cta-note"><b>Quick Scan</b> only checks teacher login/activity and is the fastest way to find inactive teachers. <b>Full Backlog Report</b> also reads assignments and grading backlog, so it can take much longer.</div>' +
         '</div>' +
         '<div id="cta-results"></div>';
+      document.getElementById("cta-quick-run").addEventListener("click", function () { runQuickReport(courses); });
       document.getElementById("cta-run").addEventListener("click", function () { runReport(courses); });
     } catch (err) {
       body.innerHTML = '<div class="cta-card"><div class="cta-status">Could not load courses: ' + escHtml(err.message || err) + '</div></div>';
@@ -366,6 +444,43 @@
       if (progress) progress.textContent = message;
     });
     renderReport(results, rows, courses.length);
+  }
+
+  async function runQuickReport(courses) {
+    var results = document.getElementById("cta-results");
+    results.innerHTML = '<div class="cta-card"><div class="cta-status" id="cta-progress">Starting quick scan...</div></div>';
+    var progress = document.getElementById("cta-progress");
+    var rows = await collectQuickActivity(courses, function (message) {
+      if (progress) progress.textContent = message;
+    });
+    renderQuickReport(results, rows, courses.length);
+  }
+
+  function renderQuickReport(container, rows, courseCount) {
+    var current = rows.filter(function (r) { return r.level === "Current"; }).length;
+    var watch = rows.filter(function (r) { return r.level === "Watch"; }).length;
+    var check = rows.filter(function (r) { return r.level === "Needs check-in"; }).length;
+    var noActivity = rows.filter(function (r) { return !r.lastActivity; }).length;
+    var tableRows = rows.map(function (row) {
+      var levelClass = row.level === "Current" ? "cta-active" : row.level === "Watch" ? "cta-watch" : "cta-check";
+      var inactive = daysSince(row.lastActivity);
+      return '<tr>' +
+        '<td><b>' + escHtml(row.name) + '</b><small>' + escHtml(row.courses.slice(0, 4).join(", ") + (row.courses.length > 4 ? " +" + (row.courses.length - 4) + " more" : "")) + '</small></td>' +
+        '<td><span class="cta-level ' + levelClass + '">' + escHtml(row.level) + '</span><small>' + escHtml(row.reasons.slice(0, 2).join("; ")) + '</small></td>' +
+        '<td>' + formatDate(row.lastActivity) + '<small>' + (inactive === null ? "No activity date" : inactive + " days ago") + '</small></td>' +
+        '<td>' + row.courses.length + '</td>' +
+        '<td>' + row.students + '</td>' +
+      '</tr>';
+    }).join("");
+    container.innerHTML =
+      '<div class="cta-stats">' +
+        '<div class="cta-stat"><b>' + rows.length + '</b><span>Teachers</span></div>' +
+        '<div class="cta-stat"><b>' + courseCount + '</b><span>Courses Checked</span></div>' +
+        '<div class="cta-stat"><b>' + check + '</b><span>Need Check-in</span></div>' +
+        '<div class="cta-stat"><b>' + noActivity + '</b><span>No Activity Date</span></div>' +
+      '</div>' +
+      '<div class="cta-card"><b>Quick Teacher Login Scan</b><div class="cta-note">' + current + ' current, ' + watch + ' watch, ' + check + ' may need a check-in. This scan skips assignment and grading backlog data so it loads much faster.</div></div>' +
+      '<div class="cta-tablewrap"><table class="cta-table"><thead><tr><th>Teacher</th><th>Status</th><th>Last Canvas Activity</th><th>Courses</th><th>Students</th></tr></thead><tbody>' + (tableRows || '<tr><td colspan="5">No teacher activity found.</td></tr>') + '</tbody></table></div>';
   }
 
   function renderReport(container, rows, courseCount) {

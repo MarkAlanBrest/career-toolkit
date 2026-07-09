@@ -24,6 +24,18 @@ export default function TermsPage() {
         available in your account and do not expire.
       </Section>
 
+      <Section title="Your account is tied to your Canvas ID">
+        Canvas Enhancer identifies your account using the unique user ID your school&apos;s
+        Canvas assigns you, combined with your school&apos;s Canvas domain. There is no separate
+        sign-up, password, or account to create - your credit balance is automatically linked
+        to your Canvas identity. This means your credits and usage history follow you
+        automatically across devices, browsers, and any Canvas Enhancer product (extension or
+        userscript) as long as you are signed in to the same Canvas account. If you teach at
+        more than one school with a separate Canvas domain, each school is treated as a
+        separate account with its own credit balance, since Canvas does not share a single
+        identity across institutions.
+      </Section>
+
       <Section title="Auto-reload">
         If you enable auto-reload, your saved payment method will be charged automatically
         when your credit balance drops below the threshold you have set. You may enable or
