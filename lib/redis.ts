@@ -110,6 +110,10 @@ function createFileBackedRedis() {
       cleanupExpired();
       return Array.from(store.sets.get(key) || []);
     },
+    async scard(key: string) {
+      cleanupExpired();
+      return (store.sets.get(key) || new Set<string>()).size;
+    },
     async zadd(key: string, items: { score: number; member: string } | { score: number; member: string }[]) {
       cleanupExpired();
       const entries = Array.isArray(items) ? items : [items];
