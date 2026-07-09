@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas Content Studio
 // @namespace    https://github.com/MarkAlanBrest/canvas-content-studio
-// @version      2.4.0
+// @version      2.5.0
 // @description  Content design toolbar for the Canvas rich content editor — themed components, icons, AI Assist page builder, and an AI quiz maker
 // @author       MarkAlanBrest
 // @homepageURL  https://career-toolkit-ruby.vercel.app/content-studio
@@ -145,6 +145,17 @@
     try { data = JSON.parse(res.responseText); } catch {}
     if (res.status < 200 || res.status >= 300) throw new Error(data?.error || 'Could not load AI credits.');
     return { ...data, accountToken };
+  }
+
+  // Fires once per install so we have a real distinct-install count — Tampermonkey gives
+  // self-hosted scripts no install telemetry of its own. Only sets the "pinged" flag on a
+  // confirmed server response, so a failed attempt (e.g. offline at install time) retries
+  // on the next page load instead of being silently lost.
+  function pingInstall() {
+    if (GM_getValue('ce_install_pinged', false)) return;
+    gmFetch({ url: `${API_BASE}/api/content-studio/install?accountId=${encodeURIComponent(getAccountId())}`, timeout: 8000 })
+      .then(() => GM_setValue('ce_install_pinged', true))
+      .catch(() => {});
   }
 
   const BAKED_VERSION = '2.4';
@@ -2843,6 +2854,7 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
 
   // ── INIT ──────────────────────────────────────────────────────────────────────
   loadComponents();
+  pingInstall();
   insertQuizBuilderPageButton();
   wireQuizPageNavigation();
 

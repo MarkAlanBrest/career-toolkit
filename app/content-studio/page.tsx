@@ -69,7 +69,7 @@ const FAQ = [
   },
   {
     q: 'Where does my data go?',
-    a: 'The toolbar itself runs entirely in your browser. AI requests are sent to our server only when you click Generate, to call the AI model — nothing else about your Canvas usage is transmitted.',
+    a: 'The toolbar itself runs entirely in your browser. On load it checks our server for the latest component library (anonymous) and, once per install, records that the script is active (tied to the same Canvas identity used for credits, so we know roughly how many teachers are using it). AI requests are sent to our server only when you click Generate, to call the AI model. Nothing about the Canvas pages, courses, or content you work with is otherwise transmitted.',
   },
 ];
 
