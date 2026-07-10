@@ -14,7 +14,9 @@
     "https://*.canvas.com/*",
     "https://*.canvaslms.com/*",
     "https://canvasenhancer.com/*",
-    "https://*.amazonaws.com/*"
+    "https://*.amazonaws.com/*",
+    "https://api.anthropic.com/*",
+    "https://api.unsplash.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -26,7 +28,7 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["backup.js", "canvas-token.js", "hub.js", "content.js", "grader.js", "scheduler.js", "email.js", "announcements.js", "date-autofill.js"],
+      "js": ["backup.js", "canvas-token.js", "hub.js", "content.js", "grader.js", "scheduler.js", "email.js", "announcements.js", "date-autofill.js", "module-builder.js"],
       "css": ["toolbar.css"],
       "run_at": "document_idle"
     }
