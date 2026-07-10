@@ -2413,62 +2413,43 @@
     // ── PER-MODULE BUTTON ────────────────────────────────────────────────────
     // One "AI Builder" button injected into each module's own header toolbar
     // on the Modules page, opening the builder scoped to that module.
-    function findModuleToolbar(module){
-        var header =
-            module.querySelector(".ig-header") ||
-            module.querySelector(".ig-header__layout") ||
-            module.querySelector(".context_module_header") ||
-            module.querySelector("[data-testid='module-header']") ||
-            module.querySelector("h2,h3")?.parentElement;
-        if(!(header instanceof HTMLElement) || isModuleItemRow(header)) return null;
+    // ── FLOATING BUTTON ──────────────────────────────────────────────────────
+    // Appended directly to document.body — not nested inside Canvas's own
+    // module DOM, so it doesn't depend on matching Canvas's header/toolbar
+    // markup at all. Opens the builder for a brand-new module.
+    function installFloatingButton(){
+        if(document.getElementById("cmb-float-btn"))return;
 
-        var toolbar =
-            header.querySelector(".ig-header-admin") ||
-            header.querySelector(".ig-header__admin") ||
-            header.querySelector(".ig-header__actions") ||
-            header.querySelector('[role="toolbar"]');
-        if(toolbar && !isModuleItemRow(toolbar)) return toolbar;
-
-        var trigger = header.querySelector(".al-trigger,[data-testid='module-menu-trigger'],button[aria-haspopup='true']");
-        if(trigger && trigger.parentElement && !isModuleItemRow(trigger.parentElement)) return trigger.parentElement;
-
-        return header;
-    }
-
-    function injectModuleToolbarButtons(){
-        if(!isModulesPage())return;
-        findCanvasModules().forEach(function(module){
-            var toolbar = findModuleToolbar(module);
-            if(!toolbar)return;
-            // Check the button is actually still there, not just a flag on the module
-            // container — Canvas re-renders a module's header on its own (drag-reorder,
-            // publish-state changes, progress updates), which wipes injected children,
-            // but the outer module element (and any flag stored on it) survives that
-            // re-render, so a flag-only check would think the button still exists.
-            if(toolbar.querySelector(".cmb-module-toolbar-btn"))return;
-
-            var btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "cmb-module-toolbar-btn";
-            btn.textContent = "AI Builder";
-            btn.title = "Open Canvas AI Module Builder";
-            btn.addEventListener("click",function(e){
-                e.preventDefault();
-                e.stopPropagation();
-                selectCanvasModule(module);
-                openOverlay();
-            });
-            toolbar.appendChild(btn);
+        var btn = document.createElement("button");
+        btn.id = "cmb-float-btn";
+        btn.type = "button";
+        btn.textContent = "✨ AI Builder";
+        btn.title = "Open Canvas AI Module Builder";
+        btn.style.cssText = "position:fixed;right:24px;bottom:24px;z-index:2147483640;display:none;padding:12px 20px;background:#7C3AED;color:#fff;border:0;border-radius:999px;box-shadow:0 4px 14px rgba(124,58,237,0.4);font-size:14px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Lato','Segoe UI',sans-serif;cursor:pointer;";
+        btn.addEventListener("mouseenter",function(){btn.style.background="#6D28D9";});
+        btn.addEventListener("mouseleave",function(){btn.style.background="#7C3AED";});
+        btn.addEventListener("click",function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            selectNewModule();
+            openOverlay();
         });
+        document.body.appendChild(btn);
+
+        var onPage = false;
+        function updateVisibility(){
+            var shouldShow = isModulesPage();
+            if(shouldShow !== onPage) btn.style.display = shouldShow ? "block" : "none";
+            onPage = shouldShow;
+        }
+        updateVisibility();
+        window.addEventListener("popstate", updateVisibility);
+        setInterval(updateVisibility, 1500);
     }
 
     function init(){
         GM_addStyle(CSS);
-        GM_addStyle(".cmb-module-toolbar-btn{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover{background:#6D28D9;}");
-        injectModuleToolbarButtons();
-        new MutationObserver(injectModuleToolbarButtons).observe(document.body,{childList:true,subtree:true});
-        window.addEventListener("popstate", injectModuleToolbarButtons);
-        setInterval(injectModuleToolbarButtons, 1500);
+        installFloatingButton();
     }
 
     function waitAndLaunch(tries){
