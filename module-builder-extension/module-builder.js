@@ -2626,7 +2626,7 @@
             topic:"", subject:"general", difficulty:"medium",
             typeCounts:{ mc:5, tf:3, short:2, essay:0 },
             includeExplanations:true,
-            variantsPerQ:1, randomizeGroups:false,
+            variantsPerQ:1,
             groups:[], checked:[], queue:[],
             quizTitle:"Quiz", engine:"classic"
         };
@@ -2692,7 +2692,6 @@
         lh += '</select></div>';
         lh += '<div class="cmb-el-grid">';
         lh += '<div class="cmb-el-toggle'+(qst.includeExplanations?' on':'')+'" id="cmb-qb-expl-toggle"><span class="dot"></span>Explanations</div>';
-        lh += '<div class="cmb-el-toggle'+(qst.randomizeGroups?' on':'')+'" id="cmb-qb-rand-toggle"><span class="dot"></span>Randomize</div>';
         lh += '</div></div>';
         lh += '<div class="cmb-card"><label class="cmb-label">Question Types</label>';
         [["mc","Multiple Choice"],["tf","True / False"],["short","Short Answer"],["essay","Essay"]].forEach(function(t){
@@ -2712,10 +2711,6 @@
         left.querySelector("#cmb-qb-expl-toggle").addEventListener("click", function(){
             qst.includeExplanations = !qst.includeExplanations;
             this.classList.toggle("on", qst.includeExplanations);
-        });
-        left.querySelector("#cmb-qb-rand-toggle").addEventListener("click", function(){
-            qst.randomizeGroups = !qst.randomizeGroups;
-            this.classList.toggle("on", qst.randomizeGroups);
         });
         left.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
             btn.addEventListener("click", function(){
@@ -2938,7 +2933,7 @@
             var pos = 1;
             for(var gi=0; gi<qst.queue.length; gi++){
                 var g = qst.queue[gi];
-                var useGroup = qst.randomizeGroups && g.variants.length > 1;
+                var useGroup = g.variants.length > 1;
                 var groupId = null;
                 if(useGroup){
                     var grpResp = await canvasAPI("POST", "/quizzes/"+qid+"/groups", { quiz_groups:[{ name: g.concept||("Group "+(gi+1)), pick_count:1, question_points:1 }] });
@@ -2950,7 +2945,7 @@
             }
             if(canvasModuleId) await addModuleItem(canvasModuleId, "Quiz", qid, qst.quizTitle||"Quiz", null);
             var url = window.location.origin + "/courses/" + getCourseId() + "/quizzes/" + qid;
-            var note = (qst.randomizeGroups && qst.queue.some(function(g){return g.variants.length>1;})) ? " (groups randomized — each student gets 1 variant per group)" : "";
+            var note = qst.queue.some(function(g){return g.variants.length>1;}) ? " (groups randomized — each student gets 1 variant per group)" : "";
             showExportStatus("✓ Quiz created"+note+"! <a href=\""+url+"\" target=\"_blank\" style=\"color:#7C3AED;font-weight:600;\">Open in Canvas ↗</a>", "success");
         }
 
