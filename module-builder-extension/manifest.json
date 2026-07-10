@@ -1,20 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Canvas Enhancer",
-  "version": "2.4.1",
-  "description": "Add professionally styled components, AI-generated content, and quizzes to your Canvas LMS pages.",
-  "permissions": [
-    "storage",
-    "cookies",
-    "windows",
-    "management"
-  ],
+  "name": "Canvas AI Module Builder",
+  "version": "1.0.0",
+  "description": "AI-powered Canvas LMS module builder — generate and insert modules, pages, assignments & quizzes using your own Claude API key.",
+  "permissions": ["storage"],
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://*.canvas.com/*",
     "https://*.canvaslms.com/*",
-    "https://canvasenhancer.com/*",
-    "https://*.amazonaws.com/*"
+    "https://api.anthropic.com/*",
+    "https://api.unsplash.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -26,9 +21,18 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["backup.js", "canvas-token.js", "hub.js", "content.js", "grader.js", "scheduler.js", "email.js", "announcements.js", "date-autofill.js"],
-      "css": ["toolbar.css"],
+      "js": ["lib/pdf.min.js", "lib/mammoth.browser.min.js", "lib/jszip.min.js", "module-builder.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/pdf.worker.min.js"],
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://*.canvas.com/*",
+        "https://*.canvaslms.com/*"
+      ]
     }
   ],
   "action": {

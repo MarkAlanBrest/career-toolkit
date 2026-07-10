@@ -1,4 +1,4 @@
-// Canvas Enhancer — AI Module Builder content script
+// Canvas AI Module Builder — content script
 // Bring-your-own-Claude-API-key module/page/quiz builder, inserted directly via the Canvas API.
 
 (function () {
@@ -25,6 +25,12 @@
 
     // Per-item engine choice: "detailed" (Sonnet, default) or "fast" (Haiku)
     function contentModel(itemData){ return itemData.aiEngine==="fast" ? AI_MODEL_CONTENT_FAST : AI_MODEL_CONTENT; }
+
+    // Most activity types are short, repetitive blocks (cards, T/F statements)
+    // that fit comfortably in 5000 tokens. "readcheck" generates a full content
+    // page (hero + several sections) PLUS multiple question blocks interleaved —
+    // needs more room or the response gets cut off mid-HTML.
+    function activityMaxTokens(itemType){ return itemType === "readcheck" ? 8000 : 5000; }
 
     // ── TOKEN LIMITS ──────────────────────────────────────────────────────────
     // Default is 6000 so normal pages never get cut off.
@@ -515,16 +521,78 @@
     }
 
     // ========== FILE PARSING ==========
-    // PDF/DOCX/PPTX parsing (previously via runtime-fetched pdf.js/mammoth/jszip from
-    // cdnjs) is not available in the extension build — fetching and executing remote
-    // code at runtime is against Chrome/Edge Web Store policy for extensions. Plain
-    // text and pasted content still work fully.
+    // pdf.js / mammoth / jszip are bundled locally (manifest.json content_scripts,
+    // loaded before this file) rather than fetched from cdnjs at runtime — Chrome/Edge
+    // Web Store policy prohibits extensions from fetching and executing remote code.
+
+    async function parsePDF(file){
+        var pdfLib = pdfjsLib;
+        if(!pdfLib.GlobalWorkerOptions.workerSrc){
+            pdfLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("lib/pdf.worker.min.js");
+        }
+        return new Promise(function(res,rej){
+            var r=new FileReader();
+            r.onload=async function(e){
+                try{
+                    var ta=new Uint8Array(e.target.result);
+                    var pdf=await pdfLib.getDocument({data:ta}).promise;
+                    var t="";
+                    for(var i=1;i<=pdf.numPages;i++){var pg=await pdf.getPage(i);var c=await pg.getTextContent();t+=c.items.map(function(x){return x.str;}).join(" ")+"\n\n";}
+                    res(t.trim());
+                }catch(err){rej(err);}
+            };
+            r.onerror=rej; r.readAsArrayBuffer(file);
+        });
+    }
+
+    async function parseDOCX(file){
+        return new Promise(function(res,rej){
+            var r=new FileReader();
+            r.onload=async function(e){
+                try{var result=await mammoth.extractRawText({arrayBuffer:e.target.result});res(result.value.trim());}catch(err){rej(err);}
+            };
+            r.onerror=rej; r.readAsArrayBuffer(file);
+        });
+    }
+
+    function xmlDecode(s){
+        return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
+    }
+
+    async function parsePPTX(file){
+        var buffer = await file.arrayBuffer();
+        var zip = await JSZip.loadAsync(buffer);
+        var slideNames = Object.keys(zip.files).filter(function(name){
+            return /^ppt\/slides\/slide\d+\.xml$/.test(name);
+        }).sort(function(a,b){
+            return parseInt(a.match(/slide(\d+)\.xml/)[1],10) - parseInt(b.match(/slide(\d+)\.xml/)[1],10);
+        });
+        var slidesText = [];
+        for(var i=0;i<slideNames.length;i++){
+            var xml = await zip.files[slideNames[i]].async("string");
+            var texts = [];
+            var re = /<a:t>([^<]*)<\/a:t>/g;
+            var m;
+            while((m = re.exec(xml))){ texts.push(xmlDecode(m[1])); }
+            if(texts.length) slidesText.push("Slide "+(i+1)+": "+texts.join(" "));
+        }
+        return slidesText.join("\n\n");
+    }
+
+    function withTimeout(promise, ms, label){
+        return new Promise(function(resolve, reject){
+            var timer = setTimeout(function(){
+                reject(new Error((label||"Operation")+" timed out after "+Math.round(ms/1000)+"s — the file may be too large or corrupted."));
+            }, ms);
+            promise.then(function(v){ clearTimeout(timer); resolve(v); }, function(err){ clearTimeout(timer); reject(err); });
+        });
+    }
 
     async function parseFile(file){
         var n=file.name.toLowerCase();
-        if(n.endsWith(".pdf")||n.endsWith(".docx")||n.endsWith(".pptx")){
-            throw new Error("PDF/DOCX/PPTX upload isn't supported in this version — paste the text directly or use a .txt file.");
-        }
+        if(n.endsWith(".pdf"))return withTimeout(parsePDF(file), 120000, "Parsing "+file.name);
+        if(n.endsWith(".docx"))return withTimeout(parseDOCX(file), 120000, "Parsing "+file.name);
+        if(n.endsWith(".pptx"))return withTimeout(parsePPTX(file), 120000, "Parsing "+file.name);
         return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.onerror=rej;r.readAsText(file);});
     }
 
@@ -718,7 +786,7 @@
         if(!itemHasSource(d,mod)) throw new Error("No source material");
         var html;
         if(ACTIVITY_TYPES.indexOf(item.type)>=0){
-            html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),5000);
+            html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),activityMaxTokens(item.type));
         }else if(item.type==="labproject"){
             var maxTok=d.longContent?TOKENS_LONG:TOKENS_DEFAULT;
             html=await callClaude(buildLabPrompt(d,item.type),contentModel(d),maxTok);
@@ -1724,7 +1792,7 @@
             state.status="Generating "+info.label+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
             var btn=container.querySelector("#cmb-act-gen");btn.disabled=true;btn.textContent="Generating...";
             try{
-                var html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),5000);
+                var html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),activityMaxTokens(item.type));
                 d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
                 state.status=info.label+" generated!";state.statusType="success";render();
             }catch(err){
@@ -2370,11 +2438,15 @@
     function injectModuleToolbarButtons(){
         if(!isModulesPage())return;
         findCanvasModules().forEach(function(module){
-            if(module.dataset.cmbToolbarInjected)return;
             var toolbar = findModuleToolbar(module);
             if(!toolbar)return;
+            // Check the button is actually still there, not just a flag on the module
+            // container — Canvas re-renders a module's header on its own (drag-reorder,
+            // publish-state changes, progress updates), which wipes injected children,
+            // but the outer module element (and any flag stored on it) survives that
+            // re-render, so a flag-only check would think the button still exists.
+            if(toolbar.querySelector(".cmb-module-toolbar-btn"))return;
 
-            module.dataset.cmbToolbarInjected = "true";
             var btn = document.createElement("button");
             btn.type = "button";
             btn.className = "cmb-module-toolbar-btn";
