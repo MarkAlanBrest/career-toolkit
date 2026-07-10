@@ -27,16 +27,16 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: #0770B8;
-  border: 1px solid #0770B8;
+  background: #fff;
+  border: 1px solid #d5dbe0;
   border-radius: 4px;
   padding: 5px 9px;
   cursor: pointer;
   font-size: 13px;
   font-family: inherit;
-  color: #fff;
+  color: #394B58;
   white-space: nowrap;
-  transition: background 0.12s;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
   line-height: 1.4;
   flex-shrink: 0;
   height: 30px;
@@ -45,24 +45,24 @@
 
 .ce-btn:hover,
 .ce-btn.ce-open {
-  background: #055f9e;
-  border-color: #055f9e;
-  color: #fff;
+  background: #EAF3FB;
+  border-color: #B8DAF0;
+  color: #0B6FB0;
 }
 
-/* AI actions are white pill buttons */
+/* AI actions stay visually distinct but still light, not a solid fill */
 #ce-toolbar .ce-btn-ai {
   background: #fff;
-  color: #0770B8;
+  color: #0B6FB0;
   font-weight: 800;
-  border: 1px solid #fff;
+  border: 1px solid #B8DAF0;
   border-radius: 999px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.16);
+  box-shadow: none;
 }
 #ce-toolbar .ce-btn-ai:hover {
-  background: #f2f8fd;
-  color: #055a96;
-  border-color: #fff;
+  background: #EAF3FB;
+  color: #075686;
+  border-color: #0B6FB0;
 }
 
 .ce-icon {
@@ -90,7 +90,7 @@
   flex-shrink: 0;
 }
 .ce-studio-mark {
-  color: #0770B8;
+  color: #0B6FB0;
   font-size: 14px;
   line-height: 1;
 }
@@ -158,8 +158,8 @@
 }
 
 .ce-item:hover {
-  background: #e8f0f8;
-  color: #0770B8;
+  background: #EAF3FB;
+  color: #0B6FB0;
 }
 
 /* Props row */

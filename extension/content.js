@@ -264,10 +264,10 @@
     #ce-toolbar {
       display:block;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-      font-size:13px; background:#0770B8;
-      border-bottom:1px solid #055b9a;
+      font-size:13px; background:#fff;
+      border-bottom:1px solid #c7cdd1;
       position:relative; z-index:9000; user-select:none;
-      color:#fff; box-sizing:border-box;
+      color:#394B58; box-sizing:border-box;
     }
     #ce-row-top {
       display:flex; align-items:center; gap:4px;
@@ -275,7 +275,7 @@
     }
     #ce-row-bottom {
       height:40px;display:flex;align-items:center;gap:2px;
-      padding:0 8px;background:#0770B8;flex-wrap:nowrap;
+      padding:0 8px;background:#fff;flex-wrap:nowrap;
     }
     #ce-row-props {
       display:none; align-items:center; gap:8px; flex-wrap:wrap;
@@ -323,20 +323,20 @@
     .ce-prop-swatch:hover { transform:scale(1.15); }
     .ce-prop-swatch.active { border-color:#333 !important; box-shadow:0 0 0 1px #fff inset; }
     .ce-prop-sep { width:1px; height:20px; background:#e0e0e0; flex-shrink:0; }
-    .ce-sep { width:1px; height:20px; background:rgba(255,255,255,.28); margin:0 4px; flex-shrink:0; }
+    .ce-sep { width:1px; height:20px; background:#dde1e4; margin:0 4px; flex-shrink:0; }
     .ce-group { position:relative; }
-    .ce-studio-brand { display:flex;align-items:center;gap:6px;padding-right:8px;border-right:1px solid rgba(255,255,255,.28);margin-right:4px;flex-shrink:0;white-space:nowrap; }
-    .ce-studio-mark { color:#fff;font-size:14px;line-height:1; }
-    .ce-studio-name { font-size:12px;font-weight:700;color:#fff;letter-spacing:.01em;white-space:nowrap; }
+    .ce-studio-brand { display:flex;align-items:center;gap:6px;padding-right:8px;border-right:1px solid #dde1e4;margin-right:4px;flex-shrink:0;white-space:nowrap; }
+    .ce-studio-mark { color:#0B6FB0;font-size:14px;line-height:1; }
+    .ce-studio-name { font-size:12px;font-weight:700;color:#394B58;letter-spacing:.01em;white-space:nowrap; }
     .ce-btn {
       display:flex; align-items:center; gap:4px;
-      height:30px;background:#0770B8;border:1px solid #0770B8;border-radius:4px;
-      padding:5px 9px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;
+      height:30px;background:#fff;border:1px solid #d5dbe0;border-radius:4px;
+      padding:5px 9px;cursor:pointer;font-size:13px;font-weight:700;color:#394B58;
       white-space:nowrap;transition:background .12s, color .12s, border-color .12s;font-family:inherit;line-height:1.4;flex-shrink:0;box-sizing:border-box;
     }
-    .ce-btn:hover, .ce-btn.ce-open { background:#055f9e;border-color:#055f9e;color:#fff; }
-    #ce-toolbar .ce-btn-ai { background:#fff;color:#0770B8;font-weight:800;border:1px solid #fff;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.16); }
-    #ce-toolbar .ce-btn-ai:hover { background:#f2f8fd;color:#055a96;border-color:#fff; }
+    .ce-btn:hover, .ce-btn.ce-open { background:#EAF3FB;border-color:#B8DAF0;color:#0B6FB0; }
+    #ce-toolbar .ce-btn-ai { background:#fff;color:#0B6FB0;font-weight:800;border:1px solid #B8DAF0;border-radius:999px;box-shadow:none; }
+    #ce-toolbar .ce-btn-ai:hover { background:#EAF3FB;color:#075686;border-color:#0B6FB0; }
     .ce-icon { font-style:normal; font-size:13px; }
     .ce-panel {
       display:none; position:absolute; top:calc(100% + 2px); left:0;
@@ -2513,26 +2513,26 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     colTab.id = 'ce-quiz-tab';
     colTab.type = 'button';
     colTab.textContent = 'Quiz Pulse  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
-    colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
-    colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#fff;border:1px solid #d5dbe0;border-top:none;border-radius:0 0 0 7px;color:#394B58;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => colTab.style.color = '#0B6FB0');
+    colTab.addEventListener('mouseleave', () => colTab.style.color = '#394B58');
     document.body.appendChild(colTab);
 
     const bar = document.createElement('div');
     bar.id = 'ce-quiz-toolbar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;width:auto;height:52px;z-index:2147483640;overflow:visible;isolation:isolate;background:#fff;border-bottom:1px solid #c7cdd1;box-shadow:0 1px 4px rgba(0,0,0,.06);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;';
 
     const brand = document.createElement('div');
-    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
-    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Quiz Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">QUIZ WORKFLOW</small></span>';
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid #dde1e4;color:#394B58;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px;color:#394B58">Quiz Pulse</strong><small style="font-size:9px;color:#8b98a3;font-weight:600;margin-top:3px">QUIZ WORKFLOW</small></span>';
 
     function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
-      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #d5dbe0;background:#fff;color:#394B58;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#EAF3FB'; b.style.borderColor = '#B8DAF0'; b.style.color = '#0B6FB0'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#fff'; b.style.borderColor = '#d5dbe0'; b.style.color = '#394B58'; });
       return b;
     }
 
@@ -2540,12 +2540,12 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     quizWrap.style.cssText = 'position:relative;z-index:2;flex-shrink:0;';
     const quizBtn = mkBtn('✨', 'Quiz Builder  ▾');
     quizBtn.style.background = '#fff';
-    quizBtn.style.color = '#0770B8';
-    quizBtn.style.borderColor = '#fff';
+    quizBtn.style.color = '#0B6FB0';
+    quizBtn.style.borderColor = '#B8DAF0';
     quizBtn.style.borderRadius = '999px';
-    quizBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.18)';
-    quizBtn.addEventListener('mouseenter', () => { quizBtn.style.background = '#f2f8fd'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#055a96'; });
-    quizBtn.addEventListener('mouseleave', () => { quizBtn.style.background = '#fff'; quizBtn.style.borderColor = '#fff'; quizBtn.style.color = '#0770B8'; });
+    quizBtn.style.boxShadow = 'none';
+    quizBtn.addEventListener('mouseenter', () => { quizBtn.style.background = '#EAF3FB'; quizBtn.style.borderColor = '#0B6FB0'; quizBtn.style.color = '#075686'; });
+    quizBtn.addEventListener('mouseleave', () => { quizBtn.style.background = '#fff'; quizBtn.style.borderColor = '#B8DAF0'; quizBtn.style.color = '#0B6FB0'; });
     const quizMenu = document.createElement('div');
     quizMenu.style.cssText = 'position:absolute;left:0;top:40px;z-index:2147483642;min-width:220px;background:#fff;border:1px solid #c7cdd1;border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,.13);display:none;overflow:hidden;';
     function quizMenuItem(label) {
@@ -2553,7 +2553,7 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
       b.type = 'button';
       b.textContent = label;
       b.style.cssText = 'display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #f0f0f0;border-radius:0;padding:7px 14px;font-size:13px;font-weight:400;color:#2d3b45;cursor:pointer;transition:background .1s,color .1s;font-family:' + font + ';line-height:1.4;';
-      b.addEventListener('mouseenter', () => { b.style.background = '#e8f0f8'; b.style.color = '#0770B8'; });
+      b.addEventListener('mouseenter', () => { b.style.background = '#EAF3FB'; b.style.color = '#0B6FB0'; });
       b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; b.style.color = '#2d3b45'; });
       return b;
     }
