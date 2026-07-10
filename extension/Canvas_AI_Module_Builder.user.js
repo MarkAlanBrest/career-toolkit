@@ -2395,14 +2395,39 @@
         return /\/courses\/\d+\/modules/.test(window.location.pathname);
     }
 
+    function syncModuleBuilderLauncher(){
+        var existing = document.getElementById("cmb-module-launcher");
+        if(!isModulesPage()){
+            if(existing) existing.remove();
+            return;
+        }
+        if(existing) return;
+
+        var btn = document.createElement("button");
+        btn.id = "cmb-module-launcher";
+        btn.type = "button";
+        btn.textContent = "Module Builder";
+        btn.title = "Open Canvas AI Module Builder";
+        btn.addEventListener("click",function(e){
+            e.preventDefault();
+            e.stopPropagation();
+            openOverlay();
+        });
+        document.body.appendChild(btn);
+    }
+
     function injectModuleToolbarButtons(){
+        syncModuleBuilderLauncher();
         if(!isModulesPage())return;
         document.querySelectorAll(".context_module").forEach(function(module){
             if(module.dataset.cmbToolbarInjected)return;
             var toolbar =
                 module.querySelector(".ig-header-admin") ||
                 module.querySelector(".module-item-actions") ||
-                module.querySelector('[role="toolbar"]');
+                module.querySelector('[role="toolbar"]') ||
+                module.querySelector(".ig-header__admin") ||
+                module.querySelector(".ig-header__actions") ||
+                module.querySelector(".al-trigger")?.parentElement;
             if(!toolbar)return;
 
             module.dataset.cmbToolbarInjected = "true";
@@ -2423,9 +2448,11 @@
 
     function init(){
         GM_addStyle(CSS);
-        GM_addStyle(".cmb-module-toolbar-btn{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover{background:#6D28D9;}");
+        GM_addStyle(".cmb-module-toolbar-btn{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover{background:#6D28D9;}#cmb-module-launcher{position:fixed;right:22px;bottom:22px;z-index:2147483640;padding:11px 16px;background:#7C3AED;color:#fff;border:0;border-radius:999px;box-shadow:0 6px 18px rgba(15,23,42,.24);cursor:pointer;font:700 13px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.2;}#cmb-module-launcher:hover{background:#6D28D9;}");
         injectModuleToolbarButtons();
         new MutationObserver(injectModuleToolbarButtons).observe(document.body,{childList:true,subtree:true});
+        window.addEventListener("popstate", injectModuleToolbarButtons);
+        setInterval(injectModuleToolbarButtons, 1500);
     }
 
     function waitAndLaunch(tries){
