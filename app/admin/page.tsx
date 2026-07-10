@@ -12,13 +12,6 @@ type AdminSummary = {
   error?: string;
 };
 
-type ContentStudioStats = {
-  totalInstalls?: number | null;
-  daily?: { date: string; count: number }[];
-  generatedAt?: string;
-  error?: string;
-};
-
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
 const blue = '#0770B8';
 const navy = '#2d3b45';
@@ -27,7 +20,6 @@ export default function AdminPage() {
   const [token, setToken] = useState('');
   const [savedToken, setSavedToken] = useState('');
   const [summary, setSummary] = useState<AdminSummary | null>(null);
-  const [csStats, setCsStats] = useState<ContentStudioStats | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,16 +41,6 @@ export default function AdminPage() {
       .then(data => { if (!cancelled) setSummary(data); })
       .catch(error => { if (!cancelled) setSummary({ products: [], error: error instanceof Error ? error.message : 'Admin request failed.' }); })
       .finally(() => { if (!cancelled) setLoading(false); });
-
-    fetch('/api/admin/content-studio', { headers: { 'x-admin-token': savedToken } })
-      .then(async response => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.error || 'Admin request failed.');
-        return data as ContentStudioStats;
-      })
-      .then(data => { if (!cancelled) setCsStats(data); })
-      .catch(error => { if (!cancelled) setCsStats({ error: error instanceof Error ? error.message : 'Admin request failed.' }); });
-
     return () => { cancelled = true; };
   }, [savedToken]);
 
@@ -132,27 +114,6 @@ export default function AdminPage() {
             </div>
           </section>
         </div>
-
-        <section style={{ background: '#fff', border: '1px solid #d8dde3', borderRadius: 8, padding: 18, marginTop: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-            <h2 style={{ fontSize: 17, margin: 0 }}>Content Studio Installs</h2>
-            <div style={{ fontSize: 26, fontWeight: 800 }}>{csStats?.totalInstalls ?? 'n/a'} <span style={{ fontSize: 12, fontWeight: 500, color: '#6b7780' }}>distinct installs</span></div>
-          </div>
-          {csStats?.error && <div style={{ color: '#b42318', fontSize: 13, marginBottom: 10 }}>{csStats.error}</div>}
-          {csStats?.daily && csStats.daily.length > 0 && (() => {
-            const max = Math.max(1, ...csStats.daily.map(d => d.count));
-            return (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 100, overflowX: 'auto', paddingBottom: 4 }}>
-                {csStats.daily.map(day => (
-                  <div key={day.date} title={`${day.date}: ${day.count}`} style={{ flex: '0 0 auto', width: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <div style={{ width: '100%', height: Math.max(2, Math.round((day.count / max) * 80)), background: day.count ? blue : '#e5e9ed', borderRadius: 2 }} />
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-          <div style={{ fontSize: 12, color: '#6b7780', marginTop: 10 }}>Last {csStats?.daily?.length ?? 30} days · hover a bar for the exact date and count.</div>
-        </section>
       </section>
     </main>
   );

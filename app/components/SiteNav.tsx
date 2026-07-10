@@ -3,14 +3,14 @@
 const serif = 'Georgia,"Times New Roman",serif';
 const display = '"Trebuchet MS",Arial,sans-serif';
 
-export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' | 'departments' | 'course-builder' }) {
+export default function SiteNav({ active }: { active?: 'home' | 'features' | 'pricing' | 'departments' }) {
+  const extensionUrl = process.env.NEXT_PUBLIC_EXTENSION_URL || '#';
   const links = [
     { href: '/', label: 'Home', key: 'home' },
-    { href: '/course-builder', label: 'Course Builder', key: 'course-builder' },
     { href: '/features', label: 'Features', key: 'features' },
     { href: '/pricing', label: 'AI Credits', key: 'pricing' },
     { href: '/departments', label: 'Departments', key: 'departments' },
-    { href: 'https://career-toolkit-ruby.vercel.app/content-studio.user.js', label: 'Install', key: 'install' },
+    { href: extensionUrl, label: 'Install', key: 'install' },
   ];
 
   return (
