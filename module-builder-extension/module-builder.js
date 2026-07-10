@@ -3,6 +3,7 @@
 
 (function () {
     "use strict";
+    console.log("[CMB] script starting");
 
     if (window.__CANVAS_MODULE_BUILDER__) return;
     window.__CANVAS_MODULE_BUILDER__ = true;
@@ -1362,6 +1363,44 @@
     .cmb-progress-log div{padding:2px 0;}
     .cmb-progress-log .error{color:#EF4444;}
     .cmb-progress-log .success{color:#10B981;}
+
+    /* ── MANUAL EDITOR ── */
+    #cmb-manual-overlay{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:30px 20px;font-family:system-ui,-apple-system,sans-serif;}
+    #cmb-manual-panel{background:#F8FAFC;border-radius:20px;max-width:760px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 60px);}
+    .cmb-wys-toolbar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
+    .cmb-wys-btn{padding:6px 10px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;color:#475569;font-size:12px;font-weight:700;cursor:pointer;}
+    .cmb-wys-btn:hover{background:#F5F3FF;border-color:#7C3AED;color:#7C3AED;}
+    .cmb-wys-editor{min-height:260px;border:1px solid #CBD5E1;border-radius:8px;padding:14px;font-size:14px;line-height:1.7;color:#1E293B;background:#fff;overflow-y:auto;}
+    .cmb-wys-editor:focus{outline:none;border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,0.12);}
+
+    /* ── QUIZ BUILDER ── */
+    #cmb-quiz-overlay{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;padding:24px;font-family:system-ui,-apple-system,sans-serif;}
+    #cmb-quiz-panel{background:#F8FAFC;border-radius:20px;max-width:1280px;width:100%;height:calc(100vh - 48px);box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;}
+    .cmb-qb-cols{flex:1;min-height:0;display:grid;grid-template-columns:320px 1fr 300px;}
+    .cmb-qb-col{overflow-y:auto;min-height:0;}
+    .cmb-qb-col.left{background:#fff;border-right:1px solid #E2E8F0;}
+    .cmb-qb-col.mid{background:#F1F5F9;border-right:1px solid #E2E8F0;}
+    .cmb-qb-col.right{background:#fff;}
+    .cmb-qb-colhdr{padding:12px 16px 10px;border-bottom:1px solid #E2E8F0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748B;position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;background:inherit;}
+    .cmb-qb-colbody{padding:14px 16px;}
+    .cmb-qb-empty{display:flex;align-items:center;justify-content:center;height:240px;color:#94A3B8;font-size:13px;text-align:center;line-height:1.7;}
+    .cmb-qb-selall{font-size:11px;background:none;border:none;color:#7C3AED;cursor:pointer;font-weight:700;}
+    .cmb-qb-gcard{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;}
+    .cmb-qb-gcard.sel{border-color:#7C3AED;}
+    .cmb-qb-ghdr{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
+    .cmb-qb-cbox{width:18px;height:18px;border-radius:4px;border:2px solid #CBD5E1;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;}
+    .cmb-qb-gcard.sel .cmb-qb-cbox{border-color:#7C3AED;background:#7C3AED;}
+    .cmb-qb-gtitle{font-weight:700;font-size:13px;color:#1E293B;flex:1;}
+    .cmb-qb-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap;flex-shrink:0;}
+    .cmb-qb-vtabs{display:flex;gap:4px;margin:0 0 8px 26px;flex-wrap:wrap;}
+    .cmb-qb-vtab{padding:3px 10px;border-radius:20px;border:1px solid #CBD5E1;background:#F8FAFC;color:#64748B;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;}
+    .cmb-qb-vtab.active{border-color:#7C3AED;background:#F5F3FF;color:#7C3AED;font-weight:700;}
+    .cmb-qb-vbody{margin-left:26px;font-size:13px;line-height:1.55;color:#1E293B;}
+    .cmb-qb-ans{display:flex;gap:6px;align-items:flex-start;font-size:12px;padding:4px 8px;border-radius:6px;margin-bottom:3px;background:#F8FAFC;border:1px solid #F1F5F9;}
+    .cmb-qb-ans.correct{background:#F0FDF4;border-color:#86EFAC;}
+    .cmb-qb-expl{margin-top:8px;font-size:11px;color:#64748B;padding-top:8px;border-top:1px solid #F1F5F9;line-height:1.5;}
+    .cmb-qb-queue-item{display:flex;align-items:flex-start;gap:6px;padding:7px 0;border-bottom:1px solid #F1F5F9;font-size:12px;}
+    .cmb-qb-queue-item .rm{background:none;border:none;color:#94A3B8;cursor:pointer;font-size:11px;flex-shrink:0;padding:0;margin-top:2px;}
     `;
 
     // ========== RENDER SYSTEM ==========
@@ -2365,8 +2404,625 @@
         if(overlayEl){overlayEl.remove();overlayEl=null;}
     }
 
+    // ── MANUAL EDITOR TEMPLATES ──────────────────────────────────────────────
+    // Same component designs as the Canvas Enhancer Content Studio toolbar
+    // (dividers/headers/callouts/lists/layouts/cards), but with colors/sizing
+    // resolved to fixed defaults instead of a property panel — click, it's
+    // inserted, done.
+    var MANUAL_TEMPLATES = (function(){
+        var P = "#7C3AED", L = "#F5F3FF";
+        return [
+            { label:"Dividers", items:[
+                { label:"Simple line", html:'<hr style="border:none;border-top:1px solid '+P+';margin:1em 0;">' },
+                { label:"Colored bar", html:'<hr style="border:none;height:4px;background:'+P+';margin:1em 0;">' },
+            ]},
+            { label:"Headers", items:[
+                { label:"Section banner", html:'<div style="background:'+L+';border-left:5px solid '+P+';padding:12px 16px;margin:1em 0;font-weight:bold;color:#1a1a1a;">Section Title</div>' },
+                { label:"Solid banner", html:'<div style="background:'+P+';color:#fff;padding:12px 16px;margin:1em 0;font-weight:bold;border-radius:4px;">Section Title</div>' },
+                { label:"Underline header", html:'<h2 style="border-bottom:2px solid '+P+';padding:12px 0 4px;color:'+P+';">Section Title</h2>' },
+            ]},
+            { label:"Callouts", items:[
+                { label:"Tip", html:'<div style="background:#e8f5e9;border-left:5px solid #2e7d32;padding:12px 16px;margin:1em 0;border-radius:0 4px 4px 0;"><strong style="color:#2e7d32;">💡 Tip</strong><br>Add your tip here.</div>' },
+                { label:"Warning", html:'<div style="background:#fff3e0;border-left:5px solid #e65100;padding:12px 16px;margin:1em 0;border-radius:0 4px 4px 0;"><strong style="color:#e65100;">⚠️ Warning</strong><br>Add your warning here.</div>' },
+                { label:"Important", html:'<div style="background:#fce4ec;border-left:5px solid #b71c1c;padding:12px 16px;margin:1em 0;border-radius:0 4px 4px 0;"><strong style="color:#b71c1c;">❗ Important</strong><br>Add your note here.</div>' },
+                { label:"Note", html:'<div style="background:#e3f2fd;border-left:5px solid #1565c0;padding:12px 16px;margin:1em 0;border-radius:0 4px 4px 0;"><strong style="color:#1565c0;">📝 Note</strong><br>Add your note here.</div>' },
+            ]},
+            { label:"Lists", items:[
+                { label:"Checklist", html:'<div style="margin:1em 0;">☐ First item<br>☐ Second item<br>☐ Third item</div>' },
+                { label:"Icon list", html:'<ul style="list-style:none;padding:0;margin:1em 0;"><li style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0;"><span>✅</span><span>Item one</span></li><li style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0;"><span>✅</span><span>Item two</span></li><li style="display:flex;gap:10px;padding:7px 0;"><span>✅</span><span>Item three</span></li></ul>' },
+                { label:"Progress tracker", html:'<div style="margin:1em 0;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="background:'+P+';color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.8em;font-weight:bold;">1</span><span>Step one</span></div><div style="display:flex;align-items:center;gap:8px;"><span style="background:#ccc;color:#333;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.8em;font-weight:bold;">2</span><span style="color:#999;">Step two</span></div></div>' },
+            ]},
+            { label:"Layouts", items:[
+                { label:"Two columns", html:'<table style="width:100%;border-collapse:collapse;margin:1em 0;"><tr><td style="width:50%;padding:12px;vertical-align:top;border:1px solid #ddd;">Column one content here.</td><td style="width:50%;padding:12px;vertical-align:top;border:1px solid #ddd;">Column two content here.</td></tr></table>' },
+                { label:"Three columns", html:'<table style="width:100%;border-collapse:collapse;margin:1em 0;"><tr><td style="width:33%;padding:12px;vertical-align:top;border:1px solid #ddd;">Column one.</td><td style="width:33%;padding:12px;vertical-align:top;border:1px solid #ddd;">Column two.</td><td style="width:34%;padding:12px;vertical-align:top;border:1px solid #ddd;">Column three.</td></tr></table>' },
+                { label:"Image + text", html:'<table style="width:100%;border-collapse:collapse;border:1px solid #ddd;margin:1em 0;"><tr><td style="width:200px;background:#e0e0e0;padding:16px;text-align:center;color:#666;vertical-align:middle;">[Image]</td><td style="padding:16px;vertical-align:top;"><strong>Card Title</strong><br><br>Card description goes here.</td></tr></table>' },
+                { label:"Collapsible", html:'<details open style="border:1px solid #ddd;border-radius:4px;padding:12px 16px;margin:1em 0;"><summary style="font-weight:bold;cursor:pointer;color:'+P+';">Click to expand ▾</summary><div style="margin-top:12px;padding:10px 12px;border:2px dashed #ccc;border-radius:4px;min-height:48px;">Hidden content goes here.</div></details>' },
+                { label:"Video", html:'<h2 style="color:'+P+';">Video: [Video Title]</h2><div style="background:#f1f5f9;border:1px dashed #cbd5e1;padding:24px;text-align:center;color:#64748b;margin:12px 0;">🎬 Paste your video embed code or link here</div><p>Add a short description of what students should watch for.</p>' },
+                { label:"Quick links", html:'<div style="display:flex;gap:10px;flex-wrap:wrap;margin:1em 0;padding:10px;background:#f8fafc;border-radius:8px;"><a href="#" style="padding:6px 14px;background:#fff;border:1px solid #cbd5e1;border-radius:999px;color:#334155;text-decoration:none;font-weight:600;">Link 1</a><a href="#" style="padding:6px 14px;background:#fff;border:1px solid #cbd5e1;border-radius:999px;color:#334155;text-decoration:none;font-weight:600;">Link 2</a><a href="#" style="padding:6px 14px;background:#fff;border:1px solid #cbd5e1;border-radius:999px;color:#334155;text-decoration:none;font-weight:600;">Link 3</a></div>' },
+            ]},
+            { label:"Cards", items:[
+                { label:"Welcome", html:'<div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;margin:1em 0;box-shadow:0 2px 8px rgba(0,0,0,.08);"><div style="background:linear-gradient(135deg,'+P+','+P+'bb);color:#fff;padding:22px 24px;"><strong style="font-size:1.3em;display:block;margin-bottom:4px;">Welcome to [Course Name]!</strong><span style="opacity:.85;">We\'re glad you\'re here.</span></div><div style="padding:18px 20px;"><p style="margin:0 0 12px;">Hello and welcome! I\'m [Your Name] and I\'m excited to have you in this course.</p></div></div>' },
+                { label:"Office hours", html:'<div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;margin:1em 0;box-shadow:0 2px 8px rgba(0,0,0,.08);"><div style="background:'+P+';color:#fff;padding:14px 18px;"><strong>⏰ Office Hours</strong></div><div style="padding:16px 18px;"><table style="width:100%;border-collapse:collapse;"><tr><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;font-weight:bold;width:140px;">Monday</td><td style="padding:7px 0;border-bottom:1px solid #f0f0f0;">2:00 – 4:00 PM · Room 000</td></tr><tr><td style="padding:7px 0;font-weight:bold;">By Appointment</td><td style="padding:7px 0;">Email to schedule</td></tr></table></div></div>' },
+                { label:"Due date", html:'<div style="border:1px solid #ddd;border-radius:8px;overflow:hidden;margin:1em 0;box-shadow:0 2px 8px rgba(0,0,0,.08);"><div style="background:'+P+';color:#fff;padding:14px 18px;"><strong>📅 Important Dates</strong></div><div style="padding:16px 18px;"><div style="display:flex;align-items:center;gap:14px;"><div style="background:'+P+';color:#fff;border-radius:6px;padding:8px 12px;text-align:center;min-width:52px;"><div style="font-size:1.3em;font-weight:bold;line-height:1;">01</div><div style="font-size:.7em;text-transform:uppercase;opacity:.9;">Month</div></div><div><strong style="display:block;">Assignment Name</strong><span style="font-size:.85em;color:#666;">Due by 11:59 PM</span></div></div></div></div>' },
+                { label:"Pull quote", html:'<blockquote style="border-left:4px solid '+P+';margin:1em 0;padding:14px 18px;background:'+L+';font-style:italic;border-radius:0 6px 6px 0;">"Add your quote or key point here."<br><cite style="font-style:normal;font-size:.85em;color:#666;margin-top:8px;display:block;">— Source</cite></blockquote>' },
+                { label:"Button link", html:'<p style="margin:1em 0;"><a href="#" style="display:inline-block;background:'+P+';color:#fff;padding:10px 22px;border-radius:4px;text-decoration:none;font-weight:bold;">Button Label</a></p>' },
+            ]},
+        ];
+    })();
+
+    // ========== MANUAL EDITOR ==========
+    // Same "pick a style, insert into Canvas" shape as the AI builder, but the
+    // body content is typed/formatted directly via a WYSIWYG editor instead of
+    // generated. Quizzes aren't offered here — hand-building test questions has
+    // no real advantage over the AI question generator.
+    function openManualEditor(module){
+        if(document.getElementById("cmb-manual-overlay")) return;
+        var canvasModuleId = getCanvasModuleId(module);
+        var canvasModuleName = getCanvasModuleName(module);
+        var manual = { itemType: "page", pageStyle: "custom" };
+
+        var overlay = document.createElement("div");
+        overlay.id = "cmb-manual-overlay";
+        overlay.innerHTML =
+            '<div id="cmb-manual-panel">' +
+              '<div class="cmb-topbar"><div><h1>Manual Editor</h1><div class="cmb-topbar-sub">'+esc(canvasModuleName)+'</div></div><button class="cmb-close" id="cmb-manual-close">Close</button></div>' +
+              '<div class="cmb-body" id="cmb-manual-body"></div>' +
+              '<div class="cmb-status" id="cmb-manual-status" style="display:none;"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        function close(){ overlay.remove(); }
+        overlay.querySelector("#cmb-manual-close").addEventListener("click", close);
+        overlay.addEventListener("click", function(e){ if(e.target === overlay) close(); });
+
+        function setStatus(msg, type){
+            var el = overlay.querySelector("#cmb-manual-status");
+            el.style.display = "block";
+            var colors = {success:"#166534",error:"#b91c1c",loading:"#1d4ed8"};
+            var bgs = {success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff"};
+            el.style.color = colors[type] || "#6b7280";
+            el.style.background = bgs[type] || "#f9fafb";
+            el.textContent = msg;
+        }
+
+        var body = overlay.querySelector("#cmb-manual-body");
+        var h = '';
+        h += '<div class="cmb-card"><label class="cmb-label">Type</label><div class="cmb-diff-grid">';
+        h += '<div class="cmb-diff-btn sel" data-type="page" style="text-align:center;">Page</div>';
+        h += '<div class="cmb-diff-btn" data-type="assignment" style="text-align:center;">Assignment</div>';
+        h += '</div></div>';
+        h += '<div class="cmb-card"><label class="cmb-label">Title</label><input type="text" class="cmb-input" id="cmb-manual-title" placeholder="Enter a title"></div>';
+        h += '<div class="cmb-card" id="cmb-manual-points-card" style="display:none;"><label class="cmb-label">Points</label><input type="text" class="cmb-input" id="cmb-manual-points" placeholder="100"></div>';
+        h += '<div class="cmb-card"><label class="cmb-label">Page Style</label><div class="cmb-theme-grid" id="cmb-manual-themes"></div></div>';
+        h += '<div class="cmb-card"><label class="cmb-label">Content</label>';
+        h += '<div class="cmb-desc" style="margin:0 0 6px;">Click a template to drop in a starting layout, then edit the text.</div>';
+        h += '<div class="cmb-wys-toolbar" id="cmb-wys-templates"></div>';
+        h += '<div class="cmb-wys-toolbar" id="cmb-wys-toolbar"></div>';
+        h += '<div class="cmb-wys-editor" id="cmb-wys-editor" contenteditable="true"></div>';
+        h += '</div>';
+        h += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-primary" id="cmb-manual-insert">\u{1F680} Insert into Canvas</button></div>';
+        body.innerHTML = h;
+
+        // Type toggle (Page vs Assignment)
+        body.querySelectorAll("[data-type]").forEach(function(btn){
+            btn.addEventListener("click", function(){
+                manual.itemType = btn.dataset.type;
+                body.querySelectorAll("[data-type]").forEach(function(b){ b.classList.remove("sel"); });
+                btn.classList.add("sel");
+                body.querySelector("#cmb-manual-points-card").style.display = manual.itemType === "assignment" ? "block" : "none";
+            });
+        });
+
+        // Theme swatches — same PAGE_THEMES used by the AI builder, so manual and
+        // AI-built pages in the same module can look consistent.
+        var themeGrid = body.querySelector("#cmb-manual-themes");
+        Object.keys(PAGE_THEMES).forEach(function(tk){
+            var t = PAGE_THEMES[tk];
+            var sw = document.createElement("div");
+            sw.className = "cmb-theme-swatch" + (tk === manual.pageStyle ? " sel" : "");
+            sw.innerHTML =
+                '<div class="cmb-swatch-bar" style="background-color:'+t.swatchBg+';"><div class="cmb-swatch-main" style="background-color:'+t.swatchBg+';">'+t.emoji+'</div><div class="cmb-swatch-stripe" style="background-color:'+t.swatchAcc+';"></div></div>' +
+                '<div class="cmb-swatch-info"><div class="cmb-swatch-name">'+esc(t.name.replace(/^.{1,4}\s/,''))+'</div><div class="cmb-swatch-preview">'+esc(t.preview)+'</div></div>';
+            sw.addEventListener("click", function(){
+                manual.pageStyle = tk;
+                themeGrid.querySelectorAll(".cmb-theme-swatch").forEach(function(s){ s.classList.remove("sel"); });
+                sw.classList.add("sel");
+            });
+            themeGrid.appendChild(sw);
+        });
+
+        var editor = body.querySelector("#cmb-wys-editor");
+
+        // Template palette — click a chip to insert that component at the cursor
+        // (or replace the placeholder text if the editor is still empty).
+        var templatesEl = body.querySelector("#cmb-wys-templates");
+        MANUAL_TEMPLATES.forEach(function(group){
+            var groupLabel = document.createElement("div");
+            groupLabel.textContent = group.label;
+            groupLabel.style.cssText = "font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8;width:100%;margin:6px 0 2px;";
+            templatesEl.appendChild(groupLabel);
+            group.items.forEach(function(tpl){
+                var b = document.createElement("button");
+                b.type = "button"; b.className = "cmb-wys-btn"; b.textContent = tpl.label;
+                b.addEventListener("mousedown", function(e){ e.preventDefault(); });
+                b.addEventListener("click", function(){
+                    editor.focus();
+                    if(!editor.textContent.trim()){ editor.innerHTML = tpl.html; }
+                    else{ document.execCommand("insertHTML", false, tpl.html); }
+                });
+                templatesEl.appendChild(b);
+            });
+        });
+
+        // WYSIWYG toolbar — plain contenteditable + execCommand, no external editor library.
+        var toolbar = body.querySelector("#cmb-wys-toolbar");
+        function mkWysBtn(label, cmd, val){
+            var b = document.createElement("button");
+            b.type = "button"; b.className = "cmb-wys-btn"; b.textContent = label;
+            b.addEventListener("mousedown", function(e){ e.preventDefault(); }); // keep the text selection
+            b.addEventListener("click", function(){ editor.focus(); document.execCommand(cmd, false, val || null); });
+            return b;
+        }
+        [["B","bold"],["I","italic"],["U","underline"],["H2","formatBlock","H2"],["• List","insertUnorderedList"],["1. List","insertOrderedList"]].forEach(function(spec){
+            toolbar.appendChild(mkWysBtn(spec[0], spec[1], spec[2]));
+        });
+        var linkBtn = document.createElement("button");
+        linkBtn.type = "button"; linkBtn.className = "cmb-wys-btn"; linkBtn.textContent = "Link";
+        linkBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });
+        linkBtn.addEventListener("click", function(){
+            var url = prompt("Link URL:");
+            if(url){ editor.focus(); document.execCommand("createLink", false, url); }
+        });
+        toolbar.appendChild(linkBtn);
+
+        overlay.querySelector("#cmb-manual-insert").addEventListener("click", async function(){
+            var title = body.querySelector("#cmb-manual-title").value.trim();
+            if(!title){ setStatus("Enter a title first.", "error"); return; }
+            var bodyHtml = editor.innerHTML.trim();
+            if(!bodyHtml){ setStatus("Add some content first.", "error"); return; }
+
+            var theme = PAGE_THEMES[manual.pageStyle] || PAGE_THEMES.custom;
+            var isDarkHeader = isDarkColor(theme.headerBg);
+            var heroText = isDarkHeader ? "#FFFFFF" : theme.text;
+            var html = '<div style="background:'+theme.headerBg+';padding:28px 32px;border-bottom:3px solid '+theme.accent+';"><h1 style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:'+heroText+';margin:0;">'+esc(title)+'</h1></div>';
+            html += '<div style="max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:'+theme.text+';">'+bodyHtml+'</div>';
+
+            var btn = overlay.querySelector("#cmb-manual-insert");
+            btn.disabled = true; btn.textContent = "Inserting...";
+            setStatus("Inserting into Canvas...", "loading");
+            try{
+                var created;
+                if(manual.itemType === "assignment"){
+                    created = await createAssignment(title, html, body.querySelector("#cmb-manual-points").value || "100");
+                    if(canvasModuleId) await addModuleItem(canvasModuleId, "Assignment", created.id, title, null);
+                } else {
+                    created = await createPage(title, html);
+                    if(canvasModuleId) await addModuleItem(canvasModuleId, "Page", created.url, title, null);
+                }
+                setStatus(canvasModuleId
+                    ? "✅ Inserted into "+canvasModuleName+"! Check your Modules page (unpublished)."
+                    : "✅ Created, but couldn't detect the module to add it to — add it manually from the Modules page.", "success");
+                btn.disabled = false; btn.textContent = "\u{1F680} Insert into Canvas";
+            }catch(err){
+                setStatus("Error: "+err.message, "error");
+                btn.disabled = false; btn.textContent = "\u{1F680} Insert into Canvas";
+            }
+        });
+    }
+
+    // ========== QUIZ BUILDER ==========
+    // Ported from Canvas Enhancer's Content Studio Quiz Maker: topic-driven AI
+    // generation of question groups (each with N interchangeable variants for
+    // randomization), a review/select workflow, and a queue that exports
+    // straight into Canvas as a Classic Quiz or a New Quiz (LTI). Uses the
+    // module's own callClaude()/canvasAPI() BYOK plumbing instead of Canvas
+    // Enhancer's licensed backend.
+    function openQuizBuilder(module){
+        if(document.getElementById("cmb-quiz-overlay")) return;
+        var canvasModuleId = getCanvasModuleId(module);
+        var canvasModuleName = getCanvasModuleName(module);
+
+        var qst = {
+            topic:"", subject:"general", difficulty:"medium",
+            typeCounts:{ mc:5, tf:3, short:2, essay:0 },
+            includeExplanations:true,
+            variantsPerQ:1, randomizeGroups:false,
+            groups:[], checked:[], queue:[],
+            quizTitle:"Quiz", engine:"classic"
+        };
+        var activeVariant = [];
+        var allSelected = false;
+
+        var TYPE_LABELS={mc:"Multiple Choice",tf:"True / False",short:"Short Answer",essay:"Essay"};
+        var TYPE_BADGE={mc:"background:#EDE9FE;color:#6D28D9",tf:"background:#F0FDF4;color:#166534",short:"background:#FEF3C7;color:#92400E",essay:"background:#F1F5F9;color:#475569"};
+
+        var overlay = document.createElement("div");
+        overlay.id = "cmb-quiz-overlay";
+        overlay.innerHTML =
+            '<div id="cmb-quiz-panel">' +
+              '<div class="cmb-topbar"><div><h1>\u{1F9E9} Quiz Builder</h1><div class="cmb-topbar-sub">'+esc(canvasModuleName)+'</div></div><button class="cmb-close" id="cmb-quiz-close">Close</button></div>' +
+              '<div class="cmb-qb-cols">' +
+                '<div class="cmb-qb-col left"><div class="cmb-qb-colhdr">Builder</div><div class="cmb-qb-colbody" id="cmb-qb-left"></div></div>' +
+                '<div class="cmb-qb-col mid"><div class="cmb-qb-colhdr">Questions<button class="cmb-qb-selall" id="cmb-qb-selall" style="display:none;">Select all</button></div><div class="cmb-qb-colbody" id="cmb-qb-mid"><div class="cmb-qb-empty">Generate questions on the left<br>to review and select them here.</div></div></div>' +
+                '<div class="cmb-qb-col right"><div class="cmb-qb-colhdr">Quiz <span id="cmb-qb-count" style="background:#E2E8F0;border-radius:20px;padding:1px 8px;font-size:11px;font-weight:700;margin-left:6px;color:#1E293B;">0</span></div><div class="cmb-qb-colbody" id="cmb-qb-right"></div></div>' +
+              '</div>' +
+              '<div class="cmb-status" id="cmb-quiz-status" style="display:none;"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        function close(){ overlay.remove(); }
+        overlay.querySelector("#cmb-quiz-close").addEventListener("click", close);
+        overlay.addEventListener("click", function(e){ if(e.target === overlay) close(); });
+
+        function setStatus(msg, type){
+            var el = overlay.querySelector("#cmb-quiz-status");
+            el.style.display = "block";
+            var colors = {success:"#166534",error:"#b91c1c",loading:"#1d4ed8"};
+            var bgs = {success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff"};
+            el.style.color = colors[type] || "#6b7280";
+            el.style.background = bgs[type] || "#f9fafb";
+            el.textContent = msg;
+        }
+
+        var left = overlay.querySelector("#cmb-qb-left");
+        var mid = overlay.querySelector("#cmb-qb-mid");
+        var right = overlay.querySelector("#cmb-qb-right");
+        var selAllBtn = overlay.querySelector("#cmb-qb-selall");
+        var countBadge = overlay.querySelector("#cmb-qb-count");
+
+        // ── LEFT: settings ──
+        var lh = '';
+        lh += '<div class="cmb-card"><label class="cmb-label">Topic</label><textarea class="cmb-textarea" id="cmb-qb-topic" rows="3" placeholder="e.g. The American Civil War">'+esc(qst.topic)+'</textarea></div>';
+        lh += '<div class="cmb-card"><label class="cmb-label">Settings</label>';
+        lh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">';
+        lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Subject</div><select class="cmb-select" id="cmb-qb-subject">';
+        [["general","General / Any"],["math","Mathematics"],["science","Science"],["history","History / Social Studies"],["english","English / Language Arts"],["foreign_lang","Foreign Language"],["cs","Computer Science"],["other","Other"]].forEach(function(o){
+            lh += '<option value="'+o[0]+'"'+(o[0]===qst.subject?' selected':'')+'>'+o[1]+'</option>';
+        });
+        lh += '</select></div>';
+        lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Difficulty</div><select class="cmb-select" id="cmb-qb-difficulty">';
+        [["easy","Easy"],["medium","Medium"],["hard","Hard"],["mixed","Mixed"]].forEach(function(o){
+            lh += '<option value="'+o[0]+'"'+(o[0]===qst.difficulty?' selected':'')+'>'+o[1]+'</option>';
+        });
+        lh += '</select></div></div>';
+        lh += '<div style="margin-bottom:8px;"><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Variants per question</div><select class="cmb-select" id="cmb-qb-variants">';
+        [["1","1 — unique questions"],["2","2 — pairs (A & B)"],["3","3 — triplets (A, B & C)"]].forEach(function(o){
+            lh += '<option value="'+o[0]+'"'+(o[0]===String(qst.variantsPerQ)?' selected':'')+'>'+o[1]+'</option>';
+        });
+        lh += '</select></div>';
+        lh += '<div class="cmb-el-grid">';
+        lh += '<div class="cmb-el-toggle'+(qst.includeExplanations?' on':'')+'" id="cmb-qb-expl-toggle"><span class="dot"></span>Explanations</div>';
+        lh += '<div class="cmb-el-toggle'+(qst.randomizeGroups?' on':'')+'" id="cmb-qb-rand-toggle"><span class="dot"></span>Randomize</div>';
+        lh += '</div></div>';
+        lh += '<div class="cmb-card"><label class="cmb-label">Question Types</label>';
+        [["mc","Multiple Choice"],["tf","True / False"],["short","Short Answer"],["essay","Essay"]].forEach(function(t){
+            lh += '<div class="cmb-qmix-row"><span class="qlabel">'+t[1]+'</span><div class="qcount">';
+            lh += '<button data-qtype="'+t[0]+'" data-dir="down">-</button><span id="cmb-qb-count-'+t[0]+'">'+qst.typeCounts[t[0]]+'</span><button data-qtype="'+t[0]+'" data-dir="up">+</button>';
+            lh += '</div></div>';
+        });
+        lh += '<div style="margin-top:8px;font-size:11px;color:#64748B;text-align:right;" id="cmb-qb-total">Total: '+Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0)+' questions</div>';
+        lh += '</div>';
+        lh += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" style="width:100%;justify-content:center;" id="cmb-qb-gen">✨ Generate Questions</button></div>';
+        left.innerHTML = lh;
+
+        left.querySelector("#cmb-qb-topic").addEventListener("input", function(e){ qst.topic = e.target.value; });
+        left.querySelector("#cmb-qb-subject").addEventListener("change", function(e){ qst.subject = e.target.value; });
+        left.querySelector("#cmb-qb-difficulty").addEventListener("change", function(e){ qst.difficulty = e.target.value; });
+        left.querySelector("#cmb-qb-variants").addEventListener("change", function(e){ qst.variantsPerQ = parseInt(e.target.value, 10); });
+        left.querySelector("#cmb-qb-expl-toggle").addEventListener("click", function(){
+            qst.includeExplanations = !qst.includeExplanations;
+            this.classList.toggle("on", qst.includeExplanations);
+        });
+        left.querySelector("#cmb-qb-rand-toggle").addEventListener("click", function(){
+            qst.randomizeGroups = !qst.randomizeGroups;
+            this.classList.toggle("on", qst.randomizeGroups);
+        });
+        left.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
+            btn.addEventListener("click", function(){
+                var qt = btn.dataset.qtype, dir = btn.dataset.dir;
+                qst.typeCounts[qt] = Math.max(0, qst.typeCounts[qt] + (dir === "up" ? 1 : -1));
+                left.querySelector("#cmb-qb-count-"+qt).textContent = qst.typeCounts[qt];
+                left.querySelector("#cmb-qb-total").textContent = "Total: " + Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0) + " questions";
+            });
+        });
+
+        // ── MID: question review/select ──
+        function renderQuestions(){
+            if(!qst.groups.length){ mid.innerHTML = '<div class="cmb-qb-empty">Generate questions on the left<br>to review and select them here.</div>'; selAllBtn.style.display = "none"; return; }
+            selAllBtn.style.display = "inline-block";
+            var totalQ = qst.groups.reduce(function(s,g){return s+g.variants.length;},0);
+            var h = '<div style="font-size:12px;color:#64748B;margin-bottom:12px;">'+qst.groups.length+' group'+(qst.groups.length!==1?'s':'')+' · '+totalQ+' total question'+(totalQ!==1?'s':'')+'</div>';
+            qst.groups.forEach(function(g, gi){
+                if(activeVariant[gi] === undefined) activeVariant[gi] = 0;
+                var sel = !!qst.checked[gi];
+                var firstQ = g.variants[0] || {};
+                var bc = TYPE_BADGE[firstQ.type] || TYPE_BADGE.mc;
+                h += '<div class="cmb-qb-gcard'+(sel?' sel':'')+'" data-gi="'+gi+'">';
+                h += '<div class="cmb-qb-ghdr"><div class="cmb-qb-cbox">'+(sel?'✓':'')+'</div>';
+                h += '<div class="cmb-qb-gtitle">Group '+(gi+1)+(g.concept?' — '+esc(g.concept):'')+'</div>';
+                h += '<span class="cmb-qb-badge" style="'+bc+'">'+(TYPE_LABELS[firstQ.type]||'?')+'</span></div>';
+                if(g.variants.length > 1){
+                    h += '<div class="cmb-qb-vtabs">';
+                    g.variants.forEach(function(v, vi){
+                        h += '<button type="button" class="cmb-qb-vtab'+(activeVariant[gi]===vi?' active':'')+'" data-gi="'+gi+'" data-vi="'+vi+'">Version '+String.fromCharCode(65+vi)+'</button>';
+                    });
+                    h += '</div>';
+                }
+                var q = g.variants[activeVariant[gi]] || g.variants[0] || {};
+                h += '<div class="cmb-qb-vbody">'+esc(q.text||'');
+                if(q.type === "mc" && q.choices && q.choices.length){
+                    q.choices.forEach(function(c){
+                        h += '<div class="cmb-qb-ans'+(c.correct?' correct':'')+'"><strong>'+esc(c.label)+'.</strong> '+esc(c.text)+'</div>';
+                    });
+                } else if(q.type === "tf"){
+                    var isTrue = q.answer === true || q.answer === "true";
+                    h += '<div class="cmb-qb-ans correct" style="display:inline-block;">Answer: '+(isTrue?'True':'False')+'</div>';
+                } else if(q.type === "short"){
+                    h += '<div class="cmb-qb-ans correct" style="display:inline-block;">Answer: '+esc(q.answer||'')+'</div>';
+                } else {
+                    h += '<div class="cmb-qb-ans" style="display:inline-block;">Manually graded</div>';
+                }
+                if(qst.includeExplanations && q.explanation){ h += '<div class="cmb-qb-expl">\u{1F4A1} '+esc(q.explanation)+'</div>'; }
+                h += '</div></div>';
+            });
+            mid.innerHTML = h;
+            mid.querySelectorAll(".cmb-qb-gcard").forEach(function(card){
+                card.addEventListener("click", function(e){
+                    if(e.target.closest(".cmb-qb-vtab")) return;
+                    var gi = parseInt(card.dataset.gi, 10);
+                    qst.checked[gi] = !qst.checked[gi];
+                    updateAddBtn(); renderQuestions();
+                });
+            });
+            mid.querySelectorAll(".cmb-qb-vtab").forEach(function(tab){
+                tab.addEventListener("click", function(e){
+                    e.stopPropagation();
+                    activeVariant[parseInt(tab.dataset.gi,10)] = parseInt(tab.dataset.vi,10);
+                    renderQuestions();
+                });
+            });
+        }
+        selAllBtn.addEventListener("click", function(){
+            allSelected = !allSelected;
+            qst.checked = qst.groups.map(function(){ return allSelected; });
+            selAllBtn.textContent = allSelected ? "Deselect all" : "Select all";
+            updateAddBtn(); renderQuestions();
+        });
+
+        // ── RIGHT: quiz queue + export ──
+        var rh = '';
+        rh += '<div class="cmb-card"><label class="cmb-label">Quiz Title</label><input type="text" class="cmb-input" id="cmb-qb-title" value="'+esc(qst.quizTitle)+'"></div>';
+        rh += '<div class="cmb-card"><label class="cmb-label">Quiz Engine</label><select class="cmb-select" id="cmb-qb-engine">';
+        rh += '<option value="classic"'+(qst.engine==='classic'?' selected':'')+'>Classic Quizzes</option>';
+        rh += '<option value="new"'+(qst.engine==='new'?' selected':'')+'>New Quizzes (LTI)</option>';
+        rh += '</select></div>';
+        rh += '<button class="cmb-btn cmb-btn-secondary" style="width:100%;justify-content:center;margin-bottom:12px;" id="cmb-qb-addsel" disabled>+ Add Selected to Quiz</button>';
+        rh += '<div id="cmb-qb-queue"></div>';
+        rh += '<div id="cmb-qb-export" style="display:none;margin-top:12px;">';
+        rh += '<button class="cmb-btn cmb-btn-success" style="width:100%;justify-content:center;" id="cmb-qb-create">✓ Create Quiz in Canvas</button>';
+        rh += '<div id="cmb-qb-export-status"></div>';
+        rh += '<button class="cmb-btn cmb-btn-secondary" style="width:100%;justify-content:center;margin-top:6px;" id="cmb-qb-clear">Clear all questions</button>';
+        rh += '</div>';
+        right.innerHTML = rh;
+
+        var addSelBtn = right.querySelector("#cmb-qb-addsel");
+        var queueEl = right.querySelector("#cmb-qb-queue");
+        var exportEl = right.querySelector("#cmb-qb-export");
+        var exportStatusEl = right.querySelector("#cmb-qb-export-status");
+
+        right.querySelector("#cmb-qb-title").addEventListener("input", function(e){ qst.quizTitle = e.target.value; });
+        right.querySelector("#cmb-qb-engine").addEventListener("change", function(e){ qst.engine = e.target.value; });
+
+        function updateAddBtn(){
+            var n = qst.checked.filter(Boolean).length;
+            addSelBtn.disabled = n === 0;
+            addSelBtn.textContent = n > 0 ? ("+ Add " + n + " Group" + (n!==1?'s':'') + " to Quiz") : "+ Add Selected to Quiz";
+        }
+
+        function renderQueue(){
+            countBadge.textContent = qst.queue.length;
+            if(!qst.queue.length){
+                queueEl.innerHTML = '<div style="text-align:center;padding:20px 8px;color:#94A3B8;font-size:12px;line-height:1.8;">No questions yet.<br>Select questions in the middle column<br>and click <strong>Add Selected</strong>.</div>';
+                exportEl.style.display = "none";
+                return;
+            }
+            exportEl.style.display = "block";
+            var totalQ = qst.queue.reduce(function(s,g){return s+g.variants.length;},0);
+            var h = '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">'+qst.queue.length+' groups · '+totalQ+' total questions</div>';
+            var TYPE_SHORT={mc:'MC',tf:'T/F',short:'SA',essay:'Essay'};
+            qst.queue.forEach(function(g, i){
+                var firstQ = g.variants[0] || {};
+                var bc = TYPE_BADGE[firstQ.type] || TYPE_BADGE.mc;
+                var label = (g.concept || firstQ.text || "").slice(0, 50);
+                h += '<div class="cmb-qb-queue-item"><span style="font-weight:700;color:#94A3B8;min-width:16px;">'+(i+1)+'.</span>';
+                h += '<span class="cmb-qb-badge" style="'+bc+'">'+(TYPE_SHORT[firstQ.type]||'?')+'</span>';
+                h += '<span style="flex:1;">'+esc(label)+'</span>';
+                h += '<button type="button" class="rm" data-i="'+i+'">✕</button></div>';
+            });
+            queueEl.innerHTML = h;
+            queueEl.querySelectorAll(".rm").forEach(function(btn){
+                btn.addEventListener("click", function(){ qst.queue.splice(parseInt(btn.dataset.i,10), 1); renderQueue(); });
+            });
+        }
+        renderQueue();
+
+        addSelBtn.addEventListener("click", function(){
+            var toAdd = qst.groups.filter(function(_,i){ return qst.checked[i]; });
+            if(!toAdd.length) return;
+            qst.queue.push.apply(qst.queue, toAdd);
+            qst.checked = qst.groups.map(function(){ return false; });
+            allSelected = false; selAllBtn.textContent = "Select all";
+            updateAddBtn(); renderQuestions(); renderQueue();
+        });
+        right.querySelector("#cmb-qb-clear").addEventListener("click", function(){ qst.queue = []; renderQueue(); });
+
+        // ── GENERATE ──
+        left.querySelector("#cmb-qb-gen").addEventListener("click", function(){
+            if(!qst.topic.trim()){ setStatus("Enter a topic first.", "error"); return; }
+            var totalQ = Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0);
+            if(!totalQ){ setStatus("Set at least one question type count above zero.", "error"); return; }
+            var genBtn = left.querySelector("#cmb-qb-gen");
+            genBtn.disabled = true; genBtn.textContent = "Generating…";
+            setStatus("Generating " + (totalQ * qst.variantsPerQ) + " questions…", "loading");
+
+            var typeLabels={mc:'Multiple Choice (4 options A–D, exactly one correct)',tf:'True/False (answer is boolean)',short:'Short Answer (single word, number, or short phrase)',essay:'Essay (open-ended, no answer key)'};
+            var diffMap={easy:'easy',medium:'medium difficulty',hard:'challenging/hard',mixed:'a mix of easy, medium, and hard'};
+            var useGroups = qst.variantsPerQ > 1;
+            var typeCountLines = Object.entries(qst.typeCounts).filter(function(e){return e[1]>0;}).map(function(e){return e[1]+' '+typeLabels[e[0]];}).join('\n');
+            var qSchema = '{\n      "type": "mc|tf|short|essay",\n      "text": "Question text",\n      "choices": [{"label":"A","text":"option","correct":false},{"label":"B","text":"option","correct":true},{"label":"C","text":"option","correct":false},{"label":"D","text":"option","correct":false}],\n      "answer": null,\n      "answer_alts": [],\n      "explanation": "Why the answer is correct"\n    }';
+            var prompt;
+            if(useGroups){
+                prompt = 'You are an expert quiz designer for Canvas LMS. Generate exactly '+totalQ+' question GROUPS about: "'+qst.topic+'"\n\n' +
+                    'Each group tests the same concept but uses completely different wording, numbers, or scenarios for each variant — designed so different students get equivalent but non-identical questions.\n' +
+                    'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nVariants per group: '+qst.variantsPerQ+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
+                    (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                    'Return ONLY valid JSON — no markdown, no code fences:\n{\n  "groups": [\n    {\n      "concept": "Concept name under 6 words",\n      "variants": ['+qSchema+','+qSchema+']\n    }\n  ]\n}\n\n' +
+                    'Critical rules:\n- Each group must have exactly '+qst.variantsPerQ+' variants\n- All variants in a group must be the same question type\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total groups: exactly '+totalQ;
+            } else {
+                prompt = 'You are an expert quiz designer for Canvas LMS. Generate questions about: "'+qst.topic+'"\n\n' +
+                    'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
+                    (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                    'Return ONLY valid JSON — no markdown, no code fences:\n{ "questions": ['+qSchema+'] }\n\n' +
+                    'Critical rules:\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total: exactly '+totalQ+' questions';
+            }
+
+            callClaude(prompt, AI_MODEL_QUIZ, 12000).then(function(raw){
+                genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
+                raw = (raw||'').replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+                var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+                if(s === -1 || e === -1){ setStatus("Could not find JSON in response", "error"); return; }
+                try{
+                    var parsed = JSON.parse(raw.slice(s, e+1));
+                    if(parsed.groups && parsed.groups.length){
+                        qst.groups = parsed.groups;
+                    } else if(parsed.questions && parsed.questions.length){
+                        qst.groups = parsed.questions.map(function(q){ return { concept: (q.text||'').slice(0,50), variants:[q] }; });
+                    } else {
+                        setStatus("No questions returned", "error"); return;
+                    }
+                    qst.checked = qst.groups.map(function(){ return false; });
+                    allSelected = false; selAllBtn.textContent = "Select all";
+                    activeVariant.length = 0;
+                    renderQuestions();
+                    var totalGen = qst.groups.reduce(function(s,g){return s+g.variants.length;},0);
+                    setStatus(qst.groups.length+" group"+(qst.groups.length!==1?'s':'')+" ("+totalGen+" questions) generated — select to add.", "success");
+                }catch(err){ setStatus("Parse error: "+err.message, "error"); }
+            }).catch(function(err){
+                genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
+                setStatus(err.message || "Error generating questions — try again", "error");
+            });
+        });
+
+        // ── CREATE QUIZ IN CANVAS ──
+        function showExportStatus(msg, type){
+            var colors = {error:'color:#991b1b;background:#fef2f2;border:1px solid #fca5a5', success:'color:#166534;background:#f0fdf4;border:1px solid #86efac', loading:'color:#1e40af;background:#eff6ff;border:1px solid #93c5fd'};
+            exportStatusEl.innerHTML = '<div style="padding:8px 12px;border-radius:6px;font-size:12px;margin-top:8px;line-height:1.5;'+(colors[type]||colors.loading)+'">'+msg+'</div>';
+        }
+
+        function buildClassicQuestion(q, pos, groupId){
+            var TYPE_MAP={mc:'multiple_choice_question',tf:'true_false_question',short:'short_answer_question',essay:'essay_question'};
+            var body = { question_name:'Q'+pos, question_text: esc(q.text||''), question_type: TYPE_MAP[q.type]||'short_answer_question', points_possible: q.type==='essay'?5:1, position: pos };
+            if(groupId) body.quiz_group_id = groupId;
+            if(q.type === 'mc'){ body.answers = (q.choices||[]).map(function(c){ return { answer_text:c.text, answer_weight:c.correct?100:0, answer_comments:(c.correct&&q.explanation)?q.explanation:'' }; }); }
+            else if(q.type === 'tf'){ var isTrue = q.answer===true||q.answer==='true'; body.answers=[{answer_text:'True',answer_weight:isTrue?100:0},{answer_text:'False',answer_weight:isTrue?0:100}]; }
+            else if(q.type === 'short'){ var alts=[q.answer].concat(q.answer_alts||[]).filter(function(a){return a!==null&&a!==undefined&&a!=='';}); body.answers=alts.map(function(a){return {answer_text:String(a),answer_weight:100};}); }
+            return body;
+        }
+
+        async function createClassicQuiz(){
+            var totalQ = qst.queue.reduce(function(s,g){return s+g.variants.length;},0);
+            showExportStatus("Creating quiz…", "loading");
+            var quiz = await canvasAPI("POST", "/quizzes", { quiz:{ title: qst.quizTitle||"Quiz", quiz_type:"assignment", published:false, show_correct_answers:true } });
+            var qid = quiz.id;
+            showExportStatus("Quiz created — adding "+totalQ+" questions…", "loading");
+            var pos = 1;
+            for(var gi=0; gi<qst.queue.length; gi++){
+                var g = qst.queue[gi];
+                var useGroup = qst.randomizeGroups && g.variants.length > 1;
+                var groupId = null;
+                if(useGroup){
+                    var grpResp = await canvasAPI("POST", "/quizzes/"+qid+"/groups", { quiz_groups:[{ name: g.concept||("Group "+(gi+1)), pick_count:1, question_points:1 }] });
+                    groupId = (grpResp && grpResp.quiz_groups && grpResp.quiz_groups[0]) ? grpResp.quiz_groups[0].id : null;
+                }
+                for(var vi=0; vi<g.variants.length; vi++){
+                    await canvasAPI("POST", "/quizzes/"+qid+"/questions", { question: buildClassicQuestion(g.variants[vi], pos++, groupId) });
+                }
+            }
+            if(canvasModuleId) await addModuleItem(canvasModuleId, "Quiz", qid, qst.quizTitle||"Quiz", null);
+            var url = window.location.origin + "/courses/" + getCourseId() + "/quizzes/" + qid;
+            var note = (qst.randomizeGroups && qst.queue.some(function(g){return g.variants.length>1;})) ? " (groups randomized — each student gets 1 variant per group)" : "";
+            showExportStatus("✓ Quiz created"+note+"! <a href=\""+url+"\" target=\"_blank\" style=\"color:#7C3AED;font-weight:600;\">Open in Canvas ↗</a>", "success");
+        }
+
+        async function quizLtiAPI(method, path, body){
+            var url = window.location.origin + "/api/quiz/v1/courses/" + getCourseId() + path;
+            var opts = { method: method, headers:{ "Content-Type":"application/json", "Accept":"application/json", "X-CSRF-Token": getCSRFToken() }, credentials:"same-origin" };
+            if(body && (method === "POST" || method === "PUT")) opts.body = JSON.stringify(body);
+            var resp = await fetch(url, opts);
+            if(!resp.ok){ var errText=""; try{ errText = await resp.text(); }catch(e){} throw new Error("Canvas API error "+resp.status+": "+errText); }
+            if(resp.status === 204) return null;
+            return resp.json();
+        }
+
+        async function createNewQuizLTI(){
+            var totalQ = qst.queue.reduce(function(s,g){return s+g.variants.length;},0);
+            showExportStatus("Creating New Quiz…", "loading");
+            var quiz = await quizLtiAPI("POST", "/quizzes", { quiz:{ title: qst.quizTitle||"Quiz", quiz_type:"practice_quiz" } });
+            var qid = quiz.id;
+            showExportStatus("Quiz created — adding "+totalQ+" questions…", "loading");
+            var typeSlug={mc:'choice',tf:'true_false',short:'short_answer',essay:'essay'};
+            function buildItem(q, pos){
+                var entry = { entry_type:'Item', position:pos, item_body:'<p>'+esc(q.text||'')+'</p>', interaction_type_slug: typeSlug[q.type]||'short_answer', scoring_data:{ value:q.type==='essay'?5:1 }, answer_feedback:{} };
+                if(q.type === 'mc'){
+                    entry.interaction_data = { choices:(q.choices||[]).map(function(c,i){ return { id:'c'+i, item_body:'<p>'+esc(c.text||'')+'</p>', position:i+1 }; }) };
+                    var ci = (q.choices||[]).findIndex(function(c){return c.correct;});
+                    entry.scoring_data.correct_answer = ci>=0 ? [{type:'choice',value:'c'+ci}] : [];
+                    entry.scoring_algorithm = 'Equivalence';
+                } else if(q.type === 'tf'){
+                    entry.interaction_data = { true_choice:{item_body:'<p>True</p>'}, false_choice:{item_body:'<p>False</p>'} };
+                    entry.scoring_data.correct_answer = q.answer ? 'true' : 'false';
+                    entry.scoring_algorithm = 'Equivalence';
+                } else if(q.type === 'short'){
+                    entry.interaction_data = {};
+                    entry.scoring_data.correct_answer = [q.answer].concat(q.answer_alts||[]).filter(Boolean);
+                    entry.scoring_algorithm = 'TextMatch';
+                } else {
+                    entry.interaction_data = {}; entry.scoring_algorithm = 'None';
+                }
+                return entry;
+            }
+            var pos = 1;
+            for(var gi=0; gi<qst.queue.length; gi++){
+                var g = qst.queue[gi];
+                for(var vi=0; vi<g.variants.length; vi++){
+                    await quizLtiAPI("POST", "/quizzes/" + qid + "/items", { item: buildItem(g.variants[vi], pos++) });
+                }
+            }
+            var url = window.location.origin + "/courses/" + getCourseId() + "/quizzes/" + qid;
+            showExportStatus("✓ Quiz created! <a href=\""+url+"\" target=\"_blank\" style=\"color:#7C3AED;font-weight:600;\">Open in Canvas ↗</a>", "success");
+        }
+
+        right.querySelector("#cmb-qb-create").addEventListener("click", async function(){
+            if(!qst.queue.length){ showExportStatus("Add questions to the quiz first.", "error"); return; }
+            if(!getCourseId()){ showExportStatus("Navigate to a Canvas course first.", "error"); return; }
+            var btn = right.querySelector("#cmb-qb-create");
+            btn.disabled = true; btn.textContent = "Creating…";
+            try{
+                if(qst.engine === "classic") await createClassicQuiz(); else await createNewQuizLTI();
+                btn.textContent = "✓ Quiz Created";
+            }catch(err){
+                showExportStatus("Error: "+esc(err.message), "error");
+                btn.disabled = false; btn.textContent = "✓ Create Quiz in Canvas";
+            }
+        });
+    }
+
     function isModulesPage(){
-        return /\/courses\/\d+\/modules/.test(window.location.pathname);
+        // Some courses set Modules as their home page, so the URL is just
+        // /courses/123 with no "/modules" segment at all — detect the actual
+        // modules container in the DOM as a fallback for that case.
+        if(/\/courses\/\d+\/modules/.test(window.location.pathname)) return true;
+        return !!document.getElementById("context_modules");
     }
 
     function findCanvasModules(){
@@ -2411,45 +3067,113 @@
     }
 
     // ── PER-MODULE BUTTON ────────────────────────────────────────────────────
-    // One "AI Builder" button injected into each module's own header toolbar
-    // on the Modules page, opening the builder scoped to that module.
-    // ── FLOATING BUTTON ──────────────────────────────────────────────────────
-    // Appended directly to document.body — not nested inside Canvas's own
-    // module DOM, so it doesn't depend on matching Canvas's header/toolbar
-    // markup at all. Opens the builder for a brand-new module.
-    function installFloatingButton(){
-        if(document.getElementById("cmb-float-btn"))return;
+    // One "AI Builder" button injected into each module's own header toolbar.
+    function findModuleToolbar(module){
+        var header =
+            module.querySelector(".ig-header") ||
+            module.querySelector(".ig-header__layout") ||
+            module.querySelector(".context_module_header") ||
+            module.querySelector("[data-testid='module-header']") ||
+            module.querySelector("h2,h3")?.parentElement;
+        if(!(header instanceof HTMLElement) || isModuleItemRow(header)) return null;
 
-        var btn = document.createElement("button");
-        btn.id = "cmb-float-btn";
-        btn.type = "button";
-        btn.textContent = "✨ AI Builder";
-        btn.title = "Open Canvas AI Module Builder";
-        btn.style.cssText = "position:fixed;right:24px;bottom:24px;z-index:2147483640;display:none;padding:12px 20px;background:#7C3AED;color:#fff;border:0;border-radius:999px;box-shadow:0 4px 14px rgba(124,58,237,0.4);font-size:14px;font-weight:700;font-family:-apple-system,BlinkMacSystemFont,'Lato','Segoe UI',sans-serif;cursor:pointer;";
-        btn.addEventListener("mouseenter",function(){btn.style.background="#6D28D9";});
-        btn.addEventListener("mouseleave",function(){btn.style.background="#7C3AED";});
-        btn.addEventListener("click",function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            selectNewModule();
+        var toolbar =
+            header.querySelector(".ig-header-admin") ||
+            header.querySelector(".ig-header__admin") ||
+            header.querySelector(".ig-header__actions") ||
+            header.querySelector('[role="toolbar"]');
+        if(toolbar && !isModuleItemRow(toolbar)) return toolbar;
+
+        var trigger = header.querySelector(".al-trigger,[data-testid='module-menu-trigger'],button[aria-haspopup='true']");
+        if(trigger && trigger.parentElement && !isModuleItemRow(trigger.parentElement)) return trigger.parentElement;
+
+        return header;
+    }
+
+    // Each menu item is [label, handler]. Handler receives the module element.
+    var MODULE_MENU_ITEMS = [
+        ["✨ AI Builder", function(module){
+            selectCanvasModule(module);
             openOverlay();
-        });
-        document.body.appendChild(btn);
+        }],
+        ["✏️ Manual Editor", function(module){
+            openManualEditor(module);
+        }],
+        ["🧩 Quiz Builder", function(module){
+            openQuizBuilder(module);
+        }],
+        ["📊 Module Alerts", function(){
+            alert("Module Alerts — coming soon.");
+        }]
+    ];
 
-        var onPage = false;
-        function updateVisibility(){
-            var shouldShow = isModulesPage();
-            if(shouldShow !== onPage) btn.style.display = shouldShow ? "block" : "none";
-            onPage = shouldShow;
-        }
-        updateVisibility();
-        window.addEventListener("popstate", updateVisibility);
-        setInterval(updateVisibility, 1500);
+    function closeAllModuleMenus(){
+        document.querySelectorAll(".cmb-module-menu").forEach(function(m){ m.style.display = "none"; });
+    }
+
+    function injectModuleToolbarButtons(){
+        if(!isModulesPage())return;
+        findCanvasModules().forEach(function(module){
+            var toolbar = findModuleToolbar(module);
+            if(!toolbar)return;
+            // Check the button is actually still there, not just a flag on the module
+            // container — Canvas re-renders a module's header on its own (drag-reorder,
+            // publish-state changes, progress updates), which wipes injected children,
+            // but a flag stored on the outer module element would survive that re-render
+            // and wrongly think the button still exists.
+            if(toolbar.querySelector(".cmb-module-toolbar-wrap"))return;
+
+            var wrap = document.createElement("span");
+            wrap.className = "cmb-module-toolbar-wrap";
+            wrap.style.cssText = "position:relative;display:inline-block;margin-left:8px;";
+
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "cmb-module-toolbar-btn";
+            btn.textContent = "AI Builder ▾";
+            btn.title = "Canvas AI Module Builder";
+
+            var menu = document.createElement("div");
+            menu.className = "cmb-module-menu";
+
+            MODULE_MENU_ITEMS.forEach(function(entry){
+                var item = document.createElement("button");
+                item.type = "button";
+                item.className = "cmb-module-menu-item";
+                item.textContent = entry[0];
+                item.addEventListener("click",function(e){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeAllModuleMenus();
+                    entry[1](module);
+                });
+                menu.appendChild(item);
+            });
+
+            btn.addEventListener("click",function(e){
+                e.preventDefault();
+                e.stopPropagation();
+                var isOpen = menu.style.display === "block";
+                closeAllModuleMenus();
+                menu.style.display = isOpen ? "none" : "block";
+            });
+            menu.addEventListener("click",function(e){ e.stopPropagation(); });
+
+            wrap.appendChild(btn);
+            wrap.appendChild(menu);
+            toolbar.appendChild(wrap);
+        });
     }
 
     function init(){
         GM_addStyle(CSS);
-        installFloatingButton();
+        GM_addStyle(".cmb-module-toolbar-btn{padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover{background:#6D28D9;}.cmb-module-menu{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:2147483640;min-width:180px;background:#fff;border:1px solid #d5dbe0;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.15);overflow:hidden;}.cmb-module-menu-item{display:block;width:100%;text-align:left;padding:8px 12px;border:0;border-top:1px solid #f1f5f9;background:#fff;color:#1E293B;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;}.cmb-module-menu-item:first-child{border-top:0;}.cmb-module-menu-item:hover{background:#F5F3FF;color:#7C3AED;}");
+        document.addEventListener("click", closeAllModuleMenus);
+        injectModuleToolbarButtons();
+        new MutationObserver(injectModuleToolbarButtons).observe(document.body,{childList:true,subtree:true});
+        window.addEventListener("popstate", injectModuleToolbarButtons);
+        setInterval(injectModuleToolbarButtons, 1500);
+        console.log("[CMB] init complete");
     }
 
     function waitAndLaunch(tries){
@@ -2461,4 +3185,5 @@
     if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",function(){waitAndLaunch(0);});}
     else{waitAndLaunch(0);}
 
+    console.log("[CMB] script fully parsed");
 })();
