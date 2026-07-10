@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Canvas Enhancer",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Add professionally styled components, AI-generated content, and quizzes to your Canvas LMS pages.",
   "permissions": [
     "storage",

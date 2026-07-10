@@ -9,17 +9,16 @@
 // @match        *://canvas.*.com/courses/*
 // @match        *://*.canvas.*.edu/courses/*
 // @match        *://*.instructure.com/*
+// @match        *://*/courses/*
 // @grant        GM_registerMenuCommand
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_deleteValue
-// @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // @connect      api.anthropic.com
 // @connect      api.unsplash.com
+// @connect      cdnjs.cloudflare.com
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -517,19 +516,55 @@
 
     // ========== FILE PARSING ==========
 
+    const LIB_URLS = {
+        pdf: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+        mammoth: "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js",
+        jszip: "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"
+    };
+    const libLoadPromises = {};
+
+    function gmLoadScript(key, globalName){
+        if(typeof globalThis[globalName] !== "undefined") return Promise.resolve(globalThis[globalName]);
+        if(libLoadPromises[key]) return libLoadPromises[key];
+        libLoadPromises[key] = new Promise(function(resolve,reject){
+            GM_xmlhttpRequest({
+                method:"GET",
+                url:LIB_URLS[key],
+                timeout:30000,
+                onload:function(resp){
+                    if(resp.status < 200 || resp.status >= 300){
+                        reject(new Error("Could not load " + key + " helper library (HTTP " + resp.status + "). Try a .txt file or check Tampermonkey network permissions."));
+                        return;
+                    }
+                    try{
+                        Function(resp.responseText + "\n//# sourceURL=" + LIB_URLS[key])();
+                        if(typeof globalThis[globalName] === "undefined"){
+                            reject(new Error(key + " helper library loaded but did not initialize."));
+                            return;
+                        }
+                        resolve(globalThis[globalName]);
+                    }catch(err){
+                        reject(new Error("Could not initialize " + key + " helper library: " + err.message));
+                    }
+                },
+                onerror:function(){reject(new Error("Network error loading " + key + " helper library. Try a .txt file or check Tampermonkey network permissions."));},
+                ontimeout:function(){reject(new Error("Timed out loading " + key + " helper library. Try a .txt file instead."));}
+            });
+        });
+        return libLoadPromises[key];
+    }
+
     async function parsePDF(file){
-        if(typeof pdfjsLib === "undefined"){
-            throw new Error("pdf.js library failed to load (check your internet connection, or that Tampermonkey hasn't blocked the @require script) — try a .docx or .txt file instead.");
-        }
-        if(!pdfjsLib.GlobalWorkerOptions.workerSrc){
-            pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        var pdfLib = await gmLoadScript("pdf", "pdfjsLib");
+        if(!pdfLib.GlobalWorkerOptions.workerSrc){
+            pdfLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
         }
         return new Promise(function(res,rej){
             var r=new FileReader();
             r.onload=async function(e){
                 try{
                     var ta=new Uint8Array(e.target.result);
-                    var pdf=await pdfjsLib.getDocument({data:ta}).promise;
+                    var pdf=await pdfLib.getDocument({data:ta}).promise;
                     var t="";
                     for(var i=1;i<=pdf.numPages;i++){var pg=await pdf.getPage(i);var c=await pg.getTextContent();t+=c.items.map(function(x){return x.str;}).join(" ")+"\n\n";}
                     res(t.trim());
@@ -540,10 +575,11 @@
     }
 
     async function parseDOCX(file){
+        var mammothLib = await gmLoadScript("mammoth", "mammoth");
         return new Promise(function(res,rej){
             var r=new FileReader();
             r.onload=async function(e){
-                try{var result=await mammoth.extractRawText({arrayBuffer:e.target.result});res(result.value.trim());}catch(err){rej(err);}
+                try{var result=await mammothLib.extractRawText({arrayBuffer:e.target.result});res(result.value.trim());}catch(err){rej(err);}
             };
             r.onerror=rej; r.readAsArrayBuffer(file);
         });
@@ -554,11 +590,9 @@
     }
 
     async function parsePPTX(file){
-        if(typeof JSZip === "undefined"){
-            throw new Error("JSZip library failed to load (check your internet connection, or that Tampermonkey hasn't blocked the @require script) — try a .pdf, .docx, or .txt file instead.");
-        }
+        var ZipLib = await gmLoadScript("jszip", "JSZip");
         var buffer = await file.arrayBuffer();
-        var zip = await JSZip.loadAsync(buffer);
+        var zip = await ZipLib.loadAsync(buffer);
         var slideNames = Object.keys(zip.files).filter(function(name){
             return /^ppt\/slides\/slide\d+\.xml$/.test(name);
         }).sort(function(a,b){
@@ -2374,7 +2408,7 @@
     function openOverlay(){
         if(overlayEl)return;
         if(!state.selectedCanvasModule && isModulesPage()){
-            var firstModule = document.querySelector(".context_module");
+            var firstModule = findCanvasModules()[0];
             if(firstModule) selectCanvasModule(firstModule);
         }
         ensureSingleCanvasModule();
@@ -2395,8 +2429,54 @@
         return /\/courses\/\d+\/modules/.test(window.location.pathname);
     }
 
-    function syncModuleBuilderLauncher(){
-        var existing = document.getElementById("cmb-module-launcher");
+    function findCanvasModules(){
+        var seen = new Set();
+        var modules = [];
+        function add(el){
+            if(!el || !(el instanceof HTMLElement) || seen.has(el)) return;
+            if(!looksLikeModuleContainer(el)) return;
+            seen.add(el);
+            modules.push(el);
+        }
+        [
+            ".context_module",
+            "[id^='context_module_']",
+            "[data-testid='module-container']",
+            "[data-testid='context-module']"
+        ].forEach(function(sel){
+            document.querySelectorAll(sel).forEach(add);
+        });
+        return modules;
+    }
+
+    function looksLikeModuleContainer(el){
+        if(el.matches(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module']")) return true;
+        var hasTitle = !!el.querySelector(".ig-header-title,.context_module_title,.ig-title,h2,h3");
+        var hasHeader = !!el.querySelector(".ig-header,.context_module_header,.ig-header__layout");
+        var hasActions = !!el.querySelector(".ig-header-admin,.ig-header__admin,.ig-header__actions,[role='toolbar']");
+        return hasTitle && (hasHeader || hasActions);
+    }
+
+    function findModuleToolbar(module){
+        var toolbar =
+            module.querySelector(".ig-header-admin") ||
+            module.querySelector(".ig-header__admin") ||
+            module.querySelector(".ig-header__actions") ||
+            module.querySelector('[role="toolbar"]');
+        if(toolbar) return toolbar;
+        var trigger = module.querySelector(".al-trigger,[data-testid='module-menu-trigger'],button[aria-haspopup='true']");
+        if(trigger && trigger.parentElement) return trigger.parentElement;
+        var header =
+            module.querySelector(".ig-header") ||
+            module.querySelector(".ig-header__layout") ||
+            module.querySelector(".context_module_header") ||
+            module.querySelector("h2,h3")?.parentElement ||
+            module.firstElementChild;
+        return header instanceof HTMLElement ? header : null;
+    }
+
+    function injectModulesPageButton(){
+        var existing = document.getElementById("cmb-page-module-builder");
         if(!isModulesPage()){
             if(existing) existing.remove();
             return;
@@ -2404,30 +2484,34 @@
         if(existing) return;
 
         var btn = document.createElement("button");
-        btn.id = "cmb-module-launcher";
+        btn.id = "cmb-page-module-builder";
         btn.type = "button";
-        btn.textContent = "Module Builder";
+        btn.className = "cmb-page-module-builder";
+        btn.textContent = "AI Module Builder";
         btn.title = "Open Canvas AI Module Builder";
         btn.addEventListener("click",function(e){
             e.preventDefault();
             e.stopPropagation();
             openOverlay();
         });
-        document.body.appendChild(btn);
+        var target =
+            document.querySelector(".ic-page-header__actions") ||
+            document.querySelector(".header-bar-right") ||
+            document.querySelector(".header-bar .pull-right") ||
+            document.querySelector(".page-action-list") ||
+            document.querySelector("[data-testid='modules-header']") ||
+            Array.from(document.querySelectorAll("button,a")).find(function(el){ return /module/i.test(el.textContent || "") && /add|\+/i.test(el.textContent || ""); })?.parentElement ||
+            document.querySelector("h1")?.parentElement ||
+            document.querySelector("#content");
+        if(target && target instanceof HTMLElement) target.appendChild(btn);
     }
 
     function injectModuleToolbarButtons(){
-        syncModuleBuilderLauncher();
+        injectModulesPageButton();
         if(!isModulesPage())return;
-        document.querySelectorAll(".context_module").forEach(function(module){
+        findCanvasModules().forEach(function(module){
             if(module.dataset.cmbToolbarInjected)return;
-            var toolbar =
-                module.querySelector(".ig-header-admin") ||
-                module.querySelector(".module-item-actions") ||
-                module.querySelector('[role="toolbar"]') ||
-                module.querySelector(".ig-header__admin") ||
-                module.querySelector(".ig-header__actions") ||
-                module.querySelector(".al-trigger")?.parentElement;
+            var toolbar = findModuleToolbar(module);
             if(!toolbar)return;
 
             module.dataset.cmbToolbarInjected = "true";
@@ -2448,7 +2532,10 @@
 
     function init(){
         GM_addStyle(CSS);
-        GM_addStyle(".cmb-module-toolbar-btn{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover{background:#6D28D9;}#cmb-module-launcher{position:fixed;right:22px;bottom:22px;z-index:2147483640;padding:11px 16px;background:#7C3AED;color:#fff;border:0;border-radius:999px;box-shadow:0 6px 18px rgba(15,23,42,.24);cursor:pointer;font:700 13px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.2;}#cmb-module-launcher:hover{background:#6D28D9;}");
+        GM_addStyle(".cmb-module-toolbar-btn,.cmb-page-module-builder{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover,.cmb-page-module-builder:hover{background:#6D28D9;}.cmb-page-module-builder{padding:7px 12px;font-size:13px;}");
+        if(typeof GM_registerMenuCommand === "function"){
+            GM_registerMenuCommand("Open Canvas AI Module Builder", openOverlay);
+        }
         injectModuleToolbarButtons();
         new MutationObserver(injectModuleToolbarButtons).observe(document.body,{childList:true,subtree:true});
         window.addEventListener("popstate", injectModuleToolbarButtons);

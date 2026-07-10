@@ -11,6 +11,22 @@
   if (!document.querySelector('#global_nav_logo, meta[name="canvas-csrf-token"], .ic-app') &&
       !/speed_grader/.test(window.location.href)) return;
 
+  // Content scripts run in an isolated JS world — `window.ENV` set by Canvas's own inline
+  // <script> tag is invisible here even though we share the same DOM. Read the raw script
+  // text instead of the executed variable so we can still recover the Canvas user ID.
+  function getCanvasCurrentUserId() {
+    try {
+      const scripts = document.getElementsByTagName('script');
+      for (let i = 0; i < scripts.length; i++) {
+        const text = scripts[i].textContent || '';
+        if (text.indexOf('current_user_id') === -1) continue;
+        const match = text.match(/"current_user_id"\s*:\s*"?(\d+)"?/);
+        if (match) return match[1];
+      }
+    } catch (_) {}
+    return '';
+  }
+
   // ── DESIGN TOKENS ──────────────────────────────────────────────────────────
   const DS = {
     // Toolbar (mirrors Canvas global nav)
@@ -1245,7 +1261,7 @@
               accountToken,
               name,
               email,
-              canvasUserId: String(window.ENV?.current_user_id || ''),
+              canvasUserId: getCanvasCurrentUserId(),
               canvasDomain: window.location.hostname,
             }),
           });
@@ -3836,11 +3852,12 @@
     document.body.appendChild(helpModal);
 
     // Push Canvas identity to background SW so accountId = canvasUserId@canvasDomain
-    if (window.ENV?.current_user_id) {
+    const canvasCurrentUserId = getCanvasCurrentUserId();
+    if (canvasCurrentUserId) {
       chrome.runtime.sendMessage({
         type: 'SET_CANVAS_IDENTITY',
         payload: {
-          canvasUserId: String(window.ENV.current_user_id),
+          canvasUserId: canvasCurrentUserId,
           canvasDomain: window.location.hostname,
         },
       });
@@ -3859,7 +3876,7 @@
             accountId,
             accountToken,
             name: stored.ce_teacher_name || '',
-            canvasUserId: String(window.ENV?.current_user_id || ''),
+            canvasUserId: canvasCurrentUserId,
             canvasDomain: window.location.hostname,
           }),
         }).catch(() => {});
