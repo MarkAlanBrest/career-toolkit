@@ -162,6 +162,16 @@ export default function HomePage() {
           ))}
         </section>
 
+        <section style={{ marginTop: 18, background: '#2b3442', border: '1px solid #1d2632', padding: '20px 30px', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontFamily: display, fontWeight: 700, fontSize: 13, color: '#9fd7a8', marginBottom: 3 }}>NO BROWSER SCRIPT NEEDED</div>
+            <div style={{ color: '#e7e9ea', fontSize: 13.5, lineHeight: 1.6, maxWidth: 560 }}>
+              Prefer not to install anything at all? <strong style={{ color: '#fff' }}>Course Builder</strong> is a plain website — design a page, quiz, or a whole module, then insert it straight into your Canvas course with your own API token, or just copy and paste. No Tampermonkey, no browser add-on.
+            </div>
+          </div>
+          <a href="/course-builder" style={secondaryButtonStyle}>Try Course Builder</a>
+        </section>
+
         <section style={{ marginTop: 18, background: paper, border: '1px solid #d9d9d2', padding: '30px 30px 24px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,250px),1fr))', gap: 28 }}>
             {articles.map(article => (
