@@ -273,6 +273,23 @@
         }
     }
 
+    // Used for the toolbar's "+ New Module" option — builds a fresh module
+    // with no canvasModuleId, so insertAllContent() creates a brand new
+    // Canvas module instead of appending into an existing one.
+    function selectNewModule(){
+        var wasNew = state.selectedCanvasModule && state.selectedCanvasModule.id === null;
+        state.selectedCanvasModule = { id: null, title: "New Module" };
+        if(!wasNew || state.modules.length !== 1){
+            state.modules = [{ id: uid(), canvasModuleId: null, title: "New Module", sources: [], items: [] }];
+            state.currentModuleIndex = 0;
+            state.currentItemIndex = 0;
+            state.itemData = {};
+            state.status = "";
+            state.statusType = "idle";
+            state.step = state.apiKey ? "layout" : "setup";
+        }
+    }
+
     function ensureSingleCanvasModule(){
         var selected = state.selectedCanvasModule || {};
         if(state.modules.length === 0){
@@ -2407,10 +2424,7 @@
 
     function openOverlay(){
         if(overlayEl)return;
-        if(!state.selectedCanvasModule && isModulesPage()){
-            var firstModule = findCanvasModules()[0];
-            if(firstModule) selectCanvasModule(firstModule);
-        }
+        if(!state.selectedCanvasModule) selectNewModule();
         ensureSingleCanvasModule();
         overlayEl=document.createElement("div");
         overlayEl.id="cmb-overlay";
@@ -2423,6 +2437,20 @@
 
     function closeOverlay(){
         if(overlayEl){overlayEl.remove();overlayEl=null;}
+    }
+
+    // choice is a Canvas module id (string) to append into, or "__new__"/undefined
+    // to build a brand new module. Called from the toolbar's Open button and the
+    // Tampermonkey menu command.
+    function openModuleBuilderFor(choice){
+        if(overlayEl) closeOverlay();
+        if(!choice || choice === "__new__"){
+            selectNewModule();
+        } else {
+            var moduleEl = findCanvasModules().find(function(m){ return getCanvasModuleId(m) === choice; });
+            if(moduleEl) selectCanvasModule(moduleEl); else selectNewModule();
+        }
+        openOverlay();
     }
 
     function isModulesPage(){
@@ -2450,11 +2478,6 @@
         document.querySelectorAll(".ig-header,.context_module_header,.ig-header__layout,[data-testid='module-header']").forEach(function(header){
             add(header.closest(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module'],[data-testid='module'],section,li,div[role='region']") || header.parentElement);
         });
-        document.querySelectorAll('a[href*="/modules/"]').forEach(function(link){
-            var href = link.getAttribute("href") || "";
-            if(/\/modules\/items\//.test(href)) return;
-            add(link.closest(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module'],[data-testid='module'],section,li,div[role='region']") || link.parentElement);
-        });
         return modules;
     }
 
@@ -2475,89 +2498,137 @@
             !!(el.closest(".context_module_item,[id^='context_module_item_'],[data-module-item-id],[data-testid='module-item']") && !el.matches(".context_module,[id^='context_module_']"));
     }
 
-    function findModuleToolbar(module){
-        var toolbar =
-            module.querySelector(".ig-header-admin") ||
-            module.querySelector(".ig-header__admin") ||
-            module.querySelector(".ig-header__actions") ||
-            module.querySelector('[role="toolbar"]');
-        if(toolbar) return toolbar;
-        var trigger = module.querySelector(".al-trigger,[data-testid='module-menu-trigger'],button[aria-haspopup='true']");
-        if(trigger && trigger.parentElement) return trigger.parentElement;
-        var header =
-            module.querySelector(".ig-header") ||
-            module.querySelector(".ig-header__layout") ||
-            module.querySelector(".context_module_header") ||
-            module.querySelector("h2,h3")?.parentElement ||
-            module.firstElementChild;
-        return header instanceof HTMLElement ? header : null;
-    }
+    // ── TOP TOOLBAR ──────────────────────────────────────────────────────────
+    // A single page-level toolbar (shown only on the Modules page), instead of
+    // a button injected per-module. Per-module injection depended on matching
+    // that course's exact Canvas DOM/header markup, which varies enough between
+    // courses that the button would sometimes not appear at all, or (with an
+    // older fallback) land in the wrong place as a stray floating button. A
+    // top toolbar with a module picker only needs findCanvasModules() to *list*
+    // modules for the dropdown — if that list comes back empty on some exotic
+    // Canvas theme, the "+ New Module" option still works, so the feature never
+    // fully breaks the way per-module injection could.
+    function installModuleToolbar(){
+        if(document.getElementById("cmb-pulse-tab"))return;
 
-    function injectModulesPageButton(){
-        var existing = document.getElementById("cmb-page-module-builder");
-        if(!isModulesPage()){
-            if(existing) existing.remove();
-            return;
-        }
-        if(existing) return;
+        var font = '-apple-system,BlinkMacSystemFont,"Lato","Segoe UI",sans-serif';
 
-        var btn = document.createElement("button");
-        btn.id = "cmb-page-module-builder";
-        btn.type = "button";
-        btn.className = "cmb-page-module-builder";
-        btn.textContent = "AI Module Builder";
-        btn.title = "Open Canvas AI Module Builder";
-        btn.addEventListener("click",function(e){
-            e.preventDefault();
-            e.stopPropagation();
-            openOverlay();
-        });
-        var target =
-            document.querySelector(".ic-page-header__actions") ||
-            document.querySelector(".header-bar-right") ||
-            document.querySelector(".header-bar .pull-right") ||
-            document.querySelector(".page-action-list") ||
-            document.querySelector("[data-testid='modules-header']") ||
-            Array.from(document.querySelectorAll("button,a")).find(function(el){ return /module/i.test(el.textContent || "") && /add|\+/i.test(el.textContent || ""); })?.parentElement ||
-            document.querySelector("h1")?.parentElement ||
-            document.querySelector("#content");
-        if(target && target instanceof HTMLElement) target.appendChild(btn);
-    }
+        GM_addStyle("body.cmb-pulse-mode{padding-top:40px!important;box-sizing:border-box!important;}body.cmb-pulse-collapsed{padding-top:28px!important;box-sizing:border-box!important;}@media(max-width:767px){#cmb-pulse-bar{left:0!important;}}");
 
-    function injectModuleToolbarButtons(){
-        injectModulesPageButton();
-        if(!isModulesPage())return;
-        findCanvasModules().forEach(function(module){
-            if(module.dataset.cmbToolbarInjected)return;
-            var toolbar = findModuleToolbar(module);
-            if(!toolbar)return;
+        var colTab = document.createElement("button");
+        colTab.id = "cmb-pulse-tab";
+        colTab.type = "button";
+        colTab.textContent = "AI Builder  ▾";
+        colTab.style.cssText = "position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#fff;border:1px solid #d5dbe0;border-top:none;border-radius:0 0 0 7px;color:#394B58;font-size:11px;font-weight:700;cursor:pointer;font-family:"+font+";letter-spacing:.2px;white-space:nowrap;";
+        colTab.addEventListener("mouseenter",function(){colTab.style.color="#7C3AED";});
+        colTab.addEventListener("mouseleave",function(){colTab.style.color="#394B58";});
+        document.body.appendChild(colTab);
 
-            module.dataset.cmbToolbarInjected = "true";
-            var btn = document.createElement("button");
-            btn.type = "button";
-            btn.className = "cmb-module-toolbar-btn";
-            btn.textContent = "AI Builder";
-            btn.title = "Open Canvas AI Module Builder";
-            btn.addEventListener("click",function(e){
-                e.preventDefault();
-                e.stopPropagation();
-                selectCanvasModule(module);
-                openOverlay();
+        var bar = document.createElement("div");
+        bar.id = "cmb-pulse-bar";
+        bar.style.cssText = "position:fixed;top:0;left:84px;right:0;width:auto;height:40px;z-index:2147483640;background:#fff;border-bottom:1px solid #c7cdd1;box-shadow:0 1px 4px rgba(0,0,0,.06);display:none;align-items:center;padding:0 14px;gap:8px;font-family:"+font+";box-sizing:border-box;";
+
+        var brand = document.createElement("div");
+        brand.style.cssText = "height:30px;display:flex;align-items:center;gap:8px;padding-right:12px;border-right:1px solid #dde1e4;color:#394B58;white-space:nowrap;flex-shrink:0;";
+        brand.innerHTML = '<span style="width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#7C3AED,#A78BFA);display:flex;align-items:center;justify-content:center;font-size:12px;">\u{1F3D7}️</span><strong style="font-size:12px;letter-spacing:.2px;color:#394B58;">AI Module Builder</strong>';
+
+        var selectWrap = document.createElement("div");
+        selectWrap.style.cssText = "display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;";
+        var selectLabel = document.createElement("span");
+        selectLabel.textContent = "Module:";
+        selectLabel.style.cssText = "font-size:11px;font-weight:700;color:#8b98a3;white-space:nowrap;flex-shrink:0;";
+        var select = document.createElement("select");
+        select.id = "cmb-pulse-select";
+        select.style.cssText = "height:30px;max-width:280px;min-width:0;padding:0 8px;border:1px solid #d5dbe0;border-radius:7px;background:#fff;color:#394B58;font-size:12px;font-weight:600;font-family:"+font+";cursor:pointer;";
+        selectWrap.append(selectLabel, select);
+
+        var openBtn = document.createElement("button");
+        openBtn.type = "button";
+        openBtn.innerHTML = '<span style="font-size:13px;">✨</span><span>Open Builder</span>';
+        openBtn.style.cssText = "height:30px;padding:0 14px;border:1px solid #B8A6F0;background:#fff;color:#7C3AED;font-size:12px;font-weight:700;border-radius:999px;cursor:pointer;font-family:"+font+";white-space:nowrap;display:flex;align-items:center;gap:6px;transition:background .12s,border-color .12s;flex-shrink:0;";
+        openBtn.addEventListener("mouseenter",function(){openBtn.style.background="#F5F0FE";openBtn.style.borderColor="#7C3AED";});
+        openBtn.addEventListener("mouseleave",function(){openBtn.style.background="#fff";openBtn.style.borderColor="#B8A6F0";});
+
+        var hideBtn = document.createElement("button");
+        hideBtn.type = "button";
+        hideBtn.textContent = "— Hide";
+        hideBtn.style.cssText = "height:30px;padding:0 12px;border:1px solid #d5dbe0;background:#fff;color:#394B58;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:"+font+";margin-left:auto;flex-shrink:0;";
+        hideBtn.addEventListener("mouseenter",function(){hideBtn.style.background="#f4f6f7";});
+        hideBtn.addEventListener("mouseleave",function(){hideBtn.style.background="#fff";});
+
+        bar.append(brand, selectWrap, openBtn, hideBtn);
+        document.body.insertBefore(bar, document.body.firstChild);
+
+        function refreshOptions(){
+            var mods = findCanvasModules();
+            var prevValue = select.value;
+            select.innerHTML = "";
+            var newOpt = document.createElement("option");
+            newOpt.value = "__new__";
+            newOpt.textContent = "+ New Module";
+            select.appendChild(newOpt);
+            mods.forEach(function(m){
+                var id = getCanvasModuleId(m);
+                if(!id) return;
+                var opt = document.createElement("option");
+                opt.value = id;
+                opt.textContent = getCanvasModuleName(m);
+                select.appendChild(opt);
             });
-            toolbar.appendChild(btn);
+            var hasPrev = Array.prototype.some.call(select.options,function(o){return o.value===prevValue;});
+            if(hasPrev){ select.value = prevValue; }
+            else if(select.options.length > 1){ select.selectedIndex = 1; }
+        }
+
+        openBtn.addEventListener("click",function(){
+            openModuleBuilderFor(select.value);
         });
+
+        hideBtn.addEventListener("click",function(){
+            bar.style.display = "none";
+            colTab.style.display = "block";
+            document.body.classList.remove("cmb-pulse-mode");
+            document.body.classList.add("cmb-pulse-collapsed");
+        });
+        colTab.addEventListener("click",function(){
+            colTab.style.display = "none";
+            bar.style.display = "flex";
+            refreshOptions();
+            document.body.classList.remove("cmb-pulse-collapsed");
+            document.body.classList.add("cmb-pulse-mode");
+        });
+
+        var onPage = false;
+        function updateBar(){
+            var shouldShow = isModulesPage();
+            if(shouldShow && !onPage){
+                refreshOptions();
+                bar.style.display = "flex";
+                colTab.style.display = "none";
+                document.body.classList.add("cmb-pulse-mode");
+                document.body.classList.remove("cmb-pulse-collapsed");
+            } else if(!shouldShow && onPage){
+                bar.style.display = "none";
+                colTab.style.display = "none";
+                document.body.classList.remove("cmb-pulse-mode","cmb-pulse-collapsed");
+            } else if(shouldShow && document.activeElement !== select){
+                refreshOptions();
+            }
+            onPage = shouldShow;
+        }
+
+        updateBar();
+        new MutationObserver(function(){ setTimeout(updateBar, 200); }).observe(document.body, {childList:true, subtree:false});
+        window.addEventListener("popstate", updateBar);
+        setInterval(updateBar, 1500);
     }
 
     function init(){
         GM_addStyle(CSS);
-        GM_addStyle(".cmb-module-toolbar-btn,.cmb-page-module-builder{margin-left:8px;padding:4px 10px;background:#7C3AED;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700;line-height:1.4;}.cmb-module-toolbar-btn:hover,.cmb-page-module-builder:hover{background:#6D28D9;}.cmb-page-module-builder{padding:7px 12px;font-size:13px;}");
         if(typeof GM_registerMenuCommand === "function"){
-            GM_registerMenuCommand("Open Canvas AI Module Builder", openOverlay);
+            GM_registerMenuCommand("Open Canvas AI Module Builder", function(){ openModuleBuilderFor(); });
         }
-        injectModuleToolbarButtons();
-        new MutationObserver(injectModuleToolbarButtons).observe(document.body,{childList:true,subtree:true});
-        window.addEventListener("popstate", injectModuleToolbarButtons);
-        setInterval(injectModuleToolbarButtons, 1500);
+        installModuleToolbar();
     }
 
     function waitAndLaunch(tries){
