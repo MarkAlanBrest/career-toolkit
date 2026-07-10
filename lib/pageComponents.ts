@@ -57,6 +57,12 @@ export const GENERATORS = {
     const cells = parts.map(w => `<td style="width:${w}%;padding:12px;vertical-align:top;border:1px solid #ddd;">Content here.</td>`).join('');
     return `<table style="width:100%;border-collapse:collapse;margin:1em 0;"><tr>${cells}</tr></table>`;
   },
+  containerRow(p: Record<string, string>) {
+    const n = Math.min(Math.max(parseInt(p.n) || 3, 1), 6);
+    const gap = parseInt(p.gap) || 12;
+    const boxes = Array.from({ length: n }, () => `<div style="flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;min-width:0;">Content here.</div>`).join('');
+    return `<div style="display:flex;gap:${gap}px;margin:1em 0;flex-wrap:wrap;">${boxes}</div>`;
+  },
   cards(p: Record<string, string>) {
     const rows = Math.min(Math.max(parseInt(p.rows) || 2, 1), 6);
     const cols = Math.min(Math.max(parseInt(p.cols) || 3, 1), 6);
@@ -110,6 +116,8 @@ export const COMPONENTS: Record<string, ComponentCategory> = {
     label: 'Layouts', icon: '⊞', items: [
       { label: 'Custom columns', generate: 'columns', fields: [{ id: 'split', label: 'Split', type: 'select', options: ['50/50', '67/33', '33/67', '33/33/33', '25/75', '75/25'], default: '50/50' }] },
       { label: 'Two columns', props: ['size', 'font', 'width'], html: `<table style="width:{{WIDTH}};border-collapse:collapse;margin:1em 0;"><tr><td style="width:50%;padding:12px;vertical-align:top;border:1px solid #ddd;font-family:{{FONT}};font-size:{{SIZE}};">Column one content here.</td><td style="width:50%;padding:12px;vertical-align:top;border:1px solid #ddd;font-family:{{FONT}};font-size:{{SIZE}};">Column two content here.</td></tr></table>` },
+      { label: 'Side-by-side container', props: ['size', 'font'], html: `<div style="display:flex;gap:16px;margin:1em 0;flex-wrap:wrap;font-family:{{FONT}};font-size:{{SIZE}};"><div style="flex:1;min-width:200px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;">Left content here.</div><div style="flex:1;min-width:200px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;">Right content here.</div></div>` },
+      { label: 'Row of containers', generate: 'containerRow', fields: [{ id: 'n', label: 'Boxes', type: 'number', default: 3, min: 1, max: 6 }, { id: 'gap', label: 'Gap', type: 'select', options: ['4', '8', '12', '16', '24'], default: '12' }] },
       { label: 'Collapsible', props: ['color', 'size', 'font', 'width'], html: `<details open style="border:1px solid #ddd;border-radius:4px;padding:12px 16px;margin:1em 0;font-family:{{FONT}};font-size:{{SIZE}};width:{{WIDTH}};"><summary style="font-weight:bold;cursor:pointer;color:{{P}};">Click to expand ▾</summary><div style="margin-top:12px;padding:10px 12px;">Hidden content goes here.</div></details>` },
     ],
   },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { COLORS, FONT_SIZES, FONTS, ICONS, COMPONENTS, GENERATORS, applyProps, THEMES, READY_MADE_PAGES, ColorPair } from '@/lib/pageComponents';
+import { COLORS, FONT_SIZES, FONTS, ICONS, COMPONENTS, GENERATORS, applyProps, READY_MADE_PAGES, ColorPair } from '@/lib/pageComponents';
 
 const navy = '#172A36';
 const blue = '#0770B8';
@@ -9,7 +9,7 @@ const border = '#E2E8F0';
 const muted = '#526A79';
 const paper = '#F8FAFC';
 
-type Tab = 'insert' | 'icons' | 'theme' | 'ready';
+type Tab = 'insert' | 'icons' | 'ready';
 
 export default function Editor({ html, onChange }: { html: string; onChange: (html: string) => void }) {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -85,8 +85,8 @@ export default function Editor({ html, onChange }: { html: string; onChange: (ht
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
-      <div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 260px', gap: 12, maxWidth: '100%' }}>
+      <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6, background: '#fff', border: `1px solid ${border}`, borderRadius: 8, padding: 6 }}>
           <ToolBtn onMouseDown={() => format('bold')} label="B" title="Bold" bold />
           <ToolBtn onMouseDown={() => format('italic')} label="I" title="Italic" italic />
@@ -102,23 +102,25 @@ export default function Editor({ html, onChange }: { html: string; onChange: (ht
             {FONT_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div
-          ref={canvasRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={commitChange}
-          onMouseUp={saveSelection}
-          onKeyUp={saveSelection}
-          style={{
-            minHeight: 320, border: `1px solid ${border}`, borderRadius: 8, padding: 14, background: '#fff',
-            fontSize: 14, lineHeight: 1.6, color: navy, outline: 'none',
-          }}
-        />
+        <div style={{ maxWidth: '100%', overflowX: 'auto', border: `1px solid ${border}`, borderRadius: 8, background: '#fff' }}>
+          <div
+            ref={canvasRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={commitChange}
+            onMouseUp={saveSelection}
+            onKeyUp={saveSelection}
+            style={{
+              minHeight: 320, padding: 14,
+              fontSize: 14, lineHeight: 1.6, color: navy, outline: 'none',
+            }}
+          />
+        </div>
       </div>
 
-      <div style={{ border: `1px solid ${border}`, borderRadius: 8, background: '#fff', overflow: 'hidden', maxHeight: 420, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minWidth: 0, border: `1px solid ${border}`, borderRadius: 8, background: '#fff', overflow: 'hidden', maxHeight: 420, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', borderBottom: `1px solid ${border}` }}>
-          {(['insert', 'icons', 'theme', 'ready'] as Tab[]).map(t => (
+          {(['insert', 'icons', 'ready'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               flex: 1, padding: '8px 4px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.02em',
               border: 'none', cursor: 'pointer', background: tab === t ? blue : '#fff', color: tab === t ? '#fff' : muted,
@@ -188,20 +190,6 @@ export default function Editor({ html, onChange }: { html: string; onChange: (ht
                     ))}
                   </div>
                 </div>
-              ))}
-            </>
-          )}
-
-          {tab === 'theme' && (
-            <>
-              <div style={{ fontSize: 11.5, color: muted, marginBottom: 8 }}>Pick a theme — sets the color used when you insert banners, callouts, and cards.</div>
-              {Object.entries(THEMES).map(([key, theme]) => (
-                <button key={key} onMouseDown={saveSelection} onClick={() => setActiveColor({ name: theme.name, p: theme.primary, l: theme.headerBg })} style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${border}`, borderRadius: 6, padding: '7px 9px', marginBottom: 5, cursor: 'pointer',
-                }}>
-                  <span style={{ width: 16, height: 16, borderRadius: 4, background: theme.primary, flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, color: navy }}>{theme.name}</span>
-                </button>
               ))}
             </>
           )}

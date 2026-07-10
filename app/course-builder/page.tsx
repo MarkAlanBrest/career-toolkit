@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Editor from './Editor';
+import { THEMES } from '@/lib/pageComponents';
 
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 const navy = '#172A36';
@@ -24,6 +25,9 @@ type BuilderItem = {
   pageType: string;
   title: string;
   instructions: string;
+  sourceText: string;
+  sourceFileName: string;
+  themeKey: string;
   html: string;
   pointValue: number;
   quizCounts: { mc: number; tf: number; sa: number; essay: number };
@@ -106,6 +110,7 @@ export default function CourseBuilderPage() {
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState('');
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const [showFinish, setShowFinish] = useState(false);
   const [finishMode, setFinishMode] = useState<'choose' | 'auto' | 'copy'>('choose');
@@ -156,7 +161,7 @@ export default function CourseBuilderPage() {
   function addItem(type: AddType) {
     const item: BuilderItem = {
       id: uid(), kind: type.kind, pageType: type.pageType,
-      title: type.label, instructions: '', html: '', pointValue: 100,
+      title: type.label, instructions: '', sourceText: '', sourceFileName: '', themeKey: 'ocean', html: '', pointValue: 100,
       quizCounts: { mc: 3, tf: 2, sa: 0, essay: 0 }, quizGroups: null,
     };
     setItems(prev => [...prev, item]);
@@ -188,6 +193,7 @@ export default function CourseBuilderPage() {
         accountId: account.accountId, accountToken: account.accountToken,
         kind: item.kind === 'quiz' ? 'quiz' : 'page',
         title: item.title, instructions: item.instructions, pageType: item.pageType,
+        theme: item.themeKey, sourceText: item.sourceText,
       };
       if (item.kind === 'quiz') body.quiz = item.quizCounts;
       const res = await fetch('/api/course-builder/generate', {
@@ -201,6 +207,30 @@ export default function CourseBuilderPage() {
       setDraftError('Network error — try again.');
     } finally {
       setDrafting(false);
+    }
+  }
+
+  async function uploadSourceFile(item: BuilderItem, file: File) {
+    setUploadingId(item.id);
+    setDraftError('');
+    try {
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+        reader.onerror = () => reject(new Error('Could not read file.'));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch('/api/parse-file', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ b64, filename: file.name, mimeType: file.type }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setDraftError(data?.error || 'Could not read that file.'); return; }
+      updateItem(item.id, { sourceText: data.text || '', sourceFileName: file.name });
+    } catch {
+      setDraftError('Network error uploading the file — try again.');
+    } finally {
+      setUploadingId(null);
     }
   }
 
@@ -257,7 +287,7 @@ export default function CourseBuilderPage() {
       />
 
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 20px 60px' }}>
-        <StepBar step={step} />
+        <StepBar step={step} onNavigate={s => { if (s === 'build' && !activeItem) return; setStep(s); }} />
 
         {step === 'layout' && (
           <LayoutStep
@@ -273,6 +303,7 @@ export default function CourseBuilderPage() {
             onUpdate={(patch) => updateItem(activeItem.id, patch)}
             drafting={drafting} draftError={draftError}
             onDraft={() => draftWithAI(activeItem)}
+            uploadingId={uploadingId} onUploadFile={(file) => uploadSourceFile(activeItem, file)}
             onBack={() => setStep('layout')}
             onNext={() => setStep('finish')}
             buyCreditsUrl={`/buy-credits?accountId=${encodeURIComponent(account.accountId)}&accountToken=${encodeURIComponent(account.accountToken)}`}
@@ -402,18 +433,18 @@ function TopBar({ connected, canvasDomain, canvasUserName, onOpenSettings }: { c
   );
 }
 
-function StepBar({ step }: { step: string }) {
-  const steps = [['layout', 'Add Content'], ['build', 'Build'], ['finish', 'Finish']];
+function StepBar({ step, onNavigate }: { step: string; onNavigate: (s: 'layout' | 'build' | 'finish') => void }) {
+  const steps: ['layout' | 'build' | 'finish', string][] = [['layout', 'Add Content'], ['build', 'Build'], ['finish', 'Finish']];
   const idx = steps.findIndex(s => s[0] === step);
   return (
     <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
       {steps.map(([key, label], i) => (
-        <div key={key} style={{
+        <button key={key} onClick={() => onNavigate(key)} style={{
           flex: 1, textAlign: 'center', fontSize: 12, fontWeight: 700, padding: '9px 6px', borderRadius: 8,
           background: i === idx ? blue : i < idx ? '#DCFCE7' : '#fff',
           color: i === idx ? '#fff' : i < idx ? green : muted,
-          border: `1px solid ${i === idx ? blue : border}`,
-        }}>{label}</div>
+          border: `1px solid ${i === idx ? blue : border}`, cursor: 'pointer', fontFamily: font,
+        }}>{label}</button>
       ))}
     </div>
   );
@@ -502,6 +533,26 @@ function Card({ children }: { children: React.ReactNode }) {
   return <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>{children}</div>;
 }
 
+function FileUpload({ uploading, sourceFileName, onUpload, onClear }: { uploading: boolean; sourceFileName: string; onUpload: (file: File) => void; onClear: () => void }) {
+  return (
+    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <label style={{ ...ghostBtnSm, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        📎 {uploading ? 'Reading…' : 'Upload source file'}
+        <input
+          type="file" accept=".pdf,.docx,.doc,.rtf,.txt,.md,.xlsx,.xls" style={{ display: 'none' }} disabled={uploading}
+          onChange={e => { const file = e.target.files?.[0]; if (file) onUpload(file); e.target.value = ''; }}
+        />
+      </label>
+      {sourceFileName && (
+        <span style={{ fontSize: 12, color: muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {sourceFileName} <button onClick={onClear} style={{ background: 'none', border: 'none', color: red, cursor: 'pointer', fontSize: 12 }}>remove</button>
+        </span>
+      )}
+      <span style={{ fontSize: 11, color: muted }}>PDF, Word, or text — used as source material for AI drafts.</span>
+    </div>
+  );
+}
+
 function LayoutStep(props: {
   items: BuilderItem[]; onAdd: (t: AddType) => void; onRemove: (id: string) => void; onMove: (id: string, dir: -1 | 1) => void;
   onUpdateTitle: (id: string, title: string) => void; onNext: () => void;
@@ -546,13 +597,15 @@ function BuildStep(props: {
   items: BuilderItem[]; activeItem: BuilderItem; onSelect: (id: string) => void;
   onUpdate: (patch: Partial<BuilderItem>) => void;
   drafting: boolean; draftError: string; onDraft: () => void;
+  uploadingId: string | null; onUploadFile: (file: File) => void;
   onBack: () => void; onNext: () => void; buyCreditsUrl: string;
 }) {
-  const { items, activeItem, onSelect, onUpdate, drafting, draftError, onDraft, onBack, onNext, buyCreditsUrl } = props;
+  const { items, activeItem, onSelect, onUpdate, drafting, draftError, onDraft, uploadingId, onUploadFile, onBack, onNext, buyCreditsUrl } = props;
+  const uploading = uploadingId === activeItem.id;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 16 }}>
-      <div>
+    <div style={{ display: 'grid', gridTemplateColumns: '200px minmax(0,1fr)', gap: 16, maxWidth: '100%' }}>
+      <div style={{ minWidth: 0 }}>
         {items.map(it => {
           const meta = ADD_TYPES.find(t => t.kind === it.kind && t.pageType === it.pageType) || ADD_TYPES[0];
           const active = it.id === activeItem.id;
@@ -569,7 +622,7 @@ function BuildStep(props: {
         })}
       </div>
 
-      <div>
+      <div style={{ minWidth: 0 }}>
         <Card>
           <label style={labelStyle}>Title</label>
           <input style={inputStyle} value={activeItem.title} onChange={e => onUpdate({ title: e.target.value })} />
@@ -599,6 +652,7 @@ function BuildStep(props: {
               <div style={{ height: 12 }} />
               <label style={labelStyle}>Topic / source material</label>
               <textarea style={{ ...inputStyle, minHeight: 90, fontFamily: font }} value={activeItem.instructions} onChange={e => onUpdate({ instructions: e.target.value })} placeholder="e.g. Photosynthesis — light-dependent and light-independent reactions" />
+              <FileUpload uploading={uploading} sourceFileName={activeItem.sourceFileName} onUpload={onUploadFile} onClear={() => onUpdate({ sourceText: '', sourceFileName: '' })} />
               <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <button style={primaryBtn} disabled={drafting} onClick={onDraft}>{drafting ? 'Drafting…' : '✨ Draft with AI'}</button>
                 <a href={buyCreditsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: blue }}>Need AI credits?</a>
@@ -630,10 +684,21 @@ function BuildStep(props: {
           ) : (
             <>
               <div style={{ height: 12 }} />
-              <label style={labelStyle}>AI instructions (optional)</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input style={inputStyle} value={activeItem.instructions} onChange={e => onUpdate({ instructions: e.target.value })} placeholder="Describe what you want, then draft — or just build below" />
-                <button style={{ ...primaryBtn, whiteSpace: 'nowrap' }} disabled={drafting} onClick={onDraft}>{drafting ? 'Drafting…' : '✨ Draft'}</button>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <label style={labelStyle}>AI instructions (optional)</label>
+                  <input style={inputStyle} value={activeItem.instructions} onChange={e => onUpdate({ instructions: e.target.value })} placeholder="Describe what you want, then draft — or just build below" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Theme (for AI drafts)</label>
+                  <select style={inputStyle} value={activeItem.themeKey} onChange={e => onUpdate({ themeKey: e.target.value })}>
+                    {Object.entries(THEMES).map(([key, t]) => <option key={key} value={key}>{t.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <FileUpload uploading={uploading} sourceFileName={activeItem.sourceFileName} onUpload={onUploadFile} onClear={() => onUpdate({ sourceText: '', sourceFileName: '' })} />
+              <div style={{ marginTop: 10 }}>
+                <button style={primaryBtn} disabled={drafting} onClick={onDraft}>{drafting ? 'Drafting…' : '✨ Draft with AI'}</button>
               </div>
               <div style={{ marginTop: 4 }}>
                 <a href={buyCreditsUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: blue }}>Need AI credits?</a>
