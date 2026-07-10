@@ -44,7 +44,6 @@
     // How many items "Build All" generates at once. Anthropic tolerates several
     // concurrent requests fine; keep this modest to avoid tripping rate limits.
     const BUILD_ALL_CONCURRENCY = 3;
-    const QUIZ_VERSION_COUNT = 2;
 
     const ITEM_TYPES = {
         intro:{label:"Intro Page",icon:"\u{1F4D8}",group:"page"},
@@ -56,8 +55,6 @@
         summary:{label:"Summary Page",icon:"\u{1F4CB}",group:"page"},
         resource:{label:"Resource Page",icon:"\u{1F517}",group:"page"},
         assignment:{label:"Assignment",icon:"\u{1F4DD}",group:"assessment"},
-        quiz:{label:"Quiz",icon:"\u{1F4DD}",group:"assessment"},
-        miniquiz:{label:"Mini Quiz",icon:"\u270F\uFE0F",group:"assessment"},
         flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"activity"},
         quickcheck:{label:"Quick Check",icon:"\u2705",group:"activity"},
         termreveal:{label:"Vocab Builder",icon:"\u{1F4DA}",group:"activity"},
@@ -351,45 +348,6 @@
         });
     }
 
-    async function createQuiz(title, pointsPossible){
-        return canvasAPI("POST", "/quizzes", {
-            quiz: {
-                title: title, quiz_type: "assignment", points_possible: pointsPossible,
-                shuffle_answers: true, show_correct_answers: true,
-                allowed_attempts: -1, scoring_policy: "keep_highest", published: false
-            }
-        });
-    }
-
-    async function createQuestionGroup(quizId, name, pickCount, pointsPerQuestion){
-        return canvasAPI("POST", "/quizzes/" + quizId + "/groups", {
-            quiz_groups: [{ name: name, pick_count: pickCount, question_points: pointsPerQuestion }]
-        });
-    }
-
-    async function createQuizQuestion(quizId, groupId, questionData){
-        var payload = {
-            question: {
-                question_name: (questionData.question || "").slice(0, 60),
-                question_text: "<p>" + esc(questionData.question || "") + "</p>",
-                question_type: questionData._type,
-                points_possible: questionData._points,
-                quiz_group_id: groupId
-            }
-        };
-        if(questionData._type === "multiple_choice_question" || questionData._type === "true_false_question"){
-            payload.question.answers = (questionData.answers || []).map(function(a){
-                return { answer_text: a.text, answer_weight: a.correct ? 100 : 0 };
-            });
-        }
-        if(questionData._type === "short_answer_question" && questionData.answers && questionData.answers.length){
-            payload.question.answers = questionData.answers.filter(function(a){return a.correct;}).map(function(a){
-                return { answer_text: a.text, answer_weight: 100 };
-            });
-        }
-        return canvasAPI("POST", "/quizzes/" + quizId + "/questions", payload);
-    }
-
     async function addModuleItem(moduleId, itemType, contentIdOrUrl, title, position){
         var item = { module_item: { title: title, type: itemType } };
         if(position != null) item.module_item.position = position;
@@ -409,19 +367,7 @@
 
         for(var mi = 0; mi < state.modules.length; mi++){
             totalSteps++;
-            var mod = state.modules[mi];
-            for(var i = 0; i < mod.items.length; i++){
-                var item = mod.items[i];
-                var data = state.itemData[item.id] || {};
-                totalSteps++;
-                if((item.type === "quiz" || item.type === "miniquiz") && data.generatedQuestions){
-                    var groups = data.generatedQuestions.groups || [];
-                    for(var g = 0; g < groups.length; g++){
-                        totalSteps++;
-                        totalSteps += (groups[g].questions || []).length;
-                    }
-                }
-            }
+            totalSteps += state.modules[mi].items.length;
         }
 
         function report(msg){ completedSteps++; if(progressCallback) progressCallback(completedSteps, totalSteps, msg); }
@@ -459,40 +405,7 @@
                 var insertPosition = useExistingModule ? null : itemPosition;
 
                 try {
-                    if(item.type === "quiz" || item.type === "miniquiz"){
-                        var qTitle = data.quizTitle || (itemInfo.label + " " + itemNum);
-                        if(!data.generatedQuestions || !data.generatedQuestions.groups){
-                            report("Skipped (not built): " + qTitle);
-                            results.modules[results.modules.length-1].items.push({ title: qTitle, status: "skipped" });
-                            continue;
-                        }
-                        var groups = data.generatedQuestions.groups || [];
-                        var totalPts = groups.reduce(function(sum, g){
-                            return sum + (g.type==="mc"?1 : g.type==="tf"?1 : g.type==="sa"?5 : 10);
-                        }, 0);
-                        var quiz = await createQuiz(qTitle, totalPts);
-                        report("Created quiz: " + qTitle);
-                        for(var gi = 0; gi < groups.length; gi++){
-                            var grp = groups[gi];
-                            var pts = grp.type==="mc"?1 : grp.type==="tf"?1 : grp.type==="sa"?5 : 10;
-                            var qType = grp.type==="mc"?"multiple_choice_question" :
-                                        grp.type==="tf"?"true_false_question" :
-                                        grp.type==="essay"?"essay_question" : "short_answer_question";
-                            var groupResp = await createQuestionGroup(quiz.id, "Group " + (gi+1) + ": " + (grp.concept || grp.type), 1, pts);
-                            var groupId = groupResp.quiz_groups ? groupResp.quiz_groups[0].id : (groupResp.id || null);
-                            report("Created question group " + (gi+1) + " in " + qTitle);
-                            var qs = grp.questions || [];
-                            for(var qi = 0; qi < qs.length; qi++){
-                                var q = qs[qi];
-                                q._type = qType; q._points = pts;
-                                await createQuizQuestion(quiz.id, groupId, q);
-                                report("Added question V" + (qi+1) + " to group " + (gi+1));
-                            }
-                        }
-                        await addModuleItem(canvasMod.id, "Quiz", quiz.id, qTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: qTitle, status: "inserted", type: "quiz" });
-
-                    } else if(item.type === "assignment"){
+                    if(item.type === "assignment"){
                         var assignTitle = itemInfo.label + " " + itemNum;
                         var assignHtml = data.generatedHTML || "<p>Assignment content not yet generated.</p>";
                         var pts = data.pointValue || "100";
@@ -510,8 +423,7 @@
                         results.modules[results.modules.length-1].items.push({ title: pageTitle, status: "inserted", type: "page" });
                     }
                 } catch(err){
-                    var errTitle = (item.type === "quiz" || item.type === "miniquiz") ? (data.quizTitle || itemInfo.label) :
-                                   item.type === "assignment" ? (itemInfo.label + " " + itemNum) : (itemInfo.label + " " + itemNum);
+                    var errTitle = itemInfo.label + " " + itemNum;
                     results.errors.push(errTitle + ": " + err.message);
                     report("ERROR: " + errTitle);
                     results.modules[results.modules.length-1].items.push({ title: errTitle, status: "error", error: err.message });
@@ -601,10 +513,7 @@
 
     function initItemData(item){
         if(state.itemData[item.id])return;
-        if(item.type==="quiz"||item.type==="miniquiz"){
-            var m=item.type==="miniquiz";
-            state.itemData[item.id]={quizTitle:m?"Mini Quiz":"Quiz",difficulty:"medium",mcCount:m?3:5,tfCount:m?2:3,saCount:m?0:2,essayCount:0,textContent:"",uploadedFile:"",uploadedName:"",generatedQuestions:null,subView:"build"};
-        }else if(item.type==="assignment"){
+        if(item.type==="assignment"){
             state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
             var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8};
@@ -770,20 +679,12 @@
 
     function isItemBuilt(item, d){
         if(!d) return false;
-        return (item.type==="quiz"||item.type==="miniquiz") ? !!d.generatedQuestions : !!d.generatedHTML;
+        return !!d.generatedHTML;
     }
 
     // Runs the actual generation for one item — same logic as each builder's
     // own Generate button, just without touching the DOM.
     async function generateOneItem(item, d, mod){
-        if(item.type==="quiz"||item.type==="miniquiz"){
-            var total=d.mcCount+d.tfCount+d.saCount+d.essayCount;
-            if(total===0) throw new Error("No question types selected");
-            var raw=await callClaude(buildQuizPrompt(d),AI_MODEL_QUIZ,8192);
-            var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-            d.generatedQuestions=JSON.parse(cleaned);d.subView="preview";
-            return;
-        }
         if(!itemHasSource(d,mod)) throw new Error("No source material");
         var html;
         if(ACTIVITY_TYPES.indexOf(item.type)>=0){
@@ -930,26 +831,6 @@
         p += "- Every HTML tag you open must be closed before the response ends\n";
         p += "- Ready to paste directly into Canvas Rich Content Editor\n";
 
-        return p;
-    }
-
-    // ========== QUIZ BUILDER PROMPT ==========
-
-    function buildQuizPrompt(itemData){
-        var dok=DOK_MAP[itemData.difficulty||"medium"];
-        var p="You are an expert educator creating a Canvas LMS quiz with randomized question groups.\n\n";
-        p+="QUIZ CONFIGURATION\nTitle: "+(itemData.quizTitle||"Quiz")+"\n";
-        p+="Difficulty: "+dok.label+" - "+dok.desc+"\nDOK Levels: "+dok.levels.join(" and ")+"\n\nQUESTION GROUPS NEEDED:\n";
-        if(itemData.mcCount>0)p+="- "+itemData.mcCount+" Multiple Choice x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.mcCount*QUIZ_VERSION_COUNT)+" MC total\n";
-        if(itemData.tfCount>0)p+="- "+itemData.tfCount+" True/False x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.tfCount*QUIZ_VERSION_COUNT)+" TF total\n";
-        if(itemData.saCount>0)p+="- "+itemData.saCount+" Short Answer x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.saCount*QUIZ_VERSION_COUNT)+" SA total\n";
-        if(itemData.essayCount>0)p+="- "+itemData.essayCount+" Essay x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.essayCount*QUIZ_VERSION_COUNT)+" Essay total\n";
-        p+="\nIMPORTANT - How groups work:\nEach group has exactly "+QUIZ_VERSION_COUNT+" versions of the SAME concept but worded differently.\nCanvas randomly picks ONE version from each group per student.\n\nCONTENT\n";
-        if(itemData.textContent&&itemData.textContent.trim())p+=itemData.textContent+"\n\n";
-        if(itemData.uploadedFile)p+="FILE ("+itemData.uploadedName+"):\n"+itemData.uploadedFile+"\n\n";
-        p+=getModuleSourceContext();
-        p+='\n\nRESPONSE FORMAT\nReturn ONLY a valid JSON object, no explanations, no markdown.\n\n{"quizTitle":"'+(itemData.quizTitle||"Quiz")+'","groups":[{"groupNumber":1,"type":"mc","concept":"Description","dokLevel":1,"questions":[{"version":1,"question":"Q?","answers":[{"text":"A","correct":true},{"text":"B","correct":false},{"text":"C","correct":false},{"text":"D","correct":false}]}]}]}\n\n';
-        p+="RULES:\n- MC: exactly 4 choices, 1 correct\n- TF: exactly 2 answers: True and False\n- SA: no answers array\n- Essay: no answers array\n- Each group: exactly "+QUIZ_VERSION_COUNT+" question versions\n- Valid JSON only\n";
         return p;
     }
 
@@ -1463,7 +1344,7 @@
         h+='<p class="cmb-desc">Enter your Claude API key to get started. Content will be inserted directly into your current Canvas course via the API.</p>';
         if(courseId){
             h+='<div class="cmb-card" style="background:#f0fdf4;border-color:#bbf7d0;"><div style="font-size:13px;color:#065F46;font-weight:600;">\u2705 Course Detected: ID ' + courseId + '</div>';
-            h+='<div style="font-size:11px;color:#065F46;margin-top:4px;">Modules, pages, assignments, and quizzes will be inserted directly into this course.</div></div>';
+            h+='<div style="font-size:11px;color:#065F46;margin-top:4px;">Modules, pages, and assignments will be inserted directly into this course.</div></div>';
         } else {
             h+='<div class="cmb-card" style="background:#fef2f2;border-color:#fca5a5;"><div style="font-size:13px;color:#991B1B;font-weight:600;">\u26A0\uFE0F No Course Detected</div>';
             h+='<div style="font-size:11px;color:#991B1B;margin-top:4px;">Navigate to a Canvas course page (e.g., /courses/12345) before inserting content.</div></div>';
@@ -1678,7 +1559,7 @@
             }
             var info=ITEM_TYPES[ai.item.type]||{label:ai.item.type,icon:"?"};
             var d=state.itemData[ai.item.id]||{};
-            var done=(ai.item.type==="quiz"||ai.item.type==="miniquiz")?!!d.generatedQuestions:!!d.generatedHTML;
+            var done=!!d.generatedHTML;
             var isActive=s===flatIdx;
             h+='<div class="cmb-sidebar-item'+(isActive?' active':'')+'" data-flat="'+s+'"><span class="icon">'+info.icon+'</span>'+esc(info.label);
             if(done) h+='<span class="done-badge">\u2705</span>';
@@ -1700,8 +1581,7 @@
         var item=currentItemObj.item;
         var dd=state.itemData[item.id];
         if(!dd){initItemData(item);dd=state.itemData[item.id];}
-        if(item.type==="quiz"||item.type==="miniquiz"){renderQuizBuilder(container,item,dd);}
-        else{renderContentBuilder(container,item,dd);}
+        renderContentBuilder(container,item,dd);
         body.querySelectorAll(".cmb-sidebar-item").forEach(function(si){
             si.addEventListener("click",function(){
                 var fi=parseInt(si.dataset.flat);
@@ -2116,150 +1996,6 @@
         container.innerHTML='<textarea class="cmb-code-area">'+esc(html)+'</textarea>';
     }
 
-    // ========== QUIZ BUILDER ==========
-
-    function renderQuizBuilder(container,item,d){
-        var info=ITEM_TYPES[item.type]||{label:"Quiz",icon:"?"};
-        if(d.subView==="preview"&&d.generatedQuestions){renderQuizPreview(container,item,d);return;}
-        var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
-        h+='<p class="cmb-desc">Configure and generate quiz questions. Questions will be inserted directly into Canvas as a Classic Quiz with question groups.</p>';
-        h+='<div class="cmb-card"><label class="cmb-label">Quiz Title</label>';
-        h+='<input type="text" class="cmb-input" id="cmb-quiz-title" value="'+esc(d.quizTitle||"")+'" placeholder="Enter quiz title"></div>';
-        h+='<div class="cmb-card"><label class="cmb-label">Difficulty Level</label><div class="cmb-diff-grid">';
-        var diffs=[["easy","Easy","DOK 1-2","#10B981"],["medium","Medium","DOK 2-3","#F59E0B"],["hard","Hard","DOK 3-4","#EF4444"]];
-        for(var i=0;i<diffs.length;i++){
-            var df=diffs[i];
-            h+='<div class="cmb-diff-btn'+(d.difficulty===df[0]?' sel':'')+'" data-diff="'+df[0]+'" style="'+(d.difficulty===df[0]?'border-color:'+df[3]+';background:'+df[3]+'15':'')+'">';
-            h+='<div style="font-weight:700;">'+df[1]+'</div><div style="font-size:11px;color:#6b7280;">'+df[2]+'</div></div>';
-        }
-        h+='</div></div>';
-        h+='<div class="cmb-card"><label class="cmb-label">Question Mix</label>';
-        h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Each question generates '+QUIZ_VERSION_COUNT+' versions for randomized groups.</div>';
-        var qTypes=[["mc","Multiple Choice",d.mcCount],["tf","True / False",d.tfCount],["sa","Short Answer",d.saCount],["essay","Essay",d.essayCount]];
-        for(var j=0;j<qTypes.length;j++){
-            var qt=qTypes[j];
-            h+='<div class="cmb-qmix-row"><span class="qlabel">'+qt[1]+'</span><div class="qcount">';
-            h+='<button data-qtype="'+qt[0]+'" data-dir="down">-</button><span>'+qt[2]+'</span><button data-qtype="'+qt[0]+'" data-dir="up">+</button>';
-            h+='<span style="font-size:10px;color:#9ca3af;margin-left:4px;">= '+(qt[2]*QUIZ_VERSION_COUNT)+' versions</span></div></div>';
-        }
-        var total=d.mcCount+d.tfCount+d.saCount+d.essayCount;
-        h+='<div style="margin-top:8px;font-size:12px;font-weight:600;color:#7C3AED;">Total: '+total+' questions &times; '+QUIZ_VERSION_COUNT+' = '+(total*QUIZ_VERSION_COUNT)+' versions</div></div>';
-        h+='<div class="cmb-card"><label class="cmb-label">Quiz Content (optional)</label>';
-        h+='<div class="cmb-file-row"><input type="file" id="cmb-qfile" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
-        if(d.uploadedName){h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-qrm-file">&times;</span></div>';}
-        h+='</div><textarea class="cmb-textarea" id="cmb-qtext" rows="3" placeholder="Paste content for quiz generation...">'+esc(d.textContent||"")+'</textarea></div>';
-        h+='<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" id="cmb-gen-quiz">\u2728 Generate '+(total*QUIZ_VERSION_COUNT)+' Questions</button></div>';
-        container.innerHTML=h;
-        container.querySelector("#cmb-quiz-title").addEventListener("input",function(e){d.quizTitle=e.target.value;});
-        container.querySelectorAll(".cmb-diff-btn").forEach(function(db){
-            db.addEventListener("click",function(){d.difficulty=db.dataset.diff;render();});
-        });
-        container.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
-            btn.addEventListener("click",function(){
-                var qt=btn.dataset.qtype,dir=btn.dataset.dir;
-                var key=qt==="mc"?"mcCount":qt==="tf"?"tfCount":qt==="sa"?"saCount":"essayCount";
-                if(dir==="up")d[key]++;else if(d[key]>0)d[key]--;render();
-            });
-        });
-        container.querySelector("#cmb-qtext").addEventListener("input",function(e){d.textContent=e.target.value;});
-        container.querySelector("#cmb-qfile").addEventListener("change",async function(e){
-            if(!e.target.files.length)return;
-            var f=e.target.files[0];
-            try{
-                state.status="Parsing "+f.name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;
-                state.status="File loaded: "+f.name;state.statusType="success";render();
-            }catch(err){state.status="Error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
-        });
-        var rmf=container.querySelector("#cmb-qrm-file");
-        if(rmf)rmf.addEventListener("click",function(){d.uploadedFile="";d.uploadedName="";render();});
-        container.querySelector("#cmb-gen-quiz").addEventListener("click",async function(){
-            if(!state.apiKey){state.status="Enter API key first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            if(!d.textContent&&!d.uploadedFile&&!(curMod()&&curMod().sources.length)){state.status="Add some content first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            var total2=d.mcCount+d.tfCount+d.saCount+d.essayCount;
-            if(total2===0){state.status="Add at least one question";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            state.status="Generating "+(total2*QUIZ_VERSION_COUNT)+" questions...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-            var btn2=container.querySelector("#cmb-gen-quiz");btn2.disabled=true;btn2.textContent="Generating...";
-            try{
-                var raw=await callClaude(buildQuizPrompt(d),AI_MODEL_QUIZ,8192);
-                var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                d.generatedQuestions=JSON.parse(cleaned);d.subView="preview";
-                state.status="Questions generated!";state.statusType="success";render();
-            }catch(err){
-                state.status="Error: "+err.message;state.statusType="error";
-                btn2.disabled=false;btn2.textContent="\u2728 Generate "+(total2*QUIZ_VERSION_COUNT)+" Questions";
-                renderStatus(overlayEl.querySelector("#cmb-panel"));
-            }
-        });
-    }
-
-    function renderQuizPreview(container,item,d){
-        var info=ITEM_TYPES[item.type]||{label:"Quiz",icon:"?"};
-        var data=d.generatedQuestions;
-        var groups=data.groups||[];
-        var h='<h2 class="cmb-h2">'+info.icon+' '+esc(d.quizTitle||info.label)+' - Preview</h2>';
-        h+='<p class="cmb-desc">'+groups.length+' question groups, '+QUIZ_VERSION_COUNT+' versions each. Click answers to toggle correct.</p>';
-        var typeColors={mc:"#7C3AED",tf:"#0EA5E9",sa:"#F59E0B",essay:"#EF4444"};
-        var typeLabels={mc:"Multiple Choice",tf:"True/False",sa:"Short Answer",essay:"Essay"};
-        var verColors=["#7C3AED","#0EA5E9","#10B981"];
-        for(var i=0;i<groups.length;i++){
-            var g=groups[i];
-            var tc=typeColors[g.type]||"#6b7280";
-            h+='<div class="cmb-group-card">';
-            h+='<div class="cmb-group-header" style="background:'+tc+';">Group '+(i+1)+': '+(typeLabels[g.type]||g.type)+' <span style="font-size:11px;opacity:0.8;">DOK '+g.dokLevel+' | '+esc(g.concept||"")+'</span></div>';
-            h+='<div class="cmb-group-body">';
-            var qs=g.questions||[];
-            for(var j=0;j<qs.length;j++){
-                var q=qs[j];
-                h+='<div class="cmb-q-block">';
-                h+='<span class="cmb-ver-badge" style="background:'+verColors[j%3]+'">V'+(j+1)+'</span>';
-                h+='<textarea class="cmb-q-text" data-gi="'+i+'" data-qi="'+j+'">'+esc(q.question||"")+'</textarea>';
-                if(q.answers&&q.answers.length){
-                    for(var k=0;k<q.answers.length;k++){
-                        var a=q.answers[k];
-                        h+='<div class="cmb-ans-row">';
-                        h+='<div class="cmb-ans-dot'+(a.correct?" correct":"")+'" data-gi="'+i+'" data-qi="'+j+'" data-ai="'+k+'"></div>';
-                        h+='<input type="text" class="cmb-ans-input" data-gi="'+i+'" data-qi="'+j+'" data-ai="'+k+'" value="'+esc(a.text||"")+'">';
-                        h+='</div>';
-                    }
-                }
-                h+='</div>';
-            }
-            h+='</div></div>';
-        }
-        h+='<div class="cmb-btn-row">';
-        h+='<button class="cmb-btn cmb-btn-ai" id="cmb-regen-quiz">Regenerate</button>';
-        h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-back-quiz">Back to Settings</button>';
-        h+='</div>';
-        container.innerHTML=h;
-        container.querySelectorAll(".cmb-q-text").forEach(function(ta){
-            ta.addEventListener("input",function(){
-                var gi=parseInt(ta.dataset.gi),qi=parseInt(ta.dataset.qi);
-                if(data.groups[gi]&&data.groups[gi].questions[qi])data.groups[gi].questions[qi].question=ta.value;
-            });
-        });
-        container.querySelectorAll(".cmb-ans-input").forEach(function(inp){
-            inp.addEventListener("input",function(){
-                var gi=parseInt(inp.dataset.gi),qi=parseInt(inp.dataset.qi),ai=parseInt(inp.dataset.ai);
-                if(data.groups[gi]&&data.groups[gi].questions[qi]&&data.groups[gi].questions[qi].answers[ai])data.groups[gi].questions[qi].answers[ai].text=inp.value;
-            });
-        });
-        container.querySelectorAll(".cmb-ans-dot").forEach(function(dot){
-            dot.addEventListener("click",function(){
-                var gi=parseInt(dot.dataset.gi),qi=parseInt(dot.dataset.qi),ai=parseInt(dot.dataset.ai);
-                var q=data.groups[gi]&&data.groups[gi].questions[qi];
-                if(!q||!q.answers)return;
-                var gtype=data.groups[gi].type;
-                if(gtype==="mc"||gtype==="tf"){q.answers.forEach(function(a){a.correct=false;});q.answers[ai].correct=true;}
-                else{q.answers[ai].correct=!q.answers[ai].correct;}
-                var block=dot.closest(".cmb-q-block");
-                block.querySelectorAll(".cmb-ans-dot").forEach(function(dd,idx){dd.classList.toggle("correct",q.answers[idx]&&q.answers[idx].correct);});
-            });
-        });
-        container.querySelector("#cmb-regen-quiz").addEventListener("click",function(){d.subView="build";d.generatedQuestions=null;render();});
-        container.querySelector("#cmb-back-quiz").addEventListener("click",function(){d.subView="build";render();});
-    }
-
     // ========== INSERT VIEW ==========
 
     function renderInsert(body){
@@ -2284,11 +2020,11 @@
             for(var i=0;i<mod.items.length;i++){
                 var it=mod.items[i],info=ITEM_TYPES[it.type]||{label:it.type,icon:"?"};
                 var d=state.itemData[it.id]||{};
-                var done=(it.type==="quiz"||it.type==="miniquiz")?!!d.generatedQuestions:!!d.generatedHTML;
+                var done=!!d.generatedHTML;
                 if(done)modReady++;
                 var modeTag=(d.longContent&&done)?' <span style="font-size:10px;background:#EDE9FE;color:#6D28D9;padding:1px 5px;border-radius:3px;">LONG</span>':'';
                 h+='<div class="cmb-insert-item"><span class="icon">'+info.icon+'</span>';
-                h+='<span style="flex:1;">'+esc(info.label+(it.type==="quiz"||it.type==="miniquiz"?" \u2014 "+(d.quizTitle||""):""))+modeTag+'</span>';
+                h+='<span style="flex:1;">'+esc(info.label)+modeTag+'</span>';
                 h+='<span class="status '+(done?"ready":"empty")+'">'+(done?"\u2713 Ready":"Not Built")+'</span></div>';
             }
             if(mod.items.length===0){h+='<div style="font-size:12px;color:#94a3b8;">No items.</div>';}
@@ -2313,7 +2049,7 @@
         h+='<h4>\u{1F680} How Direct API Insert Works</h4><ol>';
         h+='<li>Click <strong>Insert into Canvas</strong> above.</li>';
         h+='<li>The script uses the <strong>current Canvas module</strong> you opened from.</li>';
-        h+='<li>It creates all <strong>pages, assignments, and quizzes</strong> with full content.</li>';
+        h+='<li>It creates all <strong>pages and assignments</strong> with full content.</li>';
         h+='<li>Each new item is added to the current module automatically.</li>';
         h+='<li>Go to <strong>Modules</strong> in your course \u2014 everything will be there (unpublished)!</li>';
         h+='</ol></div>';
@@ -2627,6 +2363,7 @@
             typeCounts:{ mc:5, tf:3, short:2, essay:0 },
             includeExplanations:true,
             variantsPerQ:1,
+            textContent:"", uploadedFile:"", uploadedName:"",
             groups:[], checked:[], queue:[],
             quizTitle:"Quiz", engine:"classic"
         };
@@ -2671,55 +2408,77 @@
         var countBadge = overlay.querySelector("#cmb-qb-count");
 
         // ── LEFT: settings ──
-        var lh = '';
-        lh += '<div class="cmb-card"><label class="cmb-label">Topic</label><textarea class="cmb-textarea" id="cmb-qb-topic" rows="3" placeholder="e.g. The American Civil War">'+esc(qst.topic)+'</textarea></div>';
-        lh += '<div class="cmb-card"><label class="cmb-label">Settings</label>';
-        lh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">';
-        lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Subject</div><select class="cmb-select" id="cmb-qb-subject">';
-        [["general","General / Any"],["math","Mathematics"],["science","Science"],["history","History / Social Studies"],["english","English / Language Arts"],["foreign_lang","Foreign Language"],["cs","Computer Science"],["other","Other"]].forEach(function(o){
-            lh += '<option value="'+o[0]+'"'+(o[0]===qst.subject?' selected':'')+'>'+o[1]+'</option>';
-        });
-        lh += '</select></div>';
-        lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Difficulty</div><select class="cmb-select" id="cmb-qb-difficulty">';
-        [["easy","Easy"],["medium","Medium"],["hard","Hard"],["mixed","Mixed"]].forEach(function(o){
-            lh += '<option value="'+o[0]+'"'+(o[0]===qst.difficulty?' selected':'')+'>'+o[1]+'</option>';
-        });
-        lh += '</select></div></div>';
-        lh += '<div style="margin-bottom:8px;"><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Variants per question</div><select class="cmb-select" id="cmb-qb-variants">';
-        [["1","1 — unique questions"],["2","2 — pairs (A & B)"],["3","3 — triplets (A, B & C)"]].forEach(function(o){
-            lh += '<option value="'+o[0]+'"'+(o[0]===String(qst.variantsPerQ)?' selected':'')+'>'+o[1]+'</option>';
-        });
-        lh += '</select></div>';
-        lh += '<div class="cmb-el-grid">';
-        lh += '<div class="cmb-el-toggle'+(qst.includeExplanations?' on':'')+'" id="cmb-qb-expl-toggle"><span class="dot"></span>Explanations</div>';
-        lh += '</div></div>';
-        lh += '<div class="cmb-card"><label class="cmb-label">Question Types</label>';
-        [["mc","Multiple Choice"],["tf","True / False"],["short","Short Answer"],["essay","Essay"]].forEach(function(t){
-            lh += '<div class="cmb-qmix-row"><span class="qlabel">'+t[1]+'</span><div class="qcount">';
-            lh += '<button data-qtype="'+t[0]+'" data-dir="down">-</button><span id="cmb-qb-count-'+t[0]+'">'+qst.typeCounts[t[0]]+'</span><button data-qtype="'+t[0]+'" data-dir="up">+</button>';
-            lh += '</div></div>';
-        });
-        lh += '<div style="margin-top:8px;font-size:11px;color:#64748B;text-align:right;" id="cmb-qb-total">Total: '+Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0)+' questions</div>';
-        lh += '</div>';
-        lh += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" style="width:100%;justify-content:center;" id="cmb-qb-gen">✨ Generate Questions</button></div>';
-        left.innerHTML = lh;
-
-        left.querySelector("#cmb-qb-topic").addEventListener("input", function(e){ qst.topic = e.target.value; });
-        left.querySelector("#cmb-qb-subject").addEventListener("change", function(e){ qst.subject = e.target.value; });
-        left.querySelector("#cmb-qb-difficulty").addEventListener("change", function(e){ qst.difficulty = e.target.value; });
-        left.querySelector("#cmb-qb-variants").addEventListener("change", function(e){ qst.variantsPerQ = parseInt(e.target.value, 10); });
-        left.querySelector("#cmb-qb-expl-toggle").addEventListener("click", function(){
-            qst.includeExplanations = !qst.includeExplanations;
-            this.classList.toggle("on", qst.includeExplanations);
-        });
-        left.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
-            btn.addEventListener("click", function(){
-                var qt = btn.dataset.qtype, dir = btn.dataset.dir;
-                qst.typeCounts[qt] = Math.max(0, qst.typeCounts[qt] + (dir === "up" ? 1 : -1));
-                left.querySelector("#cmb-qb-count-"+qt).textContent = qst.typeCounts[qt];
-                left.querySelector("#cmb-qb-total").textContent = "Total: " + Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0) + " questions";
+        function renderLeft(){
+            var lh = '';
+            lh += '<div class="cmb-card"><label class="cmb-label">Topic</label><textarea class="cmb-textarea" id="cmb-qb-topic" rows="3" placeholder="e.g. The American Civil War">'+esc(qst.topic)+'</textarea></div>';
+            lh += '<div class="cmb-card"><label class="cmb-label">Source Material (optional)</label>';
+            lh += '<div class="cmb-file-row"><input type="file" id="cmb-qb-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
+            if(qst.uploadedName){ lh += '<div class="cmb-file-chip">'+esc(qst.uploadedName)+' <span class="x" id="cmb-qb-rmfile">&times;</span></div>'; }
+            lh += '</div><textarea class="cmb-textarea" id="cmb-qb-content" rows="3" placeholder="Or paste content to base questions on...">'+esc(qst.textContent)+'</textarea></div>';
+            lh += '<div class="cmb-card"><label class="cmb-label">Settings</label>';
+            lh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">';
+            lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Subject</div><select class="cmb-select" id="cmb-qb-subject">';
+            [["general","General / Any"],["math","Mathematics"],["science","Science"],["history","History / Social Studies"],["english","English / Language Arts"],["foreign_lang","Foreign Language"],["cs","Computer Science"],["other","Other"]].forEach(function(o){
+                lh += '<option value="'+o[0]+'"'+(o[0]===qst.subject?' selected':'')+'>'+o[1]+'</option>';
             });
-        });
+            lh += '</select></div>';
+            lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Difficulty</div><select class="cmb-select" id="cmb-qb-difficulty">';
+            [["easy","Easy"],["medium","Medium"],["hard","Hard"],["mixed","Mixed"]].forEach(function(o){
+                lh += '<option value="'+o[0]+'"'+(o[0]===qst.difficulty?' selected':'')+'>'+o[1]+'</option>';
+            });
+            lh += '</select></div></div>';
+            lh += '<div style="margin-bottom:8px;"><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Variants per question</div><select class="cmb-select" id="cmb-qb-variants">';
+            [["1","1 — unique questions"],["2","2 — pairs (A & B)"],["3","3 — triplets (A, B & C)"]].forEach(function(o){
+                lh += '<option value="'+o[0]+'"'+(o[0]===String(qst.variantsPerQ)?' selected':'')+'>'+o[1]+'</option>';
+            });
+            lh += '</select></div>';
+            lh += '<div class="cmb-el-grid">';
+            lh += '<div class="cmb-el-toggle'+(qst.includeExplanations?' on':'')+'" id="cmb-qb-expl-toggle"><span class="dot"></span>Explanations</div>';
+            lh += '</div></div>';
+            lh += '<div class="cmb-card"><label class="cmb-label">Question Types</label>';
+            [["mc","Multiple Choice"],["tf","True / False"],["short","Short Answer"],["essay","Essay"]].forEach(function(t){
+                lh += '<div class="cmb-qmix-row"><span class="qlabel">'+t[1]+'</span><div class="qcount">';
+                lh += '<button data-qtype="'+t[0]+'" data-dir="down">-</button><span id="cmb-qb-count-'+t[0]+'">'+qst.typeCounts[t[0]]+'</span><button data-qtype="'+t[0]+'" data-dir="up">+</button>';
+                lh += '</div></div>';
+            });
+            lh += '<div style="margin-top:8px;font-size:11px;color:#64748B;text-align:right;" id="cmb-qb-total">Total: '+Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0)+' questions</div>';
+            lh += '</div>';
+            lh += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" style="width:100%;justify-content:center;" id="cmb-qb-gen">✨ Generate Questions</button></div>';
+            left.innerHTML = lh;
+
+            left.querySelector("#cmb-qb-topic").addEventListener("input", function(e){ qst.topic = e.target.value; });
+            left.querySelector("#cmb-qb-content").addEventListener("input", function(e){ qst.textContent = e.target.value; });
+            left.querySelector("#cmb-qb-file").addEventListener("change", async function(e){
+                if(!e.target.files.length) return;
+                var f = e.target.files[0];
+                try{
+                    setStatus("Parsing "+f.name+"...", "loading");
+                    qst.uploadedFile = await parseFile(f);
+                    qst.uploadedName = f.name;
+                    setStatus("File loaded: "+f.name, "success");
+                    renderLeft();
+                }catch(err){ setStatus("Error: "+err.message, "error"); }
+            });
+            var rmFileBtn = left.querySelector("#cmb-qb-rmfile");
+            if(rmFileBtn) rmFileBtn.addEventListener("click", function(){ qst.uploadedFile=""; qst.uploadedName=""; renderLeft(); });
+            left.querySelector("#cmb-qb-subject").addEventListener("change", function(e){ qst.subject = e.target.value; });
+            left.querySelector("#cmb-qb-difficulty").addEventListener("change", function(e){ qst.difficulty = e.target.value; });
+            left.querySelector("#cmb-qb-variants").addEventListener("change", function(e){ qst.variantsPerQ = parseInt(e.target.value, 10); });
+            left.querySelector("#cmb-qb-expl-toggle").addEventListener("click", function(){
+                qst.includeExplanations = !qst.includeExplanations;
+                this.classList.toggle("on", qst.includeExplanations);
+            });
+            left.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
+                btn.addEventListener("click", function(){
+                    var qt = btn.dataset.qtype, dir = btn.dataset.dir;
+                    qst.typeCounts[qt] = Math.max(0, qst.typeCounts[qt] + (dir === "up" ? 1 : -1));
+                    left.querySelector("#cmb-qb-count-"+qt).textContent = qst.typeCounts[qt];
+                    left.querySelector("#cmb-qb-total").textContent = "Total: " + Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0) + " questions";
+                });
+            });
+            left.querySelector("#cmb-qb-gen").addEventListener("click", generateQuestions);
+        }
+        renderLeft();
 
         // ── MID: question review/select ──
         function renderQuestions(){
@@ -2852,8 +2611,9 @@
         right.querySelector("#cmb-qb-clear").addEventListener("click", function(){ qst.queue = []; renderQueue(); });
 
         // ── GENERATE ──
-        left.querySelector("#cmb-qb-gen").addEventListener("click", function(){
-            if(!qst.topic.trim()){ setStatus("Enter a topic first.", "error"); return; }
+        function generateQuestions(){
+            var hasSource = !!(qst.textContent.trim() || qst.uploadedFile);
+            if(!qst.topic.trim() && !hasSource){ setStatus("Enter a topic or add source material first.", "error"); return; }
             var totalQ = Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0);
             if(!totalQ){ setStatus("Set at least one question type count above zero.", "error"); return; }
             var genBtn = left.querySelector("#cmb-qb-gen");
@@ -2865,18 +2625,24 @@
             var useGroups = qst.variantsPerQ > 1;
             var typeCountLines = Object.entries(qst.typeCounts).filter(function(e){return e[1]>0;}).map(function(e){return e[1]+' '+typeLabels[e[0]];}).join('\n');
             var qSchema = '{\n      "type": "mc|tf|short|essay",\n      "text": "Question text",\n      "choices": [{"label":"A","text":"option","correct":false},{"label":"B","text":"option","correct":true},{"label":"C","text":"option","correct":false},{"label":"D","text":"option","correct":false}],\n      "answer": null,\n      "answer_alts": [],\n      "explanation": "Why the answer is correct"\n    }';
+            var topicDesc = qst.topic.trim() ? ('about: "'+qst.topic.trim()+'"') : 'based on the source material below';
+            var sourceBlock = '';
+            if(qst.textContent.trim()) sourceBlock += 'SOURCE MATERIAL:\n' + qst.textContent.trim() + '\n\n';
+            if(qst.uploadedFile) sourceBlock += 'FILE ('+qst.uploadedName+'):\n' + qst.uploadedFile + '\n\n';
             var prompt;
             if(useGroups){
-                prompt = 'You are an expert quiz designer for Canvas LMS. Generate exactly '+totalQ+' question GROUPS about: "'+qst.topic+'"\n\n' +
+                prompt = 'You are an expert quiz designer for Canvas LMS. Generate exactly '+totalQ+' question GROUPS '+topicDesc+'\n\n' +
                     'Each group tests the same concept but uses completely different wording, numbers, or scenarios for each variant — designed so different students get equivalent but non-identical questions.\n' +
                     'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nVariants per group: '+qst.variantsPerQ+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
                     (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                    sourceBlock +
                     'Return ONLY valid JSON — no markdown, no code fences:\n{\n  "groups": [\n    {\n      "concept": "Concept name under 6 words",\n      "variants": ['+qSchema+','+qSchema+']\n    }\n  ]\n}\n\n' +
                     'Critical rules:\n- Each group must have exactly '+qst.variantsPerQ+' variants\n- All variants in a group must be the same question type\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total groups: exactly '+totalQ;
             } else {
-                prompt = 'You are an expert quiz designer for Canvas LMS. Generate questions about: "'+qst.topic+'"\n\n' +
+                prompt = 'You are an expert quiz designer for Canvas LMS. Generate questions '+topicDesc+'\n\n' +
                     'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
                     (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                    sourceBlock +
                     'Return ONLY valid JSON — no markdown, no code fences:\n{ "questions": ['+qSchema+'] }\n\n' +
                     'Critical rules:\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total: exactly '+totalQ+' questions';
             }
@@ -2906,7 +2672,7 @@
                 genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
                 setStatus(err.message || "Error generating questions — try again", "error");
             });
-        });
+        }
 
         // ── CREATE QUIZ IN CANVAS ──
         function showExportStatus(msg, type){
@@ -3087,7 +2853,7 @@
 
     // Each menu item is [label, handler]. Handler receives the module element.
     var MODULE_MENU_ITEMS = [
-        ["✨ AI Builder", function(module){
+        ["✨ AI Content", function(module){
             selectCanvasModule(module);
             openOverlay();
         }],
