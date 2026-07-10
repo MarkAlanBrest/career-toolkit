@@ -2442,19 +2442,37 @@
             ".context_module",
             "[id^='context_module_']",
             "[data-testid='module-container']",
-            "[data-testid='context-module']"
+            "[data-testid='context-module']",
+            "[data-testid='module']"
         ].forEach(function(sel){
             document.querySelectorAll(sel).forEach(add);
+        });
+        document.querySelectorAll(".ig-header,.context_module_header,.ig-header__layout,[data-testid='module-header']").forEach(function(header){
+            add(header.closest(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module'],[data-testid='module'],section,li,div[role='region']") || header.parentElement);
+        });
+        document.querySelectorAll('a[href*="/modules/"]').forEach(function(link){
+            var href = link.getAttribute("href") || "";
+            if(/\/modules\/items\//.test(href)) return;
+            add(link.closest(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module'],[data-testid='module'],section,li,div[role='region']") || link.parentElement);
         });
         return modules;
     }
 
     function looksLikeModuleContainer(el){
-        if(el.matches(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module']")) return true;
+        if(isModuleItemRow(el)) return false;
+        if(el.matches(".context_module,[id^='context_module_'],[data-testid='module-container'],[data-testid='context-module'],[data-testid='module']")) return true;
         var hasTitle = !!el.querySelector(".ig-header-title,.context_module_title,.ig-title,h2,h3");
-        var hasHeader = !!el.querySelector(".ig-header,.context_module_header,.ig-header__layout");
-        var hasActions = !!el.querySelector(".ig-header-admin,.ig-header__admin,.ig-header__actions,[role='toolbar']");
-        return hasTitle && (hasHeader || hasActions);
+        var hasHeader = !!el.querySelector(".ig-header,.context_module_header,.ig-header__layout,[data-testid='module-header']");
+        var hasActions = !!el.querySelector(".ig-header-admin,.ig-header__admin,.ig-header__actions,[role='toolbar'],[data-testid='module-menu-trigger']");
+        var hasModuleLink = !!Array.from(el.querySelectorAll('a[href*="/modules/"]')).find(function(link){
+            return !/\/modules\/items\//.test(link.getAttribute("href") || "");
+        });
+        return hasTitle && (hasHeader || hasActions || hasModuleLink);
+    }
+
+    function isModuleItemRow(el){
+        return el.matches(".context_module_item,[id^='context_module_item_'],[data-module-item-id],[data-testid='module-item'],.ig-row") ||
+            !!(el.closest(".context_module_item,[id^='context_module_item_'],[data-module-item-id],[data-testid='module-item']") && !el.matches(".context_module,[id^='context_module_']"));
     }
 
     function findModuleToolbar(module){
