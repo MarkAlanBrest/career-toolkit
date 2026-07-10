@@ -2468,7 +2468,10 @@ const s=raw.indexOf('{'),e=raw.lastIndexOf('}');
     const iconsGroup=makeTopGroup('Icons  ▾',buildIconPanel(rowProps));
     rowBottom.appendChild(iconsGroup);
 
-    const gearBtn=document.createElement('button'); gearBtn.className='ce-btn ce-studio-spacer'; gearBtn.type='button';
+    const rightSep=document.createElement('div'); rightSep.className='ce-sep ce-studio-spacer';
+    rowBottom.appendChild(rightSep);
+
+    const gearBtn=document.createElement('button'); gearBtn.className='ce-btn'; gearBtn.type='button';
     gearBtn.innerHTML='⚙ Settings';
     gearBtn.title='Settings';
     gearBtn.onclick=e=>{e.stopPropagation();closeAllPanels();document.dispatchEvent(new CustomEvent('ce-open-settings'));};
