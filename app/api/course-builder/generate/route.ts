@@ -7,6 +7,12 @@ export const dynamic = 'force-dynamic';
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
 
+const PAGE_TYPE_EXTRAS: Record<string, string> = {
+  'Video Page': `VIDEO PLACEHOLDER (include once, where the video belongs): <div style="background:#f1f5f9;border:1px dashed #cbd5e1;padding:24px;text-align:center;font-size:13px;color:#64748B;margin:0 0 14px;">🎬 Video goes here — paste an embed link in Canvas after inserting</div>\nInclude 2-3 sentences of "before you watch" framing above the video, and a short "after watching" reflection prompt below it.`,
+  'Flashcard Tile Page': `FLASHCARD TILE GRID (the main content — no free-form paragraphs needed): a 2-column table of term/definition tiles, one row per term:\n<table style="width:100%;border-collapse:separate;border-spacing:10px;margin:1em 0;"><tr><td style="width:50%;background:#fff;border:1px solid #cbd5e1;border-top:3px solid #1e3a5f;border-radius:6px;padding:14px;"><strong style="color:#1e3a5f;">[Term]</strong></td><td style="width:50%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;font-size:13px;color:#334155;">[Definition]</td></tr></table>\nRepeat the row markup once per term (6-10 terms). No JavaScript flip effects — Canvas strips scripts.`,
+  'Content Page with Inline Questions': `INLINE CHECK QUESTIONS — after roughly every 2nd paragraph, insert a check-for-understanding callout:\n<div style="background:#EDF5FF;border-left:5px solid #0770B8;padding:12px 16px;margin:14px 0;border-radius:0 4px 4px 0;"><strong style="color:#0770B8;">🤔 Check your understanding</strong><br><span style="font-size:13px;color:#334155;">[a short question testing the paragraph just read]</span></div>\nInclude 2-3 of these spaced through the page, not all at the end.`,
+};
+
 function buildPagePrompt(pageType: string, title: string, instructions: string) {
   let p = `Generate a clean, simple Canvas LMS page. Follow the fixed template below exactly — do not redesign it, add decorative elements, or invent new styles. Consistency matters more than creativity here.\n\n`;
   p += `PAGE TYPE: ${pageType}\nTITLE: ${title}\n\n`;
@@ -15,6 +21,7 @@ function buildPagePrompt(pageType: string, title: string, instructions: string) 
   p += `BODY WRAPPER (holds every section below):\n<div style="max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n\n`;
   p += `PER SECTION (use 1-3 sections, as many as the content needs):\n<h2 style="font-family:Georgia,serif;font-size:19px;font-weight:700;color:#1e3a5f;border-bottom:1px solid #cbd5e1;padding-bottom:6px;margin:24px 0 10px;">[SECTION TITLE]</h2>\n<p style="font-size:14px;line-height:1.7;color:#334155;margin:0 0 14px;">[1-2 paragraphs, 2-4 sentences each]</p>\n\n`;
   p += `BULLET LIST (use whenever you'd otherwise list several related items inside a paragraph):\n<ul style="margin:0 0 14px;padding-left:20px;font-size:14px;line-height:1.7;color:#334155;"><li style="margin-bottom:4px;">[item]</li></ul>\n\n`;
+  if (PAGE_TYPE_EXTRAS[pageType]) p += `${pageType.toUpperCase()} ELEMENT (required for this page type)\n${PAGE_TYPE_EXTRAS[pageType]}\n\n`;
   p += `RULES\n- Use ONLY the elements above — no hero images, stat panels, gradients, or extra decorative blocks\n- Write 2-5 paragraphs of real content total, organized into 1-3 sections as needed\n- Do not invent new colors, fonts, or layout structures\n\n`;
   p += `WHAT THE TEACHER ASKED FOR\n${instructions || '(no extra instructions given — use your best judgment for this page type)'}\n\n`;
   p += `HTML REQUIREMENTS\n- Return ONLY the HTML body content, no explanations, no markdown\n- Do NOT include <html>, <head>, or <body> tags\n- Use ONLY inline CSS styles — no <style> tags, no external stylesheets\n- Web-safe fonts only: Georgia (headings), Arial (body)\n- No JavaScript\n- Every HTML tag you open must be closed before the response ends\n- Ready to paste directly into the Canvas Rich Content Editor`;
