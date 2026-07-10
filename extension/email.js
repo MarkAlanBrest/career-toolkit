@@ -2636,36 +2636,36 @@
     colTab.id = 'ces-inbox-tab';
     colTab.type = 'button';
     colTab.textContent = 'Message Pulse  ▾';
-    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#0770B8;border:none;border-left:1px solid #055b9a;border-bottom:1px solid #055b9a;border-radius:0 0 0 7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
-    colTab.addEventListener('mouseenter', () => colTab.style.color = '#fff');
-    colTab.addEventListener('mouseleave', () => colTab.style.color = 'rgba(255,255,255,0.85)');
+    colTab.style.cssText = 'position:fixed;top:0;right:0;z-index:2147483640;display:none;height:28px;padding:0 16px;background:#fff;border:1px solid #d5dbe0;border-top:none;border-radius:0 0 0 7px;color:#394B58;font-size:11px;font-weight:700;cursor:pointer;font-family:' + font + ';letter-spacing:.2px;white-space:nowrap;';
+    colTab.addEventListener('mouseenter', () => colTab.style.color = '#0B6FB0');
+    colTab.addEventListener('mouseleave', () => colTab.style.color = '#394B58');
     document.body.appendChild(colTab);
 
     // ── FULL BAR ─────────────────────────────────────────────────────────────
     const bar = document.createElement('div');
     bar.id = 'ces-inbox-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;height:52px;z-index:2147483640;overflow:visible;background:#0770B8;border-bottom:1px solid #055b9a;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;isolation:isolate;';
+    bar.style.cssText = 'position:fixed;top:0;left:84px;right:0;height:52px;z-index:2147483640;overflow:visible;background:#fff;border-bottom:1px solid #c7cdd1;box-shadow:0 1px 4px rgba(0,0,0,.06);display:none;align-items:center;padding:0 14px;gap:6px;font-family:' + font + ';box-sizing:border-box;isolation:isolate;';
 
     const brand = document.createElement('div');
-    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid rgba(255,255,255,.14);color:#fff;margin-right:4px;white-space:nowrap;flex-shrink:0;';
-    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px">Message Pulse</strong><small style="font-size:9px;color:rgba(255,255,255,.5);font-weight:600;margin-top:3px">OUTREACH WORKFLOW</small></span>';
+    brand.style.cssText = 'height:38px;display:flex;align-items:center;gap:9px;padding:0 14px 0 8px;border-right:1px solid #dde1e4;color:#394B58;margin-right:4px;white-space:nowrap;flex-shrink:0;';
+    brand.innerHTML = '<span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#3B82F6,#14B8A6);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(20,184,166,.25)">◆</span><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.05"><strong style="font-size:12px;letter-spacing:.2px;color:#394B58">Message Pulse</strong><small style="font-size:9px;color:#8b98a3;font-weight:600;margin-top:3px">OUTREACH WORKFLOW</small></span>';
 
     function mkBtn(icon, text) {
       const b = document.createElement('button');
       b.type = 'button';
       b.innerHTML = '<span style="font-size:13px">' + icon + '</span><span>' + text + '</span>';
-      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #0770B8;background:#0770B8;color:#fff;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
-      b.addEventListener('mouseenter', () => { b.style.background = '#055f9e'; b.style.borderColor = '#055f9e'; b.style.color = '#fff'; });
-      b.addEventListener('mouseleave', () => { b.style.background = '#0770B8'; b.style.borderColor = '#0770B8'; b.style.color = '#fff'; });
+      b.style.cssText = 'height:34px;padding:0 12px;border:1px solid #d5dbe0;background:#fff;color:#394B58;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,color .12s,border-color .12s;letter-spacing:.1px;display:flex;align-items:center;gap:7px;';
+      b.addEventListener('mouseenter', () => { b.style.background = '#EAF3FB'; b.style.borderColor = '#B8DAF0'; b.style.color = '#0B6FB0'; });
+      b.addEventListener('mouseleave', () => { b.style.background = '#fff'; b.style.borderColor = '#d5dbe0'; b.style.color = '#394B58'; });
       return b;
     }
 
     const quickPostBtn = document.createElement('button');
     quickPostBtn.type = 'button';
     quickPostBtn.innerHTML = '<span style="font-size:13px">📢</span><span>Quick Post</span>';
-    quickPostBtn.style.cssText = 'height:34px;padding:0 14px;border:1px solid #0770B8;border-radius:7px;background:#0770B8;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,border-color .12s;letter-spacing:.1px;display:none;align-items:center;gap:7px;';
-    quickPostBtn.addEventListener('mouseenter', () => { quickPostBtn.style.background = '#055f9e'; quickPostBtn.style.borderColor = '#055f9e'; });
-    quickPostBtn.addEventListener('mouseleave', () => { quickPostBtn.style.background = '#0770B8'; quickPostBtn.style.borderColor = '#0770B8'; });
+    quickPostBtn.style.cssText = 'height:34px;padding:0 14px;border:1px solid #d5dbe0;border-radius:7px;background:#fff;color:#394B58;font-size:12px;font-weight:700;cursor:pointer;font-family:' + font + ';white-space:nowrap;transition:background .12s,border-color .12s;letter-spacing:.1px;display:none;align-items:center;gap:7px;';
+    quickPostBtn.addEventListener('mouseenter', () => { quickPostBtn.style.background = '#EAF3FB'; quickPostBtn.style.borderColor = '#B8DAF0'; quickPostBtn.style.color = '#0B6FB0'; });
+    quickPostBtn.addEventListener('mouseleave', () => { quickPostBtn.style.background = '#fff'; quickPostBtn.style.borderColor = '#d5dbe0'; quickPostBtn.style.color = '#394B58'; });
     quickPostBtn.addEventListener('click', () => document.dispatchEvent(new CustomEvent('ce-open-quick-announcements')));
 
     const messagingWrap = document.createElement('div');
