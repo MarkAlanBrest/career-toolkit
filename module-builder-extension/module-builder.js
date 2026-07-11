@@ -50,24 +50,39 @@
     // concurrent requests fine; keep this modest to avoid tripping rate limits.
     const BUILD_ALL_CONCURRENCY = 3;
 
+    // group values map to the 3 Add Items categories rendered in renderLayout:
+    // "content" (informational pages), "activity" (ungraded interactive practice),
+    // "assignment" (graded, submittable).
     const ITEM_TYPES = {
-        intro:{label:"Intro Page",icon:"\u{1F4D8}",group:"page"},
-        content:{label:"Content Page",icon:"\u{1F4C4}",group:"page"},
-        video:{label:"Video Page",icon:"\u{1F3AC}",group:"page"},
-        reading:{label:"Reading Page",icon:"\u{1F4D6}",group:"page"},
-        activity:{label:"Activity Page",icon:"\u{1F3AF}",group:"page"},
-        discussion:{label:"Discussion Prompt",icon:"\u{1F4AC}",group:"page"},
-        summary:{label:"Summary Page",icon:"\u{1F4CB}",group:"page"},
-        resource:{label:"Resource Page",icon:"\u{1F517}",group:"page"},
-        assignment:{label:"Assignment",icon:"\u{1F4DD}",group:"assessment"},
-        flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"activity"},
-        quickcheck:{label:"Quick Check",icon:"\u2705",group:"activity"},
-        termreveal:{label:"Vocab Builder",icon:"\u{1F4DA}",group:"activity"},
-        truefalse:{label:"True / False",icon:"\u2696\uFE0F",group:"activity"},
-        readcheck:{label:"Read + Check",icon:"\u{1F4D0}",group:"hybrid"},
-        matching:{label:"Matching",icon:"\u{1F517}",group:"hybrid"},
-        labproject:{label:"Lab Project",icon:"\u{1F6E0}",group:"lab"},
+        intro:{label:"Intro Page",icon:"\u{1F4D8}",group:"content",desc:"Welcome/overview page that kicks off the module."},
+        content:{label:"Content Page",icon:"\u{1F4C4}",group:"content",desc:"General-purpose lesson content \u2014 the default page type."},
+        video:{label:"Video Page",icon:"\u{1F3AC}",group:"content",desc:"Embeds a video (paste a link or search YouTube) with supporting text."},
+        reading:{label:"Reading Page",icon:"\u{1F4D6}",group:"content",desc:"Framed as reading material for the topic."},
+        activity:{label:"Activity Page",icon:"\u{1F3AF}",group:"content",desc:"Generic hands-on activity page \u2014 same template as Content Page, different label."},
+        summary:{label:"Summary Page",icon:"\u{1F4CB}",group:"content",desc:"Wrap-up / review page, usually at the end of a module."},
+        resource:{label:"Resource Page",icon:"\u{1F517}",group:"content",desc:"Curated list of links and resources."},
+
+        flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"activity",desc:"Flippable term/definition cards \u2014 click a card to flip it."},
+        quickcheck:{label:"Quick Check",icon:"\u2705",group:"activity",desc:"Multiple-choice practice \u2014 click a choice to check it, right there. No grade recorded."},
+        termreveal:{label:"Vocab Builder",icon:"\u{1F4DA}",group:"activity",desc:"Click-to-expand vocabulary list with definitions and examples."},
+        truefalse:{label:"True / False",icon:"\u2696\uFE0F",group:"activity",desc:"True/False statements \u2014 click to reveal the answer and explanation."},
+        readcheck:{label:"Read + Check",icon:"\u{1F4D0}",group:"activity",desc:"Content page with comprehension questions embedded between sections \u2014 read, answer, keep reading."},
+        matching:{label:"Matching",icon:"\u{1F517}",group:"activity",desc:"Term-to-definition matching \u2014 click a definition to check if it's the right match."},
+        icebreaker:{label:"Ice Breaker",icon:"\u{1F9CA}",group:"activity",desc:"Light warm-up prompt or poll-style question to open a module."},
+        discussion:{label:"Discussion Prompt",icon:"\u{1F4AC}",group:"activity",desc:"Ungraded discussion topic for open reflection \u2014 students can reply/thread."},
+
+        assignment:{label:"Assignment",icon:"\u{1F4DD}",group:"assignment",desc:"General graded assignment with submission, points, and optional rubric/checklist."},
+        research:{label:"Research Project",icon:"\u{1F52C}",group:"assignment",desc:"Multi-part research paper assignment \u2014 thesis, source requirements, outline, citation format."},
+        gradeddiscussion:{label:"Graded Discussion",icon:"\u{1F5E3}\uFE0F",group:"assignment",desc:"Same as Discussion Prompt, but with points attached \u2014 shows up in the gradebook."},
+        scorm:{label:"SCORM-Style Module",icon:"\u{1F4E6}",group:"assignment",desc:"Self-contained interactive module \u2014 short lesson + knowledge check + reflection \u2014 submitted as an assignment. (Not real SCORM packaging.)"},
+        labproject:{label:"Lab Project",icon:"\u{1F6E0}",group:"assignment",desc:"Trade-school lab sheet \u2014 safety notice, tools/materials, numbered procedure, data table."},
     };
+
+    const ITEM_CATEGORIES = [
+        ["content", "\u{1F4C4} Content"],
+        ["activity", "\u{1F3AE} Activity Learning"],
+        ["assignment", "\u{1F4DD} Assignments"]
+    ];
 
     const PAGE_THEMES = {
         custom:{
@@ -140,6 +155,19 @@
         dueDate:["Due Date","Show due date prominently"],
         videoEmbed:["Video Embed Placeholder","Box for a YouTube/video link"],
         watchFirst:["Watch Before You Begin","Video reminder at the top"],
+    };
+
+    const SCORM_EL = {
+        knowledgeCheck:["Knowledge Check","Embedded multiple-choice check partway through, same click-to-verify style as Quick Check"],
+        reflection:["Reflection Prompt","A short open-ended reflection question near the end"],
+    };
+
+    const RESEARCH_EL = {
+        thesisStatement:["Thesis Statement","Prompt for a clear, arguable thesis/claim"],
+        sourceList:["Source Requirements","Minimum source count and source-quality guidance"],
+        outline:["Outline Structure","Section-by-section outline before the full draft"],
+        citations:["Citation Formatting","In-text citation + works cited/reference page guidance"],
+        draftCheckpoint:["Draft Checkpoint","A rough-draft milestone before final submission"],
     };
 
     const LAB_EL = {
@@ -406,10 +434,15 @@
         });
     }
 
-    async function createDiscussionTopic(title, html){
-        return canvasAPI("POST", "/discussion_topics", {
-            title: title, message: html, published: false, discussion_type: "threaded"
-        });
+    // pointValue optional — when set, Canvas creates a linked assignment so
+    // the discussion is graded (shows in the gradebook) instead of a plain
+    // ungraded discussion topic.
+    async function createDiscussionTopic(title, html, pointValue){
+        var body = { title: title, message: html, published: false, discussion_type: "threaded" };
+        if(pointValue){
+            body.assignment = { points_possible: parseFloat(pointValue) || 100, grading_type: "points" };
+        }
+        return canvasAPI("POST", "/discussion_topics", body);
     }
 
     async function addModuleItem(moduleId, itemType, contentIdOrUrl, title, position){
@@ -469,22 +502,23 @@
                 var insertPosition = useExistingModule ? null : itemPosition;
 
                 try {
-                    if(item.type === "assignment"){
+                    if(item.type === "assignment" || item.type === "research" || item.type === "scorm"){
                         var assignTitle = itemInfo.label + " " + itemNum;
                         var assignHtml = data.generatedHTML || "<p>Assignment content not yet generated.</p>";
                         var pts = data.pointValue || "100";
                         var assignment = await createAssignment(assignTitle, assignHtml, pts);
                         report("Created assignment: " + assignTitle);
                         await addModuleItem(canvasMod.id, "Assignment", assignment.id, assignTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: "assignment" });
+                        results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: item.type });
 
-                    } else if(item.type === "discussion"){
+                    } else if(item.type === "discussion" || item.type === "gradeddiscussion"){
                         var discTitle = itemInfo.label + " " + itemNum;
                         var discHtml = data.generatedHTML || "<p>Discussion prompt not yet generated.</p>";
-                        var topic = await createDiscussionTopic(discTitle, discHtml);
+                        var discPts = item.type === "gradeddiscussion" ? (data.pointValue || "100") : null;
+                        var topic = await createDiscussionTopic(discTitle, discHtml, discPts);
                         report("Created discussion: " + discTitle);
                         await addModuleItem(canvasMod.id, "Discussion", topic.id, discTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: discTitle, status: "inserted", type: "discussion" });
+                        results.modules[results.modules.length-1].items.push({ title: discTitle, status: "inserted", type: item.type });
 
                     } else {
                         var pageTitle = itemInfo.label + " " + itemNum;
@@ -589,6 +623,12 @@
             state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="discussion"){
             state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+        }else if(item.type==="gradeddiscussion"){
+            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pointValue:"",dueDate:"",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+        }else if(item.type==="research"){
+            state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",researchElements:{thesisStatement:true,sourceList:true,outline:true,citations:true,draftCheckpoint:false},citationStyle:"apa",sourceCount:"3",pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+        }else if(item.type==="scorm"){
+            state.itemData[item.id]={contentType:"scorm",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",scormElements:{knowledgeCheck:true,reflection:true},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="video"){
             state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
@@ -802,6 +842,8 @@
         }else if(item.type==="labproject"){
             var maxTok=d.longContent?TOKENS_LONG:TOKENS_DEFAULT;
             html=await callClaude(buildLabPrompt(d,item.type),contentModel(d),maxTok);
+        }else if(item.type==="scorm"){
+            html=await callClaude(buildScormPrompt(d),AI_MODEL_CONTENT_FAST,TOKENS_LONG);
         }else{
             html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
         }
@@ -949,6 +991,17 @@
             if(els.videoEmbed) extras.push('A video placeholder box: <div style="background:#f1f5f9;border:1px dashed ' + theme.border + ';padding:20px;text-align:center;font-size:13px;color:#64748B;">Video link goes here</div>');
             if(els.pointValue && itemData.pointValue) extras.push('Show total points near the top: "' + itemData.pointValue + ' points"');
             if(els.dueDate && itemData.dueDate) extras.push('Show the due date near the top: "Due ' + itemData.dueDate + '"');
+            if(itemType === "research"){
+                var rels = itemData.researchElements || {};
+                var citeLabels = {apa:"APA",mla:"MLA",chicago:"Chicago"};
+                var citeLabel = citeLabels[itemData.citationStyle] || "APA";
+                var minSources = itemData.sourceCount || "3";
+                if(rels.thesisStatement) extras.push('A "Thesis Statement" callout explaining students must state a clear, arguable thesis/claim before writing: <div style="background:#fff;border-left:4px solid ' + theme.accent + ';padding:12px 16px;margin:16px 0;"><div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:4px;">THESIS STATEMENT</div><p style="margin:0;font-size:13px;color:' + theme.text + ';">[guidance on what makes a strong thesis for this topic]</p></div>');
+                if(rels.sourceList) extras.push('A "Source Requirements" section stating a minimum of ' + minSources + ' credible sources are required, with 1-2 sentences on what counts as a credible source for this topic');
+                if(rels.outline) extras.push('An "Outline Structure" section as a numbered list of the sections/paragraphs students should draft before writing the full paper (e.g. Introduction, Body Point 1, Body Point 2, Counterargument, Conclusion — tailored to this topic)');
+                if(rels.citations) extras.push('A "Citation Format" section explaining ' + citeLabel + ' in-text citation and works-cited/reference-page requirements, with one short example citation in ' + citeLabel + ' format');
+                if(rels.draftCheckpoint) extras.push('A "Draft Checkpoint" callout noting a rough draft milestone is expected before the final submission');
+            }
         } else {
             if(els.tipBoxes) extras.push('At most one tip callout: <div style="background:#fff;border-left:4px solid ' + theme.accent + ';padding:12px 16px;margin:16px 0;"><div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:4px;">TIP</div><p style="margin:0;font-size:13px;color:' + theme.text + ';">[text]</p></div>');
             if(els.quoteBoxes) extras.push("At most one highlight box, same markup as the tip callout above but labeled to fit the content");
@@ -983,6 +1036,83 @@
         p += "- No JavaScript, no CSS variables — plain hex colors only\n";
         p += "- Every HTML tag you open must be closed before the response ends\n";
         p += "- Ready to paste directly into Canvas Rich Content Editor\n";
+
+        return p;
+    }
+
+    // ========== SCORM-STYLE MODULE PROMPT ==========
+    // Not real SCORM — real SCORM is a zip package (imsmanifest.xml + JS
+    // runtime reporting completion/score via the SCORM API), a fundamentally
+    // different Canvas content type than a Page/Assignment body. This builds
+    // a single self-contained page that FEELS like one: a short lesson, an
+    // embedded knowledge check, and a reflection — submitted as a gradable
+    // Assignment so "submit it" stands in for SCORM's completion tracking.
+
+    function buildScormPrompt(itemData){
+        var tk = itemData.pageStyle || "custom";
+        var theme;
+        if(tk === "custom"){
+            theme = Object.assign({}, PAGE_THEMES.custom, {
+                primary: itemData.customColor || "#1e3a5f",
+                secondary: itemData.customColor || "#1e3a5f",
+                headerBg: itemData.customColor || "#1e3a5f"
+            });
+        } else {
+            theme = PAGE_THEMES[tk] || PAGE_THEMES.custom;
+        }
+        var els = itemData.scormElements || {};
+        var isDarkHeader = isDarkColor(theme.headerBg);
+        var heroText = isDarkHeader ? "#FFFFFF" : theme.text;
+
+        var p = "Generate a self-contained interactive learning module for Canvas LMS — a single page combining a short lesson, an embedded knowledge check, and a reflection prompt, meant to be submitted as a gradable Assignment. NO <style> blocks or JavaScript (Canvas strips <style> tags on save). Follow the fixed structure below exactly.\n\n";
+
+        p += "1. HEADER:\n";
+        p += '<div style="background:' + theme.headerBg + ';padding:28px 32px;border-bottom:3px solid ' + theme.accent + ';">\n';
+        p += '<div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + (isDarkHeader?'rgba(255,255,255,0.7)':theme.accent) + ';margin-bottom:6px;">INTERACTIVE MODULE</div>\n';
+        p += '<h1 style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:' + heroText + ';margin:0 0 6px;">[TITLE]</h1>\n';
+        p += '<p style="font-family:Arial,sans-serif;font-size:14px;color:' + (isDarkHeader?'rgba(255,255,255,0.75)':theme.text) + ';margin:0;">[ONE-SENTENCE SUBTITLE — what students will learn and do]</p>\n';
+        p += '</div>\n\n';
+
+        p += "2. LESSON (body wrapper: max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;):\n";
+        p += "- 1-2 short sections teaching the core concept, same shape as a normal content page: H2 section headings (font-family:Georgia,serif;font-size:19px;font-weight:700;color:" + theme.primary + ";border-bottom:1px solid " + theme.border + ";padding-bottom:6px;margin:24px 0 10px) + paragraphs (font-size:14px;line-height:1.7;color:" + theme.text + ";margin:0 0 14px)\n";
+        p += "- Keep this brief (2-4 paragraphs total) — this is a quick module, not a full lesson page\n\n";
+
+        if(els.knowledgeCheck){
+            p += "3. KNOWLEDGE CHECK (insert after the lesson) — a section labeled with an H2 'Knowledge Check', then exactly 3 questions, each with 4 answer choices. Each choice is its OWN independently-clickable <details> so a student can click just one choice and see whether THAT choice is right or wrong, without the others being revealed first. Do NOT wrap a whole question in one outer <details>:\n";
+            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:14px;overflow:hidden;">\n';
+            p += '  <div style="background:#f8fafc;padding:16px 20px;font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;border-bottom:1px solid #e5e7eb;">1. [QUESTION TEXT]</div>\n';
+            p += '  <div style="padding:12px 20px;background:#fff;">\n';
+            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:14px;">[CHOICE TEXT]</summary>\n';
+            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:13px;">✓ Correct! [one-sentence explanation]</div>\n';
+            p += '    </details>\n';
+            p += '    <!-- 3 more <details> choices per question, same pattern as the fix already used for Quick Check — 1 correct (green ✓), 3 wrong (red ✗ naming the correct answer) -->\n';
+            p += '  </div>\n</div>\n\n';
+            p += "Vary which position the correct choice appears in across the 3 questions.\n\n";
+        }
+
+        if(els.reflection){
+            p += "4. REFLECTION PROMPT (insert after the knowledge check, or after the lesson if no knowledge check):\n";
+            p += '<div style="background:' + theme.cardBg + ';border-left:4px solid ' + theme.accent + ';padding:18px 22px;margin:24px 0;">\n';
+            p += '  <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:10px;">REFLECTION</div>\n';
+            p += '  <p style="margin:0;font-family:Georgia,serif;font-size:15px;font-weight:700;color:' + theme.text + ';">[One open-ended reflection question connecting the lesson to the student\'s own understanding or experience]</p>\n';
+            p += '</div>\n\n';
+        }
+
+        p += "5. COMPLETION NOTICE (always include, at the very end):\n";
+        p += '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px 20px;margin-top:24px;text-align:center;">\n';
+        p += '  <p style="margin:0;font-family:Arial,sans-serif;font-size:13px;color:#065F46;">✓ <strong>To complete this module:</strong> answer the reflection question' + (els.knowledgeCheck?' and try each knowledge check question':'') + ' above, then submit this assignment.</p>\n';
+        p += '</div>\n\n';
+
+        p += "RULES\n";
+        p += "- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n";
+        p += "- Do not invent new sections beyond what's listed above\n";
+        p += "- Return ONLY valid HTML, no markdown, every tag closed\n\n";
+
+        p += "CONTENT\n";
+        if(itemData.textContent && itemData.textContent.trim()) p += itemData.textContent + "\n\n";
+        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
+        p += getModuleSourceContext();
 
         return p;
     }
@@ -1300,6 +1430,7 @@
     .cmb-layout-item .icon{font-size:18px;}
     .cmb-layout-item .lbl{flex:1;font-size:13px;font-weight:500;}
     .cmb-layout-item .rm{color:#ef4444;cursor:pointer;font-size:16px;border:none;background:none;padding:4px;}
+    .cmb-add-cat-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#94A3B8;margin:4px 0 6px;}
     .cmb-add-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
     .cmb-add-btn{font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;border:1px solid #CBD5E1;background:#fff;color:#475569;}
     .cmb-add-btn:hover{background:#F5F3FF;border-color:#7C3AED;color:#7C3AED;}
@@ -1583,13 +1714,19 @@
         h+='<label class="cmb-label">Or paste text</label>';
         h+='<textarea class="cmb-textarea" id="cmb-srcpaste" rows="3" placeholder="Paste chapter text or notes..."></textarea>';
         h+='</div>';
-        h+='<div class="cmb-card"><label class="cmb-label">Add Items</label><div class="cmb-add-bar">';
-        var addTypes=Object.keys(ITEM_TYPES);
-        for(var a=0;a<addTypes.length;a++){
-            var ai=ITEM_TYPES[addTypes[a]];
-            h+='<button class="cmb-add-btn" data-type="'+addTypes[a]+'">'+ai.icon+' '+ai.label+'</button>';
-        }
-        h+='</div></div>';
+        h+='<div class="cmb-card"><label class="cmb-label">Add Items</label>';
+        ITEM_CATEGORIES.forEach(function(cat){
+            var catKey=cat[0], catLabel=cat[1];
+            var typesInCat=Object.keys(ITEM_TYPES).filter(function(k){ return ITEM_TYPES[k].group===catKey; });
+            if(!typesInCat.length) return;
+            h+='<div class="cmb-add-cat-label">'+catLabel+'</div><div class="cmb-add-bar">';
+            typesInCat.forEach(function(k){
+                var ai=ITEM_TYPES[k];
+                h+='<button class="cmb-add-btn" data-type="'+k+'" title="'+esc(ai.desc||"")+'">'+ai.icon+' '+ai.label+'</button>';
+            });
+            h+='</div>';
+        });
+        h+='</div>';
         h+='</div>';
         h+='<div class="cmb-layout-side">';
         h+='<div class="cmb-card"><label class="cmb-label">Current Layout ('+mod.items.length+' items)</label>';
@@ -1597,7 +1734,7 @@
             h+='<ul class="cmb-layout-list">';
             for(var j=0;j<mod.items.length;j++){
                 var it=mod.items[j],info=ITEM_TYPES[it.type]||{label:it.type,icon:"?"};
-                h+='<li class="cmb-layout-item" data-idx="'+j+'" draggable="true"><span class="icon">'+info.icon+'</span><span class="lbl">'+esc(info.label)+'</span><button class="rm" data-idx="'+j+'">&times;</button></li>';
+                h+='<li class="cmb-layout-item" data-idx="'+j+'" draggable="true" title="'+esc(info.desc||"")+'"><span class="icon">'+info.icon+'</span><span class="lbl">'+esc(info.label)+'</span><button class="rm" data-idx="'+j+'">&times;</button></li>';
             }
             h+='</ul>';
         } else {
@@ -1925,9 +2062,12 @@
         var info=ITEM_TYPES[item.type]||{label:"Page",icon:"?"};
         if(d.subView==="result"&&d.generatedHTML){renderContentResult(container,item,d);return;}
         var isA=d.contentType==="assignment";
+        var isScorm=item.type==="scorm";
+        var isGradedDiscussion=item.type==="gradeddiscussion";
+        var showPointsDue=isA||isScorm||isGradedDiscussion;
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
-        h+='<p class="cmb-desc">Configure and generate this '+(isA?"assignment":"page")+' with AI.</p>';
+        h+='<p class="cmb-desc">Configure and generate this '+(isA?"assignment":isGradedDiscussion?"graded discussion":"page")+' with AI.</p>';
 
         // ── Theme picker ─────────────────────────────────────────────────────
         h+='<div class="cmb-card">';
@@ -1991,22 +2131,43 @@
             h+='</div>';
         }
 
+        var elMap=isScorm?SCORM_EL:(isA?ASSIGN_EL:PAGE_EL);
+        var elDataKey=isScorm?"scormElements":(isA?"assignmentElements":"pageElements");
+        if(!d[elDataKey]) d[elDataKey]={};
+        var elData=d[elDataKey];
         h+='<div class="cmb-card"><label class="cmb-label">Elements</label><div class="cmb-el-grid">';
-        var elMap=isA?ASSIGN_EL:PAGE_EL;
-        var elData=isA?(d.assignmentElements||{}):(d.pageElements||{});
         var elKeys=Object.keys(elMap);
         for(var j=0;j<elKeys.length;j++){
             var ek=elKeys[j],ev=elMap[ek];
             h+='<div class="cmb-el-toggle'+(elData[ek]?' on':'')+'" data-el="'+ek+'"><div class="dot"></div><div><div style="font-weight:500;">'+ev[0]+'</div><div style="font-size:10px;color:#94A3B8;">'+ev[1]+'</div></div></div>';
         }
         h+='</div>';
-        if(isA){
+        if(showPointsDue){
             h+='<div style="display:flex;gap:10px;margin-top:8px;">';
             h+='<div style="flex:1;"><label class="cmb-label">Points</label><input type="text" class="cmb-input" id="cmb-pts" value="'+esc(d.pointValue||"")+'" placeholder="100"></div>';
             h+='<div style="flex:1;"><label class="cmb-label">Due Date</label><input type="text" class="cmb-input" id="cmb-due" value="'+esc(d.dueDate||"")+'" placeholder="e.g. Friday 11:59pm"></div>';
             h+='</div>';
         }
         h+='</div>';
+
+        if(item.type==="research"){
+            h+='<div class="cmb-card"><label class="cmb-label">Research Requirements</label>';
+            h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">';
+            h+='<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Citation Style</div><select class="cmb-select" id="cmb-cite-style">';
+            [["apa","APA"],["mla","MLA"],["chicago","Chicago"]].forEach(function(o){
+                h+='<option value="'+o[0]+'"'+((d.citationStyle||"apa")===o[0]?' selected':'')+'>'+o[1]+'</option>';
+            });
+            h+='</select></div>';
+            h+='<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Minimum Sources</div><input type="text" class="cmb-input" id="cmb-source-count" value="'+esc(d.sourceCount||"3")+'" placeholder="3"></div>';
+            h+='</div>';
+            h+='<div class="cmb-el-grid">';
+            Object.keys(RESEARCH_EL).forEach(function(ek){
+                var ev=RESEARCH_EL[ek];
+                h+='<div class="cmb-el-toggle'+((d.researchElements||{})[ek]?' on':'')+'" data-rel="'+ek+'"><div class="dot"></div><div><div style="font-weight:500;">'+ev[0]+'</div><div style="font-size:10px;color:#94A3B8;">'+ev[1]+'</div></div></div>';
+            });
+            h+='</div></div>';
+        }
+
         h+='<div class="cmb-card"><label class="cmb-label">Content / Instructions</label>';
         h+='<div class="cmb-file-row"><input type="file" id="cmb-cfile" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
         if(d.uploadedName){h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-rm-file">&times;</span></div>';}
@@ -2054,14 +2215,25 @@
                 render();
             });
         });
-        container.querySelectorAll(".cmb-el-toggle").forEach(function(el){
+        container.querySelectorAll(".cmb-el-toggle[data-el]").forEach(function(el){
             el.addEventListener("click",function(){
                 var key=el.dataset.el;
-                if(isA){d.assignmentElements[key]=!d.assignmentElements[key];}
-                else{d.pageElements[key]=!d.pageElements[key];}
+                d[elDataKey][key]=!d[elDataKey][key];
                 render();
             });
         });
+        container.querySelectorAll(".cmb-el-toggle[data-rel]").forEach(function(el){
+            el.addEventListener("click",function(){
+                var key=el.dataset.rel;
+                if(!d.researchElements) d.researchElements={};
+                d.researchElements[key]=!d.researchElements[key];
+                render();
+            });
+        });
+        var citeSelect=container.querySelector("#cmb-cite-style");
+        if(citeSelect) citeSelect.addEventListener("change",function(e){d.citationStyle=e.target.value;});
+        var sourceCountInput=container.querySelector("#cmb-source-count");
+        if(sourceCountInput) sourceCountInput.addEventListener("input",function(e){d.sourceCount=e.target.value;});
         var ptsInput=container.querySelector("#cmb-pts");
         if(ptsInput) ptsInput.addEventListener("input",function(e){d.pointValue=e.target.value;});
         var dueInput=container.querySelector("#cmb-due");
@@ -2086,7 +2258,8 @@
             state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
             var btn=container.querySelector("#cmb-gen-content");btn.disabled=true;btn.textContent="Generating...";
             try{
-                var html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
+                var prompt=isScorm?buildScormPrompt(d):buildContentPrompt(d,item.type);
+                var html=await callClaude(prompt,AI_MODEL_CONTENT_FAST,isScorm?TOKENS_LONG:TOKENS_DEFAULT);
                 d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
                 state.status="Content generated!";state.statusType="success";render();
             }catch(err){
