@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Canvas AI Module Builder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered Canvas LMS module builder — generate and insert modules, pages, assignments & quizzes using your own Claude API key.",
   "permissions": ["storage"],
   "host_permissions": [

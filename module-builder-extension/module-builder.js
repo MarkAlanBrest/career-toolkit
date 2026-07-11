@@ -19,7 +19,7 @@
     const UNSPLASH_KEY = "AIgrader_UnsplashKey";
     // Personal default Unsplash Access Key — used only if no key has been saved yet.
     // Don't share this file publicly (e.g. a public GitHub repo) with this left in.
-    const UNSPLASH_KEY_DEFAULT = "TC22qvOXtRU4QhE3x7JmucTZ9_SSp5G3f06Lz010hAU";
+    const UNSPLASH_KEY_DEFAULT = "";
     // No shipped default here (unlike Unsplash) — YouTube Data API quota is a
     // strict 10,000 units/day per Google Cloud project, and search costs 100
     // units/call. A single shared key would get exhausted almost immediately
@@ -203,6 +203,17 @@
             .replace(/-+/g,"-")
             .replace(/^-|-$/g,"")
             .substring(0,50)||"item";
+    }
+
+    // Prefer a teacher title, then an AI-generated document/HTML title. This
+    // prevents generic Canvas names such as "Content Page 2" after deployment.
+    function canvasItemTitle(item,data,index){
+        var info=ITEM_TYPES[item.type]||{label:"Item"};
+        if(data&&data.itemTitle&&String(data.itemTitle).trim())return String(data.itemTitle).trim();
+        if(data&&data.generatedPdfSchema&&data.generatedPdfSchema.title)return String(data.generatedPdfSchema.title).trim();
+        if(data&&data.generatedAnswerKey&&data.generatedAnswerKey.title)return String(data.generatedAnswerKey.title).trim();
+        if(data&&data.generatedHTML){try{var doc=new DOMParser().parseFromString(data.generatedHTML,"text/html"),h=doc.querySelector("h1,h2");if(h&&h.textContent&&h.textContent.trim())return h.textContent.trim();}catch(e){}}
+        return info.label+" "+(index+1);
     }
 
     // WCAG relative luminance — used to decide whether a background needs
@@ -534,7 +545,7 @@
                         // every other type's criteria come straight from
                         // its generic schema, since the AI-generated schema
                         // already IS the answer key for those.
-                        var assignTitle = itemInfo.label + " " + itemNum;
+                        var assignTitle = canvasItemTitle(item,data,i);
                         var pts = data.pointValue || "100";
                         var criteria = null;
                         var assignHtml;
@@ -575,7 +586,7 @@
                         }
 
                     } else if(item.type === "discussion" || item.type === "gradeddiscussion"){
-                        var discTitle = itemInfo.label + " " + itemNum;
+                        var discTitle = canvasItemTitle(item,data,i);
                         var discHtml = data.generatedHTML || "<p>Discussion prompt not yet generated.</p>";
                         var discPts = item.type === "gradeddiscussion" ? (data.pointValue || "100") : null;
                         var topic = await createDiscussionTopic(discTitle, discHtml, discPts);
@@ -584,7 +595,7 @@
                         results.modules[results.modules.length-1].items.push({ title: discTitle, status: "inserted", type: item.type });
 
                     } else {
-                        var pageTitle = itemInfo.label + " " + itemNum;
+                        var pageTitle = canvasItemTitle(item,data,i);
                         var pageHtml = data.generatedHTML || "<p>Content not yet generated.</p>";
                         var page = await createPage(pageTitle, pageHtml);
                         report("Created page: " + pageTitle);
@@ -3432,7 +3443,7 @@
                 container.querySelectorAll(".cmb-tab").forEach(function(t){t.classList.remove("active");});
                 tab.classList.add("active");
                 if(tab.dataset.tab==="preview"){showPreviewTab(contentDiv,d.generatedHTML);}
-                else{showCodeTab(contentDiv,d.generatedHTML);}
+                else{showCodeTab(contentDiv,d);}
             });
         });
         container.querySelector("#cmb-copy-html").addEventListener("click",function(){
@@ -3445,16 +3456,14 @@
     }
 
     function showPreviewTab(container,html){
-        container.innerHTML='<iframe class="cmb-preview-frame" id="cmb-pframe"></iframe>';
+        container.innerHTML='<iframe class="cmb-preview-frame" id="cmb-pframe" sandbox=""></iframe>';
         var frame=container.querySelector("#cmb-pframe");
-        frame.onload=function(){
-            try{var doc=frame.contentDocument||frame.contentWindow.document;doc.open();doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:16px;font-family:Georgia,serif;">'+html+'</body></html>');doc.close();}catch(e){}
-        };
-        frame.src="about:blank";
+        frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:16px;font-family:Georgia,serif;">'+html+'</body></html>';
     }
 
-    function showCodeTab(container,html){
-        container.innerHTML='<textarea class="cmb-code-area">'+esc(html)+'</textarea>';
+    function showCodeTab(container,itemData){
+        container.innerHTML='<textarea class="cmb-code-area" aria-label="Editable generated HTML">'+esc(itemData.generatedHTML)+'</textarea>';
+        container.querySelector(".cmb-code-area").addEventListener("input",function(e){itemData.generatedHTML=e.target.value;});
     }
 
     // ========== INSERT VIEW ==========
@@ -3485,7 +3494,7 @@
                 if(done)modReady++;
                 var modeTag=(d.longContent&&done)?' <span style="font-size:10px;background:#EDE9FE;color:#6D28D9;padding:1px 5px;border-radius:3px;">LONG</span>':'';
                 h+='<div class="cmb-insert-item"><span class="icon">'+info.icon+'</span>';
-                h+='<span style="flex:1;">'+esc(info.label)+modeTag+'</span>';
+                h+='<span style="flex:1;">'+esc(canvasItemTitle(it,d,i))+modeTag+'</span>';
                 h+='<span class="status '+(done?"ready":"empty")+'">'+(done?"\u2713 Ready":"Not Built")+'</span></div>';
             }
             if(mod.items.length===0){h+='<div style="font-size:12px;color:#94a3b8;">No items.</div>';}

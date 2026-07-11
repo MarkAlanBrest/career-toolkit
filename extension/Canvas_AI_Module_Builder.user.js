@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Canvas AI Module Builder (Direct API Insert)
 // @namespace    https://github.com/MarkAlanBrest/canvas-module-builder
-// @version      4.5.1
+// @version      4.6.0
 // @description  AI-powered Canvas LMS module builder — builds and inserts modules, pages, assignments & quizzes directly via Canvas API
 // @author       MarkAlanBrest
 // @match        *://*.instructure.com/courses/*
@@ -31,9 +31,10 @@
 
     const APIKEY_KEY = "AIgrader_APIKey";
     const UNSPLASH_KEY = "AIgrader_UnsplashKey";
-    // Personal default Unsplash Access Key — used only if no key has been saved yet.
-    // Don't share this file publicly (e.g. a public GitHub repo) with this left in.
-    const UNSPLASH_KEY_DEFAULT = "TC22qvOXtRU4QhE3x7JmucTZ9_SSp5G3f06Lz010hAU";
+    const DRAFT_KEY_PREFIX = "CMB_Draft_";
+    // Users supply their own optional Unsplash key. Never ship a shared key in
+    // a distributed userscript; it can be extracted and exhausted by anyone.
+    const UNSPLASH_KEY_DEFAULT = "";
     const AI_MODEL_CONTENT = "claude-sonnet-4-6";
     const AI_MODEL_CONTENT_FAST = "claude-haiku-4-5-20251001";
     const AI_MODEL_QUIZ = "claude-haiku-4-5-20251001";
@@ -159,6 +160,8 @@
     };
 
     let overlayEl = null;
+    let draftLoaded = false;
+    let lastDraftJSON = "";
 
     const state = {
         step: "setup",
@@ -172,21 +175,25 @@
         status: "",
         statusType: "idle",
         insertProgress: null,
+        qualityReport: null,
+        qualityReviewedAt: null,
     };
 
     try { state.apiKey = GM_getValue(APIKEY_KEY, ""); } catch(e) {}
-    if(!state.apiKey){ try { state.apiKey = localStorage.getItem(APIKEY_KEY) || ""; } catch(e) {} }
+    // One-time migration from older builds that stored secrets on the Canvas
+    // origin. Keep credentials in Tampermonkey storage, not page localStorage.
+    if(!state.apiKey){ try { state.apiKey = localStorage.getItem(APIKEY_KEY) || ""; if(state.apiKey){GM_setValue(APIKEY_KEY,state.apiKey);localStorage.removeItem(APIKEY_KEY);} } catch(e) {} }
     if(state.apiKey) state.step = "layout"; // skip setup screen once a key is already saved
 
     try { state.unsplashKey = GM_getValue(UNSPLASH_KEY, ""); } catch(e) {}
-    if(!state.unsplashKey){ try { state.unsplashKey = localStorage.getItem(UNSPLASH_KEY) || ""; } catch(e) {} }
+    if(!state.unsplashKey){ try { state.unsplashKey = localStorage.getItem(UNSPLASH_KEY) || ""; if(state.unsplashKey){GM_setValue(UNSPLASH_KEY,state.unsplashKey);localStorage.removeItem(UNSPLASH_KEY);} } catch(e) {} }
     if(!state.unsplashKey) state.unsplashKey = UNSPLASH_KEY_DEFAULT;
 
     function curMod() { return state.modules[state.currentModuleIndex] || null; }
     function esc(s){var d=document.createElement("div");d.textContent=s||"";return d.innerHTML;}
     function uid(){return "cmb_"+Date.now().toString(36)+"_"+Math.random().toString(36).substr(2,6);}
-    function saveApiKey(k){try{GM_setValue(APIKEY_KEY,k);}catch(e){}try{localStorage.setItem(APIKEY_KEY,k);}catch(e){}}
-    function saveUnsplashKey(k){try{GM_setValue(UNSPLASH_KEY,k);}catch(e){}try{localStorage.setItem(UNSPLASH_KEY,k);}catch(e){}}
+    function saveApiKey(k){try{GM_setValue(APIKEY_KEY,k);}catch(e){}}
+    function saveUnsplashKey(k){try{GM_setValue(UNSPLASH_KEY,k);}catch(e){}}
 
     function slugify(s){
         return (s||"untitled").toLowerCase()
@@ -350,15 +357,54 @@
         });
     }
 
-    async function createAssignment(title, html, pointValue){
+    async function createAssignment(title, html, pointValue, dueDate, submissionTypes){
+        var selectedTypes=[];
+        if(!submissionTypes||submissionTypes.text!==false)selectedTypes.push("online_text_entry");
+        if(!submissionTypes||submissionTypes.upload!==false)selectedTypes.push("online_upload");
+        if(!selectedTypes.length)selectedTypes=["online_text_entry"];
+        var assignment = {
+            name: title, description: html,
+            submission_types: selectedTypes,
+            points_possible: parseFloat(pointValue) || 100,
+            grading_type: "points", published: false
+        };
+        if(dueDate){var parsed=new Date(dueDate);if(!isNaN(parsed.getTime()))assignment.due_at=parsed.toISOString();}
         return canvasAPI("POST", "/assignments", {
-            assignment: {
-                name: title, description: html,
-                submission_types: ["online_text_entry", "online_upload"],
-                points_possible: parseFloat(pointValue) || 100,
-                grading_type: "points", published: false
-            }
+            assignment: assignment
         });
+    }
+
+    function draftKey(){return DRAFT_KEY_PREFIX+(getCourseId()||"no-course");}
+    function saveDraft(){
+        if(!overlayEl)return;
+        try{
+            var payload={version:1,courseId:getCourseId(),selectedCanvasModule:state.selectedCanvasModule,modules:state.modules,currentModuleIndex:state.currentModuleIndex,currentItemIndex:state.currentItemIndex,itemData:state.itemData,step:state.step,qualityReport:state.qualityReport,qualityReviewedAt:state.qualityReviewedAt};
+            var json=JSON.stringify(payload);
+            if(json!==lastDraftJSON){GM_setValue(draftKey(),json);lastDraftJSON=json;}
+        }catch(e){}
+    }
+    function loadDraft(){
+        if(draftLoaded)return;
+        draftLoaded=true;
+        try{
+            var raw=GM_getValue(draftKey(),"");
+            if(!raw)return;
+            var d=typeof raw==="string"?JSON.parse(raw):raw;
+            if(!d||d.courseId!==getCourseId()||!Array.isArray(d.modules))return;
+            state.selectedCanvasModule=d.selectedCanvasModule||null;
+            state.modules=d.modules;
+            state.currentModuleIndex=d.currentModuleIndex||0;
+            state.currentItemIndex=d.currentItemIndex||0;
+            state.itemData=d.itemData||{};
+            state.step=d.step||state.step;
+            state.qualityReport=d.qualityReport||null;
+            state.qualityReviewedAt=d.qualityReviewedAt||null;
+            lastDraftJSON=JSON.stringify(d);
+        }catch(e){}
+    }
+
+    async function createDiscussion(title, html){
+        return canvasAPI("POST", "/discussion_topics", {title:title,message:html,published:false,discussion_type:"side_comment"});
     }
 
     async function createQuiz(title, pointsPossible){
@@ -404,6 +450,7 @@
         var item = { module_item: { title: title, type: itemType } };
         if(position != null) item.module_item.position = position;
         if(itemType === "Page"){ item.module_item.page_url = contentIdOrUrl; }
+        else if(itemType === "ExternalUrl"){item.module_item.external_url=contentIdOrUrl;item.module_item.new_tab=true;}
         else { item.module_item.content_id = contentIdOrUrl; }
         return canvasAPI("POST", "/modules/" + moduleId + "/items", item);
     }
@@ -449,6 +496,7 @@
                     report("Using module: " + modTitle);
                 } else {
                     canvasMod = await createModule(modTitle, mi + 1);
+                    mod.canvasModuleId=canvasMod.id;
                     report("Created module: " + modTitle);
                 }
             } catch(err) {
@@ -467,6 +515,13 @@
                 var itemNum = i + 1;
                 itemPosition++;
                 var insertPosition = useExistingModule ? null : itemPosition;
+
+                if(data.insertedCanvas&&String(data.insertedCanvas.courseId)===String(courseId)&&String(data.insertedCanvas.moduleId)===String(canvasMod.id)){
+                    report("Already inserted, skipped duplicate: "+(data.insertedCanvas.title||itemInfo.label));
+                    var existingUrl=data.insertedCanvas.type==="page"?"/courses/"+courseId+"/pages/"+data.insertedCanvas.pageUrl:data.insertedCanvas.type==="assignment"?"/courses/"+courseId+"/assignments/"+data.insertedCanvas.contentId:data.insertedCanvas.type==="quiz"?"/courses/"+courseId+"/quizzes/"+data.insertedCanvas.contentId:data.insertedCanvas.type==="discussion"?"/courses/"+courseId+"/discussion_topics/"+data.insertedCanvas.contentId:data.insertedCanvas.url||"";
+                    results.modules[results.modules.length-1].items.push({title:data.insertedCanvas.title||itemInfo.label,status:"already_inserted",type:data.insertedCanvas.type,url:existingUrl});
+                    continue;
+                }
 
                 try {
                     if(item.type === "quiz" || item.type === "miniquiz"){
@@ -500,24 +555,42 @@
                             }
                         }
                         await addModuleItem(canvasMod.id, "Quiz", quiz.id, qTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: qTitle, status: "inserted", type: "quiz" });
+                        data.insertedCanvas={courseId:courseId,moduleId:canvasMod.id,type:"quiz",title:qTitle,contentId:quiz.id};saveDraft();
+                        results.modules[results.modules.length-1].items.push({ title: qTitle, status: "inserted", type: "quiz", url:"/courses/"+courseId+"/quizzes/"+quiz.id });
 
                     } else if(item.type === "assignment"){
-                        var assignTitle = itemInfo.label + " " + itemNum;
-                        var assignHtml = data.generatedHTML || "<p>Assignment content not yet generated.</p>";
+                        var assignTitle = data.itemTitle || (itemInfo.label + " " + itemNum);
+                        var assignHtml = data.generatedHTML ? await finalizeGeneratedHTML(data.generatedHTML) : "<p>Assignment content not yet generated.</p>";
                         var pts = data.pointValue || "100";
-                        var assignment = await createAssignment(assignTitle, assignHtml, pts);
+                        var assignment = await createAssignment(assignTitle, assignHtml, pts, data.dueDate, data.submissionTypes);
                         report("Created assignment: " + assignTitle);
                         await addModuleItem(canvasMod.id, "Assignment", assignment.id, assignTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: "assignment" });
+                        data.insertedCanvas={courseId:courseId,moduleId:canvasMod.id,type:"assignment",title:assignTitle,contentId:assignment.id};saveDraft();
+                        results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: "assignment", url:"/courses/"+courseId+"/assignments/"+assignment.id });
 
+                    } else if(item.type === "discussion") {
+                        var discussionTitle=data.itemTitle || (itemInfo.label+" "+itemNum);
+                        var discussionHtml=data.generatedHTML?await finalizeGeneratedHTML(data.generatedHTML):"<p>Discussion prompt not yet generated.</p>";
+                        var discussion=await createDiscussion(discussionTitle,discussionHtml);
+                        report("Created discussion: "+discussionTitle);
+                        await addModuleItem(canvasMod.id,"Discussion",discussion.id,discussionTitle,insertPosition);
+                        data.insertedCanvas={courseId:courseId,moduleId:canvasMod.id,type:"discussion",title:discussionTitle,contentId:discussion.id};saveDraft();
+                        results.modules[results.modules.length-1].items.push({title:discussionTitle,status:"inserted",type:"discussion",url:"/courses/"+courseId+"/discussion_topics/"+discussion.id});
+                    } else if(item.type === "resource" && data.resourceUrl) {
+                        var resourceTitle=data.itemTitle || (itemInfo.label+" "+itemNum);
+                        var safeResourceUrl=validatedExternalUrl(data.resourceUrl);
+                        await addModuleItem(canvasMod.id,"ExternalUrl",safeResourceUrl,resourceTitle,insertPosition);
+                        report("Added external resource: "+resourceTitle);
+                        data.insertedCanvas={courseId:courseId,moduleId:canvasMod.id,type:"external_url",title:resourceTitle,url:safeResourceUrl};saveDraft();
+                        results.modules[results.modules.length-1].items.push({title:resourceTitle,status:"inserted",type:"external_url",url:safeResourceUrl});
                     } else {
-                        var pageTitle = itemInfo.label + " " + itemNum;
-                        var pageHtml = data.generatedHTML || "<p>Content not yet generated.</p>";
+                        var pageTitle = data.itemTitle || (itemInfo.label + " " + itemNum);
+                        var pageHtml = data.generatedHTML ? await finalizeGeneratedHTML(data.generatedHTML) : "<p>Content not yet generated.</p>";
                         var page = await createPage(pageTitle, pageHtml);
                         report("Created page: " + pageTitle);
                         await addModuleItem(canvasMod.id, "Page", page.url, pageTitle, insertPosition);
-                        results.modules[results.modules.length-1].items.push({ title: pageTitle, status: "inserted", type: "page" });
+                        data.insertedCanvas={courseId:courseId,moduleId:canvasMod.id,type:"page",title:pageTitle,pageUrl:page.url};saveDraft();
+                        results.modules[results.modules.length-1].items.push({ title: pageTitle, status: "inserted", type: "page", url:"/courses/"+courseId+"/pages/"+page.url });
                     }
                 } catch(err){
                     var errTitle = (item.type === "quiz" || item.type === "miniquiz") ? (data.quizTitle || itemInfo.label) :
@@ -652,14 +725,14 @@
             var m=item.type==="miniquiz";
             state.itemData[item.id]={quizTitle:m?"Mini Quiz":"Quiz",difficulty:"medium",mcCount:m?3:5,tfCount:m?2:3,saCount:m?0:2,essayCount:0,textContent:"",uploadedFile:"",uploadedName:"",generatedQuestions:null,subView:"build"};
         }else if(item.type==="assignment"){
-            state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"assignment",itemTitle:"Assignment",submissionTypes:{text:true,upload:true},pageStyle:"custom",customColor:"#1e3a5f",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
             var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8};
-            state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
+            state.itemData[item.id]={contentType:"activity",itemTitle:(ITEM_TYPES[item.type]||{}).label||"Activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
         }else if(item.type==="labproject"){
-            state.itemData[item.id]={contentType:"lab",pageStyle:"custom",labElements:{safetyBox:true,toolsList:true,procedure:true,observations:true,reflections:true,checklist:true,rubricTable:false},labNumber:"",estimatedTime:"",skillLevel:"beginner",pointValue:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",longContent:false,aiEngine:"detailed"};
+            state.itemData[item.id]={contentType:"lab",itemTitle:"Lab Project",pageStyle:"custom",labElements:{safetyBox:true,toolsList:true,procedure:true,observations:true,reflections:true,checklist:true,rubricTable:false},labNumber:"",estimatedTime:"",skillLevel:"beginner",pointValue:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",longContent:false,aiEngine:"detailed"};
         }else{
-            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"page",itemTitle:(ITEM_TYPES[item.type]||{}).label||"Page",resourceUrl:"",videoUrl:"",pageStyle:"custom",customColor:"#1e3a5f",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }
     }
 
@@ -687,7 +760,49 @@
     function getModuleSourceContext(){
         var mod=curMod();
         if(!mod||!mod.sources||!mod.sources.length)return "";
-        return "\n\nMODULE SOURCE MATERIAL:\n"+mod.sources.map(function(s){return "--- "+s.name+" ---\n"+s.text.substring(0,8000);}).join("\n\n");
+        var text=mod.sources.map(function(s){return "--- "+s.name+" ---\n"+String(s.text||"").substring(0,8000);}).join("\n\n");
+        return "\n\nMODULE SOURCE MATERIAL:\n"+text.substring(0,40000);
+    }
+
+    function sourceExcerpt(text){
+        text=String(text||"");
+        return text.length>24000?text.substring(0,24000)+"\n\n[Source truncated to keep generation reliable.]":text;
+    }
+
+    function isGenericItemTitle(title,type){
+        title=String(title||"").trim().toLowerCase();
+        var label=String((ITEM_TYPES[type]||{}).label||"").toLowerCase();
+        return !title||title===label||/^(content|intro|video|reading|activity|summary|resource) page( \d+)?$/.test(title)||/^(assignment|discussion prompt|lab project|quiz|mini quiz|flashcard deck|quick check|vocab builder|true \/ false|read \+ check|matching)( \d+)?$/.test(title);
+    }
+
+    function adoptGeneratedTitle(item,d){
+        state.qualityReport=null;state.qualityReviewedAt=null;
+        if(!d||!d.generatedHTML||!isGenericItemTitle(d.itemTitle,item.type))return;
+        try{
+            var doc=new DOMParser().parseFromString(d.generatedHTML,"text/html");
+            var heading=doc.querySelector("h1,h2");
+            var title=heading&&heading.textContent?heading.textContent.replace(/^\s*[\p{Emoji_Presentation}\p{Extended_Pictographic}]\s*/u,"").trim():"";
+            if(title&&title.length<=120)d.itemTitle=title;
+        }catch(e){}
+    }
+
+    function validatedExternalUrl(value){
+        try{var url=new URL(String(value||""));if(url.protocol!=="https:"&&url.protocol!=="http:")throw new Error();return url.href;}catch(e){throw new Error("External resource URLs must begin with http:// or https://.");}
+    }
+
+    function itemSpecificDirection(itemType){
+        var directions={
+            intro:"Introduce why the module matters, state 3-5 measurable objectives, explain prerequisites, and give students a concise roadmap of what they will do. Do not teach the full module content here.",
+            content:"Teach one focused concept with explanation, a concrete example, common misconception, and a brief check for understanding.",
+            video:"Frame the supplied video with a viewing purpose, 3-5 guided-note prompts, and 2-3 follow-up questions. Never invent a video URL.",
+            reading:"Create a structured instructional reading with helpful headings, vocabulary in context, examples, and 2-3 comprehension checks.",
+            activity:"Create directions for an active learning task with an observable student product, success criteria, and an estimated completion time.",
+            discussion:"Write one authentic open-ended discussion question that requires evidence or application, followed by initial-post requirements and specific peer-reply criteria.",
+            summary:"Use retrieval practice: concise key takeaways, 3-5 recall prompts, one application prompt, and a clear bridge to the assessment. Do not merely repeat earlier paragraphs.",
+            resource:"Annotate each resource by explaining what it contains, why it is useful, and when the student should use it.",
+            assignment:"Provide purpose, deliverable, numbered directions, submission requirements, success criteria, and a final pre-submission check. Ensure every rubric criterion is supported by the directions."
+        };
+        return directions[itemType]||directions.content;
     }
 
     // Claude sometimes wraps HTML output in a ```html ... ``` fence despite
@@ -698,6 +813,71 @@
         t = t.replace(/^```[a-zA-Z]*\r?\n/,"");
         t = t.replace(/\r?\n?```\s*$/,"");
         return t.trim();
+    }
+
+    function parseAndValidateQuizJSON(raw){
+        var cleaned=(raw||"").replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+        var data;
+        try{data=JSON.parse(cleaned);}catch(err){throw new Error("Claude returned invalid quiz JSON. Please regenerate.");}
+        if(!data||!Array.isArray(data.groups)||!data.groups.length) throw new Error("Quiz output did not contain any question groups.");
+        var seenQuestions={};
+        data.groups.forEach(function(group,gi){
+            if(["mc","tf","sa","essay"].indexOf(group.type)<0) throw new Error("Group "+(gi+1)+" has an unsupported question type.");
+            if(!Array.isArray(group.questions)||group.questions.length!==QUIZ_VERSION_COUNT) throw new Error("Group "+(gi+1)+" must contain exactly "+QUIZ_VERSION_COUNT+" versions.");
+            group.questions.forEach(function(q,qi){
+                if(!q||typeof q.question!=="string"||!q.question.trim()) throw new Error("Group "+(gi+1)+", version "+(qi+1)+" has no question text.");
+                var normalized=q.question.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+                if(seenQuestions[normalized])throw new Error("The quiz contains a duplicate question: \""+q.question.slice(0,80)+"\"");
+                seenQuestions[normalized]=true;
+                if(group.type==="mc"){
+                    if(!Array.isArray(q.answers)||q.answers.length!==4||q.answers.filter(function(a){return a&&a.correct;}).length!==1) throw new Error("Each multiple-choice version must have exactly four answers and one correct answer.");
+                    var answerTexts=q.answers.map(function(a){return String(a.text||"").trim().toLowerCase();});
+                    if(answerTexts.some(function(t){return !t;})||new Set(answerTexts).size!==4)throw new Error("Each multiple-choice version needs four distinct, non-empty answers.");
+                }else if(group.type==="tf"){
+                    if(!Array.isArray(q.answers)||q.answers.length!==2||q.answers.filter(function(a){return a&&a.correct;}).length!==1) throw new Error("Each true/false version must have True, False, and one correct answer.");
+                    var tf=q.answers.map(function(a){return String(a.text||"").trim().toLowerCase();}).sort().join(",");
+                    if(tf!=="false,true")throw new Error("True/false answers must be named True and False.");
+                }else if(group.type==="sa"){
+                    if(!Array.isArray(q.answers)||!q.answers.some(function(a){return a&&a.correct&&String(a.text||"").trim();})) throw new Error("Each short-answer version needs at least one accepted answer.");
+                }
+            });
+        });
+        return data;
+    }
+
+    function buildQualityReviewPrompt(){
+        var items=[];
+        state.modules.forEach(function(mod){
+            mod.items.forEach(function(item){
+                var d=state.itemData[item.id]||{};
+                var info=ITEM_TYPES[item.type]||{label:item.type};
+                var entry={type:item.type,title:(item.type==="quiz"||item.type==="miniquiz")?(d.quizTitle||info.label):(d.itemTitle||info.label)};
+                if(d.generatedHTML)entry.content=d.generatedHTML.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().substring(0,3500);
+                if(d.generatedQuestions)entry.quiz=d.generatedQuestions;
+                items.push(entry);
+            });
+        });
+        return "You are a senior instructional designer and Canvas LMS quality reviewer. Audit this generated module before a teacher deploys it. Check: objective/content/assessment alignment; factual and answer correctness; duplicate coverage; clear student directions; reading clarity; accessibility concerns; meaningful titles; workload; discussion authenticity; and whether assessments are supported by the instruction. Be concise and practical.\n\nMODULE DATA:\n"+JSON.stringify(items)+"\n\nReturn ONLY valid JSON: {\"score\":0-100,\"verdict\":\"Ready|Ready with minor fixes|Needs revision\",\"strengths\":[\"...\"],\"issues\":[{\"severity\":\"high|medium|low\",\"item\":\"title\",\"issue\":\"...\",\"recommendation\":\"...\"}],\"checks\":{\"alignment\":\"pass|warning|fail\",\"assessmentQuality\":\"pass|warning|fail\",\"accessibility\":\"pass|warning|fail\",\"clarity\":\"pass|warning|fail\",\"workload\":\"pass|warning|fail\"}}";
+    }
+
+    async function generateMissingTitles(){
+        var missing=[];
+        state.modules.forEach(function(mod){mod.items.forEach(function(item){var d=state.itemData[item.id]||{};var title=(item.type==="quiz"||item.type==="miniquiz")?d.quizTitle:d.itemTitle;if(!isGenericItemTitle(title,item.type))return;var source=d.textContent||"";if(d.generatedHTML)source+=" "+d.generatedHTML.replace(/<[^>]+>/g," ");if(d.generatedQuestions)source+=" "+JSON.stringify(d.generatedQuestions);missing.push({id:item.id,type:item.type,current:title||"",content:source.replace(/\s+/g," ").trim().substring(0,1800)});});});
+        if(!missing.length)return;
+        var prompt="Create concise, specific, student-friendly Canvas item titles for the items below. Titles must describe the actual topic, not the format. Never return generic names such as Content Page, Assignment, Quiz, Discussion Prompt, Flashcard Review, or Lab Project. Use 3-10 words. Return ONLY a valid JSON object mapping each id to its title.\n\nITEMS:\n"+JSON.stringify(missing);
+        var raw=await callClaude(prompt,AI_MODEL_CONTENT_FAST,600),cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim(),titles;
+        try{titles=JSON.parse(cleaned);}catch(e){throw new Error("Claude could not create the missing item titles. Please retry.");}
+        missing.forEach(function(entry){var title=String(titles[entry.id]||"").trim();if(!title||title.length>120)return;var found;state.modules.some(function(mod){found=mod.items.find(function(it){return it.id===entry.id;});return !!found;});if(!found)return;var d=state.itemData[entry.id]||{};if(found.type==="quiz"||found.type==="miniquiz")d.quizTitle=title;else d.itemTitle=title;});
+        saveDraft();
+    }
+
+    async function runQualityReview(){
+        await generateMissingTitles();
+        var raw=await callClaude(buildQualityReviewPrompt(),AI_MODEL_CONTENT,4000);
+        var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+        var report;try{report=JSON.parse(cleaned);}catch(e){throw new Error("The quality review returned invalid JSON. Please retry.");}
+        if(!report||typeof report.score!=="number"||!Array.isArray(report.issues))throw new Error("The quality review was incomplete. Please retry.");
+        state.qualityReport=report;state.qualityReviewedAt=Date.now();saveDraft();return report;
     }
 
     // ========== UNSPLASH IMAGES ==========
@@ -781,7 +961,19 @@
     // Runs after every HTML generation call — strips markdown fences and
     // resolves any image markers into real photos or placeholders.
     async function finalizeGeneratedHTML(html){
-        return await resolveImageMarkers(stripMarkdownFence(html));
+        html=await resolveImageMarkers(stripMarkdownFence(html));
+        if(!html||html.replace(/<[^>]*>/g,"").trim().length<40) throw new Error("Generated content was empty or incomplete. Please regenerate.");
+        var doc=new DOMParser().parseFromString(html,"text/html");
+        doc.querySelectorAll("script,style,object,form").forEach(function(el){el.remove();});
+        doc.querySelectorAll("*").forEach(function(el){
+            Array.from(el.attributes).forEach(function(attr){
+                var name=attr.name.toLowerCase(),value=String(attr.value||"").trim().toLowerCase();
+                if(name.indexOf("on")===0||((name==="href"||name==="src")&&value.indexOf("javascript:")===0))el.removeAttribute(attr.name);
+            });
+        });
+        var cleaned=doc.body.innerHTML.trim();
+        if(!cleaned)throw new Error("Generated HTML did not pass the safety check. Please regenerate.");
+        return cleaned;
     }
 
     // ========== AUTO-FILL FROM SOURCE ==========
@@ -803,7 +995,7 @@
         if(mod && mod.sources && mod.sources.length){
             p += mod.sources.map(function(s){return "--- "+s.name+" ---\n"+s.text.substring(0,12000);}).join("\n\n");
         }
-        p += "\n\nReturn ONLY the content brief — plain text, 2-4 sentences, no markdown, no headers, no preamble.";
+        p += "\n\nReturn ONLY valid JSON: {\"title\":\"3-10 word topic-specific title\",\"brief\":\"2-4 sentence content brief\"}. Never use a generic title such as Content Page, Quiz, Assignment, or Discussion Prompt.";
         return p;
     }
 
@@ -823,8 +1015,14 @@
                 state.status = "Analyzing source — "+(mod.title||"Module "+(mi+1))+": "+info.label+" ("+(ii+1)+"/"+mod.items.length+")...";
                 state.statusType = "loading"; renderStatus(panel);
                 try{
-                    var brief = await callClaude(buildAutoFillPrompt(item, mod.items, ii, mod), AI_MODEL_CONTENT_FAST, 400);
-                    d.textContent = brief.trim();
+                    var briefRaw = await callClaude(buildAutoFillPrompt(item, mod.items, ii, mod), AI_MODEL_CONTENT_FAST, 500);
+                    try{
+                        var briefData=JSON.parse(briefRaw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim());
+                        d.textContent=String(briefData.brief||"").trim();
+                        if(briefData.title&&isGenericItemTitle(item.type==="quiz"||item.type==="miniquiz"?d.quizTitle:d.itemTitle,item.type)){
+                            if(item.type==="quiz"||item.type==="miniquiz")d.quizTitle=String(briefData.title).trim();else d.itemTitle=String(briefData.title).trim();
+                        }
+                    }catch(parseErr){d.textContent=briefRaw.trim();}
                 }catch(err){
                     // Skip this item on failure — user can still fill it in manually or retry via the per-item button.
                 }
@@ -853,8 +1051,7 @@
             var total=d.mcCount+d.tfCount+d.saCount+d.essayCount;
             if(total===0) throw new Error("No question types selected");
             var raw=await callClaude(buildQuizPrompt(d),AI_MODEL_QUIZ,8192);
-            var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-            d.generatedQuestions=JSON.parse(cleaned);d.subView="preview";
+            d.generatedQuestions=parseAndValidateQuizJSON(raw);if(isGenericItemTitle(d.quizTitle,item.type)&&d.generatedQuestions.quizTitle)d.quizTitle=d.generatedQuestions.quizTitle;state.qualityReport=null;state.qualityReviewedAt=null;d.subView="preview";
             return;
         }
         if(!itemHasSource(d,mod)) throw new Error("No source material");
@@ -867,7 +1064,7 @@
         }else{
             html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
         }
-        d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+        d.generatedHTML=await finalizeGeneratedHTML(html);adoptGeneratedTitle(item,d);d.subView="result";
     }
 
     // Builds every unbuilt item across all modules, up to BUILD_ALL_CONCURRENCY
@@ -944,6 +1141,9 @@
 
         var p = "Generate a clean, simple Canvas LMS " + (isA ? "assignment" : "page") + ". Follow the fixed template below exactly — do not redesign it, add decorative elements, or invent new styles. Consistency matters more than creativity here.\n\n";
         p += "PAGE TYPE: " + typeLabel + "\n\n";
+        if(isGenericItemTitle(itemData.itemTitle,itemType))p += "TITLE REQUIREMENT: Invent a concise, specific 3-10 word title describing the actual topic. Use that title for [TITLE]. Do not use a generic format name such as \""+typeLabel+"\".\n\n";
+        else p += "CANVAS ITEM TITLE: "+itemData.itemTitle+" — use this exact teacher-supplied text for [TITLE].\n\n";
+        p += "INSTRUCTIONAL PURPOSE FOR THIS ITEM:\n"+itemSpecificDirection(itemType)+"\n\n";
 
         p += "FIXED TEMPLATE (use these exact inline styles, fill in the bracketed content):\n\n";
         p += "HEADER (once, at the top):\n";
@@ -990,8 +1190,9 @@
         p += "- Do not invent new colors, fonts, or layout structures\n\n";
 
         p += "CONTENT\n";
+        if(itemData.videoUrl) p += "VIDEO URL TO FEATURE: "+itemData.videoUrl+"\nInclude a clearly labeled linked video block using a normal <a> tag; do not invent an embed URL.\n\n";
         if(itemData.textContent && itemData.textContent.trim()) p += itemData.textContent + "\n\n";
-        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
+        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + sourceExcerpt(itemData.uploadedFile) + "\n\n";
         p += getModuleSourceContext();
 
         p += "\n\nHTML REQUIREMENTS\n";
@@ -1011,7 +1212,8 @@
     function buildQuizPrompt(itemData){
         var dok=DOK_MAP[itemData.difficulty||"medium"];
         var p="You are an expert educator creating a Canvas LMS quiz with randomized question groups.\n\n";
-        p+="QUIZ CONFIGURATION\nTitle: "+(itemData.quizTitle||"Quiz")+"\n";
+        if(isGenericItemTitle(itemData.quizTitle,"quiz"))p+="QUIZ CONFIGURATION\nTitle: Invent a concise, specific 3-10 word title based on the assessed content. Do not use the generic title Quiz or Mini Quiz.\n";
+        else p+="QUIZ CONFIGURATION\nTitle: "+itemData.quizTitle+" (use this exact teacher-supplied title)\n";
         p+="Difficulty: "+dok.label+" - "+dok.desc+"\nDOK Levels: "+dok.levels.join(" and ")+"\n\nQUESTION GROUPS NEEDED:\n";
         if(itemData.mcCount>0)p+="- "+itemData.mcCount+" Multiple Choice x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.mcCount*QUIZ_VERSION_COUNT)+" MC total\n";
         if(itemData.tfCount>0)p+="- "+itemData.tfCount+" True/False x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.tfCount*QUIZ_VERSION_COUNT)+" TF total\n";
@@ -1019,10 +1221,10 @@
         if(itemData.essayCount>0)p+="- "+itemData.essayCount+" Essay x"+QUIZ_VERSION_COUNT+" versions = "+(itemData.essayCount*QUIZ_VERSION_COUNT)+" Essay total\n";
         p+="\nIMPORTANT - How groups work:\nEach group has exactly "+QUIZ_VERSION_COUNT+" versions of the SAME concept but worded differently.\nCanvas randomly picks ONE version from each group per student.\n\nCONTENT\n";
         if(itemData.textContent&&itemData.textContent.trim())p+=itemData.textContent+"\n\n";
-        if(itemData.uploadedFile)p+="FILE ("+itemData.uploadedName+"):\n"+itemData.uploadedFile+"\n\n";
+        if(itemData.uploadedFile)p+="FILE ("+itemData.uploadedName+"):\n"+sourceExcerpt(itemData.uploadedFile)+"\n\n";
         p+=getModuleSourceContext();
-        p+='\n\nRESPONSE FORMAT\nReturn ONLY a valid JSON object, no explanations, no markdown.\n\n{"quizTitle":"'+(itemData.quizTitle||"Quiz")+'","groups":[{"groupNumber":1,"type":"mc","concept":"Description","dokLevel":1,"questions":[{"version":1,"question":"Q?","answers":[{"text":"A","correct":true},{"text":"B","correct":false},{"text":"C","correct":false},{"text":"D","correct":false}]}]}]}\n\n';
-        p+="RULES:\n- MC: exactly 4 choices, 1 correct\n- TF: exactly 2 answers: True and False\n- SA: no answers array\n- Essay: no answers array\n- Each group: exactly "+QUIZ_VERSION_COUNT+" question versions\n- Valid JSON only\n";
+        p+='\n\nRESPONSE FORMAT\nReturn ONLY a valid JSON object, no explanations, no markdown.\n\n{"quizTitle":"Specific Content-Based Title","groups":[{"groupNumber":1,"type":"mc","concept":"Description","dokLevel":1,"questions":[{"version":1,"question":"Q?","answers":[{"text":"A","correct":true},{"text":"B","correct":false},{"text":"C","correct":false},{"text":"D","correct":false}]}]}]}\n\n';
+        p+="RULES:\n- MC: exactly 4 choices, exactly 1 correct\n- TF: exactly 2 answers named True and False, exactly 1 correct\n- SA: include an answers array with 2-4 acceptable short responses; mark every acceptable response correct\n- Essay: omit the answers array\n- Each group: exactly "+QUIZ_VERSION_COUNT+" question versions\n- Valid JSON only\n";
         return p;
     }
 
@@ -1160,9 +1362,11 @@
             p += "- Return ONLY valid HTML, no markdown, every tag closed\n\n";
         }
 
+        if(isGenericItemTitle(itemData.itemTitle,itemType))p += "TITLE REQUIREMENT: Replace the generic activity heading in the template with a concise, specific 3-10 word title describing the source topic. Do not name it only after the activity format.\n\n";
+        else p += "TITLE REQUIREMENT: Use the exact teacher-supplied title \""+itemData.itemTitle+"\" for the main heading.\n\n";
         p += "SOURCE MATERIAL:\n";
         if(itemData.textContent && itemData.textContent.trim()) p += itemData.textContent + "\n\n";
-        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
+        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + sourceExcerpt(itemData.uploadedFile) + "\n\n";
         p += getModuleSourceContext();
         return p;
     }
@@ -1280,7 +1484,7 @@
 
         p += "SOURCE MATERIAL / LAB TOPIC:\n";
         if(itemData.textContent && itemData.textContent.trim()) p += itemData.textContent + "\n\n";
-        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
+        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + sourceExcerpt(itemData.uploadedFile) + "\n\n";
         p += getModuleSourceContext();
         return p;
     }
@@ -1795,6 +1999,7 @@
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
         h+='<p class="cmb-desc">'+esc(descriptions[item.type]||"")+'</p>';
+        h+='<div class="cmb-card"><label class="cmb-label">Canvas Item Title</label><input type="text" class="cmb-input" id="cmb-item-title" value="'+esc(d.itemTitle||info.label)+'"></div>';
 
         // ── AI Engine toggle ──────────────────────────────────────────────────
         var isFast=d.aiEngine==="fast";
@@ -1842,6 +2047,8 @@
         h+='<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" id="cmb-act-gen">✨ Generate '+info.label+'</button></div>';
         container.innerHTML=h;
 
+        container.querySelector("#cmb-item-title").addEventListener("input",function(e){d.itemTitle=e.target.value;});
+
         container.querySelector("#cmb-engine-toggle").addEventListener("click",function(){
             d.aiEngine=(d.aiEngine==="fast")?"detailed":"fast";render();
         });
@@ -1867,7 +2074,7 @@
             var btn=container.querySelector("#cmb-act-gen");btn.disabled=true;btn.textContent="Generating...";
             try{
                 var html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),5000);
-                d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+                d.generatedHTML=await finalizeGeneratedHTML(html);adoptGeneratedTitle(item,d);d.subView="result";
                 state.status=info.label+" generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -1886,6 +2093,10 @@
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
         h+='<p class="cmb-desc">Configure and generate this '+(isA?"assignment":"page")+' with AI.</p>';
+        h+='<div class="cmb-card"><label class="cmb-label">Canvas Item Title</label><input type="text" class="cmb-input" id="cmb-item-title" value="'+esc(d.itemTitle||info.label)+'">';
+        if(item.type==="resource")h+='<label class="cmb-label" style="margin-top:10px;">External Resource URL (optional)</label><input type="url" class="cmb-input" id="cmb-resource-url" value="'+esc(d.resourceUrl||"")+'" placeholder="https://..."><div style="font-size:11px;color:#64748B;margin-top:4px;">When provided, Canvas receives a real External URL module item. Leave blank to create a resource page.</div>';
+        if(item.type==="video")h+='<label class="cmb-label" style="margin-top:10px;">Video URL</label><input type="url" class="cmb-input" id="cmb-video-url" value="'+esc(d.videoUrl||"")+'" placeholder="https://youtube.com/..."><div style="font-size:11px;color:#64748B;margin-top:4px;">The generated page will feature a safe clickable link to this video.</div>';
+        h+='</div>';
 
         // ── Theme picker ─────────────────────────────────────────────────────
         h+='<div class="cmb-card">';
@@ -1927,8 +2138,12 @@
         if(isA){
             h+='<div style="display:flex;gap:10px;margin-top:8px;">';
             h+='<div style="flex:1;"><label class="cmb-label">Points</label><input type="text" class="cmb-input" id="cmb-pts" value="'+esc(d.pointValue||"")+'" placeholder="100"></div>';
-            h+='<div style="flex:1;"><label class="cmb-label">Due Date</label><input type="text" class="cmb-input" id="cmb-due" value="'+esc(d.dueDate||"")+'" placeholder="e.g. Friday 11:59pm"></div>';
+            h+='<div style="flex:1;"><label class="cmb-label">Due Date</label><input type="datetime-local" class="cmb-input" id="cmb-due" value="'+esc(d.dueDate||"")+'"></div>';
             h+='</div>';
+            var submissionTypes=d.submissionTypes||{text:true,upload:true};
+            h+='<label class="cmb-label" style="margin-top:10px;">Allowed Submissions</label><div style="display:flex;gap:8px;">';
+            h+='<div class="cmb-el-toggle'+(submissionTypes.text?' on':'')+'" data-submission="text"><div class="dot"></div>Text entry</div>';
+            h+='<div class="cmb-el-toggle'+(submissionTypes.upload?' on':'')+'" data-submission="upload"><div class="dot"></div>File upload</div></div>';
         }
         h+='</div>';
         h+='<div class="cmb-card"><label class="cmb-label">Content / Instructions</label>';
@@ -1940,6 +2155,12 @@
 
         container.innerHTML=h;
 
+        container.querySelector("#cmb-item-title").addEventListener("input",function(e){d.itemTitle=e.target.value;});
+        var resourceUrlInput=container.querySelector("#cmb-resource-url");
+        if(resourceUrlInput)resourceUrlInput.addEventListener("input",function(e){d.resourceUrl=e.target.value;});
+        var videoUrlInput=container.querySelector("#cmb-video-url");
+        if(videoUrlInput)videoUrlInput.addEventListener("input",function(e){d.videoUrl=e.target.value;});
+
         // ── Theme swatch handlers ─────────────────────────────────────────────
         container.querySelectorAll(".cmb-theme-swatch").forEach(function(sc){
             sc.addEventListener("click",function(){d.pageStyle=sc.dataset.style;render();});
@@ -1948,6 +2169,12 @@
         if(cc) cc.addEventListener("input",function(e){d.customColor=e.target.value;});
         container.querySelectorAll(".cmb-el-toggle").forEach(function(el){
             el.addEventListener("click",function(){
+                if(el.dataset.submission){
+                    d.submissionTypes=d.submissionTypes||{text:true,upload:true};
+                    var subKey=el.dataset.submission;
+                    if(d.submissionTypes[subKey]&&Object.keys(d.submissionTypes).filter(function(k){return d.submissionTypes[k];}).length===1)return;
+                    d.submissionTypes[subKey]=!d.submissionTypes[subKey];render();return;
+                }
                 var key=el.dataset.el;
                 if(isA){d.assignmentElements[key]=!d.assignmentElements[key];}
                 else{d.pageElements[key]=!d.pageElements[key];}
@@ -1979,7 +2206,7 @@
             var btn=container.querySelector("#cmb-gen-content");btn.disabled=true;btn.textContent="Generating...";
             try{
                 var html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
-                d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+                d.generatedHTML=await finalizeGeneratedHTML(html);adoptGeneratedTitle(item,d);d.subView="result";
                 state.status="Content generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -1995,6 +2222,7 @@
         var isLong=!!d.longContent;
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
         h+='<p class="cmb-desc">AI generates a complete trade school lab sheet — safety strip, PPE requirements, tools list, step-by-step procedure with numbered badges, data table, and reflection questions.</p>';
+        h+='<div class="cmb-card"><label class="cmb-label">Canvas Item Title</label><input type="text" class="cmb-input" id="cmb-item-title" value="'+esc(d.itemTitle||info.label)+'"></div>';
 
         // Long Content toggle
         h+='<div class="cmb-long-toggle'+(isLong?' on':'')+'" id="cmb-long-toggle">';
@@ -2066,6 +2294,8 @@
 
         container.innerHTML=h;
 
+        container.querySelector("#cmb-item-title").addEventListener("input",function(e){d.itemTitle=e.target.value;});
+
         container.querySelector("#cmb-long-toggle").addEventListener("click",function(){d.longContent=!d.longContent;render();});
         container.querySelector("#cmb-engine-toggle").addEventListener("click",function(){d.aiEngine=(d.aiEngine==="fast")?"detailed":"fast";render();});
         container.querySelectorAll(".cmb-theme-swatch").forEach(function(sc){sc.addEventListener("click",function(){d.pageStyle=sc.dataset.style;render();});});
@@ -2094,7 +2324,7 @@
             var btn=container.querySelector("#cmb-lab-gen");btn.disabled=true;btn.textContent="Generating...";
             try{
                 var html=await callClaude(buildLabPrompt(d,item.type),contentModel(d),maxTok);
-                d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+                d.generatedHTML=await finalizeGeneratedHTML(html);adoptGeneratedTitle(item,d);d.subView="result";
                 state.status="Lab sheet generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -2113,6 +2343,9 @@
         }
         h+='<div class="cmb-tab-bar"><div class="cmb-tab active" data-tab="preview">Preview</div><div class="cmb-tab" data-tab="code">HTML Code</div></div>';
         h+='<div id="cmb-result-content"></div>';
+        h+='<div class="cmb-card" style="margin-top:12px;"><label class="cmb-label">Revise this page with AI</label><div style="font-size:11px;color:#64748B;margin-bottom:8px;">Ask for a focused change without regenerating the entire page from scratch.</div>';
+        h+='<textarea class="cmb-textarea" id="cmb-revision-instruction" rows="2" placeholder="Example: Simplify the second section to an eighth-grade reading level and add one concrete example."></textarea>';
+        h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"><button class="cmb-add-btn cmb-revision-preset" data-revision="Simplify the language while preserving all important content.">Simplify</button><button class="cmb-add-btn cmb-revision-preset" data-revision="Add one concrete, relevant example to the explanation that needs it most.">Add example</button><button class="cmb-add-btn cmb-revision-preset" data-revision="Improve student engagement and clarity without adding decorative filler.">Improve engagement</button><button class="cmb-btn cmb-btn-ai" id="cmb-apply-revision" style="padding:7px 14px;">Apply revision</button></div></div>';
         h+='<div class="cmb-btn-row">';
         h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-copy-html">Copy HTML</button>';
         h+='<button class="cmb-btn cmb-btn-ai" id="cmb-regen">Regenerate</button>';
@@ -2121,12 +2354,25 @@
         container.innerHTML=h;
         var contentDiv=container.querySelector("#cmb-result-content");
         showPreviewTab(contentDiv,d.generatedHTML);
+        container.querySelectorAll(".cmb-revision-preset").forEach(function(btn){btn.addEventListener("click",function(){container.querySelector("#cmb-revision-instruction").value=btn.dataset.revision;});});
+        container.querySelector("#cmb-apply-revision").addEventListener("click",async function(){
+            var instruction=container.querySelector("#cmb-revision-instruction").value.trim();
+            if(!instruction){state.status="Describe the revision you want.";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            var btn=container.querySelector("#cmb-apply-revision");btn.disabled=true;btn.textContent="Revising...";
+            state.status="Applying focused revision...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+            try{
+                var prompt="Revise the Canvas LMS HTML below according to the teacher's instruction. Preserve everything not affected by the instruction, including the existing inline design, factual content, accessibility, and Canvas-safe markup. Use inline CSS only. No scripts, style tags, markdown, explanation, html/head/body tags. Return ONLY the complete revised HTML.\n\nTEACHER INSTRUCTION:\n"+instruction+"\n\nCURRENT HTML:\n"+d.generatedHTML;
+                var revised=await callClaude(prompt,contentModel(d),TOKENS_DEFAULT);
+                d.generatedHTML=await finalizeGeneratedHTML(revised);adoptGeneratedTitle(item,d);state.qualityReport=null;state.qualityReviewedAt=null;saveDraft();
+                state.status="Revision applied. Run Quality Review again before inserting.";state.statusType="success";render();
+            }catch(err){btn.disabled=false;btn.textContent="Apply revision";state.status="Revision error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
+        });
         container.querySelectorAll(".cmb-tab").forEach(function(tab){
             tab.addEventListener("click",function(){
                 container.querySelectorAll(".cmb-tab").forEach(function(t){t.classList.remove("active");});
                 tab.classList.add("active");
                 if(tab.dataset.tab==="preview"){showPreviewTab(contentDiv,d.generatedHTML);}
-                else{showCodeTab(contentDiv,d.generatedHTML);}
+                else{showCodeTab(contentDiv,d);}
             });
         });
         container.querySelector("#cmb-copy-html").addEventListener("click",function(){
@@ -2134,21 +2380,19 @@
                 state.status="HTML copied!";state.statusType="success";renderStatus(overlayEl.querySelector("#cmb-panel"));
             });
         });
-        container.querySelector("#cmb-regen").addEventListener("click",function(){d.subView="build";render();});
+        container.querySelector("#cmb-regen").addEventListener("click",function(){d.subView="build";state.qualityReport=null;state.qualityReviewedAt=null;render();});
         container.querySelector("#cmb-back-build").addEventListener("click",function(){d.subView="build";render();});
     }
 
     function showPreviewTab(container,html){
-        container.innerHTML='<iframe class="cmb-preview-frame" id="cmb-pframe"></iframe>';
+        container.innerHTML='<iframe class="cmb-preview-frame" id="cmb-pframe" sandbox=""></iframe>';
         var frame=container.querySelector("#cmb-pframe");
-        frame.onload=function(){
-            try{var doc=frame.contentDocument||frame.contentWindow.document;doc.open();doc.write('<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:16px;font-family:Georgia,serif;">'+html+'</body></html>');doc.close();}catch(e){}
-        };
-        frame.src="about:blank";
+        frame.srcdoc='<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:16px;font-family:Georgia,serif;">'+html+'</body></html>';
     }
 
-    function showCodeTab(container,html){
-        container.innerHTML='<textarea class="cmb-code-area">'+esc(html)+'</textarea>';
+    function showCodeTab(container,itemData){
+        container.innerHTML='<textarea class="cmb-code-area" aria-label="Editable generated HTML">'+esc(itemData.generatedHTML)+'</textarea>';
+        container.querySelector(".cmb-code-area").addEventListener("input",function(e){itemData.generatedHTML=e.target.value;state.qualityReport=null;state.qualityReviewedAt=null;});
     }
 
     // ========== QUIZ BUILDER ==========
@@ -2217,8 +2461,7 @@
             var btn2=container.querySelector("#cmb-gen-quiz");btn2.disabled=true;btn2.textContent="Generating...";
             try{
                 var raw=await callClaude(buildQuizPrompt(d),AI_MODEL_QUIZ,8192);
-                var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                d.generatedQuestions=JSON.parse(cleaned);d.subView="preview";
+                d.generatedQuestions=parseAndValidateQuizJSON(raw);if(isGenericItemTitle(d.quizTitle,item.type)&&d.generatedQuestions.quizTitle)d.quizTitle=d.generatedQuestions.quizTitle;state.qualityReport=null;state.qualityReviewedAt=null;d.subView="preview";
                 state.status="Questions generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -2270,13 +2513,13 @@
         container.querySelectorAll(".cmb-q-text").forEach(function(ta){
             ta.addEventListener("input",function(){
                 var gi=parseInt(ta.dataset.gi),qi=parseInt(ta.dataset.qi);
-                if(data.groups[gi]&&data.groups[gi].questions[qi])data.groups[gi].questions[qi].question=ta.value;
+                if(data.groups[gi]&&data.groups[gi].questions[qi])data.groups[gi].questions[qi].question=ta.value;state.qualityReport=null;state.qualityReviewedAt=null;
             });
         });
         container.querySelectorAll(".cmb-ans-input").forEach(function(inp){
             inp.addEventListener("input",function(){
                 var gi=parseInt(inp.dataset.gi),qi=parseInt(inp.dataset.qi),ai=parseInt(inp.dataset.ai);
-                if(data.groups[gi]&&data.groups[gi].questions[qi]&&data.groups[gi].questions[qi].answers[ai])data.groups[gi].questions[qi].answers[ai].text=inp.value;
+                if(data.groups[gi]&&data.groups[gi].questions[qi]&&data.groups[gi].questions[qi].answers[ai])data.groups[gi].questions[qi].answers[ai].text=inp.value;state.qualityReport=null;state.qualityReviewedAt=null;
             });
         });
         container.querySelectorAll(".cmb-ans-dot").forEach(function(dot){
@@ -2287,6 +2530,7 @@
                 var gtype=data.groups[gi].type;
                 if(gtype==="mc"||gtype==="tf"){q.answers.forEach(function(a){a.correct=false;});q.answers[ai].correct=true;}
                 else{q.answers[ai].correct=!q.answers[ai].correct;}
+                state.qualityReport=null;state.qualityReviewedAt=null;
                 var block=dot.closest(".cmb-q-block");
                 block.querySelectorAll(".cmb-ans-dot").forEach(function(dd,idx){dd.classList.toggle("correct",q.answers[idx]&&q.answers[idx].correct);});
             });
@@ -2296,6 +2540,18 @@
     }
 
     // ========== INSERT VIEW ==========
+
+    function qualityReportHTML(report){
+        if(!report)return '<div style="font-size:12px;color:#64748B;">Run the review before approving this deployment.</div>';
+        var scoreColor=report.score>=85?"#047857":report.score>=70?"#B45309":"#B91C1C";
+        var h='<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;"><div style="font-size:28px;font-weight:800;color:'+scoreColor+';">'+esc(String(report.score))+'</div><div><div style="font-size:13px;font-weight:700;color:#1E293B;">'+esc(report.verdict||"Reviewed")+'</div><div style="font-size:11px;color:#64748B;">Instructional quality score</div></div></div>';
+        var checks=report.checks||{};
+        h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">';
+        Object.keys(checks).forEach(function(key){var val=checks[key],color=val==="pass"?"#065F46":val==="fail"?"#991B1B":"#92400E",bg=val==="pass"?"#D1FAE5":val==="fail"?"#FEE2E2":"#FEF3C7";h+='<span style="font-size:10px;padding:3px 7px;border-radius:5px;color:'+color+';background:'+bg+';">'+esc(key.replace(/([A-Z])/g," $1"))+': '+esc(val)+'</span>';});
+        h+='</div>';
+        if(report.issues&&report.issues.length){h+='<div style="font-size:12px;font-weight:700;margin-bottom:5px;">Recommended fixes</div>';report.issues.forEach(function(issue){var c=issue.severity==="high"?"#B91C1C":issue.severity==="medium"?"#B45309":"#475569";h+='<div style="border-left:3px solid '+c+';padding:7px 10px;margin-bottom:6px;background:#F8FAFC;font-size:11px;line-height:1.45;"><strong>'+esc(issue.item||"Module")+'</strong>: '+esc(issue.issue||"")+(issue.recommendation?'<br><span style="color:#64748B;">Fix: '+esc(issue.recommendation)+'</span>':'')+'</div>';});}else{h+='<div style="font-size:12px;color:#065F46;">No material issues were identified.</div>';}
+        return h;
+    }
 
     function renderInsert(body){
         var courseId = getCourseId();
@@ -2310,6 +2566,7 @@
         } else {
             h+='<p class="cmb-desc">Items will be created in <strong>Course ' + courseId + '</strong> and added to <strong>' + esc((currentModule && currentModule.title) || "the current module") + '</strong>.</p>';
         }
+        h+='<div class="cmb-card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;"><div><label class="cmb-label" style="margin:0;">Course Quality Review</label><div style="font-size:11px;color:#64748B;">AI checks alignment, assessment quality, accessibility, clarity, duplication, and workload.</div></div><button class="cmb-btn cmb-btn-ai" id="cmb-run-quality">'+(state.qualityReport?'Run Again':'Run Quality Review')+'</button></div><div id="cmb-quality-report">'+qualityReportHTML(state.qualityReport)+'</div></div>';
         for(var m=0;m<state.modules.length;m++){
             var mod=state.modules[m];
             h+='<div class="cmb-card">';
@@ -2323,19 +2580,22 @@
                 if(done)modReady++;
                 var modeTag=(d.longContent&&done)?' <span style="font-size:10px;background:#EDE9FE;color:#6D28D9;padding:1px 5px;border-radius:3px;">LONG</span>':'';
                 h+='<div class="cmb-insert-item"><span class="icon">'+info.icon+'</span>';
-                h+='<span style="flex:1;">'+esc(info.label+(it.type==="quiz"||it.type==="miniquiz"?" \u2014 "+(d.quizTitle||""):""))+modeTag+'</span>';
-                h+='<span class="status '+(done?"ready":"empty")+'">'+(done?"\u2713 Ready":"Not Built")+'</span></div>';
+                var displayTitle=(it.type==="quiz"||it.type==="miniquiz")?(d.quizTitle||info.label):(d.itemTitle||info.label);
+                h+='<span style="flex:1;">'+esc(displayTitle)+modeTag+'</span>';
+                var alreadyInserted=!!d.insertedCanvas;
+                h+='<span class="status '+(alreadyInserted?"done":done?"ready":"empty")+'">'+(alreadyInserted?"\u2713 Inserted":done?"\u2713 Ready":"Not Built")+'</span></div>';
             }
             if(mod.items.length===0){h+='<div style="font-size:12px;color:#94a3b8;">No items.</div>';}
             h+='</div>';
             if(modReady<mod.items.length&&mod.items.length>0){
-                h+='<div style="margin-top:8px;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:12px;color:#713f12;">\u26A0\uFE0F '+(mod.items.length-modReady)+' unbuilt item(s) will be inserted as placeholders.</div>';
+                h+='<div style="margin-top:8px;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:12px;color:#713f12;">\u26A0\uFE0F '+(mod.items.length-modReady)+' unbuilt item(s): pages and assignments use placeholders; unbuilt quizzes are skipped.</div>';
             }
             h+='</div>';
         }
         h+='<div class="cmb-btn-row">';
         h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-back-build2">&larr; Back to Build</button>';
-        h+='<button class="cmb-btn cmb-btn-success" id="cmb-insert-all"'+(courseId?'':' disabled')+' style="font-size:15px;padding:12px 28px;">\u{1F680} Insert into Canvas</button>';
+        h+='<label style="display:flex;align-items:center;gap:7px;font-size:12px;color:#475569;background:#fff;border:1px solid #CBD5E1;border-radius:9px;padding:8px 12px;"><input type="checkbox" id="cmb-teacher-approval"> I reviewed the content and approve this deployment</label>';
+        h+='<button class="cmb-btn cmb-btn-success" id="cmb-insert-all" disabled style="font-size:15px;padding:12px 28px;">\u{1F680} Deploy to Canvas</button>';
         h+='</div>';
         h+='<div id="cmb-insert-progress" style="display:none;">';
         h+='<div class="cmb-card" style="margin-top:16px;">';
@@ -2354,9 +2614,17 @@
         h+='</ol></div>';
         body.innerHTML=h;
         body.querySelector("#cmb-back-build2").addEventListener("click",function(){state.step="build";render();});
+        var approval=body.querySelector("#cmb-teacher-approval"),insertButton=body.querySelector("#cmb-insert-all");
+        approval.addEventListener("change",function(){insertButton.disabled=!(courseId&&state.qualityReport&&approval.checked);});
+        body.querySelector("#cmb-run-quality").addEventListener("click",async function(){
+            if(!state.apiKey){state.status="Enter your Claude API key before running quality review.";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            var btn=body.querySelector("#cmb-run-quality");btn.disabled=true;btn.textContent="Reviewing...";state.status="Running instructional quality review...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+            try{await runQualityReview();state.status="Quality review complete. Review the findings, make any needed revisions, then approve deployment.";state.statusType="success";render();}
+            catch(err){btn.disabled=false;btn.textContent="Retry Quality Review";state.status="Quality review error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
+        });
         body.querySelector("#cmb-insert-all").addEventListener("click",async function(){
             var btn = body.querySelector("#cmb-insert-all");
-            btn.disabled = true; btn.textContent = "Inserting...";
+            btn.disabled = true; btn.textContent = "Deploying...";
             var progressArea = body.querySelector("#cmb-insert-progress");
             var progressLabel = body.querySelector("#cmb-progress-label");
             var progressFill = body.querySelector("#cmb-progress-fill");
@@ -2380,17 +2648,17 @@
                     progressLog.scrollTop = progressLog.scrollHeight;
                 });
                 progressFill.style.width = "100%";
-                progressLabel.textContent = "Insertion complete!";
+                progressLabel.textContent = "Deployment complete!";
                 var rh = '<div class="cmb-card" style="margin-top:16px;background:#f0fdf4;border-color:#bbf7d0;">';
-                rh += '<h3 style="margin:0 0 8px;color:#065F46;">\u2705 Insertion Complete!</h3>';
+                rh += '<h3 style="margin:0 0 8px;color:#065F46;">\u2705 Canvas Deployment Complete!</h3>';
                 for(var r = 0; r < results.modules.length; r++){
                     var rm = results.modules[r];
                     rh += '<div style="margin-bottom:8px;"><strong>\u{1F4E6} ' + esc(rm.title) + '</strong> (Module ID: ' + rm.id + ')<ul style="margin:4px 0 0 16px;font-size:12px;">';
                     for(var ri = 0; ri < rm.items.length; ri++){
                         var rItem = rm.items[ri];
-                        var statusIcon = rItem.status === "inserted" ? "\u2713" : rItem.status === "skipped" ? "\u23ED" : "\u2717";
-                        var statusColor = rItem.status === "inserted" ? "#065F46" : rItem.status === "skipped" ? "#92400E" : "#991B1B";
-                        rh += '<li style="color:' + statusColor + ';">' + statusIcon + ' ' + esc(rItem.title) + ' (' + rItem.status + ')';
+                        var statusIcon = rItem.status === "inserted"||rItem.status === "already_inserted" ? "\u2713" : rItem.status === "skipped" ? "\u23ED" : "\u2717";
+                        var statusColor = rItem.status === "inserted"||rItem.status === "already_inserted" ? "#065F46" : rItem.status === "skipped" ? "#92400E" : "#991B1B";
+                        rh += '<li style="color:' + statusColor + ';">' + statusIcon + ' ' + (rItem.url?'<a href="'+esc(rItem.url)+'" target="_blank" rel="noopener" style="color:'+statusColor+';font-weight:600;">'+esc(rItem.title)+'</a>':esc(rItem.title)) + ' (' + rItem.status + ')';
                         if(rItem.error) rh += ' \u2014 ' + esc(rItem.error);
                         rh += '</li>';
                     }
@@ -2436,7 +2704,7 @@
     }
 
     function closeOverlay(){
-        if(overlayEl){overlayEl.remove();overlayEl=null;}
+        if(overlayEl){saveDraft();overlayEl.remove();overlayEl=null;}
     }
 
     // choice is a Canvas module id (string) to append into, or "__new__"/undefined
@@ -2444,6 +2712,7 @@
     // Tampermonkey menu command.
     function openModuleBuilderFor(choice){
         if(overlayEl) closeOverlay();
+        loadDraft();
         if(!choice || choice === "__new__"){
             selectNewModule();
         } else {
@@ -2629,6 +2898,8 @@
             GM_registerMenuCommand("Open Canvas AI Module Builder", function(){ openModuleBuilderFor(); });
         }
         installModuleToolbar();
+        setInterval(saveDraft,2000);
+        window.addEventListener("beforeunload",saveDraft);
     }
 
     function waitAndLaunch(tries){
