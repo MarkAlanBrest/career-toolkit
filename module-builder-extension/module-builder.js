@@ -862,22 +862,26 @@
             p += "RULES: Generate exactly " + count + " <details> cards. Fill in [TERM], [DEFINITION], [SHORT EXAMPLE] from source material. Terms: 1-6 words. Definitions: 1-2 sentences. Examples: brief. Do NOT use <style> tags, <script> tags, onclick, or any CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
 
         } else if(itemType === "quickcheck"){
-            p += "Generate a self-check practice quiz for a Canvas LMS page using <details>/<summary> tags — NO <style> blocks or JavaScript (Canvas strips <style> tags on save, which would break this activity entirely). Each question expands on click to reveal the correct answer highlighted among the choices, plus a one-sentence explanation. Use the EXACT HTML structure below — only fill in content.\n\n";
+            p += "Generate a self-check practice quiz for a Canvas LMS page using nested <details>/<summary> tags — NO <style> blocks or JavaScript (Canvas strips <style> tags on save, which would break this activity entirely). Each answer choice must be its OWN independently-clickable <details> so a student can click just one choice and see whether THAT choice is right or wrong, without the other choices or the correct answer being revealed first. Use the EXACT HTML structure below — only fill in content.\n\n";
             p += "Generate exactly " + count + " questions, each with 4 answer choices (1 correct, 3 plausible distractors).\n\n";
             p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
             p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">Quick Check</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Think it through, then click a question to reveal the correct answer. No grade is recorded — this is practice only.</p>\n\n';
-            p += "<!-- Generate " + count + " questions using this exact template: -->\n";
-            p += '<details style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:14px;overflow:hidden;">\n';
-            p += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:16px 20px;font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;">1. [QUESTION TEXT]</summary>\n';
-            p += '  <div style="padding:16px 20px;background:#fff;border-top:1px solid #e5e7eb;">\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:14px;">✓ [CORRECT CHOICE]</div>\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:14px;">[WRONG CHOICE A]</div>\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:14px;">[WRONG CHOICE B]</div>\n';
-            p += '    <div style="padding:8px 12px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:14px;">[WRONG CHOICE C]</div>\n';
-            p += '    <div style="font-size:12px;color:#374151;margin-top:10px;font-style:italic;">[ONE-SENTENCE EXPLANATION of why the correct choice is right]</div>\n';
-            p += '  </div>\n</details>\n\n';
-            p += "CRITICAL RULES:\n- Generate exactly " + count + " <details> questions in this exact order\n- Each has exactly 4 choices: 3 wrong + 1 correct, position of the correct choice's div in the markup can vary\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or any CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Click an answer choice to check it. No grade is recorded — this is practice only.</p>\n\n';
+            p += "<!-- Generate " + count + " questions using this exact template. Each of the 4 choices is its own <details> — do NOT wrap the whole question in one outer <details>: -->\n";
+            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:14px;overflow:hidden;">\n';
+            p += '  <div style="background:#f8fafc;padding:16px 20px;font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;border-bottom:1px solid #e5e7eb;">1. [QUESTION TEXT]</div>\n';
+            p += '  <div style="padding:12px 20px;background:#fff;">\n';
+            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:14px;">[CHOICE TEXT]</summary>\n';
+            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:13px;">✓ Correct! [one-sentence explanation]</div>\n';
+            p += '    </details>\n';
+            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:14px;">[CHOICE TEXT]</summary>\n';
+            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-weight:700;font-size:13px;">✗ Not quite — the correct answer is [CORRECT CHOICE TEXT]. [one-sentence explanation]</div>\n';
+            p += '    </details>\n';
+            p += '    <!-- repeat the wrong-choice <details> pattern above for the other 2 wrong choices -->\n';
+            p += '  </div>\n</div>\n\n';
+            p += "CRITICAL RULES:\n- Generate exactly " + count + " questions in this exact order, numbered 1, 2, 3...\n- Each question has exactly 4 choices, each its own separate <details> (NOT nested inside each other) — 1 correct choice using the green ✓ feedback div, 3 wrong choices using the red ✗ feedback div that names the correct answer\n- Vary which position (1st, 2nd, 3rd, 4th) the correct choice appears in across questions\n- Do NOT wrap multiple choices or the whole question in a single outer <details> — each choice must expand independently\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or any CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
 
         } else if(itemType === "termreveal"){
             p += "Generate an interactive vocabulary builder page for Canvas LMS using <details>/<summary> tags — no JavaScript or style blocks needed. Use the exact structure below.\n\n";
