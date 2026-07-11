@@ -22,7 +22,7 @@
         "https://*.canvas.com/*",
         "https://*.canvaslms.com/*"
       ],
-      "js": ["lib/pdf.min.js", "lib/mammoth.browser.min.js", "lib/jszip.min.js", "module-builder.js"],
+      "js": ["lib/pdf.min.js", "lib/mammoth.browser.min.js", "lib/jszip.min.js", "lib/pdf-lib.min.js", "module-builder.js"],
       "run_at": "document_idle"
     }
   ],
