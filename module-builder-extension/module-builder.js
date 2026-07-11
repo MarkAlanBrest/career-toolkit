@@ -590,7 +590,7 @@
         }else if(item.type==="discussion"){
             state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="video"){
-            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
             var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8};
             state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
@@ -1358,6 +1358,15 @@
     .cmb-file-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
     .cmb-file-chip{background:#EDE9FE;color:#6D28D9;padding:4px 10px;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:4px;}
     .cmb-file-chip .x{cursor:pointer;font-weight:bold;}
+    .cmb-video-results{max-height:360px;overflow-y:auto;margin-top:12px;display:flex;flex-direction:column;gap:8px;}
+    .cmb-video-card{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;}
+    .cmb-video-thumb-wrap{position:relative;flex-shrink:0;width:120px;height:68px;border-radius:6px;overflow:hidden;background:#f1f5f9;}
+    .cmb-video-thumb{width:100%;height:100%;object-fit:cover;display:block;}
+    .cmb-video-dur{position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,0.75);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;}
+    .cmb-video-info{flex:1;min-width:0;}
+    .cmb-video-title{font-size:12px;font-weight:600;color:#1E293B;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+    .cmb-video-channel{font-size:11px;color:#94A3B8;margin-top:2px;}
+    .cmb-video-use{flex-shrink:0;white-space:nowrap;}
     .cmb-tab-bar{display:flex;gap:0;margin-bottom:0;border-bottom:2px solid #e5e7eb;}
     .cmb-tab{padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#64748B;border-bottom:2px solid transparent;margin-bottom:-2px;}
     .cmb-tab.active{color:#7C3AED;border-bottom-color:#7C3AED;}
@@ -1959,8 +1968,26 @@
 
         if(item.type==="video"){
             h+='<div class="cmb-card"><label class="cmb-label">Video</label>';
-            h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Paste a YouTube/Vimeo link or any video URL — it will be embedded near the top of the page.</div>';
+            h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Paste a YouTube/Vimeo link or any video URL, or search YouTube below — it will be embedded near the top of the page.</div>';
             h+='<input type="text" class="cmb-input" id="cmb-video-url" value="'+esc(d.videoUrl||"")+'" placeholder="https://www.youtube.com/watch?v=...">';
+            h+='<div style="display:flex;gap:8px;margin-top:10px;">';
+            h+='<input type="text" class="cmb-input" style="flex:1;" id="cmb-video-query" value="'+esc(d.videoQuery||"")+'" placeholder="Search topic, e.g. photosynthesis for kids">';
+            h+='<button class="cmb-btn cmb-btn-ai" id="cmb-video-search" style="white-space:nowrap;">🔍 Recommend Videos</button>';
+            h+='</div>';
+            if(d.videoResults && d.videoResults.length){
+                h+='<div class="cmb-video-results">';
+                d.videoResults.forEach(function(v,vi){
+                    var dur=formatYoutubeDuration(v.duration);
+                    h+='<div class="cmb-video-card" data-vi="'+vi+'">';
+                    h+='<div class="cmb-video-thumb-wrap">'+(v.thumbnail?'<img src="'+esc(v.thumbnail)+'" class="cmb-video-thumb">':'')+(dur?'<span class="cmb-video-dur">'+dur+'</span>':'')+'</div>';
+                    h+='<div class="cmb-video-info"><div class="cmb-video-title">'+esc(v.title)+'</div><div class="cmb-video-channel">'+esc(v.channel)+'</div></div>';
+                    h+='<button class="cmb-btn cmb-btn-secondary cmb-video-use" data-vi="'+vi+'">Use this video</button>';
+                    h+='</div>';
+                });
+                h+='</div>';
+            } else if(d.videoResults){
+                h+='<div style="font-size:12px;color:#94A3B8;margin-top:10px;">No results — try a different search.</div>';
+            }
             h+='</div>';
         }
 
@@ -1998,6 +2025,35 @@
         container.querySelector("#cmb-layout").addEventListener("change",function(e){d.layout=e.target.value;});
         var videoInput=container.querySelector("#cmb-video-url");
         if(videoInput) videoInput.addEventListener("input",function(e){d.videoUrl=e.target.value;});
+        var videoQueryInput=container.querySelector("#cmb-video-query");
+        if(videoQueryInput) videoQueryInput.addEventListener("input",function(e){d.videoQuery=e.target.value;});
+        var videoSearchBtn=container.querySelector("#cmb-video-search");
+        if(videoSearchBtn){
+            videoSearchBtn.addEventListener("click",async function(){
+                var query=(d.videoQuery||d.textContent||"").trim();
+                if(!query){state.status="Enter a search topic first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+                if(!state.youtubeKey){state.status="Add a YouTube API key in Setup first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+                state.status="Searching YouTube...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+                videoSearchBtn.disabled=true;videoSearchBtn.textContent="Searching...";
+                try{
+                    d.videoResults=await youtubeSearch(query);
+                    state.status=d.videoResults.length+" videos found";state.statusType="success";
+                    render();
+                }catch(err){
+                    state.status="Error: "+err.message;state.statusType="error";
+                    videoSearchBtn.disabled=false;videoSearchBtn.textContent="🔍 Recommend Videos";
+                    renderStatus(overlayEl.querySelector("#cmb-panel"));
+                }
+            });
+        }
+        container.querySelectorAll(".cmb-video-use").forEach(function(btn){
+            btn.addEventListener("click",function(){
+                var vi=parseInt(btn.dataset.vi,10);
+                var v=d.videoResults[vi];
+                d.videoUrl="https://www.youtube.com/watch?v="+v.videoId;
+                render();
+            });
+        });
         container.querySelectorAll(".cmb-el-toggle").forEach(function(el){
             el.addEventListener("click",function(){
                 var key=el.dataset.el;
