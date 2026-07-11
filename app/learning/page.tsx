@@ -3,99 +3,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './learning.module.css';
 
-type StudentId = 'jenna' | 'sophia';
-type Subject = 'Math' | 'Reading' | 'Science';
-type Assignment = {
-  id: string; subject: Subject; title: string; description: string; date: string;
-  minutes: number; skill: string; reading?: string; question: string;
-  answers: string[]; correct: number; explanation: string;
-};
-type StudentProgress = { completed: string[]; scores: Record<string, boolean>; streak: number };
+type StudentId='jenna'|'sophia';
+type Question={prompt:string;answers:string[];correct:number;explanation:string;skill:string};
+type Lesson={id:string;date:string;subject:'Math'|'Reading'|'Science'|'Language Arts';title:string;description:string;minutes:number;skill:string;warmup:string;instruction:string[];workedExample:string;reading?:string;questions:Question[];reflection:string};
+type Profile={completed:string[];results:Array<{lessonId:string;date:string;subject:string;skill:string;correct:number;total:number}>;streak:number;lastCompleted?:string};
+const students={jenna:{name:'Jenna',initial:'J',color:'#7968e8',soft:'#eeebff'},sophia:{name:'Sophia',initial:'S',color:'#ed6d9b',soft:'#fff0f5'}};
+const emptyProfile:Profile={completed:[],results:[],streak:0};
 
-const students = {
-  jenna: { name: 'Jenna', initial: 'J', color: '#7968e8', soft: '#eeebff' },
-  sophia: { name: 'Sophia', initial: 'S', color: '#ed6d9b', soft: '#fff0f5' },
-};
-
-const assignments: Assignment[] = [
-  { id:'fractions-1', subject:'Math', title:'Fraction Foundations', description:'Explore equal parts and compare simple fractions.', date:'Today', minutes:30, skill:'Fractions', question:'Which fraction is the same as one half?', answers:['1/3','2/4','3/4','2/3'], correct:1, explanation:'Two out of four equal pieces is the same amount as one out of two equal pieces. Both represent half of a whole.' },
-  { id:'reading-1', subject:'Reading', title:'The Secret Garden Path', description:'Read a short story and use details to make an inference.', date:'Yesterday', minutes:30, skill:'Reading comprehension', reading:'Maya stopped at the old garden gate. The path beyond it was covered in fresh footprints, even though snow had fallen all night. A warm yellow light flickered between the trees. She tightened her scarf, took one careful step forward, and smiled.', question:'What can you infer about Maya?', answers:['She is too frightened to continue.','She is curious about what is beyond the gate.','She has been lost all night.','She wants to go home immediately.'], correct:1, explanation:'Maya moves forward and smiles even though the path is mysterious. Those details show that she is curious and willing to explore.' },
-  { id:'science-1', subject:'Science', title:'Energy All Around Us', description:'Discover how energy changes from one form to another.', date:'Monday', minutes:25, skill:'Energy', question:'A lamp changes electrical energy mostly into which forms?', answers:['Light and heat','Sound and motion','Chemical and sound','Motion and light'], correct:0, explanation:'A lamp uses electrical energy and changes it into light. It also gives off some heat.' },
-];
-
-const emptyProgress = (): StudentProgress => ({ completed: [], scores: {}, streak: 3 });
-
-export default function LearningPage() {
-  const [student, setStudent] = useState<StudentId | null>(null);
-  const [progress, setProgress] = useState<Record<StudentId, StudentProgress>>({ jenna: emptyProgress(), sophia: emptyProgress() });
-  const [active, setActive] = useState<Assignment | null>(null);
-  const [answer, setAnswer] = useState<number | null>(null);
-  const [checked, setChecked] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    try { const saved = localStorage.getItem('brightpath-progress'); if (saved) setProgress(JSON.parse(saved)); } catch {}
-    setReady(true);
-  }, []);
-  useEffect(() => { if (ready) localStorage.setItem('brightpath-progress', JSON.stringify(progress)); }, [progress, ready]);
-
-  const current = student ? students[student] : null;
-  const studentProgress = student ? progress[student] : emptyProgress();
-  const pending = assignments.filter(a => !studentProgress.completed.includes(a.id));
-  const completed = assignments.filter(a => studentProgress.completed.includes(a.id));
-  const accuracy = completed.length ? Math.round(completed.filter(a => studentProgress.scores[a.id]).length / completed.length * 100) : 0;
-  const strengths = useMemo(() => completed.filter(a => studentProgress.scores[a.id]).map(a => a.skill).slice(-2), [completed, studentProgress.scores]);
-
-  function openLesson(a: Assignment) { setActive(a); setAnswer(null); setChecked(false); }
-  function finishLesson() {
-    if (!student || !active || answer === null) return;
-    const correct = answer === active.correct;
-    setProgress(old => ({ ...old, [student]: { ...old[student], completed: [...new Set([...old[student].completed, active.id])], scores: { ...old[student].scores, [active.id]: correct }, streak: old[student].streak + 1 } }));
-    setActive(null); setChecked(false); setAnswer(null);
-  }
-
-  if (!student) return (
-    <main className={styles.welcome}>
-      <div className={styles.cloudOne} /><div className={styles.cloudTwo} />
-      <section className={styles.welcomeCard}>
-        <div className={styles.logo}><span>✦</span> BrightPath</div>
-        <div className={styles.heroIcon}>☀</div>
-        <p className={styles.eyebrow}>YOUR LEARNING ADVENTURE</p>
-        <h1>Who&apos;s learning today?</h1>
-        <p className={styles.lead}>Choose your name to see today&apos;s personalized learning path.</p>
-        <div className={styles.studentGrid}>
-          {(Object.keys(students) as StudentId[]).map(id => <button key={id} className={styles.studentCard} onClick={() => setStudent(id)} style={{'--student':students[id].color,'--soft':students[id].soft} as React.CSSProperties}>
-            <span className={styles.avatar}>{students[id].initial}</span><strong>{students[id].name}</strong><small>Continue learning <span>→</span></small>
-          </button>)}
-        </div>
-        <p className={styles.parentLink}>Grown-up? <button>View parent dashboard</button></p>
-      </section>
-    </main>
-  );
-
-  return <main className={styles.app}>
-    <header className={styles.header}><div className={styles.logo}><span>✦</span> BrightPath</div><div className={styles.headerActions}><button className={styles.iconButton} aria-label="Notifications">🔔</button><button className={styles.profile} onClick={() => setStudent(null)} style={{'--student':current!.color} as React.CSSProperties}><span>{current!.initial}</span><b>{current!.name}</b><small>⌄</small></button></div></header>
-    <div className={styles.shell}>
-      <aside className={styles.sidebar}><nav><a className={styles.activeNav}>⌂ <span>My Learning</span></a><a>▥ <span>Progress</span></a><a>★ <span>Achievements</span></a></nav><div className={styles.sideTip}><span>💡</span><b>Keep it up!</b><p>A little practice every day makes your brain stronger.</p></div></aside>
-      <section className={styles.content}>
-        <div className={styles.greeting}><div><p>GOOD {new Date().getHours() < 12 ? 'MORNING' : 'AFTERNOON'}, {current!.name.toUpperCase()}!</p><h1>Ready to grow your brain?</h1><span>You have {pending.length} learning {pending.length === 1 ? 'adventure' : 'adventures'} waiting for you.</span></div><div className={styles.streak}>🔥 <div><b>{studentProgress.streak} day streak</b><small>You&apos;re on a roll!</small></div></div></div>
-        <div className={styles.sectionTitle}><div><h2>Up next</h2><p>Your lessons stay here until you finish them.</p></div><span>{pending.length} TO DO</span></div>
-        <div className={styles.assignmentList}>
-          {pending.length === 0 ? <div className={styles.allDone}><span>🎉</span><h3>All caught up!</h3><p>Your next personalized lesson will be ready tomorrow.</p></div> : pending.map((a,i) => <article className={styles.assignment} key={a.id}>
-            <div className={`${styles.subjectIcon} ${styles[a.subject.toLowerCase()]}`}>{a.subject === 'Math' ? '➗' : a.subject === 'Reading' ? '📖' : '⚗'}</div>
-            <div className={styles.assignmentInfo}><div><span className={`${styles.pill} ${styles[a.subject.toLowerCase()]}`}>{a.subject}</span>{i === 0 && <span className={styles.today}>TODAY&apos;S PICK</span>}</div><h3>{a.title}</h3><p>{a.description}</p><small>◷ {a.minutes} min&nbsp;&nbsp; · &nbsp;&nbsp;{a.date}</small></div>
-            <button className={styles.startButton} onClick={() => openLesson(a)}>{i === 0 ? 'Start lesson' : 'Continue'} <span>→</span></button>
-          </article>)}
-        </div>
-        <div className={styles.progressGrid}><article><div className={styles.progressTop}><div><p>THIS WEEK</p><h3>Your progress</h3></div><span>{completed.length} of {assignments.length}</span></div><div className={styles.progressBar}><i style={{width:`${completed.length / assignments.length * 100}%`}} /></div><small>{completed.length === assignments.length ? 'Amazing — you finished everything!' : `${assignments.length - completed.length} more lesson${assignments.length - completed.length === 1 ? '' : 's'} to reach your weekly goal`}</small></article><article><span className={styles.spark}>✦</span><div><p>LEARNING INSIGHT</p><h3>{strengths.length ? `You're growing in ${strengths.join(' and ')}!` : 'Your learning path is getting ready'}</h3><small>{completed.length ? `${accuracy}% accuracy so far. Your next lesson will practice what helps you most.` : 'Finish a lesson and BrightPath will begin adapting to you.'}</small></div></article></div>
-      </section>
-    </div>
-    {active && <div className={styles.modalBackdrop}><section className={styles.lessonModal}>
-      <button className={styles.close} onClick={() => setActive(null)}>×</button><span className={`${styles.pill} ${styles[active.subject.toLowerCase()]}`}>{active.subject} · {active.minutes} min</span><h2>{active.title}</h2><p className={styles.lessonIntro}>Let&apos;s learn one step at a time. Read carefully, then choose your answer.</p>
-      {active.reading && <div className={styles.reading}><b>Read this passage</b><p>{active.reading}</p></div>}
-      <div className={styles.question}><p>CHECK YOUR UNDERSTANDING</p><h3>{active.question}</h3><div className={styles.answers}>{active.answers.map((option,i) => <button key={option} disabled={checked} onClick={() => setAnswer(i)} className={`${answer === i ? styles.selectedAnswer : ''} ${checked && i === active.correct ? styles.correctAnswer : ''} ${checked && answer === i && i !== active.correct ? styles.wrongAnswer : ''}`}><span>{String.fromCharCode(65+i)}</span>{option}</button>)}</div></div>
-      {checked && <div className={answer === active.correct ? styles.goodFeedback : styles.tryFeedback}><b>{answer === active.correct ? '✓ You got it!' : 'Let’s learn from that one.'}</b><p>{active.explanation}</p>{answer !== active.correct && <small>Your next lesson will include a little more practice with {active.skill.toLowerCase()}.</small>}</div>}
-      <div className={styles.lessonFooter}><button className={styles.helpButton} onClick={() => setChecked(true)} disabled={answer === null}>💡 Explain it to me</button>{!checked ? <button className={styles.checkButton} disabled={answer === null} onClick={() => setChecked(true)}>Check my answer</button> : <button className={styles.checkButton} onClick={finishLesson}>Finish lesson →</button>}</div>
-    </section></div>}
-  </main>;
+export default function LearningPage(){
+ const [student,setStudent]=useState<StudentId|null>(null),[lessons,setLessons]=useState<Lesson[]>([]),[profile,setProfile]=useState<Profile>(emptyProfile),[loading,setLoading]=useState(false),[error,setError]=useState('');
+ const [active,setActive]=useState<Lesson|null>(null),[stage,setStage]=useState(0),[answer,setAnswer]=useState<number|null>(null),[checked,setChecked]=useState(false),[correct,setCorrect]=useState(0),[reflection,setReflection]=useState(''),[finished,setFinished]=useState(false);
+ const current=student?students[student]:null;
+ const accuracy=profile.results.length?Math.round(profile.results.reduce((n,r)=>n+r.correct,0)/profile.results.reduce((n,r)=>n+r.total,0)*100):0;
+ const latest=profile.results.at(-1);
+ const totalStages=4+(active?.questions.length||0);
+ const progress=active?Math.round(stage/totalStages*100):0;
+ useEffect(()=>{if(!student)return;setLoading(true);setError('');fetch(`/api/learning?student=${student}`).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not load lessons');setLessons(d.lessons||[]);setProfile(d.profile||emptyProfile)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[student]);
+ const strength=useMemo(()=>{if(!profile.results.length)return'';return [...profile.results].sort((a,b)=>b.correct/b.total-a.correct/a.total)[0]?.skill||''},[profile]);
+ function openLesson(l:Lesson){setActive(l);setStage(0);setAnswer(null);setChecked(false);setCorrect(0);setReflection('');setFinished(false)}
+ function next(){setStage(s=>s+1);setAnswer(null);setChecked(false)}
+ function check(){if(answer===null)return;setChecked(true);if(answer===active?.questions[stage-3]?.correct)setCorrect(c=>c+1)}
+ async function complete(){if(!student||!active)return;setFinished(true);try{const r=await fetch('/api/learning',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student,lessonId:active.id,subject:active.subject,skill:active.skill,correct,total:active.questions.length})});const d=await r.json();if(r.ok)setProfile(d.profile);setLessons(ls=>ls.filter(l=>l.id!==active.id))}catch{} }
+ if(!student)return <main className={styles.welcome}><div className={styles.cloudOne}/><div className={styles.cloudTwo}/><section className={styles.welcomeCard}><div className={styles.logo}><span>✦</span> BrightPath</div><div className={styles.heroIcon}>☀</div><p className={styles.eyebrow}>YOUR LEARNING ADVENTURE</p><h1>Who&apos;s learning today?</h1><p className={styles.lead}>Choose your name to see today&apos;s personalized learning path.</p><div className={styles.studentGrid}>{(Object.keys(students) as StudentId[]).map(id=><button key={id} className={styles.studentCard} onClick={()=>setStudent(id)} style={{'--student':students[id].color,'--soft':students[id].soft} as React.CSSProperties}><span className={styles.avatar}>{students[id].initial}</span><strong>{students[id].name}</strong><small>Continue learning <span>→</span></small></button>)}</div><p className={styles.parentLink}>Powered by personalized daily learning</p></section></main>;
+ return <main className={styles.app}><header className={styles.header}><div className={styles.logo}><span>✦</span> BrightPath</div><div className={styles.headerActions}><button className={styles.iconButton}>🔔</button><button className={styles.profile} onClick={()=>setStudent(null)} style={{'--student':current!.color} as React.CSSProperties}><span>{current!.initial}</span><b>{current!.name}</b><small>⌄</small></button></div></header><div className={styles.shell}><aside className={styles.sidebar}><nav><a className={styles.activeNav}>⌂ <span>My Learning</span></a><a>▥ <span>Progress</span></a><a>★ <span>Achievements</span></a></nav><div className={styles.sideTip}><span>💡</span><b>Keep it up!</b><p>A little practice every day makes your brain stronger.</p></div></aside><section className={styles.content}>
+ <div className={styles.greeting}><div><p>HELLO, {current!.name.toUpperCase()}!</p><h1>Ready to grow your brain?</h1><span>Your new lesson is created for you each day.</span></div><div className={styles.streak}>🔥 <div><b>{profile.streak} day streak</b><small>{profile.streak?'You’re on a roll!':'Start your streak today!'}</small></div></div></div>
+ <div className={styles.sectionTitle}><div><h2>Up next</h2><p>Unfinished lessons stay here until you complete them.</p></div><span>{lessons.length} TO DO</span></div>
+ {loading?<div className={styles.allDone}><span className={styles.loader}>✦</span><h3>Claude is preparing today&apos;s lesson…</h3><p>This can take a few moments the first time you visit today.</p></div>:error?<div className={styles.allDone}><span>⚠️</span><h3>We couldn&apos;t load today&apos;s lesson</h3><p>{error}</p><button className={styles.startButton} onClick={()=>setStudent(null)}>Try again</button></div>:<div className={styles.assignmentList}>{lessons.length===0?<div className={styles.allDone}><span>🎉</span><h3>All caught up!</h3><p>Your next personalized 30-minute lesson will appear tomorrow.</p></div>:lessons.map((l,i)=><article className={styles.assignment} key={l.id}><div className={`${styles.subjectIcon} ${styles[l.subject.toLowerCase().replace(' ','')]}`}>{l.subject==='Math'?'➗':l.subject==='Reading'?'📖':l.subject==='Science'?'⚗':'✏️'}</div><div className={styles.assignmentInfo}><div><span className={`${styles.pill} ${styles[l.subject.toLowerCase().replace(' ','')]}`}>{l.subject}</span>{i===lessons.length-1&&<span className={styles.today}>TODAY&apos;S LESSON</span>}</div><h3>{l.title}</h3><p>{l.description}</p><small>◷ About {l.minutes} min · {new Date(l.date+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'})} · 8 questions</small></div><button className={styles.startButton} onClick={()=>openLesson(l)}>{i===lessons.length-1?'Start lesson':'Continue'} <span>→</span></button></article>)}</div>}
+ <div className={styles.progressGrid}><article><div className={styles.progressTop}><div><p>LEARNING HISTORY</p><h3>Your progress</h3></div><span>{profile.results.length} complete</span></div><div className={styles.progressBar}><i style={{width:`${accuracy}%`}}/></div><small>{profile.results.length?`${accuracy}% overall accuracy across ${profile.results.length} lesson${profile.results.length===1?'':'s'}`:'Complete your first lesson to begin tracking progress'}</small></article><article><span className={styles.spark}>✦</span><div><p>LEARNING INSIGHT</p><h3>{strength?`You’re growing in ${strength}!`:'Your learning path is getting ready'}</h3><small>{latest?`Your last score was ${latest.correct} out of ${latest.total}. Tomorrow’s lesson will use your results.`:'Claude will adapt each new lesson based on your answers.'}</small></div></article></div>
+ </section></div>
+ {active&&<div className={styles.modalBackdrop}><section className={`${styles.lessonModal} ${styles.fullLesson}`}><button className={styles.close} onClick={()=>setActive(null)}>×</button><div className={styles.lessonHead}><span className={`${styles.pill} ${styles[active.subject.toLowerCase().replace(' ','')]}`}>{active.subject} · about 30 min</span><span>Step {Math.min(stage+1,totalStages)} of {totalStages}</span></div><div className={styles.lessonProgress}><i style={{width:`${finished?100:progress}%`}}/></div>
+ {finished?<div className={styles.finishCard}><span>🌟</span><h2>Lesson complete!</h2><p>You answered <b>{correct} of {active.questions.length}</b> questions correctly.</p><p>BrightPath saved what you learned. Your next lesson will give you the right mix of review and new challenges.</p><button className={styles.checkButton} onClick={()=>setActive(null)}>Back to my learning</button></div>:<>
+ <h2>{active.title}</h2>{stage===0&&<div className={styles.lessonSection}><p className={styles.stepLabel}>WARM UP · ABOUT 4 MINUTES</p><h3>Get your brain ready</h3><p>{active.warmup}</p><div className={styles.scratch}>Use paper or talk through your thinking. There is no wrong way to warm up!</div></div>}
+ {stage===1&&<div className={styles.lessonSection}><p className={styles.stepLabel}>LEARN · ABOUT 8 MINUTES</p><h3>Today&apos;s big idea</h3>{active.instruction.map((p,i)=><p key={i}>{p}</p>)}</div>}
+ {stage===2&&<div className={styles.lessonSection}><p className={styles.stepLabel}>{active.reading?'READ':'WORKED EXAMPLE'} · ABOUT 4 MINUTES</p><h3>{active.reading?'Read carefully':'Watch how it works'}</h3>{active.reading&&<div className={styles.reading}><p>{active.reading}</p></div>}<div className={styles.example}>{active.workedExample}</div></div>}
+ {stage>=3&&stage<3+active.questions.length&&(()=>{const q=active.questions[stage-3];return <div className={styles.question}><p>PRACTICE · QUESTION {stage-2} OF {active.questions.length}</p><h3>{q.prompt}</h3><div className={styles.answers}>{q.answers.map((o,i)=><button key={i} disabled={checked} onClick={()=>setAnswer(i)} className={`${answer===i?styles.selectedAnswer:''} ${checked&&i===q.correct?styles.correctAnswer:''} ${checked&&answer===i&&i!==q.correct?styles.wrongAnswer:''}`}><span>{String.fromCharCode(65+i)}</span>{o}</button>)}</div>{checked&&<div className={answer===q.correct?styles.goodFeedback:styles.tryFeedback}><b>{answer===q.correct?'✓ You got it!':'Let’s learn from that one.'}</b><p>{q.explanation}</p></div>}</div>})()}
+ {stage===3+active.questions.length&&<div className={styles.lessonSection}><p className={styles.stepLabel}>REFLECT · ABOUT 3 MINUTES</p><h3>Show what you understand</h3><p>{active.reflection}</p><textarea className={styles.reflectionBox} value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="Write 2–3 complete sentences…"/></div>}
+ <div className={styles.lessonFooter}>{stage>0&&<button className={styles.helpButton} onClick={()=>setStage(s=>s-1)}>← Back</button>}{stage<3?<button className={styles.checkButton} onClick={next}>Continue →</button>:stage<3+active.questions.length?!checked?<button className={styles.checkButton} disabled={answer===null} onClick={check}>Check my answer</button>:<button className={styles.checkButton} onClick={next}>Next question →</button>:<button className={styles.checkButton} disabled={reflection.trim().length<10} onClick={complete}>Finish lesson →</button>}</div></>}
+ </section></div>}
+ </main>
 }
