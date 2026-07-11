@@ -20,6 +20,11 @@
     // Personal default Unsplash Access Key — used only if no key has been saved yet.
     // Don't share this file publicly (e.g. a public GitHub repo) with this left in.
     const UNSPLASH_KEY_DEFAULT = "TC22qvOXtRU4QhE3x7JmucTZ9_SSp5G3f06Lz010hAU";
+    // No shipped default here (unlike Unsplash) — YouTube Data API quota is a
+    // strict 10,000 units/day per Google Cloud project, and search costs 100
+    // units/call. A single shared key would get exhausted almost immediately
+    // once more than a couple of teachers used it. BYOK only.
+    const YOUTUBE_KEY = "AIgrader_YoutubeKey";
     const AI_MODEL_CONTENT = "claude-sonnet-4-6";
     const AI_MODEL_CONTENT_FAST = "claude-haiku-4-5-20251001";
     const AI_MODEL_QUIZ = "claude-haiku-4-5-20251001";
@@ -153,6 +158,7 @@
         step: "setup",
         apiKey: "",
         unsplashKey: "",
+        youtubeKey: "",
         modules: [],
         currentModuleIndex: 0,
         currentItemIndex: 0,
@@ -169,11 +175,14 @@
     try { state.unsplashKey = localStorage.getItem(UNSPLASH_KEY) || ""; } catch(e) {}
     if(!state.unsplashKey) state.unsplashKey = UNSPLASH_KEY_DEFAULT;
 
+    try { state.youtubeKey = localStorage.getItem(YOUTUBE_KEY) || ""; } catch(e) {}
+
     function curMod() { return state.modules[state.currentModuleIndex] || null; }
     function esc(s){var d=document.createElement("div");d.textContent=s||"";return d.innerHTML;}
     function uid(){return "cmb_"+Date.now().toString(36)+"_"+Math.random().toString(36).substr(2,6);}
     function saveApiKey(k){try{localStorage.setItem(APIKEY_KEY,k);}catch(e){}}
     function saveUnsplashKey(k){try{localStorage.setItem(UNSPLASH_KEY,k);}catch(e){}}
+    function saveYoutubeKey(k){try{localStorage.setItem(YOUTUBE_KEY,k);}catch(e){}}
 
     function slugify(s){
         return (s||"untitled").toLowerCase()
@@ -323,6 +332,55 @@
         return resp.json();
     }
 
+    // Paginated GET, following the Link "next" header — for list endpoints
+    // (users, assignments, submissions) that can span multiple pages.
+    async function canvasAPIAll(path){
+        var courseId = getCourseId();
+        if(!courseId) throw new Error("Could not determine course ID from URL. Navigate to a course page first.");
+        var url = "/api/v1/courses/" + courseId + path + (path.indexOf("?") >= 0 ? "&" : "?") + "per_page=100";
+        var results = [];
+        while(url){
+            var resp = await fetch(url, { credentials: "same-origin" });
+            if(!resp.ok){
+                var errText = ""; try{ errText = await resp.text(); }catch(e){}
+                throw new Error("Canvas API error " + resp.status + ": " + errText);
+            }
+            var data = await resp.json();
+            results = results.concat(data);
+            var link = resp.headers.get("Link") || "";
+            var nextMatch = link.match(/<([^>]+)>;\s*rel="next"/);
+            url = nextMatch ? nextMatch[1] : null;
+        }
+        return results;
+    }
+
+    // Sends a Canvas Conversations message. Not scoped under /courses/:id
+    // like the rest of the API, and Canvas wants this one form-encoded
+    // (with recipients[]= etc.) rather than JSON.
+    async function sendCanvasMessage(courseId, recipientId, subject, body){
+        var formData = new URLSearchParams();
+        formData.append("recipients[]", String(recipientId));
+        formData.append("subject", subject);
+        formData.append("body", body);
+        formData.append("force_new", "true");
+        formData.append("group_conversation", "false");
+        formData.append("context_code", "course_" + courseId);
+        formData.append("mode", "sync");
+        var resp = await fetch("/api/v1/conversations", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "X-CSRF-Token": getCSRFToken(),
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            body: formData.toString()
+        });
+        var responseText = await resp.text();
+        if(!resp.ok) throw new Error("Canvas API error " + resp.status + ": " + responseText);
+        try{ return JSON.parse(responseText); }catch(e){ return responseText; }
+    }
+
     // ========== CANVAS API: CREATE FUNCTIONS ==========
 
     async function createModule(title, position){
@@ -345,6 +403,12 @@
                 points_possible: parseFloat(pointValue) || 100,
                 grading_type: "points", published: false
             }
+        });
+    }
+
+    async function createDiscussionTopic(title, html){
+        return canvasAPI("POST", "/discussion_topics", {
+            title: title, message: html, published: false, discussion_type: "threaded"
         });
     }
 
@@ -413,6 +477,14 @@
                         report("Created assignment: " + assignTitle);
                         await addModuleItem(canvasMod.id, "Assignment", assignment.id, assignTitle, insertPosition);
                         results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: "assignment" });
+
+                    } else if(item.type === "discussion"){
+                        var discTitle = itemInfo.label + " " + itemNum;
+                        var discHtml = data.generatedHTML || "<p>Discussion prompt not yet generated.</p>";
+                        var topic = await createDiscussionTopic(discTitle, discHtml);
+                        report("Created discussion: " + discTitle);
+                        await addModuleItem(canvasMod.id, "Discussion", topic.id, discTitle, insertPosition);
+                        results.modules[results.modules.length-1].items.push({ title: discTitle, status: "inserted", type: "discussion" });
 
                     } else {
                         var pageTitle = itemInfo.label + " " + itemNum;
@@ -514,14 +586,18 @@
     function initItemData(item){
         if(state.itemData[item.id])return;
         if(item.type==="assignment"){
-            state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"assignment",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",assignmentElements:{numberedSteps:true,checklist:false,rubricTable:false,pointValue:false,dueDate:false,videoEmbed:false,watchFirst:false},pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+        }else if(item.type==="discussion"){
+            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+        }else if(item.type==="video"){
+            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
             var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8};
             state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
         }else if(item.type==="labproject"){
             state.itemData[item.id]={contentType:"lab",pageStyle:"custom",labElements:{safetyBox:true,toolsList:true,procedure:true,observations:true,reflections:true,checklist:true,rubricTable:false},labNumber:"",estimatedTime:"",skillLevel:"beginner",pointValue:"",textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",longContent:false,aiEngine:"detailed"};
         }else{
-            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }
     }
 
@@ -574,6 +650,33 @@
         });
     }
 
+    // ========== YOUTUBE VIDEO SEARCH ==========
+    // Powers the "Recommend Videos" button on Video Page items — searches
+    // real, embeddable YouTube videos so a teacher can pick one instead of
+    // hunting for a link themselves.
+
+    function youtubeSearch(query){
+        return new Promise(function(resolve,reject){
+            if(!state.youtubeKey){reject(new Error("No YouTube API key configured — add one in Setup."));return;}
+            chrome.runtime.sendMessage({type:"CMB_YOUTUBE_SEARCH",payload:{youtubeKey:state.youtubeKey,query:query}},function(resp){
+                if(chrome.runtime.lastError){reject(new Error(chrome.runtime.lastError.message));return;}
+                if(!resp||resp.error){reject(new Error((resp&&resp.error)||"No results"));return;}
+                resolve(resp.results||[]);
+            });
+        });
+    }
+
+    // ISO 8601 duration ("PT5M32S") -> "5:32"
+    function formatYoutubeDuration(iso){
+        if(!iso) return "";
+        var m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+        if(!m) return "";
+        var h = parseInt(m[1]||0,10), min = parseInt(m[2]||0,10), s = parseInt(m[3]||0,10);
+        var mm = h ? String(min).padStart(2,"0") : String(min);
+        var ss = String(s).padStart(2,"0");
+        return h ? (h+":"+mm+":"+ss) : (mm+":"+ss);
+    }
+
     // Unsplash's API terms require pinging download_location whenever a photo
     // is actually used, separate from the search call itself. Fire-and-forget.
     function triggerUnsplashDownload(location){
@@ -581,37 +684,44 @@
         chrome.runtime.sendMessage({type:"CMB_UNSPLASH_DOWNLOAD",payload:{unsplashKey:state.unsplashKey,location:location}},function(){});
     }
 
-    function imagePlaceholderTag(keyword){
-        return '<div style="background:linear-gradient(135deg,#1A2028,#2E3A42);border:2px dashed #4A5A64;min-height:180px;display:flex;align-items:center;justify-content:center;color:#5A6A74;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Image: '+esc(keyword)+'</div>';
+    // dir is "left"/"right" (floats the image, text wraps around it) or "" (full-width block).
+    function imagePlaceholderTag(keyword,dir){
+        var floatStyle = dir ? ("float:"+dir+";max-width:320px;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "width:100%;";
+        return '<div style="'+floatStyle+'background:linear-gradient(135deg,#1A2028,#2E3A42);border:2px dashed #4A5A64;min-height:180px;display:flex;align-items:center;justify-content:center;color:#5A6A74;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Image: '+esc(keyword)+'</div>';
     }
 
-    function unsplashPhotoTag(photo,keyword){
-        return '<figure style="margin:24px 0;">'
+    function unsplashPhotoTag(photo,keyword,dir){
+        var wrapStyle = dir ? ("float:"+dir+";max-width:320px;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "margin:24px 0;";
+        return '<figure style="'+wrapStyle+'">'
             +'<img src="'+photo.url+'" alt="'+esc(keyword)+'" style="width:100%;max-width:100%;height:auto;display:block;border-radius:4px;">'
-            +'<figcaption style="font-family:Arial,sans-serif;font-size:11px;color:#94A3B8;margin-top:6px;text-align:right;">Photo by <a href="'+photo.profile+'" target="_blank" rel="noopener">'+esc(photo.name)+'</a> on <a href="https://unsplash.com/?utm_source=canvas_module_builder&utm_medium=referral" target="_blank" rel="noopener">Unsplash</a></figcaption>'
+            +'<figcaption style="font-family:Arial,sans-serif;font-size:11px;color:#94A3B8;margin-top:6px;text-align:'+(dir?'left':'right')+';">Photo by <a href="'+photo.profile+'" target="_blank" rel="noopener">'+esc(photo.name)+'</a> on <a href="https://unsplash.com/?utm_source=canvas_module_builder&utm_medium=referral" target="_blank" rel="noopener">Unsplash</a></figcaption>'
             +'</figure>';
     }
 
-    // Replaces every "[[IMAGE: keyword]]" marker in the HTML with a real
-    // Unsplash photo (falls back to a placeholder box per-keyword on error
-    // or if no Unsplash key is configured).
+    // Replaces every "[[IMAGE: keyword]]" (or "[[IMAGE-LEFT: ...]]" /
+    // "[[IMAGE-RIGHT: ...]]" for a floated, text-wrapped image) marker in the
+    // HTML with a real Unsplash photo (falls back to a placeholder box
+    // per-keyword on error or if no Unsplash key is configured).
     async function resolveImageMarkers(html){
-        if(!html || html.indexOf("[[IMAGE:")<0) return html;
-        var re=/\[\[IMAGE:\s*([^\]]+?)\s*\]\]/g;
+        if(!html || html.indexOf("[[IMAGE")<0) return html;
+        var re=/\[\[IMAGE(-LEFT|-RIGHT)?:\s*([^\]]+?)\s*\]\]/g;
         var keywords=[]; var m;
-        while((m=re.exec(html))){ if(keywords.indexOf(m[1])<0) keywords.push(m[1]); }
-        var replacements={};
+        while((m=re.exec(html))){ if(keywords.indexOf(m[2])<0) keywords.push(m[2]); }
+        var photos={};
         for(var i=0;i<keywords.length;i++){
             var kw=keywords[i];
             try{
-                var photo=await unsplashSearch(kw);
-                replacements[kw]=unsplashPhotoTag(photo,kw);
-                triggerUnsplashDownload(photo.downloadLocation);
+                photos[kw]=await unsplashSearch(kw);
+                triggerUnsplashDownload(photos[kw].downloadLocation);
             }catch(err){
-                replacements[kw]=imagePlaceholderTag(kw);
+                photos[kw]=null;
             }
         }
-        return html.replace(re,function(full,keyword){ return replacements[keyword]; });
+        return html.replace(re,function(full,dirRaw,keyword){
+            var dir = dirRaw ? dirRaw.replace("-","").toLowerCase() : "";
+            var photo = photos[keyword];
+            return photo ? unsplashPhotoTag(photo,keyword,dir) : imagePlaceholderTag(keyword,dir);
+        });
     }
 
     // Runs after every HTML generation call — strips markdown fences and
@@ -743,9 +853,25 @@
     // buildContentPrompt — fixed, hardcoded template. No per-page layout
     // decisions are left to the model, so output stays simple and consistent.
     // ─────────────────────────────────────────────────────────────────────────
+    // Builds a real, deterministic embed for a pasted video URL instead of
+    // letting the AI guess at iframe syntax — YouTube/Vimeo get a proper
+    // player embed, anything else falls back to a "Watch Video" link.
+    function buildVideoEmbedHtml(url){
+        var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+        var vimeo = url.match(/vimeo\.com\/(\d+)/);
+        if(yt){
+            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
+        }
+        if(vimeo){
+            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://player.vimeo.com/video/'+vimeo[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
+        }
+        return '<p style="margin:0 0 20px;"><a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:inline-block;background:#1e293b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-family:Arial,sans-serif;font-weight:700;font-size:13px;">▶ Watch Video</a></p>';
+    }
+
     function buildContentPrompt(itemData, itemType){
         var isA = itemData.contentType === "assignment";
         var tk = itemData.pageStyle || "custom";
+        var layout = itemData.layout || "standard";
 
         var theme;
         if(tk === "custom"){
@@ -779,8 +905,35 @@
         p += '<h1 style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:' + heroText + ';margin:0 0 6px;">[TITLE]</h1>\n';
         p += '<p style="font-family:Arial,sans-serif;font-size:14px;' + heroSubStyle + 'margin:0;">[ONE-SENTENCE SUBTITLE]</p>\n';
         p += '</div>\n\n';
+
+        if(itemData.videoUrl && itemData.videoUrl.trim()){
+            p += "VIDEO EMBED (insert this exact block, verbatim, as the first thing inside the body wrapper, before any section content):\n";
+            p += buildVideoEmbedHtml(itemData.videoUrl.trim()) + "\n\n";
+        }
+
         p += "BODY WRAPPER (holds every section below):\n";
-        p += '<div style="max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n\n';
+        if(layout === "twocol"){
+            p += '<div style="max-width:1000px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;display:grid;grid-template-columns:2fr 1fr;gap:32px;align-items:start;">\n';
+            p += "LAYOUT: two columns.\n";
+            p += "- LEFT column (this div takes the first grid slot): the main sections below (headings, paragraphs, bullet lists)\n";
+            p += '- RIGHT column (second grid slot, style="background:' + theme.cardBg + ';border:1px solid ' + theme.border + ';border-radius:8px;padding:18px 20px;"): a short "Key Points" or "Quick Facts" sidebar — a bold mini-heading plus 3-6 brief bullet takeaways drawn from the same content\n';
+            p += "- Do not add @media queries (Canvas strips <style> blocks) — the grid alone is enough\n\n";
+        } else if(layout === "imagewrap"){
+            p += '<div style="max-width:820px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n';
+            p += "LAYOUT: image with wrapped text.\n";
+            p += "- Early in the body (right after the first section heading), insert exactly ONE marker on its own line: [[IMAGE-LEFT: 2-4 word keyword]] or [[IMAGE-RIGHT: 2-4 word keyword]] — this becomes a real floated photo that the following paragraphs wrap around\n";
+            p += "- Write at least 2 full paragraphs of body text immediately after the marker so the text-wrap is actually visible\n";
+            p += "- Do not write an <img> tag yourself — only the marker\n\n";
+        } else if(layout === "grid"){
+            p += '<div style="max-width:960px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n';
+            p += "LAYOUT: card grid.\n";
+            p += '- After the intro paragraph, lay out the bulk of the content as a card grid: <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0;"> containing 3-6 cards\n';
+            p += '- Each card: <div style="background:' + theme.cardBg + ';border:1px solid ' + theme.border + ';border-radius:10px;padding:16px 18px;"> with a bold mini-heading (font-family:Georgia,serif;font-size:15px;font-weight:700;color:' + theme.primary + ') plus 1-2 sentences below it\n';
+            p += "- Use the grid instead of long paragraphs for the main content — a short intro paragraph before the grid is fine\n\n";
+        } else {
+            p += '<div style="max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n\n';
+        }
+
         p += "PER SECTION (use 1-3 sections, as many as the content needs):\n";
         p += '<h2 style="font-family:Georgia,serif;font-size:19px;font-weight:700;color:' + theme.primary + ';border-bottom:1px solid ' + theme.border + ';padding-bottom:6px;margin:24px 0 10px;">[SECTION TITLE]</h2>\n';
         p += '<p style="font-size:14px;line-height:1.7;color:' + theme.text + ';margin:0 0 14px;">[1-2 paragraphs, 2-4 sentences each]</p>\n\n';
@@ -931,43 +1084,52 @@
             p += "2. Content area: max-width:900px; margin:0 auto; padding:44px 32px; font-family:Arial,sans-serif;\n";
             p += "3. Sections: H2 headings (font-family:Georgia,serif; 22px; font-weight:700; color:" + theme.text + "; border-bottom:2px solid #e5e7eb; padding-bottom:8px; margin:32px 0 14px)\n";
             p += "4. Body text: font-size:15px; line-height:1.75; color:" + theme.text + "; margin-bottom:16px;\n\n";
-            p += "INLINE QUESTION BLOCK (use this exact structure — click the question to expand and reveal the answer):\n";
+            p += "INLINE QUESTION BLOCK (use this exact structure — each answer choice is its OWN independently-clickable <details>, so a student can click just one choice and see whether THAT choice is right or wrong, without the other choices or the correct answer being revealed first. Do NOT wrap the whole question in one outer <details>):\n";
             p += '<div style="background:#f8fafc;border:2px solid ' + pri + ';border-radius:10px;padding:22px 26px;margin:32px 0;">\n';
             p += '  <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + pri + ';margin-bottom:12px;">✦ CHECK YOUR UNDERSTANDING</div>\n';
-            p += '  <details>\n';
-            p += '    <summary style="list-style:none;cursor:pointer;font-family:Georgia,serif;font-size:17px;font-weight:700;color:#1e293b;">[QUESTION — directly tests the section just read]</summary>\n';
-            p += '    <div style="margin-top:14px;">\n';
-            p += '      <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#dcfce7;color:#166534;font-weight:700;font-size:14px;">✓ [CORRECT CHOICE]</div>\n';
-            p += '      <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#fff;border:1px solid #e5e7eb;color:#6b7280;font-size:14px;">[WRONG CHOICE A]</div>\n';
-            p += '      <div style="padding:8px 12px;border-radius:6px;background:#fff;border:1px solid #e5e7eb;color:#6b7280;font-size:14px;">[WRONG CHOICE B]</div>\n';
-            p += '      <div style="font-size:12px;color:#374151;margin-top:10px;font-style:italic;">[one-sentence reinforcement of the concept]</div>\n';
-            p += '    </div>\n  </details>\n</div>\n\n';
-            p += "RULES: Generate exactly " + count + " question blocks embedded at natural content breaks. Each question tests the section immediately before it. Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only. Return ONLY valid HTML, every tag closed.\n\n";
+            p += '  <div style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:#1e293b;margin-bottom:12px;">[QUESTION — directly tests the section just read]</div>\n';
+            p += '  <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '    <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#fff;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[CHOICE TEXT]</summary>\n';
+            p += '    <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#dcfce7;color:#166534;font-weight:700;font-size:13px;">✓ Correct! [one-sentence reinforcement of the concept]</div>\n';
+            p += '  </details>\n';
+            p += '  <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '    <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#fff;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[CHOICE TEXT]</summary>\n';
+            p += '    <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-weight:700;font-size:13px;">✗ Not quite — the correct answer is [CORRECT CHOICE TEXT].</div>\n';
+            p += '  </details>\n';
+            p += '  <!-- repeat the wrong-choice <details> pattern above for the other wrong choice -->\n';
+            p += '</div>\n\n';
+            p += "RULES: Generate exactly " + count + " question blocks embedded at natural content breaks. Each question tests the section immediately before it. Each question has exactly 3 choices, each its own separate <details> (NOT nested inside each other) — 1 correct choice using the green ✓ feedback div, 2 wrong choices using the red ✗ feedback div that names the correct answer. Vary which position the correct choice appears in across questions. Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only. Return ONLY valid HTML, every tag closed.\n\n";
 
         } else if(itemType === "matching"){
             var letters = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P"];
-            p += "Generate a matching activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript (Canvas strips <style> tags on save, which would break this activity entirely). For each term, clicking expands to reveal the correct definition highlighted among distractor definitions borrowed from other terms in the set.\n\n";
+            p += "Generate a matching activity for Canvas LMS using nested <details>/<summary> tags — NO <style> blocks or JavaScript (Canvas strips <style> tags on save, which would break this activity entirely). Each candidate definition must be its OWN independently-clickable <details> so a student can click just one definition and see whether THAT ONE is the correct match, without the correct answer or the other options being revealed first.\n\n";
             p += '<div style="font-family:Arial,sans-serif;max-width:860px;margin:0 auto;padding:36px 24px;">\n';
             p += '<div style="background:' + pri + ';padding:36px 40px;margin-bottom:32px;">\n';
             p += '<h2 style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#fff;margin:0 0 8px;">Matching Activity</h2>\n';
-            p += '<p style="font-family:Arial,sans-serif;font-size:14px;color:rgba(255,255,255,0.75);margin:0;">Click each term to reveal its correct definition.</p>\n';
+            p += '<p style="font-family:Arial,sans-serif;font-size:14px;color:rgba(255,255,255,0.75);margin:0;">For each term, click a definition to check if it’s the right match.</p>\n';
             p += '</div>\n\n';
-            p += "<!-- Generate " + count + " term blocks. For each: letter badge (A, B, C...), the term, then reveal 1 correct definition + 3 distractors drawn from OTHER terms' definitions in the set. -->\n\n";
-            p += '<details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#fff;">\n';
-            p += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:16px 20px;display:flex;align-items:center;gap:12px;">\n';
+            p += "<!-- Generate " + count + " term blocks. For each: letter badge (A, B, C...), the term, then 4 candidate definitions (1 correct + 3 distractors borrowed from OTHER terms' definitions in this set), each its own separately-clickable <details>. Do NOT wrap the whole term block in one outer <details>: -->\n\n";
+            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#fff;">\n';
+            p += '  <div style="background:#f8fafc;padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e5e7eb;">\n';
             p += '    <span style="background:' + pri + ';color:#fff;font-family:Arial,sans-serif;font-size:12px;font-weight:700;padding:4px 11px;border-radius:4px;flex-shrink:0;">[A/B/C...]</span>\n';
             p += '    <span style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:#1e293b;">[TERM]</span>\n';
-            p += '  </summary>\n';
-            p += '  <div style="padding:14px 20px;border-top:1px solid #e5e7eb;">\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:13px;">✓ [CORRECT DEFINITION]</div>\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:13px;">[DISTRACTOR — from another term]</div>\n';
-            p += '    <div style="padding:8px 12px;margin-bottom:6px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:13px;">[DISTRACTOR]</div>\n';
-            p += '    <div style="padding:8px 12px;border-radius:6px;background:#f9fafb;color:#6b7280;font-size:13px;">[DISTRACTOR]</div>\n';
-            p += '  </div>\n</details>\n';
-            p += '</div>\n\n';
+            p += '  </div>\n';
+            p += '  <div style="padding:12px 20px;">\n';
+            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:13px;">[CANDIDATE DEFINITION]</summary>\n';
+            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:13px;">✓ Correct match!</div>\n';
+            p += '    </details>\n';
+            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:13px;">[CANDIDATE DEFINITION — a distractor borrowed from another term]</summary>\n';
+            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-weight:700;font-size:13px;">✗ Not this one — that definition belongs to a different term.</div>\n';
+            p += '    </details>\n';
+            p += '    <!-- repeat the distractor <details> pattern above for the other 2 distractors -->\n';
+            p += '  </div>\n</div>\n\n';
             p += "CRITICAL RULES:\n";
             p += "- Generate exactly " + count + " term blocks, lettered " + letters.slice(0, count).join(", ") + "\n";
-            p += "- Each term: 1 correct definition + 3 distractors borrowed from other terms' definitions in this same set\n";
+            p += "- Each term has exactly 4 candidate definitions, each its own separate <details> (NOT nested inside each other) — 1 correct using the green ✓ feedback div, 3 distractors (borrowed from other terms' definitions in this same set) using the red ✗ feedback div\n";
+            p += "- Vary which position (1st, 2nd, 3rd, 4th) the correct definition appears in across terms\n";
+            p += "- Do NOT wrap multiple candidate definitions or the whole term block in a single outer <details> — each definition must expand independently\n";
             p += "- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n";
             p += "- Return ONLY valid HTML, no markdown, every tag closed\n\n";
         }
@@ -1286,6 +1448,24 @@
     .cmb-qb-expl{margin-top:8px;font-size:11px;color:#64748B;padding-top:8px;border-top:1px solid #F1F5F9;line-height:1.5;}
     .cmb-qb-queue-item{display:flex;align-items:flex-start;gap:6px;padding:7px 0;border-bottom:1px solid #F1F5F9;font-size:12px;}
     .cmb-qb-queue-item .rm{background:none;border:none;color:#94A3B8;cursor:pointer;font-size:11px;flex-shrink:0;padding:0;margin-top:2px;}
+    #cmb-alerts-overlay{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;padding:24px;font-family:system-ui,-apple-system,sans-serif;}
+    #cmb-alerts-panel{background:#F8FAFC;border-radius:20px;max-width:760px;width:100%;max-height:calc(100vh - 48px);box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;}
+    .cmb-alerts-body{flex:1;overflow-y:auto;min-height:0;padding:20px 24px;}
+    .cmb-al-student{background:#fff;border:2px solid #E2E8F0;border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+    .cmb-al-student.sel{border-color:#7C3AED;}
+    .cmb-al-shdr{display:flex;align-items:center;gap:10px;}
+    .cmb-al-cbox{width:18px;height:18px;border-radius:4px;border:2px solid #CBD5E1;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    .cmb-al-student.sel .cmb-al-cbox{border-color:#7C3AED;background:#7C3AED;color:#fff;}
+    .cmb-al-name{font-weight:700;font-size:13px;color:#1E293B;flex:1;}
+    .cmb-al-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;white-space:nowrap;}
+    .cmb-al-badge.missing{background:#FEE2E2;color:#991B1B;}
+    .cmb-al-badge.lowgrade{background:#FFEDD5;color:#9A3412;}
+    .cmb-al-badge.upcoming{background:#FEF3C7;color:#92400E;}
+    .cmb-al-detail{margin:8px 0 0 28px;font-size:12px;color:#64748B;line-height:1.6;}
+    .cmb-al-preview{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:10px;font-size:12px;}
+    .cmb-al-preview .to{font-weight:700;color:#1E293B;margin-bottom:4px;}
+    .cmb-al-preview .subj{color:#475569;margin-bottom:8px;}
+    .cmb-al-preview .body{white-space:pre-wrap;color:#334155;line-height:1.6;}
     `;
 
     // ========== RENDER SYSTEM ==========
@@ -1348,7 +1528,7 @@
         h+='<p class="cmb-desc">Enter your Claude API key to get started. Content will be inserted directly into your current Canvas course via the API.</p>';
         if(courseId){
             h+='<div class="cmb-card" style="background:#f0fdf4;border-color:#bbf7d0;"><div style="font-size:13px;color:#065F46;font-weight:600;">\u2705 Course Detected: ID ' + courseId + '</div>';
-            h+='<div style="font-size:11px;color:#065F46;margin-top:4px;">Modules, pages, and assignments will be inserted directly into this course.</div></div>';
+            h+='<div style="font-size:11px;color:#065F46;margin-top:4px;">Modules, pages, assignments, and discussions will be inserted directly into this course.</div></div>';
         } else {
             h+='<div class="cmb-card" style="background:#fef2f2;border-color:#fca5a5;"><div style="font-size:13px;color:#991B1B;font-weight:600;">\u26A0\uFE0F No Course Detected</div>';
             h+='<div style="font-size:11px;color:#991B1B;margin-top:4px;">Navigate to a Canvas course page (e.g., /courses/12345) before inserting content.</div></div>';
@@ -1359,10 +1539,14 @@
         h+='<div class="cmb-card"><label class="cmb-label">Unsplash Access Key (optional)</label>';
         h+='<input type="password" class="cmb-input" id="cmb-unsplashkey" placeholder="Leave blank to use placeholder image boxes instead" value="'+esc(state.unsplashKey)+'">';
         h+='<div style="font-size:11px;color:#94A3B8;margin-top:4px;">Lets generated pages include real photos. Free key at <a href="https://unsplash.com/oauth/applications" target="_blank">unsplash.com/oauth/applications</a> (create an app, use its "Access Key"). Free tier is limited to 50 requests/hour.</div></div>';
+        h+='<div class="cmb-card"><label class="cmb-label">YouTube Data API Key (optional)</label>';
+        h+='<input type="password" class="cmb-input" id="cmb-youtubekey" placeholder="Leave blank to skip the Recommend Videos search" value="'+esc(state.youtubeKey)+'">';
+        h+='<div style="font-size:11px;color:#94A3B8;margin-top:4px;">Lets the Video Page builder search and recommend real YouTube videos. Free key at <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">console.cloud.google.com</a> (create a project, enable "YouTube Data API v3", create an API key under Credentials). Free tier is 10,000 units/day (~100 searches).</div></div>';
         h+='<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-primary" id="cmb-next-layout">Next: Design Modules &rarr;</button></div>';
         body.innerHTML=h;
         body.querySelector("#cmb-apikey").addEventListener("input",function(e){state.apiKey=e.target.value;saveApiKey(state.apiKey);});
         body.querySelector("#cmb-unsplashkey").addEventListener("input",function(e){state.unsplashKey=e.target.value;saveUnsplashKey(state.unsplashKey);});
+        body.querySelector("#cmb-youtubekey").addEventListener("input",function(e){state.youtubeKey=e.target.value;saveYoutubeKey(state.youtubeKey);});
         body.querySelector("#cmb-next-layout").addEventListener("click",function(){
             if(!state.apiKey){state.status="Please enter your Claude API key first.";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
             state.step="layout";render();
@@ -1764,6 +1948,22 @@
         }
         h+='</div>';
 
+        // ── Layout picker ────────────────────────────────────────────────────
+        h+='<div class="cmb-card"><label class="cmb-label">Layout</label>';
+        h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">How the content is structured on the page.</div>';
+        h+='<select class="cmb-select" id="cmb-layout">';
+        [["standard","Standard — single column"],["twocol","Two-Column — content + sidebar"],["imagewrap","Image + Text Wrap"],["grid","Grid — card layout"]].forEach(function(o){
+            h+='<option value="'+o[0]+'"'+((d.layout||"standard")===o[0]?' selected':'')+'>'+o[1]+'</option>';
+        });
+        h+='</select></div>';
+
+        if(item.type==="video"){
+            h+='<div class="cmb-card"><label class="cmb-label">Video</label>';
+            h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Paste a YouTube/Vimeo link or any video URL — it will be embedded near the top of the page.</div>';
+            h+='<input type="text" class="cmb-input" id="cmb-video-url" value="'+esc(d.videoUrl||"")+'" placeholder="https://www.youtube.com/watch?v=...">';
+            h+='</div>';
+        }
+
         h+='<div class="cmb-card"><label class="cmb-label">Elements</label><div class="cmb-el-grid">';
         var elMap=isA?ASSIGN_EL:PAGE_EL;
         var elData=isA?(d.assignmentElements||{}):(d.pageElements||{});
@@ -1795,6 +1995,9 @@
         });
         var cc=container.querySelector("#cmb-custom-color");
         if(cc) cc.addEventListener("input",function(e){d.customColor=e.target.value;});
+        container.querySelector("#cmb-layout").addEventListener("change",function(e){d.layout=e.target.value;});
+        var videoInput=container.querySelector("#cmb-video-url");
+        if(videoInput) videoInput.addEventListener("input",function(e){d.videoUrl=e.target.value;});
         container.querySelectorAll(".cmb-el-toggle").forEach(function(el){
             el.addEventListener("click",function(){
                 var key=el.dataset.el;
@@ -1822,7 +2025,7 @@
 
         container.querySelector("#cmb-gen-content").addEventListener("click",async function(){
             if(!state.apiKey){state.status="Enter API key first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            if(!d.textContent&&!d.uploadedFile&&!(curMod()&&curMod().sources.length)){state.status="Add some content first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            if(!d.textContent&&!d.uploadedFile&&!d.videoUrl&&!(curMod()&&curMod().sources.length)){state.status="Add some content first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
             state.status="Generating content...";
             state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
             var btn=container.querySelector("#cmb-gen-content");btn.disabled=true;btn.textContent="Generating...";
@@ -2053,7 +2256,7 @@
         h+='<h4>\u{1F680} How Direct API Insert Works</h4><ol>';
         h+='<li>Click <strong>Insert into Canvas</strong> above.</li>';
         h+='<li>The script uses the <strong>current Canvas module</strong> you opened from.</li>';
-        h+='<li>It creates all <strong>pages and assignments</strong> with full content.</li>';
+        h+='<li>It creates all <strong>pages, assignments, and discussions</strong> with full content.</li>';
         h+='<li>Each new item is added to the current module automatically.</li>';
         h+='<li>Go to <strong>Modules</strong> in your course \u2014 everything will be there (unpublished)!</li>';
         h+='</ol></div>';
@@ -2855,6 +3058,303 @@
         return header;
     }
 
+    // ── MODULE ALERTS ────────────────────────────────────────────────────────
+    // Scans the whole course (not just one module — due dates don't respect
+    // module boundaries, and a student's missing-work backlog can live in an
+    // earlier module) for missing and upcoming work within a rolling date
+    // window, then lets the teacher message flagged students. Logic ported
+    // from the Canvas Content Studio email tool's proven missing/upcoming
+    // detection and Conversations-sending code.
+
+    function getMissingAssignments(submissions, daysBack){
+        var cutoff = new Date(Date.now() - daysBack*24*60*60*1000);
+        var now = new Date();
+        return submissions.filter(function(s){
+            if(!s.assignment) return false;
+            var due = s.assignment.due_at ? new Date(s.assignment.due_at) : null;
+            if(!due || due < cutoff || due > now) return false;
+            return s.workflow_state === "unsubmitted" || s.missing;
+        });
+    }
+
+    function getUpcomingAssignments(assignments, daysForward){
+        var now = new Date();
+        var future = new Date(now.getTime() + daysForward*24*60*60*1000);
+        return assignments.filter(function(a){
+            if(!a.due_at) return false;
+            var due = new Date(a.due_at);
+            return due >= now && due <= future;
+        });
+    }
+
+    function formatAssignmentList(assignments){
+        if(!assignments.length) return "(none)";
+        return assignments.map(function(a){
+            var due = a.due_at ? new Date(a.due_at).toLocaleDateString() : "No due date";
+            return "  - " + (a.name || "Unnamed") + " (Due: " + due + ")";
+        }).join("\n");
+    }
+
+    // Graded submissions scoring below `threshold` percent, due within the
+    // same daysBack window used for missing work.
+    function getLowGradeSubmissions(submissions, daysBack, threshold){
+        var cutoff = new Date(Date.now() - daysBack*24*60*60*1000);
+        var now = new Date();
+        return submissions.filter(function(s){
+            if(!s.assignment) return false;
+            var due = s.assignment.due_at ? new Date(s.assignment.due_at) : null;
+            if(!due || due < cutoff || due > now) return false;
+            if(s.score === null || s.score === undefined) return false;
+            var possible = s.assignment.points_possible;
+            if(!possible || possible <= 0) return false;
+            return (s.score / possible) * 100 < threshold;
+        }).map(function(s){
+            return { name: s.assignment.name || "Unnamed", score: s.score, possible: s.assignment.points_possible, pct: Math.round((s.score / s.assignment.points_possible) * 100) };
+        });
+    }
+
+    function formatLowGradeList(items){
+        if(!items.length) return "(none)";
+        return items.map(function(g){
+            return "  - " + g.name + " (Score: " + g.score + "/" + g.possible + " = " + g.pct + "%)";
+        }).join("\n");
+    }
+
+    function renderAlertTemplate(template, vars){
+        var text = template;
+        Object.keys(vars).forEach(function(key){
+            text = text.replace(new RegExp("\\{\\{"+key+"\\}\\}", "g"), vars[key] || "");
+        });
+        return text;
+    }
+
+    var DEFAULT_ALERT_SUBJECT = "Checking in on {{courseName}}";
+    var DEFAULT_ALERT_BODY = "Hi {{studentName}},\n\nA quick check-in on your work in {{courseName}}.\n\n{{missingSection}}\n\n{{upcomingSection}}\n\n{{lowGradeSection}}\n\nPlease reach out if you have questions or need help getting caught up.\n\nBest,\n{{teacherName}}";
+
+    function openModuleAlerts(){
+        if(document.getElementById("cmb-alerts-overlay")) return;
+        var courseId = getCourseId();
+
+        var ast = {
+            daysBack: 10, daysForward: 10, gradeThreshold: 60,
+            students: [], courseName: "", teacherName: "",
+            subject: DEFAULT_ALERT_SUBJECT, bodyTemplate: DEFAULT_ALERT_BODY,
+            step: "settings"
+        };
+
+        var overlay = document.createElement("div");
+        overlay.id = "cmb-alerts-overlay";
+        overlay.innerHTML =
+            '<div id="cmb-alerts-panel">' +
+              '<div class="cmb-topbar"><div><h1>📊 Module Alerts</h1><div class="cmb-topbar-sub">Missing work, low grades &amp; upcoming due dates</div></div><button class="cmb-close" id="cmb-alerts-close">Close</button></div>' +
+              '<div class="cmb-alerts-body" id="cmb-alerts-body"></div>' +
+              '<div class="cmb-status" id="cmb-alerts-status" style="display:none;"></div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        function close(){ overlay.remove(); }
+        overlay.querySelector("#cmb-alerts-close").addEventListener("click", close);
+        overlay.addEventListener("click", function(e){ if(e.target === overlay) close(); });
+
+        var body = overlay.querySelector("#cmb-alerts-body");
+
+        function setStatus(msg, type){
+            var el = overlay.querySelector("#cmb-alerts-status");
+            el.style.display = "block";
+            var colors = {success:"#166534",error:"#b91c1c",loading:"#1d4ed8"};
+            var bgs = {success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff"};
+            el.style.color = colors[type] || "#6b7280";
+            el.style.background = bgs[type] || "#f9fafb";
+            el.textContent = msg;
+        }
+
+        function renderSettings(){
+            var h = '<p class="cmb-desc">Scans the whole course for missing work, low grades, and upcoming work in the window below, then lets you message flagged students.</p>';
+            h += '<div class="cmb-card"><label class="cmb-label">Check window</label>';
+            h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
+            h += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Days back (missing &amp; grades)</div><input type="number" class="cmb-input" id="cmb-al-back" value="'+ast.daysBack+'" min="1" max="90"></div>';
+            h += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Days forward (upcoming)</div><input type="number" class="cmb-input" id="cmb-al-fwd" value="'+ast.daysForward+'" min="1" max="90"></div>';
+            h += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Grade below (%)</div><input type="number" class="cmb-input" id="cmb-al-threshold" value="'+ast.gradeThreshold+'" min="1" max="100"></div>';
+            h += '</div></div>';
+            h += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" style="width:100%;justify-content:center;" id="cmb-al-scan">🔍 Scan Course</button></div>';
+            body.innerHTML = h;
+            body.querySelector("#cmb-al-back").addEventListener("input", function(e){ ast.daysBack = parseInt(e.target.value,10) || 10; });
+            body.querySelector("#cmb-al-fwd").addEventListener("input", function(e){ ast.daysForward = parseInt(e.target.value,10) || 10; });
+            body.querySelector("#cmb-al-threshold").addEventListener("input", function(e){ ast.gradeThreshold = parseInt(e.target.value,10) || 60; });
+            body.querySelector("#cmb-al-scan").addEventListener("click", runScan);
+        }
+
+        async function runScan(){
+            if(!courseId){ setStatus("Navigate to a Canvas course page first.", "error"); return; }
+            body.innerHTML = '<div class="cmb-qb-empty">Scanning course…</div>';
+            setStatus("Loading roster and assignments…", "loading");
+            try{
+                var courseInfo = await canvasAPI("GET", "").catch(function(){ return null; });
+                ast.courseName = (courseInfo && courseInfo.name) || document.title.replace(/\s*[-|].*$/, "") || "the course";
+                var profile = await fetch("/api/v1/users/self/profile", {credentials:"same-origin"}).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+                ast.teacherName = (profile && (profile.short_name || profile.name)) || "";
+
+                var students = await canvasAPIAll("/users?enrollment_type[]=student&include[]=email");
+                var allAssignments = await canvasAPIAll("/assignments?order_by=due_at");
+                var upcoming = getUpcomingAssignments(allAssignments, ast.daysForward);
+
+                var results = [];
+                for(var i=0;i<students.length;i++){
+                    var stu = students[i];
+                    setStatus("Checking " + (i+1) + " / " + students.length + " students…", "loading");
+                    var subs = await canvasAPIAll("/students/submissions?student_ids[]="+stu.id+"&include[]=assignment");
+                    var missing = getMissingAssignments(subs, ast.daysBack);
+                    var lowGrades = getLowGradeSubmissions(subs, ast.daysBack, ast.gradeThreshold);
+                    if(!missing.length && !lowGrades.length) continue;
+                    results.push({
+                        id: stu.id,
+                        name: stu.name || stu.sortable_name || ("Student " + stu.id),
+                        missing: missing.map(function(s){ return s.assignment; }),
+                        lowGrades: lowGrades,
+                        upcoming: upcoming,
+                        checked: true
+                    });
+                }
+                results.sort(function(a,b){ return (b.missing.length+b.lowGrades.length) - (a.missing.length+a.lowGrades.length); });
+                ast.students = results;
+                if(!results.length){ setStatus("No students with missing work or grades below " + ast.gradeThreshold + "% in the past " + ast.daysBack + " days.", "success"); }
+                else{ setStatus(results.length + " student" + (results.length!==1?"s":"") + " flagged.", "success"); }
+                renderList();
+            }catch(err){
+                setStatus("Error: " + err.message, "error");
+                renderSettings();
+            }
+        }
+
+        function selectedStudents(){
+            return ast.students.filter(function(s){ return s.checked; });
+        }
+
+        function renderList(){
+            var h = '';
+            if(!ast.students.length){
+                h += '<div class="cmb-qb-empty">No students with missing work or low grades in this window.<br>Try widening the settings.</div>';
+                h += '<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-secondary" id="cmb-al-rescan">&larr; Back to settings</button></div>';
+                body.innerHTML = h;
+                body.querySelector("#cmb-al-rescan").addEventListener("click", renderSettings);
+                return;
+            }
+            h += '<div style="font-size:12px;color:#64748B;margin-bottom:10px;">'+ast.students.length+' student'+(ast.students.length!==1?'s':'')+' flagged. Uncheck any you don\'t want to message.</div>';
+            ast.students.forEach(function(stu, si){
+                h += '<div class="cmb-al-student'+(stu.checked?' sel':'')+'" data-si="'+si+'">';
+                h += '<div class="cmb-al-shdr"><div class="cmb-al-cbox">'+(stu.checked?'✓':'')+'</div>';
+                h += '<div class="cmb-al-name">'+esc(stu.name)+'</div>';
+                if(stu.missing.length) h += '<span class="cmb-al-badge missing">'+stu.missing.length+' missing</span>';
+                if(stu.lowGrades.length) h += '<span class="cmb-al-badge lowgrade">'+stu.lowGrades.length+' below '+ast.gradeThreshold+'%</span>';
+                if(stu.upcoming.length) h += '<span class="cmb-al-badge upcoming">'+stu.upcoming.length+' upcoming</span>';
+                h += '</div>';
+                if(stu.missing.length) h += '<div class="cmb-al-detail">'+esc(formatAssignmentList(stu.missing)).replace(/\n/g,'<br>')+'</div>';
+                if(stu.lowGrades.length) h += '<div class="cmb-al-detail">'+esc(formatLowGradeList(stu.lowGrades)).replace(/\n/g,'<br>')+'</div>';
+                h += '</div>';
+            });
+            h += '<div class="cmb-card"><label class="cmb-label">Message Subject</label><input type="text" class="cmb-input" id="cmb-al-subject" value="'+esc(ast.subject)+'"></div>';
+            h += '<div class="cmb-card"><label class="cmb-label">Message Body</label>';
+            h += '<div style="font-size:11px;color:#94A3B8;margin-bottom:6px;">Placeholders: {{studentName}} {{courseName}} {{teacherName}} {{missingSection}} {{upcomingSection}} {{lowGradeSection}}</div>';
+            h += '<textarea class="cmb-textarea" id="cmb-al-body" rows="8">'+esc(ast.bodyTemplate)+'</textarea></div>';
+            h += '<div class="cmb-btn-row">';
+            h += '<button class="cmb-btn cmb-btn-secondary" id="cmb-al-rescan2">&larr; Back to settings</button>';
+            h += '<button class="cmb-btn cmb-btn-ai" id="cmb-al-preview">Preview Messages &rarr;</button>';
+            h += '</div>';
+            body.innerHTML = h;
+
+            body.querySelectorAll(".cmb-al-student").forEach(function(row){
+                row.addEventListener("click", function(){
+                    var si = parseInt(row.dataset.si, 10);
+                    ast.students[si].checked = !ast.students[si].checked;
+                    renderList();
+                });
+            });
+            body.querySelector("#cmb-al-subject").addEventListener("input", function(e){ ast.subject = e.target.value; });
+            body.querySelector("#cmb-al-body").addEventListener("input", function(e){ ast.bodyTemplate = e.target.value; });
+            body.querySelector("#cmb-al-rescan2").addEventListener("click", renderSettings);
+            body.querySelector("#cmb-al-preview").addEventListener("click", function(){
+                if(!selectedStudents().length){ setStatus("Select at least one student first.", "error"); return; }
+                renderPreview();
+            });
+        }
+
+        function buildMessageFor(stu){
+            var missingSection = stu.missing.length > 0
+                ? ("Missing Assignments (past " + ast.daysBack + " days):\n" + formatAssignmentList(stu.missing))
+                : "You have no missing assignments. Great work!";
+            var upcomingSection = stu.upcoming.length > 0
+                ? ("Upcoming Assignments (next " + ast.daysForward + " days):\n" + formatAssignmentList(stu.upcoming))
+                : "No upcoming assignments in the next " + ast.daysForward + " days.";
+            var lowGradeSection = stu.lowGrades.length > 0
+                ? ("Scores Below " + ast.gradeThreshold + "% (past " + ast.daysBack + " days):\n" + formatLowGradeList(stu.lowGrades) + "\n\nIf you have questions about any of these, please reach out to me.")
+                : "No scores below " + ast.gradeThreshold + "% in the past " + ast.daysBack + " days.";
+            var vars = {
+                studentName: stu.name, courseName: ast.courseName, teacherName: ast.teacherName,
+                missingSection: missingSection, upcomingSection: upcomingSection, lowGradeSection: lowGradeSection
+            };
+            return {
+                subject: renderAlertTemplate(ast.subject, vars),
+                body: renderAlertTemplate(ast.bodyTemplate, vars)
+            };
+        }
+
+        function renderPreview(){
+            var selected = selectedStudents();
+            var h = '<div style="font-size:12px;color:#64748B;margin-bottom:10px;">Review before sending — nothing is sent yet.</div>';
+            selected.forEach(function(stu){
+                var msg = buildMessageFor(stu);
+                h += '<div class="cmb-al-preview"><div class="to">To: '+esc(stu.name)+'</div>';
+                h += '<div class="subj">Subject: '+esc(msg.subject)+'</div>';
+                h += '<div class="body">'+esc(msg.body)+'</div></div>';
+            });
+            h += '<div class="cmb-btn-row">';
+            h += '<button class="cmb-btn cmb-btn-secondary" id="cmb-al-back">&larr; Back to edit</button>';
+            h += '<button class="cmb-btn cmb-btn-success" id="cmb-al-send">✓ Send '+selected.length+' Message'+(selected.length!==1?'s':'')+'</button>';
+            h += '</div>';
+            h += '<div id="cmb-al-send-progress" style="display:none;">';
+            h += '<div class="cmb-progress-bar"><div class="cmb-progress-fill" id="cmb-al-progress-fill" style="width:0%;"></div></div>';
+            h += '<div class="cmb-progress-log" id="cmb-al-progress-log"></div>';
+            h += '</div>';
+            body.innerHTML = h;
+            body.querySelector("#cmb-al-back").addEventListener("click", renderList);
+            body.querySelector("#cmb-al-send").addEventListener("click", async function(){
+                var btn = body.querySelector("#cmb-al-send");
+                btn.disabled = true; btn.textContent = "Sending…";
+                var progressArea = body.querySelector("#cmb-al-send-progress");
+                var progressFill = body.querySelector("#cmb-al-progress-fill");
+                var progressLog = body.querySelector("#cmb-al-progress-log");
+                progressArea.style.display = "block";
+                var sent = 0, errors = [];
+                for(var i=0;i<selected.length;i++){
+                    var stu = selected[i];
+                    var msg = buildMessageFor(stu);
+                    var line = document.createElement("div");
+                    try{
+                        await sendCanvasMessage(courseId, stu.id, msg.subject, msg.body);
+                        sent++;
+                        line.className = "success";
+                        line.textContent = "[" + (i+1) + "/" + selected.length + "] Sent to " + stu.name;
+                    }catch(err){
+                        errors.push(stu.name + ": " + err.message);
+                        line.className = "error";
+                        line.textContent = "[" + (i+1) + "/" + selected.length + "] ERROR — " + stu.name + ": " + err.message;
+                    }
+                    progressLog.appendChild(line);
+                    progressLog.scrollTop = progressLog.scrollHeight;
+                    progressFill.style.width = Math.round(((i+1)/selected.length)*100) + "%";
+                }
+                if(errors.length){
+                    setStatus(sent + " sent, " + errors.length + " failed.", errors.length===selected.length?"error":"success");
+                }else{
+                    setStatus("✓ All " + sent + " messages sent.", "success");
+                }
+                btn.textContent = "✓ Sent";
+            });
+        }
+
+        renderSettings();
+    }
+
     // Each menu item is [label, handler]. Handler receives the module element.
     var MODULE_MENU_ITEMS = [
         ["✨ AI Content", function(module){
@@ -2868,7 +3368,7 @@
             openQuizBuilder(module);
         }],
         ["📊 Module Alerts", function(){
-            alert("Module Alerts — coming soon.");
+            openModuleAlerts();
         }]
     ];
 

@@ -17,6 +17,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleUnsplashDownload(msg.payload).then(sendResponse).catch(() => sendResponse({}));
     return true;
   }
+  if (msg.type === 'CMB_YOUTUBE_SEARCH') {
+    handleYoutubeSearch(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
 });
 
 async function handleClaude({ apiKey, model, max_tokens, messages }) {
@@ -55,4 +59,31 @@ async function handleUnsplashDownload({ unsplashKey, location }) {
   if (!location) return {};
   try { await fetch(location, { headers: { 'Authorization': `Client-ID ${unsplashKey}` } }); } catch { /* fire-and-forget */ }
   return {};
+}
+
+async function handleYoutubeSearch({ youtubeKey, query }) {
+  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&safeSearch=strict&maxResults=12&q=${encodeURIComponent(query)}&key=${youtubeKey}`;
+  const searchRes = await fetch(searchUrl);
+  const searchData = await searchRes.json().catch(() => ({}));
+  if (!searchRes.ok) throw new Error(searchData?.error?.message || `HTTP ${searchRes.status}`);
+  const items = (searchData.items || []).filter(i => i.id && i.id.videoId);
+  if (!items.length) return { results: [] };
+
+  // Second call for durations — search.list doesn't include contentDetails.
+  const ids = items.map(i => i.id.videoId).join(',');
+  const durRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${youtubeKey}`);
+  const durData = await durRes.json().catch(() => ({}));
+  const durations = {};
+  (durData.items || []).forEach(v => { durations[v.id] = v.contentDetails?.duration || ''; });
+
+  return {
+    results: items.map(i => ({
+      videoId: i.id.videoId,
+      title: i.snippet.title,
+      channel: i.snippet.channelTitle,
+      thumbnail: i.snippet.thumbnails?.medium?.url || i.snippet.thumbnails?.default?.url || '',
+      publishedAt: i.snippet.publishedAt,
+      duration: durations[i.id.videoId] || '',
+    })),
+  };
 }

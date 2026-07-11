@@ -9,7 +9,8 @@
     "https://*.canvas.com/*",
     "https://*.canvaslms.com/*",
     "https://api.anthropic.com/*",
-    "https://api.unsplash.com/*"
+    "https://api.unsplash.com/*",
+    "https://www.googleapis.com/*"
   ],
   "background": {
     "service_worker": "background.js"
