@@ -44,7 +44,8 @@
     const TOKENS_DEFAULT = 6000;
     const TOKENS_LONG    = 12000;
 
-    const ACTIVITY_TYPES = ["flashcard","quickcheck","termreveal","truefalse","readcheck","matching"];
+    const ACTIVITY_TYPES = ["flashcard","quickcheck","termreveal","truefalse","readcheck","matching",
+        "whatwouldyoudo","finderror","spothazard","mysterymachine","decisionpoint","whathappensnext","buildprocess","beattheexpert","commonmistake","protip"];
 
     // How many items "Build All" generates at once. Anthropic tolerates several
     // concurrent requests fine; keep this modest to avoid tripping rate limits.
@@ -68,6 +69,16 @@
         truefalse:{label:"True / False",icon:"\u2696\uFE0F",group:"activity",desc:"True/False statements \u2014 click to reveal the answer and explanation."},
         readcheck:{label:"Read + Check",icon:"\u{1F4D0}",group:"activity",desc:"Content page with comprehension questions embedded between sections \u2014 read, answer, keep reading."},
         matching:{label:"Matching",icon:"\u{1F517}",group:"activity",desc:"Term-to-definition matching \u2014 click a definition to check if it's the right match."},
+        whatwouldyoudo:{label:"What Would You Do?",icon:"\u{1F3AD}",group:"activity",desc:"Students are presented with a realistic workplace situation that requires them to make a decision before revealing the recommended response. Instead of simply recalling facts, they think through the situation as if they were on the job, compare their choice to industry best practices, and learn why one response is better than the others. This activity develops critical thinking and decision-making skills that are essential in the skilled trades."},
+        finderror:{label:"Find the Error",icon:"\u{1F50D}",group:"activity",desc:"Students examine a statement, diagram, procedure, calculation, or workplace scenario that contains one intentional mistake. Before revealing the answer, they identify the error and consider why it is incorrect. This activity encourages careful observation, reinforces proper procedures, and develops troubleshooting skills by teaching students to recognize common mistakes they may encounter in the workplace."},
+        spothazard:{label:"Spot the Hazard",icon:"\u{1F575}\ufe0f",group:"activity",desc:"Students inspect a photograph, illustration, or workplace description to identify potential safety hazards before revealing the correct answers. Hazards are explained one by one, helping students understand not only what is unsafe but also why it creates a risk. This activity strengthens situational awareness and promotes a safety-first mindset by encouraging students to actively evaluate their work environment."},
+        mysterymachine:{label:"Mystery Machine",icon:"\u{1F9E9}",group:"activity",desc:"Students are given a set of equipment symptoms, operating conditions, or clues describing a machine problem. Using the available information, they determine the most likely cause before revealing the solution and explanation. This activity mirrors real-world troubleshooting by requiring students to think logically, eliminate possibilities, and diagnose problems like experienced technicians."},
+        decisionpoint:{label:"Decision Point",icon:"\u{1F6A6}",group:"activity",desc:"Students reach a critical point in a workplace scenario where they must choose the best course of action before revealing the outcome. Each decision demonstrates the consequences of good and poor choices, helping students understand not only what to do but also why their decisions matter. This activity builds confidence by allowing students to practice making job-related decisions in a safe learning environment."},
+        whathappensnext:{label:"What Happens Next?",icon:"\u26a1",group:"activity",desc:"Students are presented with the beginning of a process, procedure, or workplace event and are asked to predict what will happen next before revealing the answer. By making a prediction first, students become more engaged with the material and develop a stronger understanding of cause-and-effect relationships. This activity reinforces learning through curiosity and critical thinking rather than memorization."},
+        buildprocess:{label:"Build the Process",icon:"\u{1F3D7}\ufe0f",group:"activity",desc:"Students work through a procedure by revealing each step one at a time instead of viewing the entire process at once. As each stage is uncovered, they think about what should happen next before continuing. This approach transforms a standard procedure into an interactive learning experience that improves comprehension, reinforces sequencing, and helps students remember important processes."},
+        beattheexpert:{label:"Beat the Expert",icon:"\u{1F3C6}",group:"activity",desc:"Students answer a practical question or solve a workplace problem before comparing their reasoning to how an experienced professional would approach the same situation. Rather than simply revealing the correct answer, the activity explains the thought process behind the expert's decision. This helps students develop professional judgment and gain insight into how experienced tradespeople think."},
+        commonmistake:{label:"Common Mistake",icon:"\u{1F6AB}",group:"activity",desc:"Students explore one of the most frequent mistakes made by beginners in a particular skill or procedure. The activity explains why the mistake occurs, the problems it can create, and how experienced professionals avoid it. Learning from common errors helps students recognize and prevent those mistakes before they occur in real-world situations."},
+        protip:{label:"Pro Tip",icon:"\u{1F4A1}",group:"activity",desc:"Students discover practical advice, shortcuts, and industry best practices commonly used by experienced professionals but often overlooked in textbooks. These tips provide valuable real-world insight that helps students work more efficiently, safely, and professionally. By connecting classroom learning to workplace experience, this activity gives students knowledge they can immediately apply on the job."},
         icebreaker:{label:"Ice Breaker",icon:"\u{1F9CA}",group:"activity",desc:"Light warm-up prompt or poll-style question to open a module."},
         discussion:{label:"Discussion Prompt",icon:"\u{1F4AC}",group:"activity",desc:"Ungraded discussion topic for open reflection \u2014 students can reply/thread."},
 
@@ -688,8 +699,9 @@
             state.itemData[item.id]=shape;
         }else if(item.type==="video"){
             state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
-        }else if(item.type==="flashcard"||item.type==="quickcheck"||item.type==="termreveal"||item.type==="truefalse"||item.type==="readcheck"||item.type==="matching"){
-            var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8};
+        }else if(ACTIVITY_TYPES.indexOf(item.type)>=0){
+            var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8,
+                whatwouldyoudo:5,finderror:6,spothazard:5,mysterymachine:5,decisionpoint:5,whathappensnext:6,buildprocess:6,beattheexpert:5,commonmistake:6,protip:8};
             state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,includeImages:false,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
         }else{
             state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
@@ -1430,7 +1442,9 @@
                 pdfEnsureRoom(cursor, PDF_FIELD_LINE_H+4);
                 cursor.page.drawRectangle({ x: PDF_MARGIN, y: cursor.y-16, width: PDF_CONTENT_W, height: 16, borderWidth: 0.75, borderColor: PDFLib.rgb(0.75,0.78,0.82) });
                 cols.forEach(function(colName, ci){
-                    form.createTextField(name+"_r"+r+"_c"+ci).addToPage(cursor.page, { x: PDF_MARGIN+ci*colW+2, y: cursor.y-15, width: colW-4, height: 14, borderWidth: 0 });
+                    var cellField = form.createTextField(name+"_r"+r+"_c"+ci);
+                    cellField.addToPage(cursor.page, { x: PDF_MARGIN+ci*colW+2, y: cursor.y-15, width: colW-4, height: 14, borderWidth: 0 });
+                    cellField.setFontSize(9);
                     if(ci>0) cursor.page.drawLine({ start:{x:PDF_MARGIN+ci*colW,y:cursor.y-16}, end:{x:PDF_MARGIN+ci*colW,y:cursor.y}, thickness:0.75, color: PDFLib.rgb(0.75,0.78,0.82) });
                 });
                 cursor.y -= 16;
@@ -1443,6 +1457,7 @@
             var tf = form.createTextField(name);
             if(multiline) tf.enableMultiline();
             tf.addToPage(cursor.page, { x: PDF_MARGIN, y: cursor.y-boxH, width: PDF_CONTENT_W, height: boxH, borderWidth: 1, borderColor: PDFLib.rgb(0.75,0.78,0.82) });
+            tf.setFontSize(11);
             cursor.y -= boxH;
         }
         cursor.y -= 10;
@@ -1767,6 +1782,24 @@
 
     // ========== ACTIVITY PROMPT ==========
 
+    // Shared single-card template for the "scenario, then one click reveals
+    // the answer" activities (What Would You Do?, Find the Error, Mystery
+    // Machine, What Happens Next?, Beat the Expert, Common Mistake, Pro
+    // Tip) — they all share one structure and only differ in labels/
+    // framing, so this is the one place that HTML lives.
+    function activitySingleRevealCard(pri, setupLabel, revealLabel){
+        var h = '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
+        h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:18px 22px;">\n';
+        h += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:'+pri+';margin-bottom:8px;">'+setupLabel+'</div>\n';
+        h += '    <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;line-height:1.5;">[SETUP TEXT]</div>\n';
+        h += '  </summary>\n';
+        h += '  <div style="padding:18px 22px;border-top:1px solid #e5e7eb;background:#fff;">\n';
+        h += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#166534;margin-bottom:8px;">'+revealLabel+'</div>\n';
+        h += '    <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#374151;">[REVEAL TEXT]</div>\n';
+        h += '  </div>\n</details>\n';
+        return h;
+    }
+
     function buildActivityPrompt(itemData, itemType){
         var count = itemData.count || 6;
         var tk = itemData.pageStyle || "custom";
@@ -1910,6 +1943,146 @@
             p += "- Do NOT wrap multiple candidate definitions or the whole term block in a single outer <details> — each definition must expand independently\n";
             p += "- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n";
             p += "- Return ONLY valid HTML, no markdown, every tag closed\n\n";
+
+        } else if(itemType === "whatwouldyoudo"){
+            p += "Generate a 'What Would You Do?' decision-making activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " realistic workplace situations from the source material, each requiring a decision.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🎭 What Would You Do?</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Read the situation, decide what you\'d do, then click to see the recommended response.</p>\n\n';
+            p += "<!-- Generate " + count + " situations using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THE SITUATION", "RECOMMENDED RESPONSE");
+            p += "\nRULES: Generate exactly " + count + " situations. [SETUP TEXT] is a specific, realistic on-the-job scenario requiring a decision — end it with a question like \"What would you do?\". [REVEAL TEXT] gives the recommended response AND briefly explains why it's better than the other reasonable options a technician might consider. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "finderror"){
+            p += "Generate a 'Find the Error' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " items, each containing one intentional mistake, from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🔍 Find the Error</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Look for the mistake before revealing what it is and how to fix it.</p>\n\n';
+            p += "<!-- Generate " + count + " items using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "SPOT THE MISTAKE", "WHAT'S WRONG");
+            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] is a statement, procedure, calculation, or workplace scenario containing exactly ONE intentional mistake, written so it reads as fully correct at first glance — do not telegraph the error. [REVEAL TEXT] identifies the specific error, explains why it's incorrect, and gives the corrected version. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "mysterymachine"){
+            p += "Generate a 'Mystery Machine' diagnostic activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " equipment-problem mysteries from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🧩 Mystery Machine</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Use the clues to diagnose the problem before revealing the solution.</p>\n\n';
+            p += "<!-- Generate " + count + " mysteries using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THE SYMPTOMS", "DIAGNOSIS");
+            p += "\nRULES: Generate exactly " + count + " mysteries. [SETUP TEXT] lists equipment symptoms, operating conditions, or clues describing a machine problem. [REVEAL TEXT] gives the most likely cause and explains the diagnostic reasoning step by step, like an experienced technician thinking it through. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "decisionpoint"){
+            p += "Generate a 'Decision Point' activity for Canvas LMS using nested <details>/<summary> tags — NO <style> blocks or JavaScript. Each possible action must be its OWN independently-clickable <details> so a student can click just one option and see its outcome, without the other options being revealed first.\n\n";
+            p += "Generate exactly " + count + " workplace decision points, each with exactly 3 possible actions to choose from.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🚦 Decision Point</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">You\'ve reached a critical decision. Click an action to see what happens.</p>\n\n';
+            p += "<!-- Generate " + count + " decision points using this exact template. Each action is its own <details> — do NOT wrap the whole scenario in one outer <details>: -->\n";
+            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden;">\n';
+            p += '  <div style="background:#f8fafc;padding:18px 22px;border-bottom:1px solid #e5e7eb;">\n';
+            p += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + pri + ';margin-bottom:8px;">DECISION POINT</div>\n';
+            p += '    <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;">[SCENARIO — a critical moment requiring a choice]</div>\n';
+            p += '  </div>\n';
+            p += '  <div style="padding:14px 20px;background:#fff;">\n';
+            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:14px;font-weight:600;">[BEST ACTION]</summary>\n';
+            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-size:13px;">✓ [OUTCOME — the good result of this choice, and why it was the right call]</div>\n';
+            p += '    </details>\n';
+            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[RISKIER ACTION]</summary>\n';
+            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef9c3;color:#854d0e;font-size:13px;">⚠ [OUTCOME — a less ideal result, explaining the tradeoff or risk]</div>\n';
+            p += '    </details>\n';
+            p += '    <details style="border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[POOR ACTION]</summary>\n';
+            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-size:13px;">✗ [OUTCOME — the negative consequence of this choice, and what should happen instead]</div>\n';
+            p += '    </details>\n';
+            p += '  </div>\n</div>\n\n';
+            p += "CRITICAL RULES:\n- Generate exactly " + count + " decision points in this exact order\n- Each has exactly 3 possible actions, each its own separate <details> (NOT nested) — 1 best choice (green), 1 riskier/imperfect choice (yellow), 1 poor choice (red)\n- Vary which position the best action appears in across decision points\n- Do NOT wrap the actions or whole scenario in one outer <details> — each action must expand independently\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
+
+        } else if(itemType === "spothazard"){
+            p += "Generate a 'Spot the Hazard' safety activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript. Each area/element to check must be its OWN independently-clickable <details>.\n\n";
+            p += "Generate exactly " + count + " workplace scenes to inspect, each described in text with 4-5 specific areas/elements a student can check for hazards.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🕵️ Spot the Hazard</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Read the scene, then click each area to check it for hazards.</p>\n\n';
+            p += "<!-- Generate " + count + " scenes using this exact template. Each area is its own <details>: -->\n";
+            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden;">\n';
+            p += '  <div style="background:#f8fafc;padding:18px 22px;border-bottom:1px solid #e5e7eb;">\n';
+            p += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + pri + ';margin-bottom:8px;">THE SCENE</div>\n';
+            p += '    <div style="font-family:Georgia,serif;font-size:15px;color:#1e293b;line-height:1.6;">[DESCRIPTION of the workplace scene/setup — describe what a student would see]</div>\n';
+            p += '  </div>\n';
+            p += '  <div style="padding:14px 20px;background:#fff;">\n';
+            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[SPECIFIC AREA/ELEMENT TO CHECK]</summary>\n';
+            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:600;">⚠ HAZARD — [explanation of what is unsafe and why it creates a risk]</div>\n';
+            p += '    </details>\n';
+            p += '    <details style="border-radius:6px;overflow:hidden;">\n';
+            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[SPECIFIC AREA/ELEMENT THAT IS ACTUALLY SAFE]</summary>\n';
+            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-size:13px;font-weight:600;">✓ SAFE — [brief note on why this one is not a hazard]</div>\n';
+            p += '    </details>\n';
+            p += '    <!-- generate 4-5 total areas per scene, mixing real hazards and safe items -->\n';
+            p += '  </div>\n</div>\n\n';
+            p += "CRITICAL RULES:\n- Generate exactly " + count + " scenes\n- Each scene has 4-5 specific areas/elements to check, each its own separate <details> (NOT nested) — mix real hazards (red, ⚠) with genuinely safe items (green, ✓) so students must actually evaluate each one, not just click everything\n- Base hazards on real safety concerns relevant to the trade in the source material\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
+
+        } else if(itemType === "whathappensnext"){
+            p += "Generate a 'What Happens Next?' prediction activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " process/event openings from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">⚡ What Happens Next?</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Predict what happens next, then click to find out.</p>\n\n';
+            p += "<!-- Generate " + count + " items using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THE SETUP", "WHAT HAPPENS");
+            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] describes the beginning of a process, procedure, or workplace event, stopping right before a key outcome — leave the reader genuinely uncertain what comes next. [REVEAL TEXT] explains what happens next and the cause-and-effect reasoning behind it. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "buildprocess"){
+            p += "Generate a 'Build the Process' sequential-reveal activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript. Break ONE procedure into sequential steps, each its own <details>, revealed one at a time in order.\n\n";
+            p += "Generate exactly " + count + " sequential steps for ONE complete procedure from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🏗 Build the Process</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Before opening each step, think about what should happen next. Then click to reveal it and continue.</p>\n\n';
+            p += "<!-- Generate " + count + " steps IN ORDER using this exact template: -->\n";
+            p += '<details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">\n';
+            p += '  <summary style="list-style:none;cursor:pointer;background:' + pri + ';color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;">\n';
+            p += '    <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:3px;flex-shrink:0;">STEP [N]</span>\n';
+            p += '    <span style="font-family:Georgia,serif;font-size:15px;font-weight:700;">What happens next?</span>\n';
+            p += '  </summary>\n';
+            p += '  <div style="padding:16px 20px;background:#fff;">\n';
+            p += '    <p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#374151;margin:0;">[STEP DESCRIPTION — the specific action performed at this stage of the procedure]</p>\n';
+            p += '  </div>\n</details>\n\n';
+            p += "RULES: Generate exactly " + count + " steps for ONE single procedure, in the correct sequential order (replace [N] with 1, 2, 3...). Each step's revealed text should describe exactly what happens at that stage — specific and actionable, not vague. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "beattheexpert"){
+            p += "Generate a 'Beat the Expert' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " practical problems from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🏆 Beat the Expert</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Work through the problem yourself, then see how an expert would approach it.</p>\n\n';
+            p += "<!-- Generate " + count + " problems using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THE PROBLEM", "THE EXPERT'S APPROACH");
+            p += "\nRULES: Generate exactly " + count + " problems. [SETUP TEXT] presents a practical question or workplace problem to solve. [REVEAL TEXT] explains how an experienced professional would approach the same situation and the reasoning behind their decision — not just the final answer, but the thought process. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "commonmistake"){
+            p += "Generate a 'Common Mistake' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " frequent beginner mistakes from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🚫 Common Mistake</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">See a mistake beginners often make, why it happens, and how pros avoid it.</p>\n\n';
+            p += "<!-- Generate " + count + " items using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THE MISTAKE", "WHY IT MATTERS");
+            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] names/describes one specific mistake commonly made by beginners in a particular skill or procedure. [REVEAL TEXT] explains why the mistake happens, the problems it causes, and how experienced professionals avoid it. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
+
+        } else if(itemType === "protip"){
+            p += "Generate a 'Pro Tip' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
+            p += "Generate exactly " + count + " practical, real-world tips from the source material.\n\n";
+            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
+            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">💡 Pro Tip</h2>\n';
+            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Discover a trick of the trade you won\'t find in a textbook.</p>\n\n';
+            p += "<!-- Generate " + count + " tips using this exact template: -->\n";
+            p += activitySingleRevealCard(pri, "THINK YOU KNOW THIS ONE?", "PRO TIP");
+            p += "\nRULES: Generate exactly " + count + " tips. [SETUP TEXT] is a short teaser question related to a real skill or task from the source material. [REVEAL TEXT] gives one practical piece of advice, shortcut, or industry best practice that experienced professionals use but textbooks often overlook, and explains why it helps. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
         }
 
         if(itemData.includeImages){
@@ -2703,7 +2876,17 @@
             termreveal:"AI builds an expandable vocabulary list — click any term to reveal its definition and examples.",
             truefalse:"AI generates true/false statements with explanations revealed on click.",
             readcheck:"AI writes a full content page with " + d.count + " comprehension questions embedded inline between sections — students read, answer, keep reading. Like a textbook with built-in checks.",
-            matching:"AI generates " + d.count + " term-definition pairs as a self-checking exercise — select the right definition for each term to see instant ✓/✗ feedback."
+            matching:"AI generates " + d.count + " term-definition pairs as a self-checking exercise — select the right definition for each term to see instant ✓/✗ feedback.",
+            whatwouldyoudo:"AI writes " + d.count + " realistic workplace situations — students decide what they'd do, then reveal the recommended response and why it beats the alternatives.",
+            finderror:"AI writes " + d.count + " statements/procedures/calculations each containing one intentional mistake — students spot it before revealing the error and the fix.",
+            spothazard:"AI writes " + d.count + " workplace scenes to inspect for safety hazards — click each area to check it, with hazards explained one by one.",
+            mysterymachine:"AI writes " + d.count + " equipment-symptom mysteries — students diagnose the most likely cause before revealing the solution and explanation.",
+            decisionpoint:"AI writes " + d.count + " critical workplace decision points — each possible action reveals its own outcome, good or bad.",
+            whathappensnext:"AI writes " + d.count + " process/event openings — students predict what happens next before revealing the answer and the cause-and-effect reasoning.",
+            buildprocess:"AI writes a procedure as " + d.count + " sequential steps, revealed one at a time — students think about what comes next before uncovering each stage.",
+            beattheexpert:"AI writes " + d.count + " practical problems — students reason it out, then reveal how an experienced professional would approach the same situation.",
+            commonmistake:"AI writes " + d.count + " frequent beginner mistakes — why they happen, what they cause, and how professionals avoid them.",
+            protip:"AI writes " + d.count + " practical, real-world tips and shortcuts experienced professionals use but textbooks often skip."
         };
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
@@ -2723,7 +2906,9 @@
         h+='</div>';
 
         // Count control
-        var countLabel={flashcard:"Cards",quickcheck:"Questions",termreveal:"Terms",truefalse:"Statements",readcheck:"Inline Questions",matching:"Term Pairs"};
+        var countLabel={flashcard:"Cards",quickcheck:"Questions",termreveal:"Terms",truefalse:"Statements",readcheck:"Inline Questions",matching:"Term Pairs",
+            whatwouldyoudo:"Situations",finderror:"Items",spothazard:"Scenes",mysterymachine:"Mysteries",decisionpoint:"Decision Points",
+            whathappensnext:"Scenarios",buildprocess:"Steps",beattheexpert:"Problems",commonmistake:"Mistakes",protip:"Tips"};
         h+='<div class="cmb-card" style="display:flex;align-items:center;gap:20px;">';
         h+='<div><label class="cmb-label">Number of '+(countLabel[item.type]||"Items")+'</label>';
         h+='<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">';
