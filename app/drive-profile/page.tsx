@@ -319,6 +319,26 @@ function ResultsScreen({ result, onRestart }: { result: ScoreResult; onRestart: 
   const [primary, secondary] = result.ranked;
   const p = STYLES[primary];
   const s = STYLES[secondary];
+  const [downloading, setDownloading] = useState(false);
+
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const { generateReportPdf } = await import('./pdfReport');
+      const bytes = await generateReportPdf(result);
+      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Drive-Profile-${p.label}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#0B1120' }}>
@@ -337,7 +357,25 @@ function ResultsScreen({ result, onRestart }: { result: ScoreResult; onRestart: 
         <p style={{ color: '#fff', fontSize: 18, maxWidth: 560, margin: '0 auto 18px', lineHeight: 1.6, fontStyle: 'italic' }}>
           &ldquo;{p.affirmation}&rdquo;
         </p>
-        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, maxWidth: 560, margin: '0 auto' }}>{p.tagline}</p>
+        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, maxWidth: 560, margin: '0 auto 22px' }}>{p.tagline}</p>
+        <button
+          onClick={downloadPdf}
+          disabled={downloading}
+          style={{
+            background: '#fff',
+            color: '#1E1B4B',
+            border: 'none',
+            borderRadius: 999,
+            padding: '13px 28px',
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: downloading ? 'default' : 'pointer',
+            opacity: downloading ? 0.7 : 1,
+            boxShadow: '0 10px 26px rgba(0,0,0,0.25)',
+          }}
+        >
+          {downloading ? 'Preparing PDF...' : '⬇ Download PDF Report'}
+        </button>
       </div>
 
       <div style={{ maxWidth: 760, margin: '-32px auto 0', padding: '0 20px 80px' }}>
@@ -410,7 +448,24 @@ function ResultsScreen({ result, onRestart }: { result: ScoreResult; onRestart: 
           <InfoCard title="💬 How To Talk To You" text={p.communicationTips} color={p.color} />
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 36 }}>
+        <div style={{ textAlign: 'center', marginTop: 36, display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={downloadPdf}
+            disabled={downloading}
+            style={{
+              background: p.gradient,
+              border: 'none',
+              color: '#fff',
+              borderRadius: 999,
+              padding: '12px 26px',
+              fontSize: 13.5,
+              fontWeight: 700,
+              cursor: downloading ? 'default' : 'pointer',
+              opacity: downloading ? 0.7 : 1,
+            }}
+          >
+            {downloading ? 'Preparing PDF...' : '⬇ Download PDF Report'}
+          </button>
           <button
             onClick={onRestart}
             style={{
