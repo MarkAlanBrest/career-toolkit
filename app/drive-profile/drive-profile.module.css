@@ -1,0 +1,45 @@
+@keyframes dpFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dpPop {
+  0% { opacity: 0; transform: scale(0.85); }
+  60% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes dpGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes dpBarGrow {
+  from { width: 0%; }
+}
+
+.fadeUp {
+  animation: dpFadeUp 0.5s ease both;
+}
+
+.pop {
+  animation: dpPop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animatedGradient {
+  background-size: 200% 200%;
+  animation: dpGradientShift 8s ease infinite;
+}
+
+.barFill {
+  animation: dpBarGrow 1.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.optionCard {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.optionCard:hover {
+  transform: translateY(-2px);
+}

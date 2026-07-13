@@ -62,6 +62,8 @@
         activity:{label:"Activity Page",icon:"\u{1F3AF}",group:"content",desc:"Generic hands-on activity page \u2014 same template as Content Page, different label."},
         summary:{label:"Summary Page",icon:"\u{1F4CB}",group:"content",desc:"Wrap-up / review page, usually at the end of a module."},
         resource:{label:"Resource Page",icon:"\u{1F517}",group:"content",desc:"Curated list of links and resources."},
+        syllabus:{label:"Syllabus",icon:"\u{1F4D1}",group:"content",desc:"Full course syllabus — description, objectives, required tools/materials, grading breakdown, schedule overview, and policies."},
+        homepage:{label:"Home Page",icon:"\u{1F3E0}",group:"content",desc:"Welcoming course front page — overview, how the course works, instructor intro, and quick links to key areas."},
 
         flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"activity",desc:"Flippable term/definition cards \u2014 click a card to flip it."},
         quickcheck:{label:"Quick Check",icon:"\u2705",group:"activity",desc:"Multiple-choice practice \u2014 click a choice to check it, right there. No grade recorded."},
@@ -191,6 +193,11 @@
 
     function curMod() { return state.modules[state.currentModuleIndex] || null; }
     function esc(s){var d=document.createElement("div");d.textContent=s||"";return d.innerHTML;}
+    function htmlToPlainText(html){
+        var scratch=document.createElement("div");
+        scratch.innerHTML=html||"";
+        return (scratch.textContent||scratch.innerText||"").trim();
+    }
     function uid(){return "cmb_"+Date.now().toString(36)+"_"+Math.random().toString(36).substr(2,6);}
     function saveApiKey(k){try{localStorage.setItem(APIKEY_KEY,k);}catch(e){}}
     function saveUnsplashKey(k){try{localStorage.setItem(UNSPLASH_KEY,k);}catch(e){}}
@@ -557,15 +564,28 @@
                             if(item.type === "knowledge" && data.generatedAnswerKey){
                                 criteria = formatKnowledgeCriteria(data.generatedAnswerKey);
                                 criteria.answerFields = pdfSchemaFieldList(data.generatedPdfSchema);
-                            } else if(item.type !== "knowledge"){
+                            } else {
+                                // Also covers a Knowledge Assignment whose
+                                // schema was hand-edited in the structured
+                                // editor — that clears generatedAnswerKey and
+                                // hydrates correctAnswer/rubricNote directly
+                                // onto the schema's fields, so the schema
+                                // itself becomes the source of truth.
                                 criteria = formatAssignmentCriteria(data.generatedPdfSchema);
                             }
                             if(criteria){
-                                // Embed the answer key in the assignment's
-                                // own content (hidden from students) so it
-                                // survives a Canvas course copy or a
-                                // hand-off to another teacher, not just in
-                                // this browser's storage.
+                                // Redacted, student-safe view (points +
+                                // rubric guidance, never correctAnswer) —
+                                // kept inside the hidden marker only, not
+                                // rendered visibly on the assignment (the
+                                // raw per-field rubric dump was unreadable
+                                // to students).
+                                criteria.studentView = formatStudentCriteriaView(criteria);
+                                // Embed the full answer key in the
+                                // assignment's own content (hidden from
+                                // students) so it survives a Canvas course
+                                // copy or a hand-off to another teacher,
+                                // not just in this browser's storage.
                                 assignHtml = cmbEmbedCriteriaMarker(assignHtml, criteria);
                             }
                         } else {
@@ -597,6 +617,13 @@
                     } else {
                         var pageTitle = canvasItemTitle(item,data,i);
                         var pageHtml = data.generatedHTML || "<p>Content not yet generated.</p>";
+                        if(data.includeToolbar && data.toolbarData){
+                            // Renders Key Terms/Key Facts/read time
+                            // directly into the page's visible content as
+                            // static <details> sections, so every student
+                            // sees them with no extension required.
+                            pageHtml += renderToolbarSectionHTML(data.toolbarData, data);
+                        }
                         var page = await createPage(pageTitle, pageHtml);
                         report("Created page: " + pageTitle);
                         await addModuleItem(canvasMod.id, "Page", page.url, pageTitle, insertPosition);
@@ -694,9 +721,9 @@
     function initItemData(item){
         if(state.itemData[item.id])return;
         if(item.type==="discussion"){
-            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(item.type==="gradeddiscussion"){
-            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pointValue:"",dueDate:"",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pointValue:"",dueDate:"",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
         }else if(ITEM_TYPES[item.type] && ITEM_TYPES[item.type].group==="assignment"){
             // Shared shape for every PDF-based assignment type (Knowledge
             // through Workplace Scenario) — see renderPdfAssignmentBuilder.
@@ -709,13 +736,13 @@
             }
             state.itemData[item.id]=shape;
         }else if(item.type==="video"){
-            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:true,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",includeToolbar:false,toolbarData:null};
         }else if(ACTIVITY_TYPES.indexOf(item.type)>=0){
             var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8,
                 whatwouldyoudo:5,finderror:6,spothazard:5,mysterymachine:5,decisionpoint:5,whathappensnext:6,buildprocess:6,beattheexpert:5,commonmistake:6,protip:8};
-            state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,includeImages:false,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed"};
+            state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,includeImages:true,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed",includeToolbar:false,toolbarData:null};
         }else{
-            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
+            state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:true,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",includeToolbar:false,toolbarData:null};
         }
     }
 
@@ -884,12 +911,24 @@
 
     function buildAutoFillPrompt(item, allItems, itemIndex, mod){
         var itemInfo = ITEM_TYPES[item.type] || {label:item.type};
+        // Runs sequentially per module (see autoFillAllModules), so any
+        // earlier item's brief is already in state.itemData by the time this
+        // is built — surfacing it here is what lets same-type siblings (e.g.
+        // three Content Pages) pick different sub-topics instead of only
+        // being warned off OTHER item types via the instruction below.
         var layoutDesc = allItems.map(function(it,idx){
             var info = ITEM_TYPES[it.type] || {label:it.type};
-            return (idx+1)+". "+info.label+(idx===itemIndex?"  ← WRITE THE BRIEF FOR THIS ONE":"");
+            var line = (idx+1)+". "+info.label;
+            if(idx===itemIndex){
+                line += "  ← WRITE THE BRIEF FOR THIS ONE";
+            }else{
+                var existingBrief = state.itemData[it.id] && state.itemData[it.id].textContent;
+                if(existingBrief && existingBrief.trim()) line += "  — already covers: \""+existingBrief.trim()+"\"";
+            }
+            return line;
         }).join("\n");
         var p = "You are helping build a Canvas LMS module from uploaded source material. Below is the full module layout (in order) and the complete source material.\n\n";
-        p += "Write a focused content brief for ONE specific item in the layout — 2-4 sentences describing exactly what that item should cover, drawn from the source material. Do NOT duplicate content that other items in the layout are better suited to cover (e.g. don't repeat the intro's overview in a content page, don't restate quiz-worthy facts in a summary page).\n\n";
+        p += "Write a focused content brief for ONE specific item in the layout — 2-4 sentences describing exactly what that item should cover, drawn from the source material. Do NOT duplicate content that other items in the layout are better suited to cover (e.g. don't repeat the intro's overview in a content page, don't restate quiz-worthy facts in a summary page). If another item below already lists what it covers — especially one of the SAME type as this one — pick a clearly different sub-topic, angle, or skill; never repeat or closely overlap with it.\n\n";
         p += "MODULE LAYOUT:\n"+layoutDesc+"\n\n";
         p += "ITEM TO WRITE A BRIEF FOR: #"+(itemIndex+1)+" — "+itemInfo.label+"\n\n";
         p += "SOURCE MATERIAL:\n";
@@ -990,7 +1029,9 @@
         }else{
             html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
         }
-        d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+        d.generatedHTML=await finalizeGeneratedHTML(html);
+        await maybeGenerateToolbarData(d);
+        d.subView="result";
     }
 
     // Builds every unbuilt item across all modules, up to BUILD_ALL_CONCURRENCY
@@ -1045,12 +1086,106 @@
         var yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
         var vimeo = url.match(/vimeo\.com\/(\d+)/);
         if(yt){
-            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
+            // The "allow" attribute is required — without it, YouTube's own
+            // player script can fail to initialize inside Canvas's sandboxed
+            // page frame and shows a generic "Unable to execute JavaScript"
+            // error in place of the video, even though the embed URL is fine.
+            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://www.youtube.com/embed/'+yt[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>';
         }
         if(vimeo){
-            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://player.vimeo.com/video/'+vimeo[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
+            return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;margin:0 0 20px;"><iframe src="https://player.vimeo.com/video/'+vimeo[1]+'" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" title="Vimeo video player" allow="autoplay; fullscreen; picture-in-picture; clipboard-write" allowfullscreen></iframe></div>';
         }
         return '<p style="margin:0 0 20px;"><a href="'+esc(url)+'" target="_blank" rel="noopener" style="display:inline-block;background:#1e293b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-family:Arial,sans-serif;font-weight:700;font-size:13px;">▶ Watch Video</a></p>';
+    }
+
+    // Derives a good, specific YouTube search query from this item's own
+    // brief plus the module's actual source material — e.g. a framing
+    // chapter that covers both balloon framing and platform framing should
+    // default to searching one of those specific terms, not a generic
+    // "framing" or the raw multi-paragraph source text. Teachers can still
+    // freely overwrite the query field afterward and re-search.
+    function buildVideoQueryPrompt(itemData, mod){
+        var p = "Below is the brief for one page in a Canvas LMS module, plus the module's source material. Write ONE short, specific YouTube search query (3-8 words) that would find a good instructional video matching what THIS page actually covers.\n\n";
+        p += "PAGE BRIEF:\n" + (itemData.textContent||"(no brief written yet — use the source material's main topic instead)") + "\n\n";
+        p += "SOURCE MATERIAL:\n";
+        if(itemData.uploadedFile) p += itemData.uploadedFile.substring(0,8000) + "\n\n";
+        if(mod && mod.sources && mod.sources.length){
+            p += mod.sources.map(function(s){return "--- "+s.name+" ---\n"+s.text.substring(0,8000);}).join("\n\n");
+        }
+        p += "\n\nReturn ONLY the search query text — no quotes, no markdown, no explanation, nothing else.";
+        return p;
+    }
+
+    // Small, focused follow-up call used by the Reading Toolbar feature —
+    // deliberately separate from the main content-generation prompt (which
+    // demands "ONLY HTML, no explanations") rather than asking one call to
+    // return mixed HTML+JSON, which is far less reliable to parse.
+    function buildKeyTermsPrompt(itemData, generatedHTML){
+        var p = "Below is a Canvas LMS page's finished HTML content. Extract the most important vocabulary terms and the most important standalone facts a student should walk away remembering.\n\n";
+        p += "Return ONLY valid JSON, no markdown, no explanation:\n";
+        p += '{ "keyTerms": [{"term":"...", "definition":"1 short sentence"}], "keyFacts": ["1 short standalone sentence", "..."] }\n\n';
+        p += "RULES:\n";
+        p += "- 3-8 key terms, only real domain vocabulary introduced on this page — skip if the page has none\n";
+        p += "- 3-6 key facts, each a standalone sentence true independent of the rest of the page\n";
+        p += "- Base everything strictly on the content below — do not invent anything not actually covered\n";
+        p += "- Valid JSON only\n\n";
+        p += "PAGE CONTENT:\n" + (generatedHTML||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim().slice(0, 12000);
+        return p;
+    }
+
+    // Runs right after a content/activity page finishes generating, only
+    // when the teacher opted into the Reading Toolbar — failure here is
+    // never fatal to the main generation, the page just ships without a
+    // toolbar (same "best-effort, not required" spirit as the reference
+    // image fallback in the PDF assignment flow).
+    async function maybeGenerateToolbarData(d){
+        if(!d.includeToolbar || !d.generatedHTML) return;
+        try{
+            var raw = await callClaude(buildKeyTermsPrompt(d, d.generatedHTML), AI_MODEL_CONTENT_FAST, 1200);
+            var cleaned = raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+            var s=cleaned.indexOf("{"), e=cleaned.lastIndexOf("}");
+            if(s===-1||e===-1) return;
+            d.toolbarData = JSON.parse(cleaned.slice(s,e+1));
+        }catch(e){ /* not fatal */ }
+    }
+
+    function cmbEstimateReadTimeStatic(html){
+        var words = (html||"").replace(/<[^>]+>/g," ").trim().split(/\s+/).filter(Boolean).length;
+        return Math.max(1, Math.round(words / 200));
+    }
+
+    // Static, always-visible replacement for the old extension-only Reading
+    // Toolbar widget. Plain <details>/<summary> with inline styles only —
+    // same Canvas-safe pattern as activitySingleRevealCard above (Canvas
+    // strips <style>/<script> tags on save) — so every student sees Key
+    // Terms/Key Facts/read time with zero extension requirement.
+    function renderToolbarSectionHTML(toolbarData, itemData){
+        var terms = (toolbarData && toolbarData.keyTerms) || [];
+        var facts = (toolbarData && toolbarData.keyFacts) || [];
+        if(!terms.length && !facts.length) return "";
+        var mins = cmbEstimateReadTimeStatic(itemData && itemData.generatedHTML);
+        var h = '\n<div style="max-width:920px;margin:28px auto 0;font-family:Arial,sans-serif;">\n';
+        h += '<div style="font-size:12px;color:#6B7280;margin-bottom:12px;">⏱ Estimated read time: ' + mins + ' min</div>\n';
+        if(terms.length){
+            h += '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
+            h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:14px 20px;font-weight:700;font-size:14px;color:#1e293b;">🔑 Key Terms</summary>\n';
+            h += '  <div style="padding:6px 20px 16px;border-top:1px solid #e5e7eb;background:#fff;">\n';
+            terms.forEach(function(t){
+                h += '    <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.6;color:#374151;"><strong style="color:#1e293b;">' + (t.term||"") + ':</strong> ' + (t.definition||"") + '</div>\n';
+            });
+            h += '  </div>\n</details>\n';
+        }
+        if(facts.length){
+            h += '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
+            h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:14px 20px;font-weight:700;font-size:14px;color:#1e293b;">📌 Key Facts</summary>\n';
+            h += '  <div style="padding:6px 20px 16px;border-top:1px solid #e5e7eb;background:#fff;">\n';
+            facts.forEach(function(f){
+                h += '    <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.6;color:#374151;">• ' + f + '</div>\n';
+            });
+            h += '  </div>\n</details>\n';
+        }
+        h += '</div>\n';
+        return h;
     }
 
     function buildContentPrompt(itemData, itemType){
@@ -1095,6 +1230,10 @@
             p += "VIDEO EMBED (insert this exact block, verbatim, as the first thing inside the body wrapper, before any section content):\n";
             p += buildVideoEmbedHtml(itemData.videoUrl.trim()) + "\n\n";
         }
+        if(itemData.video2Url && itemData.video2Url.trim()){
+            p += "SECOND VIDEO EMBED (insert this exact block, verbatim, further down the page — a natural break point such as between sections, not immediately next to the first video):\n";
+            p += buildVideoEmbedHtml(itemData.video2Url.trim()) + "\n\n";
+        }
 
         p += "BODY WRAPPER (holds every section below):\n";
         if(layout === "twocol"){
@@ -1119,7 +1258,13 @@
             p += '<div style="max-width:860px;margin:0 auto;padding:32px 28px;font-family:Arial,sans-serif;">...sections...</div>\n\n';
         }
 
-        p += "PER SECTION (use 1-3 sections, as many as the content needs):\n";
+        if(itemType === "syllabus"){
+            p += "PER SECTION — use exactly these sections, in this order: Course Description, Learning Objectives, Required Tools & Materials, Grading Breakdown, Course Schedule Overview, Attendance & Safety Policy, Contact Information:\n";
+        } else if(itemType === "homepage"){
+            p += "PER SECTION — use exactly these sections, in this order: Welcome, Course Overview, How This Course Works, Meet Your Instructor, Quick Links:\n";
+        } else {
+            p += "PER SECTION (use 1-3 sections, as many as the content needs):\n";
+        }
         p += '<h2 style="font-family:Georgia,serif;font-size:19px;font-weight:700;color:' + theme.primary + ';border-bottom:1px solid ' + theme.border + ';padding-bottom:6px;margin:24px 0 10px;">[SECTION TITLE]</h2>\n';
         p += '<p style="font-size:14px;line-height:1.7;color:' + theme.text + ';margin:0 0 14px;">[1-2 paragraphs, 2-4 sentences each]</p>\n\n';
         p += "BULLET LIST (use whenever you'd otherwise list several related items — steps, examples, criteria — inside a paragraph):\n";
@@ -1146,23 +1291,43 @@
                 if(rels.draftCheckpoint) extras.push('A "Draft Checkpoint" callout noting a rough draft milestone is expected before the final submission');
             }
         } else {
+            if(itemType === "syllabus"){
+                extras.push('Course Description: 1-2 paragraphs summarizing what the course covers and who it\'s for');
+                extras.push('Learning Objectives: a bullet list of 4-8 specific, measurable things students will be able to do by the end of the course');
+                extras.push('Required Tools & Materials: a bullet list specific to the trade/subject in the source material (be concrete — real tools/textbooks/supplies, not generic placeholders)');
+                extras.push('Grading Breakdown: a simple table — Category | % of Grade (e.g. Assignments, Labs/Projects, Participation, Final Assessment) that sums to 100%');
+                extras.push('Course Schedule Overview: a bullet or numbered list of the major topics/units in sequence (derive from the source material/module list if available — do not invent unrelated topics)');
+                extras.push('Attendance & Safety Policy: 1-2 paragraphs — for a trade/lab course, include the real safety-related expectations (PPE, lab conduct) alongside standard attendance/late-work policy');
+                extras.push('Contact Information: a placeholder block for instructor name, email, and office hours: <p style="font-size:14px;color:' + theme.text + ';">[Instructor Name]<br>[email]<br>Office Hours: [placeholder]</p>');
+            } else if(itemType === "homepage"){
+                extras.push('Welcome: a warm 2-3 sentence welcome message to students starting the course');
+                extras.push('Course Overview: 1-2 paragraphs on what the course covers and why it matters (real-world/career relevance for a trade-school audience)');
+                extras.push('How This Course Works: a short bullet list explaining where to find Modules, Assignments, and Grades, and what students should do first');
+                extras.push('Meet Your Instructor: a placeholder block: <p style="font-size:14px;color:' + theme.text + ';">[Instructor Name] — [one-sentence background/credentials placeholder]</p>');
+                extras.push('Quick Links: a short list of links to key course areas using real relative URLs — <a href="/courses/' + getCourseId() + '/modules">Modules</a>, <a href="/courses/' + getCourseId() + '/assignments">Assignments</a>, <a href="/courses/' + getCourseId() + '/grades">Grades</a>');
+            }
             if(els.tipBoxes) extras.push('At most one tip callout: <div style="background:#fff;border-left:4px solid ' + theme.accent + ';padding:12px 16px;margin:16px 0;"><div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:' + theme.accent + ';margin-bottom:4px;">TIP</div><p style="margin:0;font-size:13px;color:' + theme.text + ';">[text]</p></div>');
             if(els.quoteBoxes) extras.push("At most one highlight box, same markup as the tip callout above but labeled to fit the content");
             if(els.alertBoxes) extras.push("At most one alert box, same markup as the tip callout above but border-left-color:#BF360C and the label in red");
             if(els.collapsible) extras.push("One or two collapsible sections using <details><summary>[question]</summary><p>[answer]</p></details>, no extra styling");
             if(els.sectionDividers) extras.push('A plain rule between sections: <hr style="border:none;border-top:1px solid ' + theme.border + ';margin:24px 0;">');
             if(els.emojiIcons) extras.push("One relevant emoji before each section title, inside the H2 text");
-            if(els.imagePlaceholders) extras.push("Where a real photo would help, insert a marker on its own line: [[IMAGE: 2-4 word keyword]] — do not write an <img> tag yourself, 1 marker max");
+            if(els.imagePlaceholders) extras.push("Where a real photo would genuinely help a reader picture a concrete, physical thing described in that section (a tool, material, technique, structure, place — e.g. a \"wall framing\" section should show an actual wall being framed), insert a marker on its own line: [[IMAGE: 2-4 word keyword]] — do not write an <img> tag yourself. Roughly one per section is reasonable where the subject is genuinely visual; skip it entirely for sections that are abstract, procedural-only, or already well illustrated by a table/list.");
         }
         if(extras.length){
-            p += "OPTIONAL ELEMENTS (use the exact markup given, nothing extra):\n";
+            var isRequiredSections = (itemType === "syllabus" || itemType === "homepage");
+            p += (isRequiredSections ? "REQUIRED SECTION CONTENT (write each section listed above using this guidance, using the exact markup given for any embedded elements):\n" : "OPTIONAL ELEMENTS (use the exact markup given, nothing extra):\n");
             for(var i=0;i<extras.length;i++) p += "- " + extras[i] + "\n";
             p += "\n";
         }
 
         p += "RULES\n";
         p += "- Use ONLY the elements above — no hero images, stat panels, gradients, summary boxes, or extra decorative blocks\n";
-        p += "- Write 2-5 paragraphs of real content total (not per section) — organize into 1-3 sections as needed. Don't pad it out, but don't leave it thin either.\n";
+        if(itemType === "syllabus" || itemType === "homepage"){
+            p += "- Write all sections listed above in full — this is a longer reference page, not a short lesson page. Don't pad any section out, but don't leave any thin either.\n";
+        } else {
+            p += "- Write 2-5 paragraphs of real content total (not per section) — organize into 1-3 sections as needed. Don't pad it out, but don't leave it thin either.\n";
+        }
         p += "- Use the bullet list markup whenever you'd otherwise cram several related items into one paragraph\n";
         p += "- Do not invent new colors, fonts, or layout structures\n\n";
 
@@ -1347,6 +1512,33 @@
             aiNotes: "Auto-generated from this assignment's question schema. Fields with a stated correct answer can be scored with confidence; items marked for judgment need your review — use any notes only as a reference point.",
             answerFields: fields
         };
+    }
+
+    // A REDACTED view of the same criteria object, safe to show students —
+    // points and rubric guidance only, never a field's correctAnswer. This
+    // is what the "Grading Criteria" button on the live assignment page
+    // reveals; formatKnowledgeCriteria/formatAssignmentCriteria's full
+    // output (with correctAnswer) stays teacher/AI-Grader-only inside the
+    // same hidden marker.
+    function formatStudentCriteriaView(criteria){
+        var fields = criteria.answerFields || [];
+        var seenTable = {};
+        var breakdown = [];
+        fields.forEach(function(f){
+            var tableMatch = /^(field_\d+)_r\d+_c\d+$/.exec(f.name);
+            var label = f.label||"";
+            if(tableMatch){
+                var key = tableMatch[1];
+                if(seenTable[key]) return;
+                seenTable[key] = true;
+                label = label.split(" — ")[0];
+            }
+            var line = label;
+            if(f.points) line += " ("+f.points+" pts)";
+            if(f.rubricNote) line += " — "+f.rubricNote;
+            breakdown.push(line);
+        });
+        return { pointsPossible: criteria.pointsPossible||0, breakdown: breakdown };
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -1704,15 +1896,15 @@
     // ════════════════════════════════════════════════════════════════
 
     const ASSIGNMENT_TYPE_GUIDANCE = {
-        research: "This is a Research Assignment: students investigate information beyond the course materials using reliable sources (e.g. OSHA standards, building codes, manufacturers, new technologies, materials, careers, equipment, industry best practices). Include a section for the research question/topic, a source-tracking section (a \"table\" field is ideal — columns like Source, Type, Key Finding), and a findings-summary section (\"long\" fields). Most fields should carry a rubricNote (there's rarely one exact correct answer to research), but if the assignment asks students to look up a specific fact (a code number, a spec value), give that field a correctAnswer instead.",
-        creative: "This is a Creative Assignment: students demonstrate understanding by identifying, documenting, explaining, or comparing REAL examples they find in homes, businesses, construction sites, or everyday environments (photos, videos, sketches, models — produced OUTSIDE this PDF and attached separately as additional files alongside this completed form, so do not ask the student to embed media in the form itself). This PDF should be a completion/reflection form: a checklist of what to document, and \"short\"/\"long\" fields asking the student to describe what they found and explain how it connects to course concepts. Use rubricNote on nearly every field — this type is judged qualitatively, not answer-key graded.",
-        labproject: "This is a Lab Project: students physically perform a trade-related skill using proper tools, equipment, materials, and safety procedures, then submit photographs, videos, measurements, or instructor verification as evidence (attached separately, not embedded in this PDF). Include a Safety/PPE section (checkbox fields, each with a correctAnswer of \"checked\" for required items), a Tools & Materials staticList, a numbered Procedure (staticText, no fields needed unless verifying a step was completed — use checkbox), an Observations/Measurements section (a \"table\" field works well, correctAnswer per expected reading if known), and a Reflection section (\"long\" fields with rubricNote).",
-        troubleshooting: "This is a Troubleshooting Assignment: students are given a specific equipment failure, construction defect, installation error, or workplace problem (describe a concrete, realistic scenario in staticText) and must analyze symptoms, identify possible causes, determine the most likely solution, and explain their reasoning. Include a \"short\" field for the most likely root cause (correctAnswer, since a scenario you write has a definite intended answer) and \"long\" fields for symptom analysis and reasoning (rubricNote, since a student can reach the right conclusion via different valid reasoning paths).",
-        inspection: "This is an Inspection Assignment: students evaluate equipment, materials, structures, tools, or work areas against stated standards, codes, specifications, or safety regulations, identify deficiencies, document observations, determine compliance, and recommend corrective actions. Favor checkbox/table fields for compliance checks (correctAnswer where the standard gives an objective pass/fail), and \"long\" fields for documented deficiencies and recommended corrective actions (rubricNote, since wording varies but the substance should match).",
-        blueprint: "This is a Blueprint/Diagram Assignment: students read, interpret, and apply a technical drawing, blueprint, schematic, wiring diagram, piping layout, exploded view, or construction plan. THE ACTUAL DIAGRAM IS PROVIDED SEPARATELY and will be inserted into this PDF automatically wherever a section sets \"useReferenceImage\":true — set that flag on the ONE section where students should look at the diagram to answer questions (do not describe or attempt to draw the diagram yourself in staticText). Ask students to identify components, determine dimensions, follow symbols, or trace systems shown in that image — these have definite correct answers, so give most fields a correctAnswer.",
-        demonstration: "This is a Demonstration Assignment: students explain and demonstrate a specific skill or procedure via a recorded video, live presentation, or narrated slideshow (produced and attached separately, not embedded in this PDF). This PDF should be a companion reflection form: \"long\" fields asking the student to explain WHY each step is performed and how it contributes to safe/effective job performance (rubricNote — this is about understanding, not a single correct wording), plus a self-checklist (checkbox) confirming each required step was demonstrated.",
-        estimating: "This is an Estimating/Job Planning Assignment: students calculate material quantities, estimate labor, determine equipment needs, prepare cost estimates, develop schedules, or create work plans for a described job. Favor \"table\" fields for material/quantity/cost breakdowns and \"short\" fields for specific calculated totals — give these a correctAnswer (these are numeric calculations with a right answer given the job description you provide). Use \"long\" fields with rubricNote only for open-ended planning narrative (e.g. \"describe your project schedule\").",
-        scenario: "This is a Workplace Scenario Assignment: students are given a realistic job-site situation (describe it concretely in staticText — a customer interaction, safety concern, equipment failure, ethical situation, scheduling conflict, etc.) requiring professional judgment, and must evaluate information, prioritize actions, consider safety, and justify their decision. These almost always have MULTIPLE reasonable solutions, not one correct answer — use \"long\" fields with rubricNote describing what a strong response should demonstrate (e.g. \"should prioritize safety, communicate clearly with the customer, and justify the choice\"), not a correctAnswer."
+        research: "This is a Research Assignment: students investigate information beyond the course materials using reliable sources (e.g. OSHA standards, building codes, manufacturers, new technologies, materials, careers, equipment, industry best practices). Include a section for the research question/topic, a source-tracking section (a \"table\" field is ideal — columns like Source, Type, Key Finding), and a findings-summary section (\"long\" fields). Most fields should carry a rubricNote (there's rarely one exact correct answer to research), but if the assignment asks students to look up a specific fact (a code number, a spec value), give that field a correctAnswer instead. SCOPE: ONE focused research question, not a multi-topic report — 3 sections and 4-6 fields total is enough.",
+        creative: "This is a Creative Assignment: students demonstrate understanding by identifying, documenting, explaining, or comparing REAL examples they find in homes, businesses, construction sites, or everyday environments (photos, videos, sketches, models — produced OUTSIDE this PDF and attached separately as additional files alongside this completed form, so do not ask the student to embed media in the form itself). This PDF should be a completion/reflection form: a checklist of what to document, and \"short\"/\"long\" fields asking the student to describe what they found and explain how it connects to course concepts. Use rubricNote on nearly every field — this type is judged qualitatively, not answer-key graded. SCOPE: ONE documentation task, not several separate examples to compare — 4-6 fields total is enough.",
+        labproject: "This is a Lab Project: students physically perform a trade-related skill using proper tools, equipment, materials, and safety procedures, then submit photographs, videos, measurements, or instructor verification as evidence (attached separately, not embedded in this PDF). Keep this PDF SIMPLE — a real paperwork packet is unrealistic overhead for a hands-on build. Use EXACTLY three sections, nothing more: (1) \"What to Build\" — staticText describing the finished project/deliverable and its spec, no fields; (2) \"Steps to Build It\" — a numbered staticList of the actual build steps, no fields; (3) \"Grading Criteria\" — 3-6 fields (checkbox or short, each with a correctAnswer or rubricNote and points) that ARE the rubric items the teacher will use to grade the submitted evidence, e.g. \"Cuts are square and within spec\" or \"PPE worn throughout\" (checkbox, correctAnswer:\"checked\"). Do NOT add a Tools & Materials list, a separate Reflection section, or an Observations/Measurements table — those turn a hands-on build into unnecessary paperwork.",
+        troubleshooting: "This is a Troubleshooting Assignment: students are given a specific equipment failure, construction defect, installation error, or workplace problem (describe a concrete, realistic scenario in staticText) and must analyze symptoms, identify possible causes, determine the most likely solution, and explain their reasoning. Include a \"short\" field for the most likely root cause (correctAnswer, since a scenario you write has a definite intended answer) and \"long\" fields for symptom analysis and reasoning (rubricNote, since a student can reach the right conclusion via different valid reasoning paths). SCOPE: ONE problem, not several — 3-4 fields total (root cause, symptom analysis, reasoning) is enough.",
+        inspection: "This is an Inspection Assignment: students evaluate equipment, materials, structures, tools, or work areas against stated standards, codes, specifications, or safety regulations, identify deficiencies, document observations, determine compliance, and recommend corrective actions. Favor checkbox/table fields for compliance checks (correctAnswer where the standard gives an objective pass/fail), and \"long\" fields for documented deficiencies and recommended corrective actions (rubricNote, since wording varies but the substance should match). SCOPE: ONE specific area/item to inspect, not an entire facility — 5-7 checklist/table fields plus one deficiency/corrective-action field is enough.",
+        blueprint: "This is a Blueprint/Diagram Assignment: students read, interpret, and apply a technical drawing, blueprint, schematic, wiring diagram, piping layout, exploded view, or construction plan. THE ACTUAL DIAGRAM IS PROVIDED SEPARATELY and will be inserted into this PDF automatically wherever a section sets \"useReferenceImage\":true — set that flag on the ONE section where students should look at the diagram to answer questions (do not describe or attempt to draw the diagram yourself in staticText). Ask students to identify components, determine dimensions, follow symbols, or trace systems shown in that image — these have definite correct answers, so give most fields a correctAnswer. SCOPE: 5-8 fields about that ONE diagram is enough — do not try to ask about every possible detail in the image.",
+        demonstration: "This is a Demonstration Assignment: students explain and demonstrate a specific skill or procedure via a recorded video, live presentation, or narrated slideshow (produced and attached separately, not embedded in this PDF). This PDF should be a companion reflection form: \"long\" fields asking the student to explain WHY each step is performed and how it contributes to safe/effective job performance (rubricNote — this is about understanding, not a single correct wording), plus a self-checklist (checkbox) confirming each required step was demonstrated. SCOPE: ONE procedure — a self-checklist (3-5 checkbox items) plus 1-2 \"why\" reflection fields is enough.",
+        estimating: "This is an Estimating/Job Planning Assignment: students calculate material quantities, estimate labor, determine equipment needs, prepare cost estimates, develop schedules, or create work plans for a described job. Favor \"table\" fields for material/quantity/cost breakdowns and \"short\" fields for specific calculated totals — give these a correctAnswer (these are numeric calculations with a right answer given the job description you provide). Use \"long\" fields with rubricNote only for open-ended planning narrative (e.g. \"describe your project schedule\"). SCOPE: ONE job/task, not a full estimate packet — pick just ONE of materials/labor/equipment/scheduling to focus on (whichever the source material best supports), not all of them at once. One table plus 1-2 calculated-total fields is enough.",
+        scenario: "This is a Workplace Scenario Assignment: students are given a realistic job-site situation (describe it concretely in staticText — a customer interaction, safety concern, equipment failure, ethical situation, scheduling conflict, etc.) requiring professional judgment, and must evaluate information, prioritize actions, consider safety, and justify their decision. These almost always have MULTIPLE reasonable solutions, not one correct answer — use \"long\" fields with rubricNote describing what a strong response should demonstrate (e.g. \"should prioritize safety, communicate clearly with the customer, and justify the choice\"), not a correctAnswer. SCOPE: ONE scenario, ONE decision — 3-5 fields total (the decision itself, plus 1-2 justification/reasoning fields). This is a single realistic moment a technician faces on the job, NOT a multi-part design project covering many separate sub-topics (do not ask the student to also spec out materials, calculations, or a whole system design here — that belongs in a different assignment type)."
     };
 
     function buildAssignmentPdfPrompt(itemData, itemType){
@@ -1744,7 +1936,7 @@
         p += "- Every field that has one definite correct answer should carry \"correctAnswer\" (a plain string describing it). Every field that needs a teacher's/AI's judgment instead should carry \"rubricNote\" (what a strong answer should demonstrate) — not both.\n";
         p += "- \"staticText\"/\"staticList\" are locked, non-editable content — put all instructions, scenario descriptions, and reference information there, never in a field's label alone.\n";
         p += "- Set \"useReferenceImage\":true on at most one section, only if this assignment type genuinely needs a reference image (e.g. Blueprint/Diagram) and only where that image should visually appear.\n";
-        p += "- 3-6 sections total is typical. Do not pad with filler sections.\n";
+        p += "- HARD LIMIT: no more than 4 sections and no more than 10 graded fields total across the whole assignment — a student should be able to finish this in one sitting, not write a comprehensive report or full project packet. If the SCOPE note above suggests fewer, follow the smaller number. Do not pad with filler sections or ask the same thing multiple ways.\n";
         p += "- Base everything on the source material below — do not invent unrelated content.\n";
         p += "- Valid JSON only, no trailing commas.\n\n";
         p += "SOURCE MATERIAL:\n";
@@ -2379,6 +2571,11 @@
     .cmb-sch-holiday{font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:8px;font-weight:700;}
     .cmb-sch-datecount{margin-left:auto;background:#E2E8F0;color:#475569;border-radius:10px;padding:1px 7px;font-size:10px;}
     #cmb-sg-toolbar{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#1B303D;height:44px;display:flex;align-items:center;gap:4px;padding:0 10px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+    /* Toolbar is position:fixed (so it stays put while SpeedGrader's own
+       panes scroll internally) which would otherwise sit on top of Canvas's
+       fixed header — push the whole page down by the toolbar's height so
+       nothing is covered. */
+    body.cmb-sg-page-mode{padding-top:44px !important;}
     #cmb-sg-tab{position:fixed;top:0;right:16px;z-index:2147483000;background:#1B303D;color:#fff;border:none;border-radius:0 0 8px 8px;padding:5px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:system-ui,sans-serif;}
     .cmb-sg-brand{color:#fff;font-weight:700;font-size:12px;padding:0 8px;white-space:nowrap;opacity:0.85;}
     .cmb-sg-wrap{position:relative;}
@@ -2479,6 +2676,7 @@
     .cmb-cs-res-item:hover{background:#e8f0fb;color:#0770B8;}
     #cmb-cs-notice{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#333;color:#fff;padding:10px 20px;border-radius:4px;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;opacity:0;transition:opacity .2s,transform .2s;z-index:999999;pointer-events:none;}
     #cmb-cs-notice.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
     `;
 
     // ========== RENDER SYSTEM ==========
@@ -2940,7 +3138,14 @@
         // AI decides per-item whether a photo actually helps (concrete/
         // visual things like tools get one, abstract concepts don't).
         var imagesOn = !!d.includeImages;
-        h+='<div class="cmb-el-toggle'+(imagesOn?' on':'')+'" id="cmb-act-images-toggle" style="margin-bottom:16px;"><div class="dot"></div><div><div style="font-weight:500;">Include Images</div><div style="font-size:10px;color:#94A3B8;">AI adds a real photo next to concrete/visual terms (e.g. a tool, an animal) — skips abstract ones</div></div></div>';
+        h+='<div class="cmb-el-toggle'+(imagesOn?' on':'')+'" id="cmb-act-images-toggle"><div class="dot"></div><div><div style="font-weight:500;">Include Images</div><div style="font-size:10px;color:#94A3B8;">AI adds a real photo next to concrete/visual terms (e.g. a tool, an animal) — skips abstract ones</div></div></div>';
+
+        // Reading Toolbar toggle — appends Key Terms, Key Facts, and an
+        // estimated read time as static <details> sections baked directly
+        // into the saved Canvas HTML, so it works for every student with
+        // no extension required.
+        var toolbarOn = !!d.includeToolbar;
+        h+='<div class="cmb-el-toggle'+(toolbarOn?' on':'')+'" id="cmb-act-toolbar-toggle" style="margin-bottom:16px;"><div class="dot"></div><div><div style="font-weight:500;">Reading Toolbar</div><div style="font-size:10px;color:#94A3B8;">Adds Key Terms, Key Facts, and estimated read time for students</div></div></div>';
 
         // Source material
         h+='<div class="cmb-card"><label class="cmb-label">Source Material</label>';
@@ -2961,6 +3166,7 @@
             d.aiEngine=(d.aiEngine==="fast")?"detailed":"fast";render();
         });
         container.querySelector("#cmb-act-images-toggle").addEventListener("click",function(){ d.includeImages=!d.includeImages; render(); });
+        container.querySelector("#cmb-act-toolbar-toggle").addEventListener("click",function(){ d.includeToolbar=!d.includeToolbar; render(); });
         container.querySelector("#cmb-act-down").addEventListener("click",function(){if(d.count>2)d.count--;render();});
         container.querySelector("#cmb-act-up").addEventListener("click",function(){if(d.count<20)d.count++;render();});
         container.querySelector("#cmb-act-text").addEventListener("input",function(e){d.textContent=e.target.value;});
@@ -2983,7 +3189,9 @@
             var btn=container.querySelector("#cmb-act-gen");btn.disabled=true;btn.textContent="Generating...";
             try{
                 var html=await callClaude(buildActivityPrompt(d,item.type),contentModel(d),activityMaxTokens(item.type));
-                d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+                d.generatedHTML=await finalizeGeneratedHTML(html);
+                await maybeGenerateToolbarData(d);
+                d.subView="result";
                 state.status=info.label+" generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -3041,41 +3249,53 @@
         });
         h+='</select></div>';
 
-        if(item.type==="video"){
-            h+='<div class="cmb-card"><label class="cmb-label">Video</label>';
-            h+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Paste a YouTube/Vimeo link or any video URL, or search YouTube below — it will be embedded near the top of the page.</div>';
-            h+='<input type="text" class="cmb-input" id="cmb-video-url" value="'+esc(d.videoUrl||"")+'" placeholder="https://www.youtube.com/watch?v=...">';
-            h+='<div style="display:flex;gap:8px;margin-top:10px;">';
-            h+='<input type="text" class="cmb-input" style="flex:1;" id="cmb-video-query" value="'+esc(d.videoQuery||"")+'" placeholder="Search topic, e.g. photosynthesis for kids">';
-            h+='<button class="cmb-btn cmb-btn-ai" id="cmb-video-search" style="white-space:nowrap;">🔍 Recommend Videos</button>';
-            h+='</div>';
-            if(!state.youtubeKey){
-                h+='<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">';
-                h+='<div style="font-size:11px;color:#94A3B8;flex:1;min-width:200px;">Needs a free YouTube API key — get one at <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">console.cloud.google.com</a> (enable "YouTube Data API v3", create an API key under Credentials — free, no billing needed).</div>';
-                h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-video-enterkey" style="white-space:nowrap;">🔑 Enter Key</button>';
-                h+='</div>';
-            }
-            if(d.videoResults && d.videoResults.length){
-                h+='<div class="cmb-video-results">';
-                d.videoResults.forEach(function(v,vi){
+        // Any content page can carry one or two videos — not just the
+        // dedicated "Video Page" item type — so a "two video page" is just a
+        // regular content page with the second slot turned on.
+        function videoSlotHtml(suffix, cardLabel){
+            var urlKey="video"+suffix+"Url", queryKey="video"+suffix+"Query", resultsKey="video"+suffix+"Results", previewKey="video"+suffix+"PreviewIndex";
+            var vh='<div class="cmb-card"><label class="cmb-label">'+cardLabel+'</label>';
+            vh+='<div style="font-size:11px;color:#64748B;margin-bottom:8px;">Paste a YouTube/Vimeo link, or search below — by default the search is derived from this page\'s own content, but you can type your own topic and re-search anytime.</div>';
+            vh+='<input type="text" class="cmb-input" id="cmb-video-url'+suffix+'" value="'+esc(d[urlKey]||"")+'" placeholder="https://www.youtube.com/watch?v=...">';
+            vh+='<div style="display:flex;gap:8px;margin-top:10px;">';
+            vh+='<input type="text" class="cmb-input" style="flex:1;" id="cmb-video-query'+suffix+'" value="'+esc(d[queryKey]||"")+'" placeholder="Leave blank to auto-search based on this page\'s content">';
+            vh+='<button class="cmb-btn cmb-btn-ai cmb-video-search" data-suffix="'+suffix+'" style="white-space:nowrap;">🔍 Recommend Videos</button>';
+            vh+='</div>';
+            if(d[resultsKey] && d[resultsKey].length){
+                vh+='<div class="cmb-video-results">';
+                d[resultsKey].forEach(function(v,vi){
                     var dur=formatYoutubeDuration(v.duration);
-                    var isPreview=d.videoPreviewIndex===vi;
-                    h+='<div class="cmb-video-card">';
-                    h+='<div class="cmb-video-row">';
-                    h+='<div class="cmb-video-thumb-wrap cmb-video-play" data-vi="'+vi+'">'+(v.thumbnail?'<img src="'+esc(v.thumbnail)+'" class="cmb-video-thumb">':'')+'<span class="cmb-video-playicon">'+(isPreview?'✕':'▶')+'</span>'+(dur?'<span class="cmb-video-dur">'+dur+'</span>':'')+'</div>';
-                    h+='<div class="cmb-video-info"><div class="cmb-video-title">'+esc(v.title)+'</div><div class="cmb-video-channel">'+esc(v.channel)+'</div></div>';
-                    h+='<button class="cmb-btn cmb-btn-secondary cmb-video-use" data-vi="'+vi+'">Use this video</button>';
-                    h+='</div>';
+                    var isPreview=d[previewKey]===vi;
+                    vh+='<div class="cmb-video-card">';
+                    vh+='<div class="cmb-video-row">';
+                    vh+='<div class="cmb-video-thumb-wrap cmb-video-play" data-suffix="'+suffix+'" data-vi="'+vi+'">'+(v.thumbnail?'<img src="'+esc(v.thumbnail)+'" class="cmb-video-thumb">':'')+'<span class="cmb-video-playicon">'+(isPreview?'✕':'▶')+'</span>'+(dur?'<span class="cmb-video-dur">'+dur+'</span>':'')+'</div>';
+                    vh+='<div class="cmb-video-info"><div class="cmb-video-title">'+esc(v.title)+'</div><div class="cmb-video-channel">'+esc(v.channel)+'</div></div>';
+                    vh+='<button class="cmb-btn cmb-btn-secondary cmb-video-use" data-suffix="'+suffix+'" data-vi="'+vi+'">Use this video</button>';
+                    vh+='</div>';
                     if(isPreview){
-                        h+='<div class="cmb-video-player"><iframe src="https://www.youtube.com/embed/'+esc(v.videoId)+'" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>';
+                        vh+='<div class="cmb-video-player"><iframe src="https://www.youtube.com/embed/'+esc(v.videoId)+'" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>';
                     }
-                    h+='</div>';
+                    vh+='</div>';
                 });
-                h+='</div>';
-            } else if(d.videoResults){
-                h+='<div style="font-size:12px;color:#94A3B8;margin-top:10px;">No results — try a different search.</div>';
+                vh+='</div>';
+            } else if(d[resultsKey]){
+                vh+='<div style="font-size:12px;color:#94A3B8;margin-top:10px;">No results — try a different search.</div>';
             }
+            vh+='</div>';
+            return vh;
+        }
+        h+=videoSlotHtml("","Video");
+        if(!state.youtubeKey){
+            h+='<div style="display:flex;align-items:center;gap:8px;margin:-8px 0 16px;flex-wrap:wrap;">';
+            h+='<div style="font-size:11px;color:#94A3B8;flex:1;min-width:200px;">Needs a free YouTube API key — get one at <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank">console.cloud.google.com</a> (enable "YouTube Data API v3", create an API key under Credentials — free, no billing needed).</div>';
+            h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-video-enterkey" style="white-space:nowrap;">🔑 Enter Key</button>';
             h+='</div>';
+        }
+        if(d.showVideo2){
+            h+=videoSlotHtml("2","Second Video");
+            h+='<div style="margin:-8px 0 16px;"><button class="cmb-btn cmb-btn-secondary" id="cmb-video2-remove">✕ Remove second video</button></div>';
+        } else {
+            h+='<div style="margin-bottom:16px;"><button class="cmb-btn cmb-btn-secondary" id="cmb-video2-add">+ Add a second video</button></div>';
         }
 
         var elMap=PAGE_EL;
@@ -3097,6 +3317,11 @@
         }
         h+='</div>';
 
+        if(!isGradedDiscussion){
+            var toolbarOnPage = !!d.includeToolbar;
+            h+='<div class="cmb-el-toggle'+(toolbarOnPage?' on':'')+'" id="cmb-page-toolbar-toggle" style="margin-bottom:16px;"><div class="dot"></div><div><div style="font-weight:500;">Reading Toolbar</div><div style="font-size:10px;color:#94A3B8;">Adds Key Terms, Key Facts, and estimated read time for students</div></div></div>';
+        }
+
         h+='<div class="cmb-card"><label class="cmb-label">Content / Instructions</label>';
         h+='<div class="cmb-file-row"><input type="file" id="cmb-cfile" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
         if(d.uploadedName){h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-rm-file">&times;</span></div>';}
@@ -3113,10 +3338,15 @@
         var cc=container.querySelector("#cmb-custom-color");
         if(cc) cc.addEventListener("input",function(e){d.customColor=e.target.value;});
         container.querySelector("#cmb-layout").addEventListener("change",function(e){d.layout=e.target.value;});
-        var videoInput=container.querySelector("#cmb-video-url");
-        if(videoInput) videoInput.addEventListener("input",function(e){d.videoUrl=e.target.value;});
-        var videoQueryInput=container.querySelector("#cmb-video-query");
-        if(videoQueryInput) videoQueryInput.addEventListener("input",function(e){d.videoQuery=e.target.value;});
+        var toolbarToggle=container.querySelector("#cmb-page-toolbar-toggle");
+        if(toolbarToggle) toolbarToggle.addEventListener("click",function(){ d.includeToolbar=!d.includeToolbar; render(); });
+        ["","2"].forEach(function(suffix){
+            var urlKey="video"+suffix+"Url", queryKey="video"+suffix+"Query", resultsKey="video"+suffix+"Results", previewKey="video"+suffix+"PreviewIndex";
+            var videoInput=container.querySelector("#cmb-video-url"+suffix);
+            if(videoInput) videoInput.addEventListener("input",function(e){d[urlKey]=e.target.value;});
+            var videoQueryInput=container.querySelector("#cmb-video-query"+suffix);
+            if(videoQueryInput) videoQueryInput.addEventListener("input",function(e){d[queryKey]=e.target.value;});
+        });
         var videoEnterKeyBtn=container.querySelector("#cmb-video-enterkey");
         if(videoEnterKeyBtn){
             videoEnterKeyBtn.addEventListener("click",function(){
@@ -3130,37 +3360,60 @@
                 render();
             });
         }
-        var videoSearchBtn=container.querySelector("#cmb-video-search");
-        if(videoSearchBtn){
+        var video2AddBtn=container.querySelector("#cmb-video2-add");
+        if(video2AddBtn) video2AddBtn.addEventListener("click",function(){ d.showVideo2=true; render(); });
+        var video2RemoveBtn=container.querySelector("#cmb-video2-remove");
+        if(video2RemoveBtn) video2RemoveBtn.addEventListener("click",function(){
+            d.showVideo2=false; d.video2Url=""; d.video2Query=""; d.video2Results=null; d.video2PreviewIndex=null;
+            render();
+        });
+        container.querySelectorAll(".cmb-video-search").forEach(function(videoSearchBtn){
             videoSearchBtn.addEventListener("click",async function(){
-                var query=(d.videoQuery||d.textContent||"").trim();
-                if(!query){state.status="Enter a search topic first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-                if(!state.youtubeKey){state.status="Add a YouTube API key in Setup first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-                state.status="Searching YouTube...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-                videoSearchBtn.disabled=true;videoSearchBtn.textContent="Searching...";
+                var suffix=videoSearchBtn.dataset.suffix||"";
+                var queryKey="video"+suffix+"Query", resultsKey="video"+suffix+"Results";
+                if(!state.youtubeKey){state.status="Add a YouTube API key first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+                var originalLabel=videoSearchBtn.textContent;
+                videoSearchBtn.disabled=true;
                 try{
-                    d.videoResults=await youtubeSearch(query);
-                    state.status=d.videoResults.length+" videos found";state.statusType="success";
+                    var query=(d[queryKey]||"").trim();
+                    if(!query){
+                        // No manual topic typed — default to a query derived
+                        // from this page's own brief/source material rather
+                        // than requiring the teacher to think one up.
+                        videoSearchBtn.textContent="Reading content...";
+                        query=(await callClaude(buildVideoQueryPrompt(d, curMod()), AI_MODEL_CONTENT_FAST, 60)).trim();
+                        if(!query) throw new Error("Could not derive a search topic — try typing one");
+                        d[queryKey]=query;
+                        var qInput=container.querySelector("#cmb-video-query"+suffix);
+                        if(qInput) qInput.value=query;
+                    }
+                    state.status="Searching YouTube...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+                    videoSearchBtn.textContent="Searching...";
+                    d[resultsKey]=await youtubeSearch(query);
+                    state.status=d[resultsKey].length+" videos found for \""+query+"\"";state.statusType="success";
                     render();
                 }catch(err){
                     state.status="Error: "+err.message;state.statusType="error";
-                    videoSearchBtn.disabled=false;videoSearchBtn.textContent="🔍 Recommend Videos";
+                    videoSearchBtn.disabled=false;videoSearchBtn.textContent=originalLabel;
                     renderStatus(overlayEl.querySelector("#cmb-panel"));
                 }
             });
-        }
+        });
         container.querySelectorAll(".cmb-video-use").forEach(function(btn){
             btn.addEventListener("click",function(){
+                var suffix=btn.dataset.suffix||"";
                 var vi=parseInt(btn.dataset.vi,10);
-                var v=d.videoResults[vi];
-                d.videoUrl="https://www.youtube.com/watch?v="+v.videoId;
+                var v=d["video"+suffix+"Results"][vi];
+                d["video"+suffix+"Url"]="https://www.youtube.com/watch?v="+v.videoId;
                 render();
             });
         });
         container.querySelectorAll(".cmb-video-play").forEach(function(el){
             el.addEventListener("click",function(){
+                var suffix=el.dataset.suffix||"";
+                var previewKey="video"+suffix+"PreviewIndex";
                 var vi=parseInt(el.dataset.vi,10);
-                d.videoPreviewIndex=(d.videoPreviewIndex===vi)?null:vi;
+                d[previewKey]=(d[previewKey]===vi)?null:vi;
                 render();
             });
         });
@@ -3196,7 +3449,9 @@
             var btn=container.querySelector("#cmb-gen-content");btn.disabled=true;btn.textContent="Generating...";
             try{
                 var html=await callClaude(buildContentPrompt(d,item.type),AI_MODEL_CONTENT_FAST,TOKENS_DEFAULT);
-                d.generatedHTML=await finalizeGeneratedHTML(html);d.subView="result";
+                d.generatedHTML=await finalizeGeneratedHTML(html);
+                await maybeGenerateToolbarData(d);
+                d.subView="result";
                 state.status="Content generated!";state.statusType="success";render();
             }catch(err){
                 state.status="Error: "+err.message;state.statusType="error";
@@ -3400,26 +3655,187 @@
     // the teacher reviews here is exactly what students will download —
     // rendered locally via renderAssignmentPdf and shown as a blob: URL,
     // nothing uploaded to Canvas yet at this point.
+    // Knowledge Assignment's schema fields (from knowledgeAnswerKeyToPdfSchema)
+    // don't carry correctAnswer/rubricNote/points the way Engine 2's schemas
+    // do — that data lives separately in generatedAnswerKey's typed questions,
+    // one question per section in the same order. Called once, the first
+    // time the structured editor opens on a Knowledge Assignment, this copies
+    // each question's answer onto its section's field(s) so the schema
+    // becomes self-sufficient — after this runs, generatedAnswerKey is
+    // cleared and the (now editable) schema is the single source of truth
+    // for both the PDF and the grading criteria, same as every other type.
+    function hydrateKnowledgeSchemaFields(schema, answerKey){
+        var questions=(answerKey && answerKey.questions)||[];
+        (schema.sections||[]).forEach(function(section,i){
+            var q=questions[i];
+            var fields=section.fields||[];
+            if(!q || !fields.length) return;
+            if(q.type==="mc"){
+                fields[0].correctAnswer=q.correct+(q.explanation?(" — "+q.explanation):"");
+                fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="tf"){
+                fields[0].correctAnswer=(q.correct?"True":"False")+(q.explanation?(" — "+q.explanation):"");
+                fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="matching"){
+                fields.forEach(function(f,fi){ f.correctAnswer=(q.definitions||[])[fi]||""; f.points=f.points||q.pointsEach; });
+            }else if(q.type==="ordering"){
+                fields[0].correctAnswer=(q.steps||[]).join(" → ");
+                fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="short"){
+                fields[0].rubricNote="Model answer: "+(q.modelAnswer||"");
+                fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="fillblank"){
+                fields.forEach(function(f,fi){ f.correctAnswer=(q.blanks||[])[fi]||""; });
+                if(fields[0]) fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="labeling"){
+                fields.forEach(function(f,fi){ f.correctAnswer=((q.labels||[])[fi]||{}).answer||""; });
+                if(fields[0]) fields[0].points=fields[0].points||q.points;
+            }else if(q.type==="calculation"){
+                var last=fields[fields.length-1];
+                last.correctAnswer=q.answer+(q.unit?(" "+q.unit):"")+(q.tolerance?(" ± "+q.tolerance):"");
+                last.points=last.points||q.points;
+            }else if(q.type==="scenario"){
+                fields[0].rubricNote=q.rubricNote||("Model answer: "+(q.modelAnswer||""));
+                fields[0].points=fields[0].points||q.points;
+            }
+        });
+    }
+
+    // Structured, form-based editor over the PDF schema — mirrors the "HTML
+    // Code" tab content pages already have, but as real fields instead of
+    // raw markup, since a PDF schema isn't hand-editable text the same way.
+    // Mutates d.generatedPdfSchema in place; the Preview tab always re-renders
+    // from whatever is currently in the schema, so edits show up immediately
+    // on switching tabs — no separate Save step.
+    function renderPdfSchemaEditor(container,d){
+        if(d.generatedAnswerKey){
+            hydrateKnowledgeSchemaFields(d.generatedPdfSchema, d.generatedAnswerKey);
+            d.generatedAnswerKey=null;
+        }
+        var schema=d.generatedPdfSchema;
+        function draw(){
+            var h='<div class="cmb-card">';
+            h+='<label class="cmb-label">Title</label><input type="text" class="cmb-input" id="cmb-pa-title" value="'+esc(schema.title||"")+'">';
+            h+='<label class="cmb-label" style="margin-top:10px;">Instructions</label><textarea class="cmb-textarea" id="cmb-pa-instructions" rows="2">'+esc(schema.instructions||"")+'</textarea>';
+            h+='</div>';
+            (schema.sections||[]).forEach(function(section,si){
+                h+='<div class="cmb-card">';
+                h+='<div style="display:flex;align-items:center;gap:8px;">';
+                h+='<input type="text" class="cmb-input" style="flex:1;font-weight:700;" data-si="'+si+'" data-f="heading" value="'+esc(section.heading||"")+'">';
+                h+='<button class="cmb-btn cmb-btn-secondary cmb-pa-rmsection" data-si="'+si+'" title="Remove section">✕ Section</button>';
+                h+='</div>';
+                var staticTextJoined=Array.isArray(section.staticText)?section.staticText.join("\n\n"):(section.staticText||"");
+                h+='<label class="cmb-label" style="margin-top:8px;">Locked instructional text (students cannot edit this)</label>';
+                h+='<textarea class="cmb-textarea" rows="3" data-si="'+si+'" data-f="staticText">'+esc(staticTextJoined)+'</textarea>';
+                var listJoined=(section.staticList||[]).join("\n");
+                h+='<label class="cmb-label" style="margin-top:8px;">Locked list — one item per line (e.g. numbered steps)</label>';
+                h+='<textarea class="cmb-textarea" rows="3" data-si="'+si+'" data-f="staticList">'+esc(listJoined)+'</textarea>';
+                if((section.fields||[]).length){
+                    h+='<label class="cmb-label" style="margin-top:10px;">Fields — what the student fills in, and what gets graded</label>';
+                }
+                (section.fields||[]).forEach(function(f,fi){
+                    h+='<div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:8px;">';
+                    h+='<div style="display:flex;gap:8px;">';
+                    h+='<select class="cmb-select" style="width:100px;flex-shrink:0;" data-si="'+si+'" data-fi="'+fi+'" data-f="type">';
+                    ["short","long","checkbox","table"].forEach(function(t){ h+='<option value="'+t+'"'+(f.type===t?" selected":"")+'>'+t+'</option>'; });
+                    h+='</select>';
+                    h+='<input type="text" class="cmb-input" style="flex:1;" placeholder="Label" data-si="'+si+'" data-fi="'+fi+'" data-f="label" value="'+esc(f.label||"")+'">';
+                    h+='<input type="number" class="cmb-input" style="width:64px;flex-shrink:0;" placeholder="pts" data-si="'+si+'" data-fi="'+fi+'" data-f="points" value="'+esc(f.points||"")+'">';
+                    h+='<button class="cmb-btn cmb-btn-secondary cmb-pa-rmfield" style="flex-shrink:0;" data-si="'+si+'" data-fi="'+fi+'" title="Remove field">✕</button>';
+                    h+='</div>';
+                    h+='<input type="text" class="cmb-input" style="margin-top:6px;" placeholder="Correct answer (leave blank if this is graded by judgment instead)" data-si="'+si+'" data-fi="'+fi+'" data-f="correctAnswer" value="'+esc(f.correctAnswer||"")+'">';
+                    h+='<input type="text" class="cmb-input" style="margin-top:6px;" placeholder="Grading note / what a strong answer should cover (leave blank if answer-key gradable)" data-si="'+si+'" data-fi="'+fi+'" data-f="rubricNote" value="'+esc(f.rubricNote||"")+'">';
+                    h+='</div>';
+                });
+                h+='<button class="cmb-btn cmb-btn-secondary cmb-pa-addfield" data-si="'+si+'">+ Add field</button>';
+                h+='</div>';
+            });
+            h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-pa-addsection">+ Add section</button>';
+            container.innerHTML=h;
+
+            container.querySelectorAll("[data-f]").forEach(function(el){
+                var evt=el.tagName==="SELECT"?"change":"input";
+                el.addEventListener(evt,function(){
+                    var si=parseInt(el.dataset.si,10);
+                    var f=el.dataset.f;
+                    var hasFi=el.dataset.fi!==undefined;
+                    if(!hasFi){
+                        if(f==="heading") schema.sections[si].heading=el.value;
+                        else if(f==="staticText") schema.sections[si].staticText=el.value;
+                        else if(f==="staticList") schema.sections[si].staticList=el.value.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+                    }else{
+                        var fi=parseInt(el.dataset.fi,10);
+                        var field=schema.sections[si].fields[fi];
+                        if(f==="points") field.points=el.value?parseFloat(el.value):undefined;
+                        else if(f==="correctAnswer"||f==="rubricNote"){ var v=el.value.trim(); if(v) field[f]=v; else delete field[f]; }
+                        else field[f]=el.value;
+                    }
+                });
+            });
+            container.querySelector("#cmb-pa-title").addEventListener("input",function(e){ schema.title=e.target.value; });
+            container.querySelector("#cmb-pa-instructions").addEventListener("input",function(e){ schema.instructions=e.target.value; });
+            container.querySelectorAll(".cmb-pa-rmsection").forEach(function(btn){
+                btn.addEventListener("click",function(){ schema.sections.splice(parseInt(btn.dataset.si,10),1); draw(); });
+            });
+            container.querySelectorAll(".cmb-pa-addfield").forEach(function(btn){
+                btn.addEventListener("click",function(){
+                    var si=parseInt(btn.dataset.si,10);
+                    schema.sections[si].fields=schema.sections[si].fields||[];
+                    schema.sections[si].fields.push({type:"short",label:"New field"});
+                    draw();
+                });
+            });
+            container.querySelectorAll(".cmb-pa-rmfield").forEach(function(btn){
+                btn.addEventListener("click",function(){
+                    var si=parseInt(btn.dataset.si,10),fi=parseInt(btn.dataset.fi,10);
+                    schema.sections[si].fields.splice(fi,1);
+                    draw();
+                });
+            });
+            var addSectionBtn=container.querySelector("#cmb-pa-addsection");
+            addSectionBtn.addEventListener("click",function(){
+                schema.sections=schema.sections||[];
+                schema.sections.push({heading:"New Section",staticText:"",fields:[]});
+                draw();
+            });
+        }
+        draw();
+    }
+
     function renderPdfAssignmentResult(container,item,d){
         if(d._pdfPreviewUrl){ try{ URL.revokeObjectURL(d._pdfPreviewUrl); }catch(e){} d._pdfPreviewUrl=null; }
         var info=ITEM_TYPES[item.type]||{label:"Assignment",icon:"?"};
         var h='<h2 class="cmb-h2">'+info.icon+' '+esc(info.label)+' - Result</h2>';
         h+='<p class="cmb-desc">This is the actual fillable PDF students will download, fill out, and submit — locked instructions, only the highlighted boxes are editable.</p>';
-        h+='<div id="cmb-pa-preview" style="border:1px solid #e5e7eb;border-radius:8px;min-height:500px;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:13px;">Rendering preview…</div>';
+        h+='<div class="cmb-tab-bar"><div class="cmb-tab active" data-tab="preview">Preview</div><div class="cmb-tab" data-tab="edit">Edit</div></div>';
+        h+='<div id="cmb-pa-content"></div>';
         h+='<div class="cmb-btn-row">';
         h+='<button class="cmb-btn cmb-btn-ai" id="cmb-pa-regen">Regenerate</button>';
         h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-pa-back">Back to Settings</button>';
         h+='</div>';
         container.innerHTML=h;
-        var wrap=container.querySelector("#cmb-pa-preview");
-        renderAssignmentPdf(d.generatedPdfSchema, d).then(function(bytes){
-            var blob=new Blob([bytes],{type:"application/pdf"});
-            var url=URL.createObjectURL(blob);
-            d._pdfPreviewUrl=url;
-            wrap.style.minHeight="";
-            wrap.innerHTML='<iframe src="'+url+'" style="width:100%;height:600px;border:none;border-radius:8px;"></iframe>';
-        }).catch(function(err){
-            wrap.textContent="Could not render preview: "+err.message;
+        var contentDiv=container.querySelector("#cmb-pa-content");
+        function showPreview(){
+            contentDiv.innerHTML='<div id="cmb-pa-preview" style="border:1px solid #e5e7eb;border-radius:8px;min-height:500px;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:13px;">Rendering preview…</div>';
+            var wrap=contentDiv.querySelector("#cmb-pa-preview");
+            renderAssignmentPdf(d.generatedPdfSchema, d).then(function(bytes){
+                var blob=new Blob([bytes],{type:"application/pdf"});
+                var url=URL.createObjectURL(blob);
+                d._pdfPreviewUrl=url;
+                wrap.style.minHeight="";
+                wrap.innerHTML='<iframe src="'+url+'" style="width:100%;height:600px;border:none;border-radius:8px;"></iframe>';
+            }).catch(function(err){
+                wrap.textContent="Could not render preview: "+err.message;
+            });
+        }
+        showPreview();
+        container.querySelectorAll(".cmb-tab").forEach(function(tab){
+            tab.addEventListener("click",function(){
+                container.querySelectorAll(".cmb-tab").forEach(function(t){t.classList.remove("active");});
+                tab.classList.add("active");
+                if(tab.dataset.tab==="preview") showPreview();
+                else renderPdfSchemaEditor(contentDiv,d);
+            });
         });
         container.querySelector("#cmb-pa-regen").addEventListener("click",function(){d.subView="build";render();});
         container.querySelector("#cmb-pa-back").addEventListener("click",function(){d.subView="build";render();});
@@ -3629,10 +4045,94 @@
             variantsPerQ:1,
             textContent:"", uploadedFile:"", uploadedName:"",
             groups:[], checked:[], queue:[],
-            quizTitle:"Quiz", engine:"classic"
+            quizTitle:"Quiz", engine:"classic",
+            aiEngine:"fast", // Haiku by default (fast); "detailed" switches to Sonnet for tougher/larger quizzes
+            // ── Course-content source (pull real module pages/assignments/
+            // discussions into the quiz prompt instead of only pasted text
+            // or an uploaded file) ──
+            courseModules: null,               // [{id,name}] — all modules in the course, fetched once on open
+            selectedModuleIds: [canvasModuleId], // which modules' items are shown below, pre-selected to the launching module
+            moduleItemsCache: {},               // moduleId -> [{key,title,kind,ref}] resolved item list
+            includedContentKeys: {},            // key -> true for items checked to include as source
+            contentTextCache: {}                // key -> resolved plain-text content, fetched lazily and cached
         };
         var activeVariant = [];
         var allSelected = false;
+        var loadingModuleItems = {}; // moduleId -> true while its items are being fetched
+
+        function includedContentCount(){
+            return Object.keys(qst.includedContentKeys).filter(function(k){ return qst.includedContentKeys[k]; }).length;
+        }
+
+        // Fetches every module in the course once, so the teacher can pull
+        // source material from ANY module, not just the one this was
+        // launched from.
+        function loadCourseModules(){
+            canvasAPIAll("/modules").then(function(mods){
+                qst.courseModules = mods.map(function(m){ return {id:String(m.id), name:m.name}; });
+                renderLeft();
+            }).catch(function(){
+                qst.courseModules = []; // fall back to just the launching module on failure
+                renderLeft();
+            });
+        }
+
+        // Fetches one module's items and keeps only the content-bearing
+        // types this tool knows how to pull text from (Pages, Assignments,
+        // Discussions) — Files/Quizzes/ExternalUrls/SubHeaders are skipped.
+        function loadModuleItems(moduleId){
+            if(qst.moduleItemsCache[moduleId] || loadingModuleItems[moduleId]) return;
+            loadingModuleItems[moduleId] = true;
+            renderLeft();
+            canvasAPIAll("/modules/"+moduleId+"/items").then(function(items){
+                qst.moduleItemsCache[moduleId] = items.filter(function(it){
+                    return it.type==="Page" || it.type==="Assignment" || it.type==="Discussion";
+                }).map(function(it){
+                    var kind = it.type==="Page" ? "page" : it.type==="Assignment" ? "assignment" : "discussion";
+                    var ref = it.type==="Page" ? it.page_url : it.content_id;
+                    return { key: kind+":"+ref, title: it.title, kind: kind, ref: ref };
+                });
+                loadingModuleItems[moduleId] = false;
+                renderLeft();
+            }).catch(function(){
+                qst.moduleItemsCache[moduleId] = [];
+                loadingModuleItems[moduleId] = false;
+                renderLeft();
+            });
+        }
+
+        // Fetches the actual body/description/message text for every
+        // checked content item (cached so re-generating doesn't re-fetch),
+        // and returns it as one concatenated block for the prompt.
+        async function resolveIncludedContentText(){
+            var keys = Object.keys(qst.includedContentKeys).filter(function(k){ return qst.includedContentKeys[k]; });
+            if(!keys.length) return "";
+            var allItems = [].concat.apply([], Object.values(qst.moduleItemsCache));
+            var parts = [];
+            for(var i=0;i<keys.length;i++){
+                var key = keys[i];
+                if(qst.contentTextCache[key] !== undefined){ parts.push(qst.contentTextCache[key]); continue; }
+                var item = allItems.find(function(it){ return it.key===key; });
+                if(!item) continue;
+                var text = "";
+                try{
+                    if(item.kind==="page"){
+                        var page = await canvasAPI("GET", "/pages/"+encodeURIComponent(item.ref));
+                        text = htmlToPlainText(page.body);
+                    }else if(item.kind==="assignment"){
+                        var a = await canvasAPI("GET", "/assignments/"+item.ref);
+                        text = htmlToPlainText(a.description);
+                    }else if(item.kind==="discussion"){
+                        var d = await canvasAPI("GET", "/discussion_topics/"+item.ref);
+                        text = htmlToPlainText(d.message);
+                    }
+                }catch(e){ text = ""; }
+                var block = text ? ("--- "+item.title+" ---\n"+text.slice(0,8000)) : "";
+                qst.contentTextCache[key] = block;
+                if(block) parts.push(block);
+            }
+            return parts.join("\n\n");
+        }
 
         var TYPE_LABELS={mc:"Multiple Choice",tf:"True / False",short:"Short Answer",essay:"Essay"};
         var TYPE_BADGE={mc:"background:#EDE9FE;color:#6D28D9",tf:"background:#F0FDF4;color:#166534",short:"background:#FEF3C7;color:#92400E",essay:"background:#F1F5F9;color:#475569"};
@@ -3675,10 +4175,53 @@
         function renderLeft(){
             var lh = '';
             lh += '<div class="cmb-card"><label class="cmb-label">Topic</label><textarea class="cmb-textarea" id="cmb-qb-topic" rows="3" placeholder="e.g. The American Civil War">'+esc(qst.topic)+'</textarea></div>';
+
+            // ── Use Course Content ──
+            lh += '<div class="cmb-card"><label class="cmb-label">Use Course Content</label>';
+            lh += '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">Base the quiz on pages/assignments/discussions already in this course, instead of (or alongside) pasted text.</div>';
+            if(qst.courseModules === null){
+                lh += '<div style="font-size:12px;color:#94A3B8;">Loading modules…</div>';
+            } else {
+                lh += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">';
+                qst.courseModules.forEach(function(m){
+                    var sel = qst.selectedModuleIds.indexOf(m.id) >= 0;
+                    lh += '<button type="button" class="cmb-qb-modchip" data-mid="'+m.id+'" style="font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;border:1px solid '+(sel?'#7C3AED':'#CBD5E1')+';background:'+(sel?'#F5F3FF':'#fff')+';color:'+(sel?'#7C3AED':'#475569')+';">'+esc(m.name)+'</button>';
+                });
+                lh += '</div>';
+                var anyLoading = qst.selectedModuleIds.some(function(id){ return loadingModuleItems[id]; });
+                if(anyLoading){ lh += '<div style="font-size:12px;color:#94A3B8;">Loading pages…</div>'; }
+                var seenKeys = {};
+                qst.selectedModuleIds.forEach(function(mid){
+                    var items = qst.moduleItemsCache[mid];
+                    if(!items || !items.length) return;
+                    items.forEach(function(it){
+                        if(seenKeys[it.key]) return; // same item linked into two selected modules
+                        seenKeys[it.key] = true;
+                        var checked = !!qst.includedContentKeys[it.key];
+                        var kindLabel = it.kind==="page"?"Page":it.kind==="assignment"?"Assignment":"Discussion";
+                        lh += '<div class="cmb-el-toggle'+(checked?' on':'')+'" data-ckey="'+esc(it.key)+'" style="margin-bottom:6px;">';
+                        lh += '<div class="dot"></div><div style="flex:1;"><div style="font-weight:500;">'+esc(it.title)+'</div><div style="font-size:10px;color:#94A3B8;">'+kindLabel+'</div></div>';
+                        lh += '</div>';
+                    });
+                });
+                if(includedContentCount()){
+                    lh += '<div style="margin-top:6px;font-size:11px;color:#059669;">✓ '+includedContentCount()+' item(s) selected as source.</div>';
+                }
+            }
+            lh += '</div>';
+
             lh += '<div class="cmb-card"><label class="cmb-label">Source Material (optional)</label>';
+            lh += '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">Upload a file (PDF/DOCX/PPTX/TXT), paste text, or both — a Topic above is optional if you provide source material.</div>';
             lh += '<div class="cmb-file-row"><input type="file" id="cmb-qb-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
             if(qst.uploadedName){ lh += '<div class="cmb-file-chip">'+esc(qst.uploadedName)+' <span class="x" id="cmb-qb-rmfile">&times;</span></div>'; }
             lh += '</div><textarea class="cmb-textarea" id="cmb-qb-content" rows="3" placeholder="Or paste content to base questions on...">'+esc(qst.textContent)+'</textarea></div>';
+            var isFastQb=qst.aiEngine!=="detailed";
+            lh += '<div class="cmb-engine-toggle'+(isFastQb?'':' on')+'" id="cmb-qb-engine-toggle">';
+            lh += '<div class="cmb-engine-pill'+(isFastQb?'':' on')+'"></div>';
+            lh += '<div class="cmb-long-info"><div class="cmb-long-title">AI Engine</div>';
+            lh += '<div class="cmb-long-sub">'+(isFastQb?'Faster: Haiku — quick, good for straightforward quizzes':'Detailed: Sonnet — slower, more reliable for large or tricky quizzes')+'</div></div>';
+            lh += '<div class="cmb-engine-badge">'+(isFastQb?'FASTER':'DETAILED')+'</div>';
+            lh += '</div>';
             lh += '<div class="cmb-card"><label class="cmb-label">Settings</label>';
             lh += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">';
             lh += '<div><div style="font-size:12px;color:#64748B;margin-bottom:4px;">Subject</div><select class="cmb-select" id="cmb-qb-subject">';
@@ -3711,6 +4254,22 @@
             left.innerHTML = lh;
 
             left.querySelector("#cmb-qb-topic").addEventListener("input", function(e){ qst.topic = e.target.value; });
+            left.querySelectorAll(".cmb-qb-modchip").forEach(function(chip){
+                chip.addEventListener("click", function(){
+                    var mid = chip.dataset.mid;
+                    var idx = qst.selectedModuleIds.indexOf(mid);
+                    if(idx >= 0) qst.selectedModuleIds.splice(idx,1);
+                    else { qst.selectedModuleIds.push(mid); loadModuleItems(mid); }
+                    renderLeft();
+                });
+            });
+            left.querySelectorAll("[data-ckey]").forEach(function(row){
+                row.addEventListener("click", function(){
+                    var key = row.dataset.ckey;
+                    qst.includedContentKeys[key] = !qst.includedContentKeys[key];
+                    renderLeft();
+                });
+            });
             left.querySelector("#cmb-qb-content").addEventListener("input", function(e){ qst.textContent = e.target.value; });
             left.querySelector("#cmb-qb-file").addEventListener("change", async function(e){
                 if(!e.target.files.length) return;
@@ -3725,6 +4284,10 @@
             });
             var rmFileBtn = left.querySelector("#cmb-qb-rmfile");
             if(rmFileBtn) rmFileBtn.addEventListener("click", function(){ qst.uploadedFile=""; qst.uploadedName=""; renderLeft(); });
+            left.querySelector("#cmb-qb-engine-toggle").addEventListener("click", function(){
+                qst.aiEngine = (qst.aiEngine==="detailed") ? "fast" : "detailed";
+                renderLeft();
+            });
             left.querySelector("#cmb-qb-subject").addEventListener("change", function(e){ qst.subject = e.target.value; });
             left.querySelector("#cmb-qb-difficulty").addEventListener("change", function(e){ qst.difficulty = e.target.value; });
             left.querySelector("#cmb-qb-variants").addEventListener("change", function(e){ qst.variantsPerQ = parseInt(e.target.value, 10); });
@@ -3743,6 +4306,8 @@
             left.querySelector("#cmb-qb-gen").addEventListener("click", generateQuestions);
         }
         renderLeft();
+        loadCourseModules();
+        loadModuleItems(canvasModuleId);
 
         // ── MID: question review/select ──
         function renderQuestions(){
@@ -3875,67 +4440,120 @@
         right.querySelector("#cmb-qb-clear").addEventListener("click", function(){ qst.queue = []; renderQueue(); });
 
         // ── GENERATE ──
-        function generateQuestions(){
-            var hasSource = !!(qst.textContent.trim() || qst.uploadedFile);
-            if(!qst.topic.trim() && !hasSource){ setStatus("Enter a topic or add source material first.", "error"); return; }
+        // Asking Claude for dozens of questions as one giant strict-JSON blob
+        // is where this used to "struggle" — long, deeply-nested JSON with
+        // exact-count rules is much more likely to come back truncated,
+        // miscounted, or just malformed the bigger the ask gets, especially
+        // on the fast model. Splitting the request into small batches (a
+        // handful of questions per call) makes each individual call far
+        // simpler and more reliable, and a bad batch no longer wastes
+        // everything already generated successfully.
+        var QUIZ_BATCH_SIZE = 5;
+
+        async function generateQuestions(){
+            var hasSource = !!(qst.textContent.trim() || qst.uploadedFile || includedContentCount());
+            if(!qst.topic.trim() && !hasSource){ setStatus("Enter a topic, add source material, or select course content first.", "error"); return; }
             var totalQ = Object.values(qst.typeCounts).reduce(function(s,v){return s+v;},0);
             if(!totalQ){ setStatus("Set at least one question type count above zero.", "error"); return; }
+
+            // Flatten {mc:5,tf:3,...} into one entry per question, then chunk
+            // into small batches, preserving the exact overall type mix.
+            var flatTypes = [];
+            Object.keys(qst.typeCounts).forEach(function(t){
+                for(var i=0;i<qst.typeCounts[t];i++) flatTypes.push(t);
+            });
+            var batches = [];
+            for(var bi=0; bi<flatTypes.length; bi+=QUIZ_BATCH_SIZE){
+                batches.push(flatTypes.slice(bi, bi+QUIZ_BATCH_SIZE));
+            }
+
             var genBtn = left.querySelector("#cmb-qb-gen");
-            genBtn.disabled = true; genBtn.textContent = "Generating…";
-            setStatus("Generating " + (totalQ * qst.variantsPerQ) + " questions…", "loading");
+            genBtn.disabled = true;
+            qst.groups = []; qst.checked = []; allSelected = false; selAllBtn.textContent = "Select all"; activeVariant.length = 0;
+            renderQuestions();
+
+            var courseContentText = "";
+            if(includedContentCount()){
+                genBtn.textContent = "Reading course content…";
+                setStatus("Reading selected pages/assignments/discussions…", "loading");
+                courseContentText = await resolveIncludedContentText();
+            }
 
             var typeLabels={mc:'Multiple Choice (4 options A–D, exactly one correct)',tf:'True/False (answer is boolean)',short:'Short Answer (single word, number, or short phrase)',essay:'Essay (open-ended, no answer key)'};
             var diffMap={easy:'easy',medium:'medium difficulty',hard:'challenging/hard',mixed:'a mix of easy, medium, and hard'};
             var useGroups = qst.variantsPerQ > 1;
-            var typeCountLines = Object.entries(qst.typeCounts).filter(function(e){return e[1]>0;}).map(function(e){return e[1]+' '+typeLabels[e[0]];}).join('\n');
             var qSchema = '{\n      "type": "mc|tf|short|essay",\n      "text": "Question text",\n      "choices": [{"label":"A","text":"option","correct":false},{"label":"B","text":"option","correct":true},{"label":"C","text":"option","correct":false},{"label":"D","text":"option","correct":false}],\n      "answer": null,\n      "answer_alts": [],\n      "explanation": "Why the answer is correct"\n    }';
             var topicDesc = qst.topic.trim() ? ('about: "'+qst.topic.trim()+'"') : 'based on the source material below';
             var sourceBlock = '';
+            if(courseContentText) sourceBlock += 'COURSE CONTENT (from this course\'s own modules):\n' + courseContentText + '\n\n';
             if(qst.textContent.trim()) sourceBlock += 'SOURCE MATERIAL:\n' + qst.textContent.trim() + '\n\n';
             if(qst.uploadedFile) sourceBlock += 'FILE ('+qst.uploadedName+'):\n' + qst.uploadedFile + '\n\n';
-            var prompt;
-            if(useGroups){
-                prompt = 'You are an expert quiz designer for Canvas LMS. Generate exactly '+totalQ+' question GROUPS '+topicDesc+'\n\n' +
-                    'Each group tests the same concept but uses completely different wording, numbers, or scenarios for each variant — designed so different students get equivalent but non-identical questions.\n' +
-                    'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nVariants per group: '+qst.variantsPerQ+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
-                    (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
-                    sourceBlock +
-                    'Return ONLY valid JSON — no markdown, no code fences:\n{\n  "groups": [\n    {\n      "concept": "Concept name under 6 words",\n      "variants": ['+qSchema+','+qSchema+']\n    }\n  ]\n}\n\n' +
-                    'Critical rules:\n- Each group must have exactly '+qst.variantsPerQ+' variants\n- All variants in a group must be the same question type\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total groups: exactly '+totalQ;
-            } else {
-                prompt = 'You are an expert quiz designer for Canvas LMS. Generate questions '+topicDesc+'\n\n' +
-                    'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
-                    (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
-                    sourceBlock +
-                    'Return ONLY valid JSON — no markdown, no code fences:\n{ "questions": ['+qSchema+'] }\n\n' +
-                    'Critical rules:\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total: exactly '+totalQ+' questions';
+            var model = qst.aiEngine==="detailed" ? AI_MODEL_CONTENT : AI_MODEL_QUIZ;
+            var failedBatches = 0;
+
+            function finish(){
+                genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
+                renderQuestions();
+                var totalGen = qst.groups.reduce(function(s,g){return s+g.variants.length;},0);
+                if(!totalGen){ setStatus("No questions returned — try again, or switch to the Detailed engine above.", "error"); return; }
+                if(failedBatches){
+                    setStatus(qst.groups.length+" group"+(qst.groups.length!==1?'s':'')+" ("+totalGen+" questions) generated — "+failedBatches+" of "+batches.length+" batch(es) failed. Click Generate again to retry, or switch to the Detailed engine above.", "success");
+                }else{
+                    setStatus(qst.groups.length+" group"+(qst.groups.length!==1?'s':'')+" ("+totalGen+" questions) generated — select to add.", "success");
+                }
             }
 
-            callClaude(prompt, AI_MODEL_QUIZ, 12000).then(function(raw){
-                genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
-                raw = (raw||'').replace(/```json\s*/gi,'').replace(/```/g,'').trim();
-                var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
-                if(s === -1 || e === -1){ setStatus("Could not find JSON in response", "error"); return; }
-                try{
-                    var parsed = JSON.parse(raw.slice(s, e+1));
-                    if(parsed.groups && parsed.groups.length){
-                        qst.groups = parsed.groups;
-                    } else if(parsed.questions && parsed.questions.length){
-                        qst.groups = parsed.questions.map(function(q){ return { concept: (q.text||'').slice(0,50), variants:[q] }; });
-                    } else {
-                        setStatus("No questions returned", "error"); return;
-                    }
-                    qst.checked = qst.groups.map(function(){ return false; });
-                    allSelected = false; selAllBtn.textContent = "Select all";
-                    activeVariant.length = 0;
-                    renderQuestions();
-                    var totalGen = qst.groups.reduce(function(s,g){return s+g.variants.length;},0);
-                    setStatus(qst.groups.length+" group"+(qst.groups.length!==1?'s':'')+" ("+totalGen+" questions) generated — select to add.", "success");
-                }catch(err){ setStatus("Parse error: "+err.message, "error"); }
-            }).catch(function(err){
-                genBtn.disabled = false; genBtn.textContent = "✨ Generate Questions";
-                setStatus(err.message || "Error generating questions — try again", "error");
-            });
+            function runBatch(idx){
+                if(idx >= batches.length){ finish(); return; }
+                var batchTypes = batches[idx];
+                var batchCounts = {};
+                batchTypes.forEach(function(t){ batchCounts[t] = (batchCounts[t]||0)+1; });
+                var batchTotal = batchTypes.length;
+                var typeCountLines = Object.keys(batchCounts).map(function(t){ return batchCounts[t]+' '+typeLabels[t]; }).join('\n');
+                var continuationNote = qst.groups.length ? '\n- This is a continuation of a larger quiz — write fresh, distinct questions that don\'t repeat concepts already likely covered.' : '';
+
+                genBtn.textContent = "Generating "+(idx+1)+"/"+batches.length+"…";
+                setStatus("Generating batch "+(idx+1)+" of "+batches.length+" ("+batchTotal+" question"+(batchTotal!==1?'s':'')+")…", "loading");
+
+                var prompt;
+                if(useGroups){
+                    prompt = 'You are an expert quiz designer for Canvas LMS. Generate exactly '+batchTotal+' question GROUPS '+topicDesc+'\n\n' +
+                        'Each group tests the same concept but uses completely different wording, numbers, or scenarios for each variant — designed so different students get equivalent but non-identical questions.\n' +
+                        'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nVariants per group: '+qst.variantsPerQ+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
+                        (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                        sourceBlock +
+                        'Return ONLY valid JSON — no markdown, no code fences:\n{\n  "groups": [\n    {\n      "concept": "Concept name under 6 words",\n      "variants": ['+qSchema+','+qSchema+']\n    }\n  ]\n}\n\n' +
+                        'Critical rules:\n- Each group must have exactly '+qst.variantsPerQ+' variants\n- All variants in a group must be the same question type\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total groups: exactly '+batchTotal+continuationNote;
+                } else {
+                    prompt = 'You are an expert quiz designer for Canvas LMS. Generate questions '+topicDesc+'\n\n' +
+                        'Subject: '+(qst.subject==='general'?'general':qst.subject)+'\nDifficulty: '+(diffMap[qst.difficulty]||'medium')+'\nQuestion type breakdown (exact counts):\n'+typeCountLines+'\n'+
+                        (qst.includeExplanations?'Include a brief explanation for each correct answer.':'Do not include explanations.')+'\n\n' +
+                        sourceBlock +
+                        'Return ONLY valid JSON — no markdown, no code fences:\n{ "questions": ['+qSchema+'] }\n\n' +
+                        'Critical rules:\n- mc: exactly 4 choices (A–D), exactly one correct:true\n- tf: answer must be boolean true or false\n- short: answer is a string; include answer_alts for alternate forms\n- essay: answer is null\n- Match the exact question type counts listed above\n- Total: exactly '+batchTotal+' questions'+continuationNote;
+                }
+
+                callClaude(prompt, model, 6000).then(function(raw){
+                    raw = (raw||'').replace(/```json\s*/gi,'').replace(/```/g,'').trim();
+                    var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+                    if(s === -1 || e === -1){ failedBatches++; runBatch(idx+1); return; }
+                    try{
+                        var parsed = JSON.parse(raw.slice(s, e+1));
+                        var newGroups;
+                        if(parsed.groups && parsed.groups.length){ newGroups = parsed.groups; }
+                        else if(parsed.questions && parsed.questions.length){ newGroups = parsed.questions.map(function(q){ return { concept: (q.text||'').slice(0,50), variants:[q] }; }); }
+                        else { failedBatches++; runBatch(idx+1); return; }
+                        qst.groups = qst.groups.concat(newGroups);
+                        renderQuestions();
+                    }catch(err){ failedBatches++; }
+                    runBatch(idx+1);
+                }).catch(function(){
+                    failedBatches++;
+                    runBatch(idx+1);
+                });
+            }
+
+            runBatch(0);
         }
 
         // ── CREATE QUIZ IN CANVAS ──
