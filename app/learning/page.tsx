@@ -12,17 +12,24 @@ const emptyProfile:Profile={completed:[],results:[],streak:0};
 
 export default function LearningPage(){
  const [student,setStudent]=useState<StudentId|null>(null),[lessons,setLessons]=useState<Lesson[]>([]),[profile,setProfile]=useState<Profile>(emptyProfile),[loading,setLoading]=useState(false),[error,setError]=useState('');
- const [active,setActive]=useState<Lesson|null>(null),[stage,setStage]=useState(0),[answer,setAnswer]=useState<number|null>(null),[checked,setChecked]=useState(false),[correct,setCorrect]=useState(0),[reflection,setReflection]=useState(''),[finished,setFinished]=useState(false);
+ const [active,setActive]=useState<Lesson|null>(null),[stage,setStage]=useState(0),[answer,setAnswer]=useState<number|null>(null),[checked,setChecked]=useState(false),[answeredCorrectly,setAnsweredCorrectly]=useState<Record<number,boolean>>({}),[reflection,setReflection]=useState(''),[finished,setFinished]=useState(false);
  const current=student?students[student]:null;
- const accuracy=profile.results.length?Math.round(profile.results.reduce((n,r)=>n+r.correct,0)/profile.results.reduce((n,r)=>n+r.total,0)*100):0;
+ // Keyed by question index rather than a plain incrementing counter — the
+ // "Back" button doesn't reset checked/answer, so a student can revisit an
+ // already-answered question and re-check it. A counter would double-count
+ // that; keying by index just overwrites the same slot, so the total can
+ // never exceed the actual number of questions no matter how many times a
+ // question gets re-checked.
+ const correct=Object.values(answeredCorrectly).filter(Boolean).length;
+ const accuracy=profile.results.length?Math.min(100,Math.round(profile.results.reduce((n,r)=>n+r.correct,0)/profile.results.reduce((n,r)=>n+r.total,0)*100)):0;
  const latest=profile.results.at(-1);
  const totalStages=4+(active?.questions.length||0);
  const progress=active?Math.round(stage/totalStages*100):0;
  useEffect(()=>{if(!student)return;setLoading(true);setError('');fetch(`/api/learning?student=${student}`).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'Could not load lessons');setLessons(d.lessons||[]);setProfile(d.profile||emptyProfile)}).catch(e=>setError(e.message)).finally(()=>setLoading(false))},[student]);
  const strength=useMemo(()=>{if(!profile.results.length)return'';return [...profile.results].sort((a,b)=>b.correct/b.total-a.correct/a.total)[0]?.skill||''},[profile]);
- function openLesson(l:Lesson){setActive(l);setStage(0);setAnswer(null);setChecked(false);setCorrect(0);setReflection('');setFinished(false)}
+ function openLesson(l:Lesson){setActive(l);setStage(0);setAnswer(null);setChecked(false);setAnsweredCorrectly({});setReflection('');setFinished(false)}
  function next(){setStage(s=>s+1);setAnswer(null);setChecked(false)}
- function check(){if(answer===null)return;setChecked(true);if(answer===active?.questions[stage-3]?.correct)setCorrect(c=>c+1)}
+ function check(){if(answer===null)return;setChecked(true);setAnsweredCorrectly(prev=>({...prev,[stage-3]:answer===active?.questions[stage-3]?.correct}))}
  async function complete(){if(!student||!active)return;setFinished(true);try{const r=await fetch('/api/learning',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student,lessonId:active.id,subject:active.subject,skill:active.skill,correct,total:active.questions.length})});const d=await r.json();if(r.ok)setProfile(d.profile);setLessons(ls=>ls.filter(l=>l.id!==active.id))}catch{} }
  if(!student)return <main className={styles.welcome}><div className={styles.cloudOne}/><div className={styles.cloudTwo}/><section className={styles.welcomeCard}><div className={styles.logo}><span>✦</span> BrightPath</div><div className={styles.heroIcon}>☀</div><p className={styles.eyebrow}>YOUR LEARNING ADVENTURE</p><h1>Who&apos;s learning today?</h1><p className={styles.lead}>Choose your name to see today&apos;s personalized learning path.</p><div className={styles.studentGrid}>{(Object.keys(students) as StudentId[]).map(id=><button key={id} className={styles.studentCard} onClick={()=>setStudent(id)} style={{'--student':students[id].color,'--soft':students[id].soft} as React.CSSProperties}><span className={styles.avatar}>{students[id].initial}</span><strong>{students[id].name}</strong><small>Continue learning <span>→</span></small></button>)}</div><p className={styles.parentLink}>Powered by personalized daily learning</p></section></main>;
  return <main className={styles.app}><header className={styles.header}><div className={styles.logo}><span>✦</span> BrightPath</div><div className={styles.headerActions}><button className={styles.iconButton}>🔔</button><button className={styles.profile} onClick={()=>setStudent(null)} style={{'--student':current!.color} as React.CSSProperties}><span>{current!.initial}</span><b>{current!.name}</b><small>⌄</small></button></div></header><div className={styles.shell}><aside className={styles.sidebar}><nav><a className={styles.activeNav}>⌂ <span>My Learning</span></a><a>▥ <span>Progress</span></a><a>★ <span>Achievements</span></a></nav><div className={styles.sideTip}><span>💡</span><b>Keep it up!</b><p>A little practice every day makes your brain stronger.</p></div></aside><section className={styles.content}>

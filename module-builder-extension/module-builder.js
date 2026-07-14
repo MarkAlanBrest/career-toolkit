@@ -19,7 +19,7 @@
     const UNSPLASH_KEY = "AIgrader_UnsplashKey";
     // Personal default Unsplash Access Key — used only if no key has been saved yet.
     // Don't share this file publicly (e.g. a public GitHub repo) with this left in.
-    const UNSPLASH_KEY_DEFAULT = "";
+    const UNSPLASH_KEY_DEFAULT = "TC22qvOXtRU4QhE3x7JmucTZ9_SSp5G3f06Lz010hAU";
     // No shipped default here (unlike Unsplash) — YouTube Data API quota is a
     // strict 10,000 units/day per Google Cloud project, and search costs 100
     // units/call. A single shared key would get exhausted almost immediately
@@ -616,14 +616,13 @@
 
                     } else {
                         var pageTitle = canvasItemTitle(item,data,i);
+                        // The Reading Tools button (Key Terms/Key Facts/read
+                        // time) is already baked into generatedHTML at
+                        // generation time (see maybeGenerateToolbarData) —
+                        // not injected here — so the builder's own HTML
+                        // Code/Edit/Preview tabs show exactly what actually
+                        // gets inserted, instead of the two silently diverging.
                         var pageHtml = data.generatedHTML || "<p>Content not yet generated.</p>";
-                        if(data.includeToolbar && data.toolbarData){
-                            // Renders Key Terms/Key Facts/read time
-                            // directly into the page's visible content as
-                            // static <details> sections, so every student
-                            // sees them with no extension required.
-                            pageHtml += renderToolbarSectionHTML(data.toolbarData, data);
-                        }
                         var page = await createPage(pageTitle, pageHtml);
                         report("Created page: " + pageTitle);
                         await addModuleItem(canvasMod.id, "Page", page.url, pageTitle, insertPosition);
@@ -662,6 +661,48 @@
                 }catch(err){rej(err);}
             };
             r.onerror=rej; r.readAsArrayBuffer(file);
+        });
+    }
+
+    // Pulls pictures out of an already-uploaded PDF by rendering each PAGE
+    // to a canvas — the same page.render() call every PDF viewer uses to
+    // display a page on screen, so unlike trying to pluck out one embedded
+    // image object (which depends on pdf.js internals that vary by how the
+    // image was compressed, and turned out not to be reliable), this cannot
+    // fail to produce something for a page that renders at all. Trade-off:
+    // a teacher picks "page 4" and gets the whole page as a photo, not a
+    // perfectly cropped-out embedded photo — but it always works. Capped at
+    // 20 pages so a huge accidental upload can't hang the browser.
+    async function extractPdfImages(file){
+        var pdfLib = pdfjsLib;
+        if(!pdfLib.GlobalWorkerOptions.workerSrc){
+            pdfLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("lib/pdf.worker.min.js");
+        }
+        var MAX_PAGES=20;
+        return new Promise(function(res){
+            var r=new FileReader();
+            r.onload=async function(e){
+                var images=[];
+                try{
+                    var ta=new Uint8Array(e.target.result);
+                    var pdf=await pdfLib.getDocument({data:ta}).promise;
+                    var pageCount=Math.min(pdf.numPages, MAX_PAGES);
+                    for(var i=1;i<=pageCount;i++){
+                        try{
+                            var page=await pdf.getPage(i);
+                            var viewport=page.getViewport({scale:1.0});
+                            var canvas=document.createElement("canvas");
+                            canvas.width=viewport.width; canvas.height=viewport.height;
+                            var ctx=canvas.getContext("2d");
+                            await page.render({canvasContext:ctx, viewport:viewport}).promise;
+                            images.push({page:i, width:canvas.width, height:canvas.height, dataUrl:canvas.toDataURL("image/jpeg",0.85)});
+                        }catch(pageErr){ /* one bad page shouldn't break the rest */ }
+                    }
+                }catch(err){ /* extraction is best-effort — the text parse is what actually matters */ }
+                res(images);
+            };
+            r.onerror=function(){ res([]); };
+            r.readAsArrayBuffer(file);
         });
     }
 
@@ -714,6 +755,28 @@
         if(n.endsWith(".docx"))return withTimeout(parseDOCX(file), 120000, "Parsing "+file.name);
         if(n.endsWith(".pptx"))return withTimeout(parsePPTX(file), 120000, "Parsing "+file.name);
         return new Promise(function(res,rej){var r=new FileReader();r.onload=function(e){res(e.target.result);};r.onerror=rej;r.readAsText(file);});
+    }
+
+    // This tool is built around ONE module's worth of source material (a
+    // chapter/lesson) — not a whole textbook. Depending on which prompt
+    // consumes it, an oversized upload either gets silently truncated (so
+    // the AI never sees the chapter you actually needed) or sent in full at
+    // real token cost with no guarantee it fits the model's context. Rough
+    // guide: ~3,000 characters per page of real prose. Returns a
+    // {type, msg} status pair for the existing status banner, or null if
+    // the file is a reasonable size.
+    var SOURCE_LARGE_CHARS = 30000;    // ~10 pages — still fine, just a heads-up
+    var SOURCE_TOOLARGE_CHARS = 90000; // ~30 pages — more than one module's worth
+    function sourceSizeWarning(text, name){
+        var len=(text||"").length;
+        var pages=Math.max(1, Math.round(len/3000));
+        if(len>SOURCE_TOOLARGE_CHARS){
+            return { type:"warn", msg: name+" is very long (~"+pages+" pages) — this tool works from ONE module's worth of content (a chapter or lesson), not a whole textbook. Only part of this file will actually reach the AI, and it may not be the part you need — upload just the relevant chapter/section instead." };
+        }
+        if(len>SOURCE_LARGE_CHARS){
+            return { type:"warn", msg: name+" loaded (~"+pages+" pages) — heads up, this tool works best with ONE module's worth of content (a chapter or lesson), not a whole textbook." };
+        }
+        return null;
     }
 
     // ========== ITEM DATA INIT ==========
@@ -824,6 +887,21 @@
         });
     }
 
+    // Multi-result variant powering the manual "pick a photo" panel in the
+    // WYSIWYG editor — the automatic pipeline above only ever fetches ONE
+    // photo per keyword and inserts it sight-unseen, so this is a separate
+    // message type rather than a change to unsplashSearch's shape.
+    function unsplashSearchMulti(keyword,count){
+        return new Promise(function(resolve,reject){
+            if(!state.unsplashKey){reject(new Error("No Unsplash key configured — add one in Setup."));return;}
+            chrome.runtime.sendMessage({type:"CMB_UNSPLASH_SEARCH_MULTI",payload:{unsplashKey:state.unsplashKey,keyword:keyword,count:count||9}},function(resp){
+                if(chrome.runtime.lastError){reject(new Error(chrome.runtime.lastError.message));return;}
+                if(!resp||resp.error){reject(new Error((resp&&resp.error)||"No results"));return;}
+                resolve(resp.results||[]);
+            });
+        });
+    }
+
     // ========== YOUTUBE VIDEO SEARCH ==========
     // Powers the "Recommend Videos" button on Video Page items — searches
     // real, embeddable YouTube videos so a teacher can pick one instead of
@@ -859,42 +937,68 @@
     }
 
     // dir is "left"/"right" (floats the image, text wraps around it) or "" (full-width block).
+    // Clickable slot, not an auto-picked photo — an AI-guessed keyword's top
+    // Unsplash result is often a poor match, so picking the actual photo is
+    // left to the teacher's judgment in the Edit tab (click the slot to
+    // search Unsplash, browse images already in the uploaded PDF, or upload
+    // one directly) rather than silently inserting whatever ranked first.
+    // Every inserted image is sized to fit this same box (fixed height +
+    // object-fit:cover) instead of the box growing/shrinking to whatever
+    // size the source photo happens to be — a placeholder should get filled
+    // in-place, not reflow the whole page around an oddly-sized photo.
+    var CMB_IMG_BOX_H="220px";
+
     function imagePlaceholderTag(keyword,dir){
-        var floatStyle = dir ? ("float:"+dir+";max-width:320px;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "width:100%;";
-        return '<div style="'+floatStyle+'background:linear-gradient(135deg,#1A2028,#2E3A42);border:2px dashed #4A5A64;min-height:180px;display:flex;align-items:center;justify-content:center;color:#5A6A74;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Image: '+esc(keyword)+'</div>';
+        var floatStyle = dir ? ("float:"+dir+";width:300px;box-sizing:border-box;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "width:100%;";
+        return '<div class="cmb-img-slot" data-keyword="'+esc(keyword)+'" data-dir="'+esc(dir||"")+'" style="'+floatStyle+'height:'+CMB_IMG_BOX_H+';background:linear-gradient(135deg,#1A2028,#2E3A42);border:2px dashed #4A5A64;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:12px;text-align:center;padding:14px;cursor:pointer;box-sizing:border-box;">'+
+            '<div style="font-size:24px;margin-bottom:6px;">&#128247;</div>'+
+            '<div style="text-transform:uppercase;letter-spacing:1px;font-weight:700;">Click to add a photo</div>'+
+            '<div style="font-size:11px;color:#9AA5AC;margin-top:4px;">Suggested: '+esc(keyword)+'</div>'+
+            '</div>';
+    }
+
+    // Plain (non-Unsplash) inserted image — used for photos pulled from an
+    // uploaded PDF or a manual local upload, neither of which needs
+    // attribution. Keeps the "cmb-img-slot" class/data-keyword so a filled
+    // image stays clickable (click again to swap it for a different one),
+    // not just the empty placeholder. Width is explicit here (not left to
+    // implicit block-level default sizing) — that's what was actually
+    // wrong before: the placeholder declared width:100% directly, but this
+    // wrapper only set margin, and inherited/implicit width isn't
+    // guaranteed to resolve the same way depending on the surrounding layout.
+    // !important on the sizing properties is deliberate, not decorative —
+    // once this HTML lands on a real Canvas page (not just this tool's own
+    // preview), Canvas's own site-wide content CSS commonly forces
+    // `img{max-width:100%;height:auto}` on course content, which would
+    // silently win over a plain inline style and undo this sizing entirely.
+    function sizedImageTag(src,alt,dir,keyword){
+        var wrapStyle = dir ? ("float:"+dir+";width:300px !important;box-sizing:border-box;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "width:100% !important;margin:16px 0;box-sizing:border-box;";
+        return '<div class="cmb-img-slot" data-keyword="'+esc(keyword||alt||"")+'" data-dir="'+esc(dir||"")+'" style="'+wrapStyle+'cursor:pointer;" title="Click to change this image">'
+            +'<img src="'+src+'" alt="'+esc(alt)+'" style="width:100% !important;height:'+CMB_IMG_BOX_H+' !important;object-fit:cover !important;border-radius:4px;display:block;">'
+            +'</div>';
     }
 
     function unsplashPhotoTag(photo,keyword,dir){
-        var wrapStyle = dir ? ("float:"+dir+";max-width:320px;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "margin:24px 0;";
-        return '<figure style="'+wrapStyle+'">'
-            +'<img src="'+photo.url+'" alt="'+esc(keyword)+'" style="width:100%;max-width:100%;height:auto;display:block;border-radius:4px;">'
+        var wrapStyle = dir ? ("float:"+dir+";width:300px !important;box-sizing:border-box;margin:"+(dir==="left"?"4px 20px 12px 0":"4px 0 12px 20px")+";") : "width:100% !important;margin:16px 0;box-sizing:border-box;";
+        return '<figure class="cmb-img-slot" data-keyword="'+esc(keyword)+'" data-dir="'+esc(dir||"")+'" style="'+wrapStyle+'margin-top:0;margin-bottom:0;cursor:pointer;" title="Click to change this image">'
+            +'<img src="'+photo.url+'" alt="'+esc(keyword)+'" style="width:100% !important;height:'+CMB_IMG_BOX_H+' !important;object-fit:cover !important;display:block;border-radius:4px;">'
             +'<figcaption style="font-family:Arial,sans-serif;font-size:11px;color:#94A3B8;margin-top:6px;text-align:'+(dir?'left':'right')+';">Photo by <a href="'+photo.profile+'" target="_blank" rel="noopener">'+esc(photo.name)+'</a> on <a href="https://unsplash.com/?utm_source=canvas_module_builder&utm_medium=referral" target="_blank" rel="noopener">Unsplash</a></figcaption>'
             +'</figure>';
     }
 
     // Replaces every "[[IMAGE: keyword]]" (or "[[IMAGE-LEFT: ...]]" /
-    // "[[IMAGE-RIGHT: ...]]" for a floated, text-wrapped image) marker in the
-    // HTML with a real Unsplash photo (falls back to a placeholder box
-    // per-keyword on error or if no Unsplash key is configured).
+    // "[[IMAGE-RIGHT: ...]]" for a floated, text-wrapped image) marker with a
+    // clickable placeholder slot. This deliberately does NOT auto-fetch an
+    // Unsplash photo anymore — an AI-guessed keyword's top search result is
+    // often a bad match, so the actual photo choice (Unsplash search, an
+    // image already in the uploaded PDF, or a manual upload) happens under
+    // human judgment when the teacher clicks the slot in the Edit tab.
     async function resolveImageMarkers(html){
         if(!html || html.indexOf("[[IMAGE")<0) return html;
         var re=/\[\[IMAGE(-LEFT|-RIGHT)?:\s*([^\]]+?)\s*\]\]/g;
-        var keywords=[]; var m;
-        while((m=re.exec(html))){ if(keywords.indexOf(m[2])<0) keywords.push(m[2]); }
-        var photos={};
-        for(var i=0;i<keywords.length;i++){
-            var kw=keywords[i];
-            try{
-                photos[kw]=await unsplashSearch(kw);
-                triggerUnsplashDownload(photos[kw].downloadLocation);
-            }catch(err){
-                photos[kw]=null;
-            }
-        }
         return html.replace(re,function(full,dirRaw,keyword){
             var dir = dirRaw ? dirRaw.replace("-","").toLowerCase() : "";
-            var photo = photos[keyword];
-            return photo ? unsplashPhotoTag(photo,keyword,dir) : imagePlaceholderTag(keyword,dir);
+            return imagePlaceholderTag(keyword,dir);
         });
     }
 
@@ -1144,9 +1248,23 @@
             var raw = await callClaude(buildKeyTermsPrompt(d, d.generatedHTML), AI_MODEL_CONTENT_FAST, 1200);
             var cleaned = raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
             var s=cleaned.indexOf("{"), e=cleaned.lastIndexOf("}");
-            if(s===-1||e===-1) return;
-            d.toolbarData = JSON.parse(cleaned.slice(s,e+1));
-        }catch(e){ /* not fatal */ }
+            if(s===-1||e===-1) console.warn("[CMB] Key Terms/Facts: no JSON found in response:", raw);
+            else d.toolbarData = JSON.parse(cleaned.slice(s,e+1));
+        }catch(e){
+            // Not fatal — the page still gets its (AI-free) read time below —
+            // but logged so a real failure (bad key, rate limit, malformed
+            // JSON) is visible in DevTools instead of the toolbar just
+            // silently not having Key Terms/Facts.
+            console.warn("[CMB] Key Terms/Facts generation failed:", e.message);
+        }
+        // Bake the toolbar button directly into generatedHTML right now —
+        // not just at Canvas-insert time — so the HTML Code tab, the
+        // WYSIWYG Edit tab, and the Preview tab all show exactly what will
+        // actually be inserted. This runs regardless of whether the JSON
+        // parse above succeeded: renderToolbarSectionHTML always renders at
+        // least the (AI-free) read time, so toggling this on always visibly
+        // does something, never silently nothing.
+        d.generatedHTML = injectToolbarIntoHeader(d.generatedHTML, renderToolbarSectionHTML(d.toolbarData, d));
     }
 
     function cmbEstimateReadTimeStatic(html){
@@ -1155,37 +1273,69 @@
     }
 
     // Static, always-visible replacement for the old extension-only Reading
-    // Toolbar widget. Plain <details>/<summary> with inline styles only —
-    // same Canvas-safe pattern as activitySingleRevealCard above (Canvas
-    // strips <style>/<script> tags on save) — so every student sees Key
-    // Terms/Key Facts/read time with zero extension requirement.
+    // Toolbar widget. A single <details>/<summary> — the summary IS the
+    // button; clicking it reveals a panel with read time, Key Terms, and Key
+    // Facts. Same Canvas-safe pattern used throughout this tool (Canvas
+    // strips <style>/<script> tags on save, so no JS/stylesheet involved) —
+    // works for every student with zero extension requirement.
+    //
+    // position:absolute here (not :fixed) is deliberate — this gets injected
+    // directly inside the page's own header banner by injectToolbarIntoHeader
+    // below, so it anchors to that banner specifically. position:fixed was
+    // tried first and landed at the bottom of the page instead of the
+    // viewport corner — Canvas's own layout almost certainly has a
+    // transformed/positioned ancestor somewhere, which per the CSS spec
+    // becomes the containing block for descendant fixed elements instead of
+    // the viewport. Anchoring to a real, nearby ancestor we control sidesteps
+    // that entirely.
     function renderToolbarSectionHTML(toolbarData, itemData){
         var terms = (toolbarData && toolbarData.keyTerms) || [];
         var facts = (toolbarData && toolbarData.keyFacts) || [];
-        if(!terms.length && !facts.length) return "";
+        // Read time never depends on the AI call above — it's pure word
+        // count — so it must never be gated behind whether Key Terms/Facts
+        // extraction happened to succeed. That was the actual bug: any
+        // failure (or a legitimate "nothing notable found") in that one
+        // side call silently took down the whole toolbar, read time included.
         var mins = cmbEstimateReadTimeStatic(itemData && itemData.generatedHTML);
-        var h = '\n<div style="max-width:920px;margin:28px auto 0;font-family:Arial,sans-serif;">\n';
-        h += '<div style="font-size:12px;color:#6B7280;margin-bottom:12px;">⏱ Estimated read time: ' + mins + ' min</div>\n';
+        var h = '<details style="position:absolute;top:20px;right:24px;z-index:50;max-width:280px;font-family:Arial,sans-serif;">\n';
+        h += '  <summary style="list-style:none;cursor:pointer;background:#fff;color:#1e293b;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:700;box-shadow:0 4px 10px rgba(0,0,0,0.25);white-space:nowrap;">📖 Reading Tools</summary>\n';
+        h += '  <div style="margin-top:8px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.18);padding:16px;max-height:70vh;overflow-y:auto;">\n';
+        h += '    <div style="font-size:12px;color:#6B7280;margin-bottom:10px;">⏱ Estimated read time: ' + mins + ' min</div>\n';
         if(terms.length){
-            h += '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
-            h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:14px 20px;font-weight:700;font-size:14px;color:#1e293b;">🔑 Key Terms</summary>\n';
-            h += '  <div style="padding:6px 20px 16px;border-top:1px solid #e5e7eb;background:#fff;">\n';
+            h += '    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7C3AED;margin:10px 0 6px;">🔑 Key Terms</div>\n';
             terms.forEach(function(t){
-                h += '    <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.6;color:#374151;"><strong style="color:#1e293b;">' + (t.term||"") + ':</strong> ' + (t.definition||"") + '</div>\n';
+                h += '    <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.5;color:#374151;"><strong style="color:#1e293b;">' + (t.term||"") + ':</strong> ' + (t.definition||"") + '</div>\n';
             });
-            h += '  </div>\n</details>\n';
         }
         if(facts.length){
-            h += '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
-            h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:14px 20px;font-weight:700;font-size:14px;color:#1e293b;">📌 Key Facts</summary>\n';
-            h += '  <div style="padding:6px 20px 16px;border-top:1px solid #e5e7eb;background:#fff;">\n';
+            h += '    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#7C3AED;margin:14px 0 6px;">📌 Key Facts</div>\n';
             facts.forEach(function(f){
-                h += '    <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.6;color:#374151;">• ' + f + '</div>\n';
+                h += '    <div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.5;color:#374151;">• ' + f + '</div>\n';
             });
-            h += '  </div>\n</details>\n';
         }
-        h += '</div>\n';
+        h += '  </div>\n</details>\n';
         return h;
+    }
+
+    // Every content page's header banner follows one fixed template (see
+    // buildContentPrompt's "HEADER" block): a div with this exact
+    // background/padding/border-bottom signature, opening the page. Matching
+    // that lets the Reading Tools button get inserted as the header's first
+    // child, absolutely positioned to ITS top-right corner rather than the
+    // whole page's. Adds position:relative to the header inline (it has none
+    // by default) so the absolute-positioned button anchors correctly.
+    var CMB_HEADER_RE=/(<div style="background:[^"]*?padding:28px 32px;border-bottom:3px solid[^"]*?;)(">)/;
+    function injectToolbarIntoHeader(html, toolbarHtml){
+        if(!toolbarHtml) return html;
+        if(CMB_HEADER_RE.test(html)){
+            return html.replace(CMB_HEADER_RE, function(full, openStyle, closeBracket){
+                return openStyle + "position:relative;" + closeBracket + toolbarHtml;
+            });
+        }
+        // Header template not found (e.g. an activity page with its own
+        // layout) — fall back to appending at the end rather than losing
+        // the toolbar entirely; it just won't be corner-anchored.
+        return html + '\n<div style="position:relative;">' + toolbarHtml + '</div>';
     }
 
     function buildContentPrompt(itemData, itemType){
@@ -1312,7 +1462,13 @@
             if(els.collapsible) extras.push("One or two collapsible sections using <details><summary>[question]</summary><p>[answer]</p></details>, no extra styling");
             if(els.sectionDividers) extras.push('A plain rule between sections: <hr style="border:none;border-top:1px solid ' + theme.border + ';margin:24px 0;">');
             if(els.emojiIcons) extras.push("One relevant emoji before each section title, inside the H2 text");
-            if(els.imagePlaceholders) extras.push("Where a real photo would genuinely help a reader picture a concrete, physical thing described in that section (a tool, material, technique, structure, place — e.g. a \"wall framing\" section should show an actual wall being framed), insert a marker on its own line: [[IMAGE: 2-4 word keyword]] — do not write an <img> tag yourself. Roughly one per section is reasonable where the subject is genuinely visual; skip it entirely for sections that are abstract, procedural-only, or already well illustrated by a table/list.");
+            // "imagewrap" layout already carries its own complete, directional
+            // image instruction above (exactly one [[IMAGE-LEFT/RIGHT: ...]]
+            // marker) — applying this generic, non-directional instruction on
+            // top of that gave the AI two conflicting sets of rules, and it
+            // would sometimes emit an extra bare (non-floated, full-width)
+            // [[IMAGE: ...]] marker to satisfy this one, defeating the wrap.
+            if(els.imagePlaceholders && layout !== "imagewrap") extras.push("The teacher has turned Image Placeholders ON, so this page MUST include at least one image — do not skip images entirely even if the content feels more conceptual than physical. Where a real photo would genuinely help a reader picture a concrete, physical thing described in that section (a tool, material, technique, structure, place — e.g. a \"wall framing\" section should show an actual wall being framed), insert a marker on its own line: [[IMAGE: 2-4 word keyword]] — do not write an <img> tag yourself. Roughly one per section is reasonable where the subject is genuinely visual. If every section is genuinely abstract/procedural with nothing physical to depict (e.g. an intro/welcome/overview page), still insert AT LEAST ONE marker representing the overall trade/subject/topic itself (e.g. \"[[IMAGE: residential wall framing]]\" for a framing-course intro) — never end up with zero images on this page.");
         }
         if(extras.length){
             var isRequiredSections = (itemType === "syllabus" || itemType === "homepage");
@@ -2419,6 +2575,16 @@
     .cmb-tab.active{color:#7C3AED;border-bottom-color:#7C3AED;}
     .cmb-preview-frame{width:100%;min-height:400px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;background:#fff;}
     .cmb-code-area{width:100%;min-height:400px;font-family:monospace;font-size:12px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;padding:10px;box-sizing:border-box;resize:vertical;}
+    .cmb-wys-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;background:#F8FAFC;border:1px solid #e5e7eb;border-bottom:none;border-radius:0;padding:6px;}
+    .cmb-wys-btn{background:#fff;border:1px solid #E2E8F0;border-radius:5px;padding:5px 9px;font-size:12px;color:#334155;cursor:pointer;line-height:1;}
+    .cmb-wys-btn:hover{background:#F5F3FF;border-color:#7C3AED;color:#7C3AED;}
+    .cmb-wys-select{background:#fff;border:1px solid #E2E8F0;border-radius:5px;padding:5px 6px;font-size:12px;color:#334155;}
+    .cmb-wys-sep{width:1px;height:20px;background:#E2E8F0;margin:0 3px;}
+    .cmb-wys-editor{width:100%;min-height:400px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;padding:16px;box-sizing:border-box;background:#fff;font-family:Georgia,serif;overflow-y:auto;}
+    .cmb-wys-editor:focus{outline:2px solid #7C3AED22;}
+    .cmb-wys-imgpanel{border:1px solid #e5e7eb;border-top:none;background:#FAFAFA;padding:12px;}
+    .cmb-wys-imgtab{background:#fff;border:1px solid #E2E8F0;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:600;color:#64748B;cursor:pointer;}
+    .cmb-wys-imgtab.active{background:#7C3AED;border-color:#7C3AED;color:#fff;}
     .cmb-diff-grid{display:flex;gap:8px;margin-bottom:12px;}
     .cmb-diff-btn{flex:1;padding:10px;border-radius:10px;cursor:pointer;text-align:center;font-weight:600;font-size:13px;border:2px solid #e5e7eb;background:#fff;transition:border-color 0.2s;}
     .cmb-diff-btn:hover{border-color:#a78bfa;}
@@ -2570,6 +2736,8 @@
     .cmb-sch-datehead{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#334155;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #F1F5F9;}
     .cmb-sch-holiday{font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:8px;font-weight:700;}
     .cmb-sch-datecount{margin-left:auto;background:#E2E8F0;color:#475569;border-radius:10px;padding:1px 7px;font-size:10px;}
+    #cmb-notes-overlay{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;padding:24px;font-family:system-ui,-apple-system,sans-serif;}
+    #cmb-notes-panel{background:#F8FAFC;border-radius:20px;max-width:820px;width:100%;height:calc(100vh - 96px);max-height:640px;box-shadow:0 25px 50px rgba(0,0,0,0.2);overflow:hidden;display:flex;flex-direction:column;}
     #cmb-sg-toolbar{position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#1B303D;height:44px;display:flex;align-items:center;gap:4px;padding:0 10px;font-family:system-ui,-apple-system,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
     /* Toolbar is position:fixed (so it stays put while SpeedGrader's own
        panes scroll internally) which would otherwise sit on top of Canvas's
@@ -2724,8 +2892,8 @@
         if(!el)return;
         if(!state.status){el.style.display="none";return;}
         el.style.display="block";
-        var colors={success:"#166534",error:"#b91c1c",loading:"#1d4ed8",idle:"#6b7280"};
-        var bgs={success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff",idle:"#f9fafb"};
+        var colors={success:"#166534",error:"#b91c1c",loading:"#1d4ed8",idle:"#6b7280",warn:"#92400e"};
+        var bgs={success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff",idle:"#f9fafb",warn:"#fffbeb"};
         el.style.color=colors[state.statusType]||"#6b7280";
         el.style.background=bgs[state.statusType]||"#f9fafb";
         el.textContent=state.status;
@@ -2785,7 +2953,7 @@
         h+='<div class="cmb-card">';
         h+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">';
         h+='<label class="cmb-label" style="margin:0;white-space:nowrap;">Source Material (optional)</label>';
-        h+='<span style="font-size:12px;color:#64748B;">Upload PDF, DOCX, or TXT to guide AI for this module.</span>';
+        h+='<span style="font-size:12px;color:#64748B;">Upload PDF, DOCX, or TXT to guide AI for THIS module — one chapter/lesson worth, not a whole textbook or course.</span>';
         h+='<input type="file" id="cmb-srcfile" accept=".pdf,.docx,.pptx,.txt,.md,.html" multiple style="font-size:12px;">';
         h+='</div>';
         h+='<div id="cmb-srclist" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
@@ -2862,17 +3030,32 @@
         body.querySelector("#cmb-srcfile").addEventListener("change",async function(e){
             var files=e.target.files;
             var parseErrors=[];
+            var sizeWarnings=[];
             for(var i=0;i<files.length;i++){
                 try{
                     state.status="Parsing "+files[i].name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
                     var text=await parseFile(files[i]);
                     if(!text||!text.trim()){throw new Error("No text could be extracted from this file.");}
-                    curMod().sources.push({name:files[i].name,text:text});
+                    var sourceEntry={name:files[i].name,text:text,images:[]};
+                    curMod().sources.push(sourceEntry);
+                    var warning=sourceSizeWarning(text, files[i].name);
+                    if(warning) sizeWarnings.push(warning.msg);
+                    // Best-effort and non-blocking — image extraction must
+                    // never be able to delay or break the text upload it
+                    // rides along with. Fills in .images once it finishes.
+                    if(files[i].name.toLowerCase().endsWith(".pdf")){
+                        (function(entry,file){
+                            extractPdfImages(file).then(function(images){ entry.images=images; }).catch(function(){});
+                        })(sourceEntry, files[i]);
+                    }
                 }catch(err){parseErrors.push(files[i].name+": "+err.message);}
             }
             if(parseErrors.length){
                 state.status="Failed to parse "+parseErrors.length+" file(s) — "+parseErrors.join("; ");
                 state.statusType="error";
+            } else if(sizeWarnings.length){
+                state.status=sizeWarnings.join(" ");
+                state.statusType="warn";
             } else {
                 state.status=curMod().sources.length+" source(s) loaded";state.statusType="success";
             }
@@ -3149,7 +3332,7 @@
 
         // Source material
         h+='<div class="cmb-card"><label class="cmb-label">Source Material</label>';
-        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">Describe the topic or paste notes. The AI will extract key terms / concepts from this.</div>';
+        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">Describe the topic or paste notes. The AI will extract key terms / concepts from this — use ONE module\'s worth of content (a chapter/lesson), not a whole textbook.</div>';
         h+='<div class="cmb-file-row"><input type="file" id="cmb-act-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
         if(d.uploadedName) h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-act-rmfile">&times;</span></div>';
         h+='</div>';
@@ -3175,8 +3358,16 @@
             var f=e.target.files[0];
             try{
                 state.status="Parsing "+f.name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;
-                state.status="File loaded: "+f.name;state.statusType="success";render();
+                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;d.uploadedFileImages=[];
+                var warning=sourceSizeWarning(d.uploadedFile, f.name);
+                if(warning){ state.status=warning.msg; state.statusType="warn"; }
+                else { state.status="File loaded: "+f.name; state.statusType="success"; }
+                render();
+                // Best-effort and non-blocking — image extraction must never
+                // be able to delay or break the text upload it rides along with.
+                if(f.name.toLowerCase().endsWith(".pdf")){
+                    extractPdfImages(f).then(function(images){ d.uploadedFileImages=images; }).catch(function(){});
+                }
             }catch(err){state.status="Error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
         });
         var rmf=container.querySelector("#cmb-act-rmfile");
@@ -3434,8 +3625,16 @@
             var f=e.target.files[0];
             try{
                 state.status="Parsing "+f.name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;
-                state.status="File loaded: "+f.name;state.statusType="success";render();
+                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;d.uploadedFileImages=[];
+                var warning=sourceSizeWarning(d.uploadedFile, f.name);
+                if(warning){ state.status=warning.msg; state.statusType="warn"; }
+                else { state.status="File loaded: "+f.name; state.statusType="success"; }
+                render();
+                // Best-effort and non-blocking — image extraction must never
+                // be able to delay or break the text upload it rides along with.
+                if(f.name.toLowerCase().endsWith(".pdf")){
+                    extractPdfImages(f).then(function(images){ d.uploadedFileImages=images; }).catch(function(){});
+                }
             }catch(err){state.status="Error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
         });
         var rmFile=container.querySelector("#cmb-rm-file");
@@ -3536,7 +3735,7 @@
 
         // ── Source material ───────────────────────────────────────────────
         h+='<div class="cmb-card"><label class="cmb-label">Source Material</label>';
-        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">Describe the topic or paste notes — the assignment is grounded in this material.</div>';
+        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">Describe the topic or paste notes — the assignment is grounded in this material. Use ONE module\'s worth of content (a chapter/lesson), not a whole textbook.</div>';
         h+='<div class="cmb-file-row"><input type="file" id="cmb-pa-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
         if(d.uploadedName) h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-pa-rmfile">&times;</span></div>';
         h+='</div><textarea class="cmb-textarea" id="cmb-pa-text" rows="4" placeholder="Paste content for the assignment to be based on...">'+esc(d.textContent||"")+'</textarea>';
@@ -3595,8 +3794,16 @@
             var f=e.target.files[0];
             try{
                 state.status="Parsing "+f.name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
-                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;
-                state.status="File loaded: "+f.name;state.statusType="success";render();
+                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;d.uploadedFileImages=[];
+                var warning=sourceSizeWarning(d.uploadedFile, f.name);
+                if(warning){ state.status=warning.msg; state.statusType="warn"; }
+                else { state.status="File loaded: "+f.name; state.statusType="success"; }
+                render();
+                // Best-effort and non-blocking — image extraction must never
+                // be able to delay or break the text upload it rides along with.
+                if(f.name.toLowerCase().endsWith(".pdf")){
+                    extractPdfImages(f).then(function(images){ d.uploadedFileImages=images; }).catch(function(){});
+                }
             }catch(err){state.status="Error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
         });
         var rmf=container.querySelector("#cmb-pa-rmfile");
@@ -3844,7 +4051,7 @@
     function renderContentResult(container,item,d){
         var info=ITEM_TYPES[item.type]||{label:"Page",icon:"?"};
         var h='<h2 class="cmb-h2">'+info.icon+' '+esc(info.label)+' - Result</h2>';
-        h+='<div class="cmb-tab-bar"><div class="cmb-tab active" data-tab="preview">Preview</div><div class="cmb-tab" data-tab="code">HTML Code</div></div>';
+        h+='<div class="cmb-tab-bar"><div class="cmb-tab active" data-tab="edit">Edit</div><div class="cmb-tab" data-tab="preview">Preview</div><div class="cmb-tab" data-tab="code">HTML Code</div></div>';
         h+='<div id="cmb-result-content"></div>';
         h+='<div class="cmb-btn-row">';
         h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-copy-html">Copy HTML</button>';
@@ -3853,12 +4060,13 @@
         h+='</div>';
         container.innerHTML=h;
         var contentDiv=container.querySelector("#cmb-result-content");
-        showPreviewTab(contentDiv,d.generatedHTML);
+        showEditTab(contentDiv,d);
         container.querySelectorAll(".cmb-tab").forEach(function(tab){
             tab.addEventListener("click",function(){
                 container.querySelectorAll(".cmb-tab").forEach(function(t){t.classList.remove("active");});
                 tab.classList.add("active");
-                if(tab.dataset.tab==="preview"){showPreviewTab(contentDiv,d.generatedHTML);}
+                if(tab.dataset.tab==="edit"){showEditTab(contentDiv,d);}
+                else if(tab.dataset.tab==="preview"){showPreviewTab(contentDiv,d.generatedHTML);}
                 else{showCodeTab(contentDiv,d);}
             });
         });
@@ -3880,6 +4088,289 @@
     function showCodeTab(container,itemData){
         container.innerHTML='<textarea class="cmb-code-area" aria-label="Editable generated HTML">'+esc(itemData.generatedHTML)+'</textarea>';
         container.querySelector(".cmb-code-area").addEventListener("input",function(e){itemData.generatedHTML=e.target.value;});
+    }
+
+    var WYSIWYG_HEADINGS=[["P","Paragraph"],["H1","Heading 1"],["H2","Heading 2"],["H3","Heading 3"]];
+    var WYSIWYG_BUTTONS=[["bold","b","B","Bold"],["italic","i","I","Italic"],["underline","u","U","Underline"]];
+
+    function wysiwygToolbarHtml(){
+        var h='<div class="cmb-wys-toolbar">';
+        h+='<select class="cmb-wys-select" id="cmb-wys-heading" title="Paragraph style">';
+        WYSIWYG_HEADINGS.forEach(function(o){ h+='<option value="'+o[0]+'">'+o[1]+'</option>'; });
+        h+='</select><span class="cmb-wys-sep"></span>';
+        WYSIWYG_BUTTONS.forEach(function(b){
+            h+='<button type="button" class="cmb-wys-btn" data-cmd="'+b[0]+'" title="'+b[3]+'"><'+b[1]+'>'+b[2]+'</'+b[1]+'></button>';
+        });
+        h+='<span class="cmb-wys-sep"></span>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="insertUnorderedList" title="Bullet list">&#8226; List</button>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="insertOrderedList" title="Numbered list">1. List</button>';
+        h+='<span class="cmb-wys-sep"></span>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="justifyLeft" title="Align left">&#8676;</button>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="justifyCenter" title="Align center">&#8596;</button>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="justifyRight" title="Align right">&#8677;</button>';
+        h+='<span class="cmb-wys-sep"></span>';
+        h+='<button type="button" class="cmb-wys-btn" id="cmb-wys-link" title="Insert link">&#128279; Link</button>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="unlink" title="Remove link">Unlink</button>';
+        h+='<button type="button" class="cmb-wys-btn" id="cmb-wys-image" title="Insert a photo from Unsplash">&#128247; Image</button>';
+        h+='<span class="cmb-wys-sep"></span>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="undo" title="Undo">&#8630;</button>';
+        h+='<button type="button" class="cmb-wys-btn" data-cmd="redo" title="Redo">&#8631;</button>';
+        h+='</div>';
+        return h;
+    }
+
+    // WYSIWYG edit surface — a real contenteditable div (not the sandboxed
+    // preview iframe) so document.execCommand can act on it directly. Every
+    // generated page already uses inline styles only (Canvas strips <style>
+    // blocks, so that rule was enforced from the start), so rendering the
+    // HTML straight into a plain div is safe — nothing here can leak CSS
+    // into the surrounding extension UI.
+    function showEditTab(container,d){
+        container.innerHTML=wysiwygToolbarHtml()+'<div id="cmb-wys-imgpanel" class="cmb-wys-imgpanel" style="display:none;"></div><div class="cmb-wys-editor" id="cmb-wys-editor" contenteditable="true">'+(d.generatedHTML||"")+'</div>';
+        var editor=container.querySelector("#cmb-wys-editor");
+        editor.addEventListener("input",function(){ d.generatedHTML=editor.innerHTML; });
+
+        container.querySelectorAll(".cmb-wys-btn[data-cmd]").forEach(function(btn){
+            // mousedown (not click) so the editor's text selection survives
+            // the click — execCommand acts on whatever was selected right
+            // before the button was pressed.
+            btn.addEventListener("mousedown",function(e){ e.preventDefault(); });
+            btn.addEventListener("click",function(){
+                editor.focus();
+                document.execCommand(btn.dataset.cmd,false,null);
+                d.generatedHTML=editor.innerHTML;
+            });
+        });
+
+        var headingSelect=container.querySelector("#cmb-wys-heading");
+        headingSelect.addEventListener("change",function(){
+            editor.focus();
+            document.execCommand("formatBlock",false,headingSelect.value);
+            d.generatedHTML=editor.innerHTML;
+        });
+
+        var linkBtn=container.querySelector("#cmb-wys-link");
+        linkBtn.addEventListener("mousedown",function(e){ e.preventDefault(); });
+        linkBtn.addEventListener("click",function(){
+            var url=prompt("Link URL:","https://");
+            if(!url) return;
+            editor.focus();
+            document.execCommand("createLink",false,url);
+            d.generatedHTML=editor.innerHTML;
+        });
+
+        var imgPanel=container.querySelector("#cmb-wys-imgpanel");
+
+        var imageBtn=container.querySelector("#cmb-wys-image");
+        var savedRange=null;
+        imageBtn.addEventListener("mousedown",function(e){ e.preventDefault(); });
+        imageBtn.addEventListener("click",function(){
+            var sel=window.getSelection();
+            if(sel && sel.rangeCount && editor.contains(sel.anchorNode)) savedRange=sel.getRangeAt(0).cloneRange();
+            var isOpen=imgPanel.style.display!=="none";
+            imgPanel.style.display=isOpen?"none":"block";
+            if(!isOpen){
+                renderImagePanel(imgPanel,editor,d,function(html){
+                    var range=savedRange;
+                    editor.focus();
+                    if(range){
+                        var sel2=window.getSelection();
+                        sel2.removeAllRanges();
+                        sel2.addRange(range);
+                    }
+                    document.execCommand("insertHTML",false,html);
+                    d.generatedHTML=editor.innerHTML;
+                    imgPanel.style.display="none";
+                });
+            }
+        });
+
+        // Every AI-suggested image starts as a clickable placeholder slot
+        // (see imagePlaceholderTag) rather than an auto-picked photo — click
+        // one to open the same panel, prefilled with the AI's suggested
+        // search term, and swap in whatever the teacher actually picks.
+        // Delegated on the editor itself (one listener, not one per slot) so
+        // every slot works the same way regardless of how many exist —
+        // attaching a separate listener per slot at mount time turned out to
+        // silently miss slots after the first.
+        editor.addEventListener("click",function(e){
+            var slot=e.target.closest(".cmb-img-slot");
+            if(!slot) return;
+            if(e.target.closest("a,figcaption")) return; // let the Unsplash attribution link work normally
+            e.preventDefault();
+            imgPanel.style.display="block";
+            renderImagePanel(imgPanel,editor,d,function(html){
+                slot.outerHTML=html;
+                d.generatedHTML=editor.innerHTML;
+                imgPanel.style.display="none";
+            },slot.dataset.keyword,slot.dataset.dir);
+        });
+    }
+
+    // Combines this item's own extracted PDF images with its module's
+    // shared source PDFs' images — either could be the relevant one.
+    function collectAvailablePdfImages(d){
+        var images=(d.uploadedFileImages||[]).map(function(img){
+            return {page:img.page,width:img.width,height:img.height,dataUrl:img.dataUrl,sourceLabel:d.uploadedName||"Uploaded file"};
+        });
+        var mod=curMod();
+        if(mod && mod.sources){
+            mod.sources.forEach(function(src){
+                (src.images||[]).forEach(function(img){
+                    images.push({page:img.page,width:img.width,height:img.height,dataUrl:img.dataUrl,sourceLabel:src.name});
+                });
+            });
+        }
+        return images;
+    }
+
+    // Three ways to get a picture into the page: pull one already embedded
+    // in an uploaded PDF (free, already exactly what the teacher has),
+    // search Unsplash stock photos, or upload any local image file. Whole
+    // panel redraws on tab switch since there are only ever a handful of
+    // controls — simpler than trying to keep three hidden sections in sync.
+    // onInsert(html) is supplied by the caller so this same panel works both
+    // for "insert at the cursor" (toolbar button) and "replace this exact
+    // placeholder slot" (clicking a slot in the page content) without
+    // knowing which one it's doing.
+    // dir ("left"/"right"/"") is whatever the slot being filled/replaced was
+    // already using — carried all the way through to the actual insert so a
+    // floated wrap slot stays floated once filled, instead of every insert
+    // defaulting to the plain full-width variant regardless of context.
+    function renderImagePanel(panel,editor,d,onInsert,prefillQuery,dir){
+        var pdfImages=collectAvailablePdfImages(d);
+        var activeTab=pdfImages.length?"pdf":"unsplash";
+        function draw(){
+            var h='<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">';
+            h+='<button type="button" class="cmb-wys-imgtab'+(activeTab==="pdf"?" active":"")+'" data-tab="pdf">From Your PDF'+(pdfImages.length?(" ("+pdfImages.length+")"):"")+'</button>';
+            h+='<button type="button" class="cmb-wys-imgtab'+(activeTab==="unsplash"?" active":"")+'" data-tab="unsplash">Search Unsplash</button>';
+            h+='<button type="button" class="cmb-wys-imgtab'+(activeTab==="upload"?" active":"")+'" data-tab="upload">Upload Your Own</button>';
+            h+='</div><div id="cmb-wys-imgbody"></div>';
+            panel.innerHTML=h;
+            panel.querySelectorAll(".cmb-wys-imgtab").forEach(function(btn){
+                btn.addEventListener("click",function(){ activeTab=btn.dataset.tab; draw(); });
+            });
+            var body=panel.querySelector("#cmb-wys-imgbody");
+            if(activeTab==="pdf") drawPdfImageGrid(body,pdfImages,onInsert,dir);
+            else if(activeTab==="upload") drawUploadOwnPanel(body,onInsert,dir);
+            else drawUnsplashSearchPanel(body,onInsert,prefillQuery,dir);
+        }
+        draw();
+    }
+
+    // data: URIs work fine in this tool's own preview but Canvas's own save
+    // pipeline strips them from page/assignment HTML as an XSS defense — an
+    // image inserted as a raw data URI can look correct here and then
+    // simply vanish once the page is actually saved in Canvas. Every image
+    // that isn't already a real http(s) URL (i.e. everything except
+    // Unsplash) gets uploaded to this course's Files API first — the same
+    // mechanism already used for PDF assignment attachments — so what ends
+    // up in the HTML is a real Canvas-hosted URL that survives saving.
+    function dataUrlToBlob(dataUrl){
+        var parts=dataUrl.split(",");
+        var mimeMatch=/data:([^;]+)/.exec(parts[0]);
+        var mime=mimeMatch ? mimeMatch[1] : "image/png";
+        var binary=atob(parts[1]);
+        var bytes=new Uint8Array(binary.length);
+        for(var i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+        return new Blob([bytes],{type:mime});
+    }
+
+    function drawPdfImageGrid(body,pdfImages,onInsert,dir){
+        if(!pdfImages.length){
+            body.innerHTML='<div style="font-size:12px;color:#94A3B8;">No images found yet — upload a source PDF with real photos/diagrams in it first.</div>';
+            return;
+        }
+        body.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div><div id="cmb-wys-imgupstatus" style="font-size:11px;color:#94A3B8;margin-top:8px;"></div>';
+        var grid=body.firstChild;
+        var statusEl=body.querySelector("#cmb-wys-imgupstatus");
+        pdfImages.forEach(function(img){
+            var thumb=document.createElement("img");
+            thumb.src=img.dataUrl;
+            thumb.title="From "+img.sourceLabel+" (page "+img.page+") — click to insert";
+            thumb.style.cssText="width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;";
+            thumb.addEventListener("mouseenter",function(){ thumb.style.borderColor="#7C3AED"; });
+            thumb.addEventListener("mouseleave",function(){ thumb.style.borderColor="transparent"; });
+            thumb.addEventListener("click",async function(){
+                statusEl.textContent="Uploading to this course…";
+                try{
+                    var blob=dataUrlToBlob(img.dataUrl);
+                    var uploaded=await canvasUploadFile("page-"+img.page+".jpg", blob, "image/jpeg");
+                    onInsert(sizedImageTag(uploaded.url,img.sourceLabel,dir,img.sourceLabel));
+                    statusEl.textContent="";
+                }catch(err){
+                    statusEl.textContent="Upload failed: "+err.message;
+                }
+            });
+            grid.appendChild(thumb);
+        });
+    }
+
+    function drawUploadOwnPanel(body,onInsert,dir){
+        body.innerHTML='<input type="file" accept="image/*" id="cmb-wys-imgupload" class="cmb-input">'+
+            '<div style="font-size:11px;color:#94A3B8;margin-top:8px;" id="cmb-wys-uploadstatus">Pick any image from your computer — it gets uploaded to this course and embedded in the page.</div>';
+        var statusEl=body.querySelector("#cmb-wys-uploadstatus");
+        body.querySelector("#cmb-wys-imgupload").addEventListener("change",async function(e){
+            if(!e.target.files.length) return;
+            var file=e.target.files[0];
+            statusEl.textContent="Uploading "+file.name+"…";
+            try{
+                var uploaded=await canvasUploadFile(file.name, file, file.type||"image/png");
+                onInsert(sizedImageTag(uploaded.url,file.name,dir,file.name));
+                statusEl.textContent="";
+            }catch(err){
+                statusEl.textContent="Upload failed: "+err.message;
+            }
+        });
+    }
+
+    // Manual "search Unsplash → pick a photo → insert" flow — human judgment
+    // on the actual photo, rather than the tool silently auto-inserting
+    // whichever result an AI-guessed keyword happened to rank first.
+    function drawUnsplashSearchPanel(body,onInsert,prefillQuery,dir){
+        body.innerHTML=
+            '<div style="display:flex;gap:8px;margin-bottom:10px;">'+
+            '<input type="text" class="cmb-input" id="cmb-wys-imgquery" placeholder="Search Unsplash, e.g. wall framing" value="'+esc(prefillQuery||"")+'" style="flex:1;">'+
+            '<button class="cmb-btn cmb-btn-ai" id="cmb-wys-imgsearch">Search</button>'+
+            '</div>'+
+            '<div id="cmb-wys-imgresults" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>';
+        var queryInput=body.querySelector("#cmb-wys-imgquery");
+        var searchBtn=body.querySelector("#cmb-wys-imgsearch");
+        var resultsEl=body.querySelector("#cmb-wys-imgresults");
+        if(!state.unsplashKey){
+            resultsEl.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#94A3B8;">Add a free Unsplash key in Setup to search real photos.</div>';
+        }
+        function runSearch(){
+            var q=queryInput.value.trim();
+            if(!q) return;
+            if(!state.unsplashKey){ resultsEl.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#B91C1C;">No Unsplash key configured — add one in Setup.</div>'; return; }
+            resultsEl.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#94A3B8;">Searching…</div>';
+            searchBtn.disabled=true;
+            unsplashSearchMulti(q,9).then(function(results){
+                searchBtn.disabled=false;
+                if(!results.length){ resultsEl.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#94A3B8;">No results — try a different search.</div>'; return; }
+                resultsEl.innerHTML="";
+                results.forEach(function(photo){
+                    var thumb=document.createElement("img");
+                    thumb.src=photo.thumbUrl;
+                    thumb.title="Click to insert";
+                    thumb.style.cssText="width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;";
+                    thumb.addEventListener("mouseenter",function(){ thumb.style.borderColor="#7C3AED"; });
+                    thumb.addEventListener("mouseleave",function(){ thumb.style.borderColor="transparent"; });
+                    thumb.addEventListener("click",function(){
+                        onInsert(unsplashPhotoTag(photo,q,dir));
+                        triggerUnsplashDownload(photo.downloadLocation);
+                    });
+                    resultsEl.appendChild(thumb);
+                });
+            }).catch(function(err){
+                searchBtn.disabled=false;
+                resultsEl.innerHTML='<div style="grid-column:1/-1;font-size:12px;color:#B91C1C;">Error: '+esc(err.message)+'</div>';
+            });
+        }
+        searchBtn.addEventListener("click",runSearch);
+        queryInput.addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); runSearch(); } });
+        if(prefillQuery) runSearch();
     }
 
     // ========== INSERT VIEW ==========
@@ -4158,8 +4649,8 @@
         function setStatus(msg, type){
             var el = overlay.querySelector("#cmb-quiz-status");
             el.style.display = "block";
-            var colors = {success:"#166534",error:"#b91c1c",loading:"#1d4ed8"};
-            var bgs = {success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff"};
+            var colors = {success:"#166534",error:"#b91c1c",loading:"#1d4ed8",warn:"#92400e"};
+            var bgs = {success:"#f0fdf4",error:"#fef2f2",loading:"#eff6ff",warn:"#fffbeb"};
             el.style.color = colors[type] || "#6b7280";
             el.style.background = bgs[type] || "#f9fafb";
             el.textContent = msg;
@@ -4211,7 +4702,7 @@
             lh += '</div>';
 
             lh += '<div class="cmb-card"><label class="cmb-label">Source Material (optional)</label>';
-            lh += '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">Upload a file (PDF/DOCX/PPTX/TXT), paste text, or both — a Topic above is optional if you provide source material.</div>';
+            lh += '<div style="font-size:11px;color:#94A3B8;margin-bottom:8px;">Upload a file (PDF/DOCX/PPTX/TXT), paste text, or both — a Topic above is optional if you provide source material. Use ONE module\'s worth of content (a chapter/lesson), not a whole textbook.</div>';
             lh += '<div class="cmb-file-row"><input type="file" id="cmb-qb-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
             if(qst.uploadedName){ lh += '<div class="cmb-file-chip">'+esc(qst.uploadedName)+' <span class="x" id="cmb-qb-rmfile">&times;</span></div>'; }
             lh += '</div><textarea class="cmb-textarea" id="cmb-qb-content" rows="3" placeholder="Or paste content to base questions on...">'+esc(qst.textContent)+'</textarea></div>';
@@ -4278,8 +4769,16 @@
                     setStatus("Parsing "+f.name+"...", "loading");
                     qst.uploadedFile = await parseFile(f);
                     qst.uploadedName = f.name;
-                    setStatus("File loaded: "+f.name, "success");
+                    qst.uploadedFileImages = [];
+                    var warning=sourceSizeWarning(qst.uploadedFile, f.name);
+                    if(warning) setStatus(warning.msg, "warn");
+                    else setStatus("File loaded: "+f.name, "success");
                     renderLeft();
+                    // Best-effort and non-blocking — image extraction must never
+                    // be able to delay or break the text upload it rides along with.
+                    if(f.name.toLowerCase().endsWith(".pdf")){
+                        extractPdfImages(f).then(function(images){ qst.uploadedFileImages=images; }).catch(function(){});
+                    }
                 }catch(err){ setStatus("Error: "+err.message, "error"); }
             });
             var rmFileBtn = left.querySelector("#cmb-qb-rmfile");
@@ -5529,6 +6028,124 @@
         }).catch(function(err){
             setStatus("Error loading course data: "+err.message, "error");
         });
+    }
+
+    // ── STICKY NOTES ─────────────────────────────────────────────────────────
+    // Ported in spirit from the old Canvas Tool Dashboard userscript's sticky
+    // notes feature — a simple, global (not per-course) scratchpad reachable
+    // from the Modules page menu. Same overlay chrome as the Scheduler above
+    // (sidebar list + detail editor) for visual consistency.
+
+    var STICKY_NOTES_KEY = "AIgrader_StickyNotes";
+
+    function stickyNotesLoad(){
+        try{ return JSON.parse(localStorage.getItem(STICKY_NOTES_KEY)||"[]"); }catch(e){ return []; }
+    }
+    function stickyNotesSave(notes){
+        try{ localStorage.setItem(STICKY_NOTES_KEY, JSON.stringify(notes)); }catch(e){}
+    }
+    function makeStickyId(){ return "note_"+Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+
+    function openStickyNotes(){
+        if(document.getElementById("cmb-notes-overlay")) return;
+        var notes = stickyNotesLoad();
+        if(!notes.length){
+            notes.push({id:makeStickyId(), title:"Note 1", text:"", updated:Date.now()});
+            stickyNotesSave(notes);
+        }
+        var activeId = notes[0].id;
+
+        var overlay=document.createElement("div");
+        overlay.id="cmb-notes-overlay";
+        overlay.innerHTML =
+            '<div id="cmb-notes-panel">' +
+              '<div class="cmb-sch-controls"><span class="cmb-sch-brand">🗒️ Notes</span><button class="cmb-sch-close-btn" id="cmb-notes-close" style="margin-left:auto;">✕</button></div>' +
+              '<div class="cmb-sch-layout">' +
+                '<div class="cmb-sch-left" style="width:220px;">' +
+                  '<div class="cmb-sch-colhdr">Your Notes</div>' +
+                  '<div class="cmb-sch-left-body" id="cmb-notes-list"></div>' +
+                  '<div style="padding:12px;border-top:1px solid #E2E8F0;"><button class="cmb-btn cmb-btn-secondary" id="cmb-notes-add" style="width:100%;">+ New Note</button></div>' +
+                '</div>' +
+                '<div class="cmb-sch-right" style="padding:16px;display:flex;flex-direction:column;gap:10px;">' +
+                  '<input type="text" class="cmb-input" id="cmb-notes-title" placeholder="Note title..." maxlength="60">' +
+                  '<textarea class="cmb-textarea" id="cmb-notes-text" placeholder="Jot down reminders..." style="flex:1;min-height:300px;resize:vertical;"></textarea>' +
+                  '<div style="display:flex;justify-content:space-between;align-items:center;"><button class="cmb-btn cmb-btn-danger" id="cmb-notes-delete">🗑 Delete Note</button><span style="font-size:11px;color:#94A3B8;" id="cmb-notes-savedstate"></span></div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        function close(){ overlay.remove(); }
+        overlay.addEventListener("click", function(e){ if(e.target===overlay) close(); });
+        overlay.querySelector("#cmb-notes-close").addEventListener("click", close);
+
+        var listEl=overlay.querySelector("#cmb-notes-list");
+        var titleInput=overlay.querySelector("#cmb-notes-title");
+        var textArea=overlay.querySelector("#cmb-notes-text");
+        var savedState=overlay.querySelector("#cmb-notes-savedstate");
+        var saveTimer=null;
+
+        function renderList(){
+            listEl.innerHTML="";
+            notes.forEach(function(n){
+                var item=document.createElement("button");
+                item.type="button";
+                item.className="cmb-sch-tile";
+                item.style.cssText="display:block;width:100%;text-align:left;cursor:pointer;"+(n.id===activeId?"border-color:#7C3AED;background:#F5F3FF;":"");
+                item.textContent=n.title||"Untitled";
+                item.addEventListener("click",function(){ selectNote(n.id); });
+                listEl.appendChild(item);
+            });
+        }
+
+        function commit(){
+            var n=notes.find(function(x){return x.id===activeId;});
+            if(!n) return;
+            n.title=titleInput.value.trim()||"Untitled";
+            n.text=textArea.value;
+            n.updated=Date.now();
+            stickyNotesSave(notes);
+            savedState.textContent="Saved";
+        }
+
+        function selectNote(id){
+            // Commit the previously active note first, in case a debounced
+            // autosave hasn't fired yet — switching notes shouldn't lose edits.
+            commit();
+            activeId=id;
+            var n=notes.find(function(x){return x.id===id;});
+            titleInput.value=n?n.title:"";
+            textArea.value=n?n.text:"";
+            savedState.textContent="";
+            renderList();
+        }
+
+        function scheduleSave(){
+            clearTimeout(saveTimer);
+            savedState.textContent="Saving…";
+            saveTimer=setTimeout(function(){ commit(); renderList(); },500);
+        }
+
+        titleInput.addEventListener("input", scheduleSave);
+        textArea.addEventListener("input", scheduleSave);
+
+        overlay.querySelector("#cmb-notes-add").addEventListener("click",function(){
+            commit();
+            var n={id:makeStickyId(), title:"Note "+(notes.length+1), text:"", updated:Date.now()};
+            notes.push(n);
+            stickyNotesSave(notes);
+            selectNote(n.id);
+        });
+
+        overlay.querySelector("#cmb-notes-delete").addEventListener("click",function(){
+            if(notes.length<=1){ alert("You need at least one note — edit or clear it instead of deleting."); return; }
+            if(!confirm("Delete this note? This can't be undone.")) return;
+            notes=notes.filter(function(x){return x.id!==activeId;});
+            stickyNotesSave(notes);
+            selectNote(notes[0].id);
+        });
+
+        selectNote(activeId);
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -7612,6 +8229,9 @@
         }],
         ["📅 Scheduler", function(){
             openScheduler();
+        }],
+        ["🗒️ Notes", function(){
+            openStickyNotes();
         }]
     ];
 

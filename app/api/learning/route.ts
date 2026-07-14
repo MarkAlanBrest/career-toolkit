@@ -46,27 +46,54 @@ function fallbackLesson(id:StudentId, date:string, profile:Profile): Lesson {
   };
 }
 
+// Explicit, deterministic mastery rule for the subject about to be taught —
+// this is what actually makes progression adaptive, rather than leaving it
+// to the model's own loose interpretation of a "recent performance" dump.
+// Looks at the student's last 2 attempts IN THIS SUBJECT specifically (not
+// just the last 8 results overall, which could be mostly other subjects),
+// and returns a concrete instruction: advance past their last topic on
+// strong performance, re-teach it on weak performance, or reinforce it in
+// between. First-ever lesson in a subject has no prior data to gate on.
+function subjectMasteryDirective(results:Profile['results'], subject:string): string {
+  const inSubject = results.filter(r => r.subject === subject);
+  if (!inSubject.length) return `This is their first lesson in ${subject} — start at a solid, grade-appropriate foundational level for that subject.`;
+  const last = inSubject[inSubject.length-1];
+  const lastSkill = last.skill;
+  const lastPct = Math.round(last.correct/last.total*100);
+  // Trailing run of consecutive attempts on this exact same skill — a topic
+  // change (once they advance) or a low score naturally breaks the run.
+  const sameSkillRun:typeof inSubject = [];
+  for (let i=inSubject.length-1;i>=0;i--){ if (inSubject[i].skill===lastSkill) sameSkillRun.unshift(inSubject[i]); else break; }
+  const twoStrongInARow = sameSkillRun.length>=2 && sameSkillRun.slice(-2).every(r=>r.correct/r.total>=0.8);
+  if (twoStrongInARow) return `The student has scored 80% or higher on "${lastSkill}" TWO lessons in a row — they have mastered this. ADVANCE: teach a NEW, more advanced ${subject} topic that naturally builds on "${lastSkill}". Do not re-teach "${lastSkill}" as the main focus.`;
+  if (lastPct >= 80) return `The student just scored ${lastPct}% on "${lastSkill}" — strong, but they need to hit 80%+ on this SAME topic twice in a row before advancing (this was only the first). REINFORCE: teach "${lastSkill}" again today with fresh examples and different practice questions — do not move to a new topic yet.`;
+  if (lastPct < 60) return `The student scored only ${lastPct}% on "${lastSkill}" — they have not mastered this yet. REVIEW: re-teach "${lastSkill}" again today using a different explanation, different worked example, and different practice questions than before. Do not move on to a new topic.`;
+  return `The student scored ${lastPct}% on "${lastSkill}" — solid but not yet fully secure. REINFORCE: give more practice on "${lastSkill}" (or a closely related sub-skill), still short of introducing a fully new topic.`;
+}
+
 async function generateLesson(id:StudentId,date:string,profile:Profile): Promise<Lesson> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return fallbackLesson(id,date,profile);
   const recent = profile.results.slice(-8);
   const subject = subjects[Math.abs(date.split('-').join('').split('').reduce((a,n)=>a+Number(n),0) + (id==='sophia'?1:0)) % subjects.length];
-  const prompt = `You are BrightPath, a careful elementary curriculum designer. Create one complete independent lesson for ${names[id]}, a child preparing for fourth grade. It should take about 30 minutes: 4-minute warm-up, 8-minute explicit instruction, 4-minute worked example or reading, 10-12 minutes of 8 multiple-choice questions, and a 3-minute written reflection.
+  const masteryDirective = subjectMasteryDirective(profile.results, subject);
+  const prompt = `You are BrightPath, a careful elementary curriculum designer. Create one complete independent lesson for ${names[id]}, a child preparing for fourth grade. It should take about 30 minutes: 4-minute warm-up, 8-minute explicit instruction covering 4 distinct teaching points, 4-minute worked example or reading, 13-15 minutes of 10 multiple-choice questions, and a 3-minute written reflection. Make the instruction genuinely substantive (not just padding) — real explanation, examples, and detail a child would actually need several minutes to read.
 
 Today's required subject: ${subject}. Date: ${date}.
-Recent performance: ${recent.length ? JSON.stringify(recent) : 'No results yet; begin at late third-grade level and gently assess readiness.'}
+SUBJECT PROGRESSION (follow this precisely — it is the student's actual mastery data for ${subject}, not a suggestion): ${masteryDirective}
+Recent performance across all subjects (for tone/context only): ${recent.length ? JSON.stringify(recent) : 'No results yet; begin at late third-grade level and gently assess readiness.'}
 
-Adapt to weak skills without repeating yesterday's exact lesson. Keep language encouraging, factually accurate, age-appropriate, and self-contained. Do not ask for personal information. Every question must be answerable from the instruction or grade-appropriate prior knowledge. Exactly four answer choices per question and exactly 8 questions.
+Keep language encouraging, factually accurate, age-appropriate, and self-contained. Do not ask for personal information. Every question must be answerable from the instruction or grade-appropriate prior knowledge. Exactly four answer choices per question and exactly 10 questions.
 
 Return ONLY valid JSON matching this shape:
-{"subject":"Math|Reading|Science|Language Arts","title":"...","description":"...","minutes":30,"skill":"main skill","warmup":"...","instruction":["paragraph 1","paragraph 2","paragraph 3"],"workedExample":"...","reading":"optional passage when useful","questions":[{"prompt":"...","answers":["A","B","C","D"],"correct":0,"explanation":"child-friendly explanation","skill":"specific skill"}],"reflection":"..."}`;
+{"subject":"Math|Reading|Science|Language Arts","title":"...","description":"...","minutes":30,"skill":"main skill","warmup":"...","instruction":["paragraph 1","paragraph 2","paragraph 3","paragraph 4"],"workedExample":"...","reading":"optional passage when useful","questions":[{"prompt":"...","answers":["A","B","C","D"],"correct":0,"explanation":"child-friendly explanation","skill":"specific skill"}],"reflection":"..."}`;
   const response = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:6000,messages:[{role:'user',content:prompt}]})});
   if (!response.ok) return fallbackLesson(id,date,profile);
   try {
     const data = await response.json();
     const text = data?.content?.[0]?.text?.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
     const generated = JSON.parse(text);
-    if (!Array.isArray(generated.questions) || generated.questions.length !== 8) throw new Error('Invalid lesson');
+    if (!Array.isArray(generated.questions) || generated.questions.length !== 10) throw new Error('Invalid lesson');
     return { ...generated, id:`${id}-${date}`, date, minutes:30 } as Lesson;
   } catch { return fallbackLesson(id,date,profile); }
 }
@@ -96,7 +123,13 @@ export async function POST(req:NextRequest) {
   const yesterday = new Date(Date.now()-86400000).toLocaleDateString('en-CA',{timeZone:'America/New_York'});
   const already = profile.completed.includes(body.lessonId);
   const streak = already ? profile.streak : profile.lastCompleted === yesterday ? profile.streak+1 : profile.lastCompleted === today ? profile.streak : 1;
-  const next:Profile = { completed:[...new Set([...profile.completed,body.lessonId])], results:already?profile.results:[...profile.results,{lessonId:body.lessonId,date:today,subject:String(body.subject||''),skill:String(body.skill||''),correct:Number(body.correct)||0,total:Number(body.total)||8}].slice(-100), streak, lastCompleted:today };
+  // Clamp correct to [0,total] server-side — never trust a client-computed
+  // score outright. This is what actually let a bad client-side count (see
+  // app/learning/page.tsx) get written straight to Redis and show up as
+  // e.g. 144% accuracy on the progress card.
+  const total = Number(body.total)||8;
+  const correct = Math.max(0, Math.min(Number(body.correct)||0, total));
+  const next:Profile = { completed:[...new Set([...profile.completed,body.lessonId])], results:already?profile.results:[...profile.results,{lessonId:body.lessonId,date:today,subject:String(body.subject||''),skill:String(body.skill||''),correct,total}].slice(-100), streak, lastCompleted:today };
   await redis.set(profileKey(id),JSON.stringify(next));
   return NextResponse.json({profile:next});
 }

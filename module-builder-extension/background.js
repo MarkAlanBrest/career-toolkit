@@ -13,6 +13,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     handleUnsplashSearch(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
     return true;
   }
+  if (msg.type === 'CMB_UNSPLASH_SEARCH_MULTI') {
+    handleUnsplashSearchMulti(msg.payload).then(sendResponse).catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
   if (msg.type === 'CMB_UNSPLASH_DOWNLOAD') {
     handleUnsplashDownload(msg.payload).then(sendResponse).catch(() => sendResponse({}));
     return true;
@@ -52,6 +56,24 @@ async function handleUnsplashSearch({ unsplashKey, keyword }) {
     name: photo.user.name,
     profile: `${photo.user.links.html}?utm_source=canvas_module_builder&utm_medium=referral`,
     downloadLocation: photo.links.download_location,
+  };
+}
+
+async function handleUnsplashSearchMulti({ unsplashKey, keyword, count }) {
+  const perPage = Math.min(Math.max(count || 9, 1), 30);
+  const res = await fetch(`https://api.unsplash.com/search/photos?per_page=${perPage}&query=${encodeURIComponent(keyword)}`, {
+    headers: { 'Authorization': `Client-ID ${unsplashKey}`, 'Accept-Version': 'v1' },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.errors?.join(', ') || `HTTP ${res.status}`);
+  return {
+    results: (data.results || []).map(photo => ({
+      url: photo.urls.regular,
+      thumbUrl: photo.urls.thumb,
+      name: photo.user.name,
+      profile: `${photo.user.links.html}?utm_source=canvas_module_builder&utm_medium=referral`,
+      downloadLocation: photo.links.download_location,
+    })),
   };
 }
 
