@@ -77,13 +77,14 @@ async function generateLesson(id:StudentId,date:string,profile:Profile): Promise
   const recent = profile.results.slice(-8);
   const subject = subjects[Math.abs(date.split('-').join('').split('').reduce((a,n)=>a+Number(n),0) + (id==='sophia'?1:0)) % subjects.length];
   const masteryDirective = subjectMasteryDirective(profile.results, subject);
-  const prompt = `You are BrightPath, a careful elementary curriculum designer. Create one complete independent lesson for ${names[id]}, a child preparing for fourth grade. It should take about 30 minutes: 4-minute warm-up, 8-minute explicit instruction covering 4 distinct teaching points, 4-minute worked example or reading, 13-15 minutes of 10 multiple-choice questions, and a 3-minute written reflection. Make the instruction genuinely substantive (not just padding) — real explanation, examples, and detail a child would actually need several minutes to read.
+  const questionCount = Math.floor(Math.random()*4)+12; // 12-15, varied daily
+  const prompt = `You are BrightPath, a careful elementary curriculum designer. Create one complete independent lesson for ${names[id]}, a child preparing for fourth grade. It should take about 30 minutes: 4-minute warm-up, 8-minute explicit instruction covering 4 distinct teaching points, 4-minute worked example or reading, 13-15 minutes of ${questionCount} multiple-choice questions, and a 3-minute written reflection. Make the instruction genuinely substantive (not just padding) — real explanation, examples, and detail a child would actually need several minutes to read.
 
 Today's required subject: ${subject}. Date: ${date}.
 SUBJECT PROGRESSION (follow this precisely — it is the student's actual mastery data for ${subject}, not a suggestion): ${masteryDirective}
 Recent performance across all subjects (for tone/context only): ${recent.length ? JSON.stringify(recent) : 'No results yet; begin at late third-grade level and gently assess readiness.'}
 
-Keep language encouraging, factually accurate, age-appropriate, and self-contained. Do not ask for personal information. Every question must be answerable from the instruction or grade-appropriate prior knowledge. Exactly four answer choices per question and exactly 10 questions.
+Keep language encouraging, factually accurate, age-appropriate, and self-contained. Do not ask for personal information. Every question must be answerable from the instruction or grade-appropriate prior knowledge. Exactly four answer choices per question and exactly ${questionCount} questions.
 
 Return ONLY valid JSON matching this shape:
 {"subject":"Math|Reading|Science|Language Arts","title":"...","description":"...","minutes":30,"skill":"main skill","warmup":"...","instruction":["paragraph 1","paragraph 2","paragraph 3","paragraph 4"],"workedExample":"...","reading":"optional passage when useful","questions":[{"prompt":"...","answers":["A","B","C","D"],"correct":0,"explanation":"child-friendly explanation","skill":"specific skill"}],"reflection":"..."}`;
@@ -93,7 +94,7 @@ Return ONLY valid JSON matching this shape:
     const data = await response.json();
     const text = data?.content?.[0]?.text?.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim();
     const generated = JSON.parse(text);
-    if (!Array.isArray(generated.questions) || generated.questions.length !== 10) throw new Error('Invalid lesson');
+    if (!Array.isArray(generated.questions) || generated.questions.length !== questionCount) throw new Error('Invalid lesson');
     return { ...generated, id:`${id}-${date}`, date, minutes:30 } as Lesson;
   } catch { return fallbackLesson(id,date,profile); }
 }
