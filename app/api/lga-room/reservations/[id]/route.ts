@@ -5,9 +5,19 @@ import {
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
-import { sendRequesterDecision } from '@/lib/lgaRoomEmail';
+import {
+  sendBuildingManagerNotification,
+  sendMaintenanceNotification,
+  sendRequesterDecision,
+  sendRequesterTimeChanged,
+} from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
+
+const EDITABLE_FIELDS = [
+  'status', 'date', 'startTime', 'endTime', 'name', 'organization', 'email', 'phone',
+  'eventName', 'purpose', 'numberOfPeople', 'setupRequirements', 'specialRequests',
+] as const;
 
 function authorized(request: NextRequest) {
   return isAdminAuthorized(request.headers.get('x-admin-password'));
@@ -32,17 +42,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     const current = reservations[index];
-    const updated = {
-      ...current,
-      ...('status' in body ? { status: body.status } : {}),
-      ...('date' in body ? { date: body.date } : {}),
-      ...('startTime' in body ? { startTime: body.startTime } : {}),
-      ...('endTime' in body ? { endTime: body.endTime } : {}),
-      ...('name' in body ? { name: body.name } : {}),
-      ...('email' in body ? { email: body.email } : {}),
-      ...('purpose' in body ? { purpose: body.purpose } : {}),
-      updatedAt: new Date().toISOString(),
-    };
+    const patch: Record<string, unknown> = {};
+    for (const field of EDITABLE_FIELDS) {
+      if (field in body) patch[field] = body[field];
+    }
+    const updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
 
     if (updated.status === 'approved') {
       const hasConflict = reservations.some(
@@ -57,8 +61,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     reservations[index] = updated;
     await saveAllReservations(reservations);
 
-    if (updated.status !== current.status && (updated.status === 'approved' || updated.status === 'denied')) {
+    const justApproved = updated.status !== current.status && updated.status === 'approved';
+    const justDenied = updated.status !== current.status && updated.status === 'denied';
+    if (justApproved || justDenied) {
       await sendRequesterDecision(updated);
+    }
+    if (justApproved) {
+      await sendBuildingManagerNotification(updated);
+      await sendMaintenanceNotification(updated);
+    }
+
+    const timeChanged = body.notifyTimeChange === true &&
+      (updated.date !== current.date || updated.startTime !== current.startTime || updated.endTime !== current.endTime);
+    if (timeChanged) {
+      await sendRequesterTimeChanged(updated);
     }
 
     return NextResponse.json({ reservation: updated });

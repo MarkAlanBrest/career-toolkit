@@ -1,0 +1,777 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import type { Reservation } from '@/lib/lgaRoom';
+import {
+  Field,
+  ModalShell,
+  ROOM_NAME,
+  SectionLabel,
+  StatusRow,
+  STATUS_STYLES,
+  TIME_OPTIONS,
+  WEEKDAY_LABELS,
+  accentStrong,
+  accentTint,
+  border,
+  buildCalendarWeeks,
+  durationHours,
+  formatDateLabel,
+  formatTimeLabel,
+  inputStyle,
+  navButtonStyle,
+  primaryButtonStyle,
+  secondaryButtonStyle,
+  surface,
+  text,
+  textMuted,
+  toDateStr,
+} from '../shared';
+
+export function RequestModal({
+  date,
+  existing,
+  onClose,
+  onCreated,
+}: {
+  date: string;
+  existing: Reservation[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [organization, setOrganization] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [eventName, setEventName] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [startTime, setStartTime] = useState(TIME_OPTIONS[0]);
+  const [endTime, setEndTime] = useState(TIME_OPTIONS[2] || TIME_OPTIONS[TIME_OPTIONS.length - 1]);
+  const [numberOfPeople, setNumberOfPeople] = useState('1');
+  const [setupRequirements, setSetupRequirements] = useState('');
+  const [specialRequests, setSpecialRequests] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const dateLabel = formatDateLabel(date);
+  const approvedForDay = existing.filter(r => r.status === 'approved');
+
+  async function submit() {
+    setError('');
+    if (startTime >= endTime) { setError('Start time must be before end time.'); return; }
+    if (!name.trim() || !email.trim() || !eventName.trim() || !purpose.trim()) {
+      setError('Please fill in name, email, event name, and purpose.');
+      return;
+    }
+    const people = Number(numberOfPeople);
+    if (!Number.isInteger(people) || people < 1) { setError('Number of people must be a whole number of at least 1.'); return; }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/lga-room/reservations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, startTime, endTime, name, organization, email, phone, eventName, purpose, numberOfPeople: people, setupRequirements, specialRequests }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Could not submit request.');
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not submit request.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title={`Request ${ROOM_NAME}`}>
+      <div style={{ fontSize: 13, color: textMuted, marginBottom: 14 }}>{dateLabel}</div>
+
+      {approvedForDay.length > 0 && (
+        <div style={{ background: '#F6F5F1', border: `1px solid ${border}`, borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Already booked this day</div>
+          {approvedForDay.map(r => (
+            <div key={r.id} style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTimeLabel(r.startTime)} – {formatTimeLabel(r.endTime)}</div>
+          ))}
+        </div>
+      )}
+
+      <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Your name" /></Field>
+      <Field label="Organization"><input value={organization} onChange={e => setOrganization(e.target.value)} style={inputStyle} placeholder="Optional" /></Field>
+      <Field label="Email"><input value={email} onChange={e => setEmail(e.target.value)} type="email" style={inputStyle} placeholder="you@example.com" /></Field>
+      <Field label="Phone"><input value={phone} onChange={e => setPhone(e.target.value)} type="tel" style={inputStyle} placeholder="Optional" /></Field>
+      <Field label="Event Name"><input value={eventName} onChange={e => setEventName(e.target.value)} style={inputStyle} placeholder="e.g. Quarterly board meeting" /></Field>
+      <Field label="Purpose"><textarea value={purpose} onChange={e => setPurpose(e.target.value)} style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} placeholder="What's this reservation for?" /></Field>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Field label="Start time">
+          <select value={startTime} onChange={e => setStartTime(e.target.value)} style={inputStyle}>
+            {TIME_OPTIONS.map(t => <option key={t} value={t}>{formatTimeLabel(t)}</option>)}
+          </select>
+        </Field>
+        <Field label="End time">
+          <select value={endTime} onChange={e => setEndTime(e.target.value)} style={inputStyle}>
+            {TIME_OPTIONS.map(t => <option key={t} value={t}>{formatTimeLabel(t)}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      <Field label="Number of People">
+        <input value={numberOfPeople} onChange={e => setNumberOfPeople(e.target.value)} type="number" min={1} style={inputStyle} />
+      </Field>
+      <Field label="Setup Requirements">
+        <textarea value={setupRequirements} onChange={e => setSetupRequirements(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} placeholder="Optional — tables, chairs, projector, etc." />
+      </Field>
+      <Field label="Special Requests">
+        <textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} placeholder="Optional" />
+      </Field>
+
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Cancel</button>
+        <button onClick={submit} disabled={submitting} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+          {submitting ? 'Submitting…' : 'Submit request'}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+export function EditReservationModal({
+  reservation,
+  adminPassword,
+  onClose,
+  onSaved,
+}: {
+  reservation: Reservation;
+  adminPassword: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(reservation.name);
+  const [organization, setOrganization] = useState(reservation.organization);
+  const [email, setEmail] = useState(reservation.email);
+  const [phone, setPhone] = useState(reservation.phone);
+  const [eventName, setEventName] = useState(reservation.eventName);
+  const [purpose, setPurpose] = useState(reservation.purpose);
+  const [numberOfPeople, setNumberOfPeople] = useState(String(reservation.numberOfPeople));
+  const [setupRequirements, setSetupRequirements] = useState(reservation.setupRequirements);
+  const [specialRequests, setSpecialRequests] = useState(reservation.specialRequests);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit() {
+    setError('');
+    if (!name.trim() || !email.trim() || !eventName.trim() || !purpose.trim()) {
+      setError('Please fill in name, email, event name, and purpose.');
+      return;
+    }
+    const people = Number(numberOfPeople);
+    if (!Number.isInteger(people) || people < 1) { setError('Number of people must be a whole number of at least 1.'); return; }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/lga-room/reservations/${reservation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+        body: JSON.stringify({ name, organization, email, phone, eventName, purpose, numberOfPeople: people, setupRequirements, specialRequests }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Could not save changes.');
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save changes.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Edit reservation">
+      <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} style={inputStyle} /></Field>
+      <Field label="Organization"><input value={organization} onChange={e => setOrganization(e.target.value)} style={inputStyle} /></Field>
+      <Field label="Email"><input value={email} onChange={e => setEmail(e.target.value)} type="email" style={inputStyle} /></Field>
+      <Field label="Phone"><input value={phone} onChange={e => setPhone(e.target.value)} type="tel" style={inputStyle} /></Field>
+      <Field label="Event Name"><input value={eventName} onChange={e => setEventName(e.target.value)} style={inputStyle} /></Field>
+      <Field label="Purpose"><textarea value={purpose} onChange={e => setPurpose(e.target.value)} style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }} /></Field>
+      <Field label="Number of People"><input value={numberOfPeople} onChange={e => setNumberOfPeople(e.target.value)} type="number" min={1} style={inputStyle} /></Field>
+      <Field label="Setup Requirements"><textarea value={setupRequirements} onChange={e => setSetupRequirements(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} /></Field>
+      <Field label="Special Requests"><textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} /></Field>
+
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Cancel</button>
+        <button onClick={submit} disabled={submitting} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+          {submitting ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+export function MoveTimeModal({
+  reservation,
+  adminPassword,
+  onClose,
+  onSaved,
+}: {
+  reservation: Reservation;
+  adminPassword: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [date, setDate] = useState(reservation.date);
+  const [startTime, setStartTime] = useState(reservation.startTime);
+  const [endTime, setEndTime] = useState(reservation.endTime);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit() {
+    setError('');
+    if (startTime >= endTime) { setError('Start time must be before end time.'); return; }
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/lga-room/reservations/${reservation.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+        body: JSON.stringify({ date, startTime, endTime, notifyTimeChange: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Could not move this reservation.');
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not move this reservation.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Move reservation time">
+      <div style={{ fontSize: 13, color: textMuted, marginBottom: 14 }}>
+        {reservation.eventName} — the requester will be emailed about this change.
+      </div>
+      <Field label="Date"><input value={date} onChange={e => setDate(e.target.value)} type="date" style={inputStyle} /></Field>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Field label="Start time">
+          <select value={startTime} onChange={e => setStartTime(e.target.value)} style={inputStyle}>
+            {TIME_OPTIONS.map(t => <option key={t} value={t}>{formatTimeLabel(t)}</option>)}
+          </select>
+        </Field>
+        <Field label="End time">
+          <select value={endTime} onChange={e => setEndTime(e.target.value)} style={inputStyle}>
+            {TIME_OPTIONS.map(t => <option key={t} value={t}>{formatTimeLabel(t)}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Cancel</button>
+        <button onClick={submit} disabled={submitting} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+          {submitting ? 'Saving…' : 'Move reservation'}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+export function ReservationDetailsModal({
+  reservation,
+  adminMode,
+  adminPassword,
+  onClose,
+  onAction,
+  onReload,
+}: {
+  reservation: Reservation;
+  adminMode: boolean;
+  adminPassword: string;
+  onClose: () => void;
+  onAction: (id: string, action: 'approve' | 'deny' | 'delete') => void;
+  onReload: () => void;
+}) {
+  const [showEdit, setShowEdit] = useState(false);
+  const [showMoveTime, setShowMoveTime] = useState(false);
+  const colors = STATUS_STYLES[reservation.status];
+
+  return (
+    <>
+      <ModalShell onClose={onClose} title={ROOM_NAME}>
+        <div style={{ display: 'inline-block', fontSize: 12, fontWeight: 600, color: colors.fg, background: colors.bg, border: `1px solid ${colors.border}`, borderRadius: 999, padding: '3px 10px', marginBottom: 12, textTransform: 'capitalize' }}>
+          {reservation.status === 'denied' ? 'Not approved' : reservation.status}
+        </div>
+
+        <div style={{ fontSize: 14, lineHeight: 1.8 }}>
+          <div><strong>{reservation.eventName}</strong></div>
+          <div>{formatDateLabel(reservation.date)}</div>
+          <div style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTimeLabel(reservation.startTime)} – {formatTimeLabel(reservation.endTime)}</div>
+          <div>Requested by: {reservation.name}{reservation.organization ? ` (${reservation.organization})` : ''}</div>
+          {adminMode && <div>Email: {reservation.email}</div>}
+          {adminMode && reservation.phone && <div>Phone: {reservation.phone}</div>}
+          <div>Number of people: {reservation.numberOfPeople}</div>
+          <div>Purpose: {reservation.purpose}</div>
+          {reservation.setupRequirements && <div>Setup requirements: {reservation.setupRequirements}</div>}
+          {reservation.specialRequests && <div>Special requests: {reservation.specialRequests}</div>}
+        </div>
+
+        {adminMode && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 18, flexWrap: 'wrap' }}>
+            {reservation.status !== 'approved' && (
+              <button onClick={() => onAction(reservation.id, 'approve')} className="lgaroom-btn-primary" style={primaryButtonStyle}>Approve</button>
+            )}
+            {reservation.status !== 'denied' && (
+              <button onClick={() => onAction(reservation.id, 'deny')} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, color: '#9A2E36', borderColor: '#E3B7BB' }}>Not approve</button>
+            )}
+            <button onClick={() => setShowEdit(true)} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Edit</button>
+            <button onClick={() => setShowMoveTime(true)} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Move time</button>
+            <button onClick={() => onAction(reservation.id, 'delete')} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, marginLeft: 'auto' }}>Delete</button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+          <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Close</button>
+        </div>
+      </ModalShell>
+
+      {showEdit && (
+        <EditReservationModal
+          reservation={reservation}
+          adminPassword={adminPassword}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); onReload(); onClose(); }}
+        />
+      )}
+
+      {showMoveTime && (
+        <MoveTimeModal
+          reservation={reservation}
+          adminPassword={adminPassword}
+          onClose={() => setShowMoveTime(false)}
+          onSaved={() => { setShowMoveTime(false); onReload(); onClose(); }}
+        />
+      )}
+    </>
+  );
+}
+
+export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (password: string) => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    setSubmitting(true);
+    setError('');
+    try {
+      const response = await fetch('/api/lga-room/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (!response.ok) throw new Error('Incorrect password.');
+      onSuccess(password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Incorrect password.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Admin sign in">
+      <Field label="Password">
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={inputStyle}
+          autoFocus
+        />
+      </Field>
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Cancel</button>
+        <button onClick={submit} disabled={submitting} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+          {submitting ? 'Checking…' : 'Sign in'}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+type AdminSettingsData = {
+  storage: { type: string; configured: boolean };
+  email: { configured: boolean; adminEmail: string; fromEmail: string | null; fromEmailInvalid: boolean };
+  notify: { buildingManagerEmail: string; maintenanceEmail: string };
+};
+
+export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: string; onClose: () => void }) {
+  const [settings, setSettings] = useState<AdminSettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [buildingManagerEmail, setBuildingManagerEmail] = useState('');
+  const [maintenanceEmail, setMaintenanceEmail] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/lga-room/admin/settings', { headers: { 'x-admin-password': adminPassword } })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Could not load settings.');
+        if (!cancelled) {
+          setSettings(data);
+          setBuildingManagerEmail(data.notify?.buildingManagerEmail || '');
+          setMaintenanceEmail(data.notify?.maintenanceEmail || '');
+        }
+      })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [adminPassword]);
+
+  async function handleDownload() {
+    setDownloading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/lga-room/admin/export', { headers: { 'x-admin-password': adminPassword } });
+      if (!response.ok) throw new Error('Could not download reservations.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lga-room-reservations.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not download reservations.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleSaveNotify() {
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const response = await fetch('/api/lga-room/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+        body: JSON.stringify({ buildingManagerEmail, maintenanceEmail }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save settings.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Admin settings">
+      <div style={{ marginBottom: 18 }}>
+        <SectionLabel>Reservation data</SectionLabel>
+        <button onClick={handleDownload} disabled={downloading} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
+          {downloading ? 'Preparing…' : 'Download reservations (.csv)'}
+        </button>
+      </div>
+
+      {loading && <div style={{ fontSize: 13, color: textMuted }}>Loading settings…</div>}
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      {settings && (
+        <>
+          <div style={{ marginBottom: 18 }}>
+            <SectionLabel>Storage</SectionLabel>
+            <StatusRow label={settings.storage.type} ok={settings.storage.configured} />
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            <SectionLabel>Email notifications</SectionLabel>
+            <StatusRow label={settings.email.configured ? 'Sending is configured' : 'Sending is not configured'} ok={settings.email.configured} />
+            <div style={{ fontSize: 13, lineHeight: 1.8, marginTop: 8, color: text }}>
+              <div>New requests notify: <strong>{settings.email.adminEmail}</strong></div>
+              {settings.email.fromEmailInvalid ? (
+                <div style={{ color: '#9A2E36' }}>
+                  RESEND_FROM_EMAIL doesn&apos;t look like a valid sender address — check its value in Vercel.
+                </div>
+              ) : (
+                <div>Sent from: <strong>{settings.email.fromEmail}</strong></div>
+              )}
+              <div style={{ color: textMuted, marginTop: 6 }}>
+                Submitting a request emails the admin address above. Approving or not approving a request emails the person who requested it.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <SectionLabel>Notify on approval</SectionLabel>
+            <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
+              When a reservation is approved, also email these addresses. Leave blank to skip either one.
+            </div>
+            <Field label="Building Manager email">
+              <input value={buildingManagerEmail} onChange={e => setBuildingManagerEmail(e.target.value)} type="email" style={inputStyle} placeholder="manager@example.com" />
+            </Field>
+            <Field label="Maintenance email">
+              <input value={maintenanceEmail} onChange={e => setMaintenanceEmail(e.target.value)} type="email" style={inputStyle} placeholder="maintenance@example.com" />
+            </Field>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={handleSaveNotify} disabled={saving} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              {saved && <span style={{ fontSize: 12.5, color: '#1F7A4D' }}>Saved</span>}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Close</button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ReportTable({ columns, rows }: { columns: string[]; rows: (string | number)[][] }) {
+  if (!rows.length) return <div style={{ fontSize: 13, color: textMuted }}>Nothing to show.</div>;
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr>
+            {columns.map(c => (
+              <th key={c} style={{ textAlign: 'left', padding: '6px 10px', borderBottom: `2px solid ${border}`, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: textMuted }}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} style={{ borderBottom: `1px solid ${border}` }}>
+              {row.map((cell, j) => <td key={j} style={{ padding: '7px 10px', verticalAlign: 'top' }}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TodayReport({ reservations, todayStr }: { reservations: Reservation[]; todayStr: string }) {
+  const rows = reservations
+    .filter(r => r.status === 'approved' && r.date === todayStr)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    .map(r => [`${formatTimeLabel(r.startTime)} – ${formatTimeLabel(r.endTime)}`, r.eventName, r.organization || '—', r.numberOfPeople]);
+  return <ReportTable columns={['Time', 'Event', 'Organization', 'People']} rows={rows} />;
+}
+
+function UpcomingReport({ reservations, todayStr }: { reservations: Reservation[]; todayStr: string }) {
+  const [days, setDays] = useState<7 | 30>(7);
+  const endStr = useMemo(() => {
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + days);
+    return toDateStr(endDate);
+  }, [days]);
+
+  const rows = reservations
+    .filter(r => r.status === 'approved' && r.date >= todayStr && r.date <= endStr)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+    .map(r => [formatDateLabel(r.date), `${formatTimeLabel(r.startTime)} – ${formatTimeLabel(r.endTime)}`, r.eventName, r.organization || '—']);
+
+  return (
+    <div>
+      <div className="lgaroom-no-print" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {[7, 30].map(d => (
+          <button
+            key={d}
+            onClick={() => setDays(d as 7 | 30)}
+            className="lgaroom-tab"
+            style={{
+              border: `1px solid ${border}`,
+              background: days === d ? accentTint : surface,
+              color: days === d ? accentStrong : text,
+              borderRadius: 6,
+              padding: '5px 12px',
+              fontSize: 12.5,
+              cursor: 'pointer',
+              fontWeight: days === d ? 700 : 500,
+            }}
+          >
+            Next {d} days
+          </button>
+        ))}
+      </div>
+      <ReportTable columns={['Date', 'Time', 'Event', 'Organization']} rows={rows} />
+    </div>
+  );
+}
+
+function PendingReport({ reservations }: { reservations: Reservation[] }) {
+  const rows = reservations
+    .filter(r => r.status === 'pending')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
+    .map(r => [formatDateLabel(r.date), `${formatTimeLabel(r.startTime)} – ${formatTimeLabel(r.endTime)}`, r.eventName, r.name, r.organization || '—']);
+  return <ReportTable columns={['Date', 'Time', 'Event', 'Requested By', 'Organization']} rows={rows} />;
+}
+
+function UsageReport({ reservations }: { reservations: Reservation[] }) {
+  const byMonth = new Map<string, { count: number; hours: number }>();
+  reservations.filter(r => r.status === 'approved').forEach(r => {
+    const month = r.date.slice(0, 7);
+    const entry = byMonth.get(month) || { count: 0, hours: 0 };
+    entry.count += 1;
+    entry.hours += durationHours(r.startTime, r.endTime);
+    byMonth.set(month, entry);
+  });
+  const rows = Array.from(byMonth.entries())
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([month, entry]) => [
+      new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
+      entry.count,
+      entry.hours.toFixed(1),
+    ]);
+  return <ReportTable columns={['Month', 'Reservations', 'Total Hours']} rows={rows} />;
+}
+
+function OrganizationReport({ reservations }: { reservations: Reservation[] }) {
+  const byOrg = new Map<string, { count: number; hours: number }>();
+  reservations.filter(r => r.status === 'approved').forEach(r => {
+    const org = r.organization || 'Individual (no organization)';
+    const entry = byOrg.get(org) || { count: 0, hours: 0 };
+    entry.count += 1;
+    entry.hours += durationHours(r.startTime, r.endTime);
+    byOrg.set(org, entry);
+  });
+  const rows = Array.from(byOrg.entries())
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([org, entry]) => [org, entry.count, entry.hours.toFixed(1)]);
+  return <ReportTable columns={['Organization', 'Reservations', 'Total Hours']} rows={rows} />;
+}
+
+function SetupReport({ reservations, todayStr }: { reservations: Reservation[]; todayStr: string }) {
+  const rows = reservations
+    .filter(r => r.status === 'approved' && r.date >= todayStr && r.setupRequirements)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(r => [formatDateLabel(r.date), `${formatTimeLabel(r.startTime)} – ${formatTimeLabel(r.endTime)}`, r.eventName, r.setupRequirements, r.specialRequests || '—']);
+  return <ReportTable columns={['Date', 'Time', 'Event', 'Setup Requirements', 'Special Requests']} rows={rows} />;
+}
+
+function MonthlyReport({ reservations }: { reservations: Reservation[] }) {
+  const [month, setMonth] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
+  const weeks = useMemo(() => buildCalendarWeeks(month), [month]);
+  const byDate = useMemo(() => {
+    const map = new Map<string, Reservation[]>();
+    reservations.filter(r => r.status === 'approved').forEach(r => {
+      const list = map.get(r.date) || [];
+      list.push(r);
+      map.set(r.date, list);
+    });
+    map.forEach(list => list.sort((a, b) => a.startTime.localeCompare(b.startTime)));
+    return map;
+  }, [reservations]);
+
+  return (
+    <div>
+      <div className="lgaroom-no-print" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} className="lgaroom-navbtn" style={{ ...navButtonStyle, border: `1px solid ${border}`, borderRadius: 6 }}>‹</button>
+        <div style={{ fontWeight: 700, minWidth: 140 }}>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</div>
+        <button onClick={() => setMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} className="lgaroom-navbtn" style={{ ...navButtonStyle, border: `1px solid ${border}`, borderRadius: 6 }}>›</button>
+        <button onClick={() => window.print()} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, marginLeft: 'auto' }}>Print</button>
+      </div>
+
+      <div className="lgaroom-print-area" style={{ border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', background: accentTint }}>
+          {WEEKDAY_LABELS.map(l => <div key={l} style={{ padding: '6px 8px', fontSize: 11, fontWeight: 600, color: accentStrong }}>{l}</div>)}
+        </div>
+        {weeks.map((week, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', borderTop: i === 0 ? 'none' : `1px solid ${border}` }}>
+            {week.map(date => {
+              const dateStr = toDateStr(date);
+              const inMonth = date.getMonth() === month.getMonth();
+              const dayReservations = byDate.get(dateStr) || [];
+              return (
+                <div key={dateStr} style={{ minHeight: 70, borderRight: `1px solid ${border}`, padding: 4, opacity: inMonth ? 1 : 0.4 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600 }}>{date.getDate()}</div>
+                  {dayReservations.map(r => (
+                    <div key={r.id} style={{ fontSize: 9.5, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {formatTimeLabel(r.startTime)} {r.eventName}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ReportTab = 'today' | 'upcoming' | 'pending' | 'monthly' | 'usage' | 'organization' | 'setup';
+
+const REPORT_TABS: { id: ReportTab; label: string }[] = [
+  { id: 'today', label: "Today's Schedule" },
+  { id: 'upcoming', label: 'Upcoming Reservations' },
+  { id: 'pending', label: 'Pending Approval' },
+  { id: 'monthly', label: 'Monthly Calendar' },
+  { id: 'usage', label: 'Room Usage' },
+  { id: 'organization', label: 'By Organization' },
+  { id: 'setup', label: 'Setup Requirements' },
+];
+
+export function ReportsModal({ reservations, onClose }: { reservations: Reservation[]; onClose: () => void }) {
+  const [tab, setTab] = useState<ReportTab>('today');
+  const todayStr = toDateStr(new Date());
+
+  return (
+    <ModalShell onClose={onClose} title="Reports" wide>
+      <div className="lgaroom-no-print" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, borderBottom: `1px solid ${border}`, paddingBottom: 12 }}>
+        {REPORT_TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="lgaroom-tab"
+            style={{
+              border: 'none',
+              background: tab === t.id ? accentTint : 'transparent',
+              color: tab === t.id ? accentStrong : textMuted,
+              fontWeight: tab === t.id ? 700 : 500,
+              borderRadius: 6,
+              padding: '6px 12px',
+              fontSize: 12.5,
+              cursor: 'pointer',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'today' && <TodayReport reservations={reservations} todayStr={todayStr} />}
+      {tab === 'upcoming' && <UpcomingReport reservations={reservations} todayStr={todayStr} />}
+      {tab === 'pending' && <PendingReport reservations={reservations} />}
+      {tab === 'monthly' && <MonthlyReport reservations={reservations} />}
+      {tab === 'usage' && <UsageReport reservations={reservations} />}
+      {tab === 'organization' && <OrganizationReport reservations={reservations} />}
+      {tab === 'setup' && <SetupReport reservations={reservations} todayStr={todayStr} />}
+
+      <div className="lgaroom-no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Close</button>
+      </div>
+    </ModalShell>
+  );
+}

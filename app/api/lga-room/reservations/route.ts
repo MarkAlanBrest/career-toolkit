@@ -33,7 +33,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { date, startTime, endTime, name, email, purpose } = body as Record<string, string>;
+  const {
+    date, startTime, endTime, name, organization, email, phone, eventName, purpose, numberOfPeople, setupRequirements, specialRequests,
+  } = body as Record<string, string>;
 
   if (!date || !DATE_RE.test(date)) {
     return NextResponse.json({ error: 'A valid date is required.' }, { status: 400 });
@@ -53,8 +55,15 @@ export async function POST(request: NextRequest) {
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'A valid email is required.' }, { status: 400 });
   }
+  if (!eventName || !eventName.trim()) {
+    return NextResponse.json({ error: 'An event name is required.' }, { status: 400 });
+  }
   if (!purpose || !purpose.trim()) {
     return NextResponse.json({ error: 'A purpose for the reservation is required.' }, { status: 400 });
+  }
+  const peopleCount = Number(numberOfPeople);
+  if (!Number.isInteger(peopleCount) || peopleCount < 1) {
+    return NextResponse.json({ error: 'Number of people must be a whole number of at least 1.' }, { status: 400 });
   }
 
   try {
@@ -73,8 +82,14 @@ export async function POST(request: NextRequest) {
       startTime,
       endTime,
       name: name.trim(),
+      organization: (organization || '').trim(),
       email: email.trim(),
+      phone: (phone || '').trim(),
+      eventName: eventName.trim(),
       purpose: purpose.trim(),
+      numberOfPeople: peopleCount,
+      setupRequirements: (setupRequirements || '').trim(),
+      specialRequests: (specialRequests || '').trim(),
       status: 'pending',
       createdAt: now,
       updatedAt: now,

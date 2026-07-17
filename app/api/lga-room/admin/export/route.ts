@@ -21,11 +21,17 @@ export async function GET(request: NextRequest) {
 
   try {
     const reservations = await getAllReservations();
-    const header = ['Date', 'Start Time', 'End Time', 'Name', 'Email', 'Purpose', 'Status', 'Requested At'];
+    const header = [
+      'Date', 'Start Time', 'End Time', 'Event Name', 'Name', 'Organization', 'Email', 'Phone',
+      'Number of People', 'Purpose', 'Setup Requirements', 'Special Requests', 'Status', 'Requested At',
+    ];
     const rows = reservations
       .slice()
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
-      .map(r => [r.date, r.startTime, r.endTime, r.name, r.email, r.purpose, STATUS_LABELS[r.status], r.createdAt]);
+      .map(r => [
+        r.date, r.startTime, r.endTime, r.eventName, r.name, r.organization, r.email, r.phone,
+        String(r.numberOfPeople), r.purpose, r.setupRequirements, r.specialRequests, STATUS_LABELS[r.status], r.createdAt,
+      ]);
 
     const csv = [header, ...rows].map(row => row.map(csvField).join(',')).join('\r\n');
 
