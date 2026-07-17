@@ -8,6 +8,14 @@ const ADMIN_EMAIL = process.env.LGA_ROOM_ADMIN_EMAIL || 'markalanbrest@gmail.com
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room`;
 
+export function getEmailStatus() {
+  return {
+    configured: Boolean(process.env.RESEND_API_KEY),
+    adminEmail: ADMIN_EMAIL,
+    fromEmail: FROM,
+  };
+}
+
 function formatTimeLabel(hhmm: string) {
   const [h, m] = hhmm.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';

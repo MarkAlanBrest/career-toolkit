@@ -115,6 +115,7 @@ export default function LgaRoomPage() {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [showAdminSettings, setShowAdminSettings] = useState(false);
 
   const today = useMemo(() => new Date(), []);
 
@@ -421,6 +422,10 @@ export default function LgaRoomPage() {
         />
       )}
 
+      {showAdminSettings && (
+        <AdminSettingsModal adminPassword={adminPassword} onClose={() => setShowAdminSettings(false)} />
+      )}
+
       <div style={{ position: 'fixed', right: 20, bottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
         {adminMode ? (
           <div
@@ -436,6 +441,9 @@ export default function LgaRoomPage() {
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: accent }}>Admin mode</span>
+            <button onClick={() => setShowAdminSettings(true)} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}>
+              Settings
+            </button>
             <button onClick={logout} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}>
               Log out
             </button>
@@ -678,6 +686,109 @@ function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         </button>
       </div>
     </ModalShell>
+  );
+}
+
+type AdminSettings = {
+  storage: { type: string; configured: boolean };
+  email: { configured: boolean; adminEmail: string; fromEmail: string };
+};
+
+function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: string; onClose: () => void }) {
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/lga-room/admin/settings', { headers: { 'x-admin-password': adminPassword } })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Could not load settings.');
+        if (!cancelled) setSettings(data);
+      })
+      .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [adminPassword]);
+
+  async function handleDownload() {
+    setDownloading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/lga-room/admin/export', { headers: { 'x-admin-password': adminPassword } });
+      if (!response.ok) throw new Error('Could not download reservations.');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lga-room-reservations.csv';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not download reservations.');
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Admin settings">
+      <div style={{ marginBottom: 18 }}>
+        <SectionLabel>Reservation data</SectionLabel>
+        <button onClick={handleDownload} disabled={downloading} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
+          {downloading ? 'Preparing…' : 'Download reservations (.csv)'}
+        </button>
+      </div>
+
+      {loading && <div style={{ fontSize: 13, color: textMuted }}>Loading settings…</div>}
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+
+      {settings && (
+        <>
+          <div style={{ marginBottom: 18 }}>
+            <SectionLabel>Storage</SectionLabel>
+            <StatusRow label={settings.storage.type} ok={settings.storage.configured} />
+          </div>
+
+          <div>
+            <SectionLabel>Email notifications</SectionLabel>
+            <StatusRow label={settings.email.configured ? 'Sending is configured' : 'Sending is not configured'} ok={settings.email.configured} />
+            <div style={{ fontSize: 13, lineHeight: 1.8, marginTop: 8, color: text }}>
+              <div>New requests notify: <strong>{settings.email.adminEmail}</strong></div>
+              <div>Sent from: <strong>{settings.email.fromEmail}</strong></div>
+              <div style={{ color: textMuted, marginTop: 6 }}>
+                Submitting a request emails the admin address above. Approving or not approving a request emails the person who requested it.
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Close</button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 8, color: textMuted }}>
+      {children}
+    </div>
+  );
+}
+
+function StatusRow({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5 }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: ok ? '#1F7A4D' : '#9A2E36', flexShrink: 0 }} />
+      {label}
+    </div>
   );
 }
 
