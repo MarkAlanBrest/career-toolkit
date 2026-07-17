@@ -5,6 +5,7 @@ import {
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
+import { sendRequesterDecision } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   reservations[index] = updated;
   await saveAllReservations(reservations);
+
+  if (updated.status !== current.status && (updated.status === 'approved' || updated.status === 'denied')) {
+    await sendRequesterDecision(updated);
+  }
 
   return NextResponse.json({ reservation: updated });
 }

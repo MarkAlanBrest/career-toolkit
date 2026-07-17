@@ -7,6 +7,7 @@ import {
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
+import { sendAdminNotification } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
 
   reservations.push(reservation);
   await saveAllReservations(reservations);
+  await sendAdminNotification(reservation);
 
   return NextResponse.json({ reservation }, { status: 201 });
 }

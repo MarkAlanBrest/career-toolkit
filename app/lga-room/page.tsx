@@ -106,7 +106,6 @@ export default function LgaRoomPage() {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   const today = useMemo(() => new Date(), []);
 
@@ -150,7 +149,6 @@ export default function LgaRoomPage() {
     window.localStorage.removeItem(ADMIN_STORAGE_KEY);
     setAdminPassword('');
     setAdminMode(false);
-    setShowAdminMenu(false);
   }
 
   const weeks = useMemo(() => buildCalendarWeeks(currentMonth), [currentMonth]);
@@ -187,26 +185,26 @@ export default function LgaRoomPage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: font, color: navy, paddingBottom: 80 }}>
-      <header style={{ background: green, color: '#fff', padding: '22px 28px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-          <h1 style={{ fontSize: 24, margin: 0 }}>{ROOM_NAME} Reservations</h1>
-          <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>
+    <main style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: font, color: navy, paddingBottom: 64 }}>
+      <header style={{ background: green, color: '#fff', padding: '12px 24px' }}>
+        <div style={{ maxWidth: 820, margin: '0 auto' }}>
+          <h1 style={{ fontSize: 19, margin: 0 }}>{ROOM_NAME} Reservations</h1>
+          <div style={{ fontSize: 11, opacity: 0.9, marginTop: 2 }}>
             Requests are marked pending until approved. Room hours: {formatTimeLabel(ROOM_OPEN_TIME)} – {formatTimeLabel(ROOM_CLOSE_TIME)}.
           </div>
         </div>
       </header>
 
-      <section style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <section style={{ maxWidth: 820, margin: '0 auto', padding: '14px 16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={() => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
               style={navButtonStyle}
             >
               ‹
             </button>
-            <div style={{ fontSize: 18, fontWeight: 700, minWidth: 160, textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>
               {currentMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </div>
             <button
@@ -217,13 +215,13 @@ export default function LgaRoomPage() {
             </button>
             <button
               onClick={() => setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1))}
-              style={{ ...navButtonStyle, width: 'auto', padding: '0 12px', fontSize: 13 }}
+              style={{ ...navButtonStyle, width: 'auto', padding: '0 10px', fontSize: 12 }}
             >
               Today
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+          <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
             <Legend color={statusColors('pending')} label="Pending" />
             <Legend color={statusColors('approved')} label="Approved" />
             {adminMode && <Legend color={statusColors('denied')} label="Not approved" />}
@@ -235,7 +233,7 @@ export default function LgaRoomPage() {
         <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', background: '#eef1f3' }}>
             {WEEKDAY_LABELS.map(label => (
-              <div key={label} style={{ padding: '8px 10px', fontSize: 12, fontWeight: 700, color: '#6b7780' }}>
+              <div key={label} style={{ padding: '5px 8px', fontSize: 11, fontWeight: 700, color: '#6b7780' }}>
                 {label}
               </div>
             ))}
@@ -253,25 +251,25 @@ export default function LgaRoomPage() {
                   <div
                     key={dateStr}
                     style={{
-                      minHeight: 108,
+                      minHeight: 76,
                       borderRight: `1px solid ${border}`,
-                      padding: 6,
+                      padding: 4,
                       opacity: inMonth ? 1 : 0.4,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 4,
+                      gap: 2,
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span
                         style={{
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: isToday ? 800 : 500,
                           color: isToday ? '#fff' : navy,
                           background: isToday ? green : 'transparent',
                           borderRadius: '50%',
-                          width: 20,
-                          height: 20,
+                          width: 17,
+                          height: 17,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -287,7 +285,7 @@ export default function LgaRoomPage() {
                           background: 'transparent',
                           color: '#8a949c',
                           cursor: 'pointer',
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: 700,
                           lineHeight: 1,
                           padding: 2,
@@ -297,7 +295,7 @@ export default function LgaRoomPage() {
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, overflowY: 'auto', maxHeight: 72 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto', maxHeight: 46 }}>
                       {dayReservations.map(r => {
                         const colors = statusColors(r.status);
                         return (
@@ -306,12 +304,12 @@ export default function LgaRoomPage() {
                             onClick={() => setViewingReservation(r)}
                             style={{
                               textAlign: 'left',
-                              fontSize: 11,
+                              fontSize: 10,
                               background: colors.bg,
                               color: colors.fg,
                               border: `1px solid ${colors.border}`,
                               borderRadius: 4,
-                              padding: '2px 5px',
+                              padding: '1px 4px',
                               cursor: 'pointer',
                               textDecoration: r.status === 'denied' ? 'line-through' : 'none',
                             }}
@@ -364,45 +362,57 @@ export default function LgaRoomPage() {
         />
       )}
 
-      <div style={{ position: 'fixed', right: 20, bottom: 20 }}>
-        {adminMode && showAdminMenu && (
-          <div style={{ background: '#fff', border: `1px solid ${border}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', padding: 8, marginBottom: 8, minWidth: 140 }}>
-            <div style={{ fontSize: 12, color: '#6b7780', padding: '4px 8px' }}>Admin mode is on</div>
-            <button onClick={logout} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: '6px 8px', cursor: 'pointer', fontSize: 13, borderRadius: 4 }}>
+      <div style={{ position: 'fixed', right: 20, bottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+        {adminMode ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: '#fff',
+              border: `1px solid ${border}`,
+              borderRadius: 999,
+              padding: '6px 6px 6px 14px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 700, color: green }}>Admin mode</span>
+            <button onClick={logout} style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}>
               Log out
             </button>
           </div>
+        ) : (
+          <button
+            onClick={() => setShowAdminLogin(true)}
+            title="Admin"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#2d3b45',
+              color: '#fff',
+              fontSize: 18,
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
+            }}
+          >
+            🔒
+          </button>
         )}
-        <button
-          onClick={() => (adminMode ? setShowAdminMenu(v => !v) : setShowAdminLogin(true))}
-          title="Admin"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: '50%',
-            border: 'none',
-            background: adminMode ? green : '#2d3b45',
-            color: '#fff',
-            fontSize: 18,
-            cursor: 'pointer',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.25)',
-          }}
-        >
-          🔒
-        </button>
       </div>
     </main>
   );
 }
 
 const navButtonStyle: React.CSSProperties = {
-  width: 32,
-  height: 32,
+  width: 26,
+  height: 26,
   borderRadius: 6,
   border: `1px solid ${border}`,
   background: '#fff',
   cursor: 'pointer',
-  fontSize: 16,
+  fontSize: 14,
 };
 
 function Legend({ color, label }: { color: { bg: string; fg: string; border: string }; label: string }) {
