@@ -8,8 +8,6 @@ import {
   Legend,
   LockIcon,
   ROOM_NAME,
-  ROOM_OPEN_TIME,
-  ROOM_CLOSE_TIME,
   STATUS_STYLES,
   WEEKDAY_LABELS,
   accent,
@@ -175,7 +173,7 @@ export default function LgaRoomCalendarPage() {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            Open {formatTimeLabel(ROOM_OPEN_TIME)} – {formatTimeLabel(ROOM_CLOSE_TIME)} · requests are pending until approved
+            Reservations are on an approval basis
           </div>
         </div>
       </header>
