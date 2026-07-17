@@ -2,15 +2,11 @@ import Link from 'next/link';
 import {
   ROOM_LOCATION,
   ROOM_NAME,
-  ROOM_OPEN_TIME,
-  ROOM_CLOSE_TIME,
   accent,
   accentStrong,
-  accentTint,
   archivo,
   bg,
   border,
-  formatTimeLabel,
   publicSans,
   surface,
   text,
@@ -22,12 +18,6 @@ const USE_CASES = [
   { title: 'Seminars & workshops', body: 'Room to seat a group comfortably for a half-day or full-day session, with space to move between presentation and discussion.' },
   { title: 'Professional development', body: 'Certification courses, continuing education sessions, and skills workshops for local businesses and trades.' },
   { title: 'Community & organization meetings', body: 'A dependable, professionally maintained venue for local organizations, associations, and community groups.' },
-];
-
-const STEPS = [
-  { title: 'Submit a request', body: 'Pick a date and time on the calendar and share a few details about your event.' },
-  { title: 'It’s reviewed', body: 'Your request is marked pending until an admin reviews it — usually within a day or two.' },
-  { title: 'Get confirmed', body: 'Once approved, you’ll get an email confirmation with your reservation details.' },
 ];
 
 export default function LgaRoomLandingPage() {
@@ -79,76 +69,6 @@ export default function LgaRoomLandingPage() {
             </div>
           ))}
         </div>
-      </section>
-
-      <section style={{ background: accentTint, padding: '48px 24px' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto' }}>
-          <h2 className={archivo.className} style={{ fontSize: 24, fontWeight: 700, textAlign: 'center', margin: '0 0 28px' }}>
-            Room details
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: 24 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: textMuted, marginBottom: 6 }}>Location</div>
-              <div style={{ fontSize: 14.5 }}>{ROOM_LOCATION}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: textMuted, marginBottom: 6 }}>Available Hours</div>
-              <div style={{ fontSize: 14.5, fontVariantNumeric: 'tabular-nums' }}>{formatTimeLabel(ROOM_OPEN_TIME)} – {formatTimeLabel(ROOM_CLOSE_TIME)}, daily</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: textMuted, marginBottom: 6 }}>Seating</div>
-              <div style={{ fontSize: 14.5 }}>Comfortable seating for meetings and small-to-mid-size gatherings</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: textMuted, marginBottom: 6 }}>Setup</div>
-              <div style={{ fontSize: 14.5 }}>Tables, chairs, and basic meeting equipment — let us know your setup needs when you reserve</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={{ maxWidth: 780, margin: '0 auto', padding: '56px 24px' }}>
-        <h2 className={archivo.className} style={{ fontSize: 24, fontWeight: 700, textAlign: 'center', margin: '0 0 36px' }}>
-          How reservations work
-        </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
-          {STEPS.map((step, i) => (
-            <div key={step.title}>
-              <div
-                className={archivo.className}
-                style={{
-                  width: 32, height: 32, borderRadius: '50%', background: accent, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, marginBottom: 12,
-                }}
-              >
-                {i + 1}
-              </div>
-              <h3 className={archivo.className} style={{ fontSize: 15.5, fontWeight: 700, margin: '0 0 6px' }}>{step.title}</h3>
-              <p style={{ fontSize: 14, lineHeight: 1.6, color: textMuted, margin: 0 }}>{step.body}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section style={{ background: accent, color: '#fff', padding: '48px 24px', textAlign: 'center' }}>
-        <h2 className={archivo.className} style={{ fontSize: 22, fontWeight: 700, margin: '0 0 20px' }}>
-          Ready to reserve {ROOM_NAME}?
-        </h2>
-        <Link
-          href="/lga-room/calendar"
-          style={{
-            display: 'inline-block',
-            background: '#fff',
-            color: accentStrong,
-            fontWeight: 700,
-            fontSize: 15,
-            textDecoration: 'none',
-            padding: '14px 28px',
-            borderRadius: 8,
-          }}
-        >
-          View the calendar
-        </Link>
       </section>
     </main>
   );
