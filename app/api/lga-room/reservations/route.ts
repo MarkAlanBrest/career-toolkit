@@ -17,9 +17,14 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function GET(request: NextRequest) {
   const month = request.nextUrl.searchParams.get('month'); // YYYY-MM
-  const reservations = await getAllReservations();
-  const filtered = month ? reservations.filter(r => r.date.startsWith(month)) : reservations;
-  return NextResponse.json({ reservations: filtered });
+  try {
+    const reservations = await getAllReservations();
+    const filtered = month ? reservations.filter(r => r.date.startsWith(month)) : reservations;
+    return NextResponse.json({ reservations: filtered });
+  } catch (error) {
+    console.error('[lga-room] Could not load reservations:', error);
+    return NextResponse.json({ error: 'Could not load reservations. Storage is not configured correctly.' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -52,31 +57,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'A purpose for the reservation is required.' }, { status: 400 });
   }
 
-  const reservations = await getAllReservations();
-  const hasApprovedConflict = reservations.some(
-    r => r.date === date && r.status === 'approved' && timesOverlap(r.startTime, r.endTime, startTime, endTime)
-  );
-  if (hasApprovedConflict) {
-    return NextResponse.json({ error: 'That time is already booked.' }, { status: 409 });
+  try {
+    const reservations = await getAllReservations();
+    const hasApprovedConflict = reservations.some(
+      r => r.date === date && r.status === 'approved' && timesOverlap(r.startTime, r.endTime, startTime, endTime)
+    );
+    if (hasApprovedConflict) {
+      return NextResponse.json({ error: 'That time is already booked.' }, { status: 409 });
+    }
+
+    const now = new Date().toISOString();
+    const reservation: Reservation = {
+      id: crypto.randomUUID(),
+      date,
+      startTime,
+      endTime,
+      name: name.trim(),
+      email: email.trim(),
+      purpose: purpose.trim(),
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    reservations.push(reservation);
+    await saveAllReservations(reservations);
+    await sendAdminNotification(reservation);
+
+    return NextResponse.json({ reservation }, { status: 201 });
+  } catch (error) {
+    console.error('[lga-room] Could not submit reservation:', error);
+    return NextResponse.json({ error: 'Could not submit your request. Please try again.' }, { status: 500 });
   }
-
-  const now = new Date().toISOString();
-  const reservation: Reservation = {
-    id: crypto.randomUUID(),
-    date,
-    startTime,
-    endTime,
-    name: name.trim(),
-    email: email.trim(),
-    purpose: purpose.trim(),
-    status: 'pending',
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  reservations.push(reservation);
-  await saveAllReservations(reservations);
-  await sendAdminNotification(reservation);
-
-  return NextResponse.json({ reservation }, { status: 201 });
 }
