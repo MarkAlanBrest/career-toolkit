@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 import { get, put } from '@vercel/blob';
 
 export type ReservationStatus = 'pending' | 'approved' | 'denied';
@@ -22,8 +23,15 @@ export type Reservation = {
 };
 
 export type LgaRoomSettings = {
+  adminNotifyEmail: string;
   buildingManagerEmail: string;
   maintenanceEmail: string;
+};
+
+export type AdminAccount = {
+  email: string;
+  passwordHash: string;
+  createdAt: string;
 };
 
 export const ROOM_NAME = 'LGA Room';
@@ -35,13 +43,68 @@ export const ROOM_CLOSE_TIME = '21:00';
 // database — Blob storage just needs to actually persist, unlike a function's local disk.
 const BLOB_PATHNAME = 'lga-room/reservations.json';
 const SETTINGS_PATHNAME = 'lga-room/settings.json';
+const ADMINS_PATHNAME = 'lga-room/admins.json';
 
-export function getAdminPassword(): string {
+// A break-glass password from server config — always works, even if every admin
+// account below gets removed, so this deployment can never be locked out entirely.
+export function getMasterPassword(): string {
   return process.env.LGA_ROOM_ADMIN_PASSWORD || 'ncstadmin123';
 }
 
-export function isAdminAuthorized(providedPassword: string | null | undefined): boolean {
-  return Boolean(providedPassword) && providedPassword === getAdminPassword();
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(':');
+  if (!salt || !hash) return false;
+  const suppliedHash = scryptSync(password, salt, 64);
+  const storedHash = Buffer.from(hash, 'hex');
+  if (suppliedHash.length !== storedHash.length) return false;
+  return timingSafeEqual(suppliedHash, storedHash);
+}
+
+export async function getAdminAccounts(): Promise<AdminAccount[]> {
+  const result = await get(ADMINS_PATHNAME, { access: 'private' });
+  if (!result) return [];
+  const data = await new Response(result.stream).json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function saveAdminAccounts(accounts: AdminAccount[]): Promise<void> {
+  await put(ADMINS_PATHNAME, JSON.stringify(accounts), {
+    access: 'private',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+}
+
+export async function addAdminAccount(email: string, password: string): Promise<void> {
+  const accounts = await getAdminAccounts();
+  const next = accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase());
+  next.push({ email: email.toLowerCase(), passwordHash: hashPassword(password), createdAt: new Date().toISOString() });
+  await saveAdminAccounts(next);
+}
+
+export async function removeAdminAccount(email: string): Promise<void> {
+  const accounts = await getAdminAccounts();
+  await saveAdminAccounts(accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase()));
+}
+
+export async function isAdminAuthorized(email: string | null | undefined, password: string | null | undefined): Promise<boolean> {
+  if (!password) return false;
+  if (password === getMasterPassword()) return true;
+  if (!email) return false;
+  try {
+    const accounts = await getAdminAccounts();
+    const account = accounts.find(a => a.email.toLowerCase() === email.toLowerCase());
+    return Boolean(account) && verifyPassword(password, account!.passwordHash);
+  } catch {
+    return false;
+  }
 }
 
 export async function getAllReservations(): Promise<Reservation[]> {
@@ -62,9 +125,10 @@ export async function saveAllReservations(reservations: Reservation[]): Promise<
 
 export async function getSettings(): Promise<LgaRoomSettings> {
   const result = await get(SETTINGS_PATHNAME, { access: 'private' });
-  if (!result) return { buildingManagerEmail: '', maintenanceEmail: '' };
+  if (!result) return { adminNotifyEmail: '', buildingManagerEmail: '', maintenanceEmail: '' };
   const data = await new Response(result.stream).json();
   return {
+    adminNotifyEmail: typeof data?.adminNotifyEmail === 'string' ? data.adminNotifyEmail : '',
     buildingManagerEmail: typeof data?.buildingManagerEmail === 'string' ? data.buildingManagerEmail : '',
     maintenanceEmail: typeof data?.maintenanceEmail === 'string' ? data.maintenanceEmail : '',
   };

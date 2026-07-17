@@ -140,11 +140,13 @@ export function RequestModal({
 
 export function EditReservationModal({
   reservation,
+  adminEmail,
   adminPassword,
   onClose,
   onSaved,
 }: {
   reservation: Reservation;
+  adminEmail: string;
   adminPassword: string;
   onClose: () => void;
   onSaved: () => void;
@@ -174,7 +176,7 @@ export function EditReservationModal({
     try {
       const response = await fetch(`/api/lga-room/reservations/${reservation.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+        headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
         body: JSON.stringify({ name, organization, email, phone, eventName, purpose, numberOfPeople: people, setupRequirements, specialRequests }),
       });
       const data = await response.json();
@@ -213,11 +215,13 @@ export function EditReservationModal({
 
 export function MoveTimeModal({
   reservation,
+  adminEmail,
   adminPassword,
   onClose,
   onSaved,
 }: {
   reservation: Reservation;
+  adminEmail: string;
   adminPassword: string;
   onClose: () => void;
   onSaved: () => void;
@@ -235,7 +239,7 @@ export function MoveTimeModal({
     try {
       const response = await fetch(`/api/lga-room/reservations/${reservation.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+        headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
         body: JSON.stringify({ date, startTime, endTime, notifyTimeChange: true }),
       });
       const data = await response.json();
@@ -282,6 +286,7 @@ export function MoveTimeModal({
 export function ReservationDetailsModal({
   reservation,
   adminMode,
+  adminEmail,
   adminPassword,
   onClose,
   onAction,
@@ -289,6 +294,7 @@ export function ReservationDetailsModal({
 }: {
   reservation: Reservation;
   adminMode: boolean;
+  adminEmail: string;
   adminPassword: string;
   onClose: () => void;
   onAction: (id: string, action: 'approve' | 'deny' | 'delete') => void;
@@ -340,6 +346,7 @@ export function ReservationDetailsModal({
       {showEdit && (
         <EditReservationModal
           reservation={reservation}
+          adminEmail={adminEmail}
           adminPassword={adminPassword}
           onClose={() => setShowEdit(false)}
           onSaved={() => { setShowEdit(false); onReload(); onClose(); }}
@@ -349,6 +356,7 @@ export function ReservationDetailsModal({
       {showMoveTime && (
         <MoveTimeModal
           reservation={reservation}
+          adminEmail={adminEmail}
           adminPassword={adminPassword}
           onClose={() => setShowMoveTime(false)}
           onSaved={() => { setShowMoveTime(false); onReload(); onClose(); }}
@@ -358,7 +366,8 @@ export function ReservationDetailsModal({
   );
 }
 
-export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (password: string) => void }) {
+export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (email: string, password: string) => void }) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -370,12 +379,12 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
       const response = await fetch('/api/lga-room/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
-      if (!response.ok) throw new Error('Incorrect password.');
-      onSuccess(password);
+      if (!response.ok) throw new Error('Incorrect email or password.');
+      onSuccess(email, password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Incorrect password.');
+      setError(err instanceof Error ? err.message : 'Incorrect email or password.');
     } finally {
       setSubmitting(false);
     }
@@ -383,6 +392,16 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
 
   return (
     <ModalShell onClose={onClose} title="Admin sign in">
+      <Field label="Email">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={inputStyle}
+          autoFocus
+        />
+      </Field>
       <Field label="Password">
         <input
           type="password"
@@ -390,7 +409,6 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
           onChange={e => setPassword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && submit()}
           style={inputStyle}
-          autoFocus
         />
       </Field>
       {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
@@ -405,43 +423,67 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
 }
 
 type AdminSettingsData = {
-  storage: { type: string; configured: boolean };
-  email: { configured: boolean; adminEmail: string; fromEmail: string | null; fromEmailInvalid: boolean };
-  notify: { buildingManagerEmail: string; maintenanceEmail: string };
+  storage: { configured: boolean };
+  email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean };
+  notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
 };
 
-export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: string; onClose: () => void }) {
+type AdminListEntry = { email: string; createdAt: string };
+
+export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adminEmail: string; adminPassword: string; onClose: () => void }) {
+  const authHeaders = { 'x-admin-email': adminEmail, 'x-admin-password': adminPassword };
+
   const [settings, setSettings] = useState<AdminSettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [adminNotifyEmail, setAdminNotifyEmail] = useState('');
   const [buildingManagerEmail, setBuildingManagerEmail] = useState('');
   const [maintenanceEmail, setMaintenanceEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const [admins, setAdmins] = useState<AdminListEntry[] | null>(null);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [adminsError, setAdminsError] = useState('');
+
+  function loadAdmins() {
+    fetch('/api/lga-room/admin/accounts', { headers: authHeaders })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || 'Could not load admins.');
+        setAdmins(data.admins || []);
+      })
+      .catch(err => setAdminsError(err instanceof Error ? err.message : 'Could not load admins.'));
+  }
+
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/lga-room/admin/settings', { headers: { 'x-admin-password': adminPassword } })
+    fetch('/api/lga-room/admin/settings', { headers: authHeaders })
       .then(async response => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.error || 'Could not load settings.');
         if (!cancelled) {
           setSettings(data);
+          setAdminNotifyEmail(data.notify?.adminNotifyEmail || '');
           setBuildingManagerEmail(data.notify?.buildingManagerEmail || '');
           setMaintenanceEmail(data.notify?.maintenanceEmail || '');
         }
       })
       .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
+    loadAdmins();
     return () => { cancelled = true; };
-  }, [adminPassword]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminEmail, adminPassword]);
 
   async function handleDownload() {
     setDownloading(true);
     setError('');
     try {
-      const response = await fetch('/api/lga-room/admin/export', { headers: { 'x-admin-password': adminPassword } });
+      const response = await fetch('/api/lga-room/admin/export', { headers: authHeaders });
       if (!response.ok) throw new Error('Could not download reservations.');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -466,8 +508,8 @@ export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: 
     try {
       const response = await fetch('/api/lga-room/admin/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-        body: JSON.stringify({ buildingManagerEmail, maintenanceEmail }),
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ adminNotifyEmail, buildingManagerEmail, maintenanceEmail }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
@@ -476,6 +518,42 @@ export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: 
       setError(err instanceof Error ? err.message : 'Could not save settings.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAddAdmin() {
+    setAddingAdmin(true);
+    setAdminsError('');
+    try {
+      const response = await fetch('/api/lga-room/admin/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ email: newAdminEmail, password: newAdminPassword }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Could not add this admin.');
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      loadAdmins();
+    } catch (err) {
+      setAdminsError(err instanceof Error ? err.message : 'Could not add this admin.');
+    } finally {
+      setAddingAdmin(false);
+    }
+  }
+
+  async function handleRemoveAdmin(email: string) {
+    setAdminsError('');
+    try {
+      const response = await fetch(`/api/lga-room/admin/accounts?email=${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Could not remove this admin.');
+      loadAdmins();
+    } catch (err) {
+      setAdminsError(err instanceof Error ? err.message : 'Could not remove this admin.');
     }
   }
 
@@ -494,37 +572,34 @@ export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: 
       {settings && (
         <>
           <div style={{ marginBottom: 18 }}>
-            <SectionLabel>Storage</SectionLabel>
-            <StatusRow label={settings.storage.type} ok={settings.storage.configured} />
+            <SectionLabel>System status</SectionLabel>
+            <StatusRow label={settings.storage.configured ? 'Reservations are saving correctly' : 'Reservations are not being saved — contact your developer'} ok={settings.storage.configured} />
+            <div style={{ marginTop: 6 }}>
+              <StatusRow
+                label={
+                  !settings.email.configured
+                    ? 'Email sending is not set up yet'
+                    : settings.email.fromEmailInvalid
+                      ? 'Email sending address looks incorrect — contact your developer'
+                      : 'Email sending is working'
+                }
+                ok={settings.email.configured && !settings.email.fromEmailInvalid}
+              />
+            </div>
           </div>
 
           <div style={{ marginBottom: 18 }}>
-            <SectionLabel>Email notifications</SectionLabel>
-            <StatusRow label={settings.email.configured ? 'Sending is configured' : 'Sending is not configured'} ok={settings.email.configured} />
-            <div style={{ fontSize: 13, lineHeight: 1.8, marginTop: 8, color: text }}>
-              <div>New requests notify: <strong>{settings.email.adminEmail}</strong></div>
-              {settings.email.fromEmailInvalid ? (
-                <div style={{ color: '#9A2E36' }}>
-                  RESEND_FROM_EMAIL doesn&apos;t look like a valid sender address — check its value in Vercel.
-                </div>
-              ) : (
-                <div>Sent from: <strong>{settings.email.fromEmail}</strong></div>
-              )}
-              <div style={{ color: textMuted, marginTop: 6 }}>
-                Submitting a request emails the admin address above. Approving or not approving a request emails the person who requested it.
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <SectionLabel>Notify on approval</SectionLabel>
+            <SectionLabel>Notification emails</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              When a reservation is approved, also email these addresses. Leave blank to skip either one.
+              Who gets emailed, and when. Leave any of these blank to turn that email off.
             </div>
-            <Field label="Building Manager email">
+            <Field label="New request alerts (you)">
+              <input value={adminNotifyEmail} onChange={e => setAdminNotifyEmail(e.target.value)} type="email" style={inputStyle} placeholder="you@example.com" />
+            </Field>
+            <Field label="Building Manager (on approval)">
               <input value={buildingManagerEmail} onChange={e => setBuildingManagerEmail(e.target.value)} type="email" style={inputStyle} placeholder="manager@example.com" />
             </Field>
-            <Field label="Maintenance email">
+            <Field label="Maintenance (on approval)">
               <input value={maintenanceEmail} onChange={e => setMaintenanceEmail(e.target.value)} type="email" style={inputStyle} placeholder="maintenance@example.com" />
             </Field>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -533,6 +608,47 @@ export function AdminSettingsModal({ adminPassword, onClose }: { adminPassword: 
               </button>
               {saved && <span style={{ fontSize: 12.5, color: '#1F7A4D' }}>Saved</span>}
             </div>
+          </div>
+
+          <div>
+            <SectionLabel>Admins</SectionLabel>
+            <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
+              Anyone listed here can sign in and manage reservations.
+            </div>
+
+            {adminsError && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{adminsError}</div>}
+
+            {admins && admins.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                {admins.map(a => (
+                  <div key={a.email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${border}`, fontSize: 13.5 }}>
+                    <span>{a.email}</span>
+                    <button
+                      onClick={() => handleRemoveAdmin(a.email)}
+                      className="lgaroom-btn-secondary"
+                      style={{ ...secondaryButtonStyle, padding: '4px 10px', fontSize: 12, color: '#9A2E36', borderColor: '#E3B7BB' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {admins && admins.length === 0 && (
+              <div style={{ fontSize: 13, color: textMuted, marginBottom: 12 }}>No admins added yet.</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Field label="Email">
+                <input value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} type="email" style={inputStyle} placeholder="new.admin@example.com" />
+              </Field>
+              <Field label="Password">
+                <input value={newAdminPassword} onChange={e => setNewAdminPassword(e.target.value)} type="password" style={inputStyle} placeholder="At least 8 characters" />
+              </Field>
+            </div>
+            <button onClick={handleAddAdmin} disabled={addingAdmin || !newAdminEmail || !newAdminPassword} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
+              {addingAdmin ? 'Adding…' : 'Add admin'}
+            </button>
           </div>
         </>
       )}

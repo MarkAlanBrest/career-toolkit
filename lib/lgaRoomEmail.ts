@@ -4,7 +4,6 @@ import { Reservation, ROOM_NAME, getSettings } from '@/lib/lgaRoom';
 const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder');
 
 const FROM = process.env.RESEND_FROM_EMAIL || `${ROOM_NAME} Reservations <onboarding@resend.dev>`;
-const ADMIN_EMAIL = process.env.LGA_ROOM_ADMIN_EMAIL || 'markalanbrest@gmail.com';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
 
@@ -14,7 +13,6 @@ export function getEmailStatus() {
   const fromLooksLikeAddress = FROM.includes('@');
   return {
     configured: Boolean(process.env.RESEND_API_KEY),
-    adminEmail: ADMIN_EMAIL,
     fromEmail: fromLooksLikeAddress ? FROM : null,
     fromEmailInvalid: !fromLooksLikeAddress,
   };
@@ -72,17 +70,23 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
 }
 
 export async function sendAdminNotification(reservation: Reservation): Promise<void> {
-  await send(
-    ADMIN_EMAIL,
-    `New ${ROOM_NAME} request — ${formatDateLabel(reservation.date)}`,
-    `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-      <h2 style="margin:0 0 8px;">New reservation request</h2>
-      <p style="margin:0 0 8px;">A new ${ROOM_NAME} request is pending your approval.</p>
-      ${detailsTable(reservation)}
-      ${buttonLink('Review request')}
-    </div>`,
-    reservation.email
-  );
+  try {
+    const settings = await getSettings();
+    if (!settings.adminNotifyEmail) return;
+    await send(
+      settings.adminNotifyEmail,
+      `New ${ROOM_NAME} request — ${formatDateLabel(reservation.date)}`,
+      `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
+        <h2 style="margin:0 0 8px;">New reservation request</h2>
+        <p style="margin:0 0 8px;">A new ${ROOM_NAME} request is pending your approval.</p>
+        ${detailsTable(reservation)}
+        ${buttonLink('Review request')}
+      </div>`,
+      reservation.email
+    );
+  } catch (error) {
+    console.error('[lga-room] Admin notification failed:', error);
+  }
 }
 
 export async function sendRequesterDecision(reservation: Reservation): Promise<void> {

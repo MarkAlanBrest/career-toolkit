@@ -20,12 +20,12 @@ const EDITABLE_FIELDS = [
 ] as const;
 
 function authorized(request: NextRequest) {
-  return isAdminAuthorized(request.headers.get('x-admin-password'));
+  return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: 'Admin password required.' }, { status: 401 });
+  if (!(await authorized(request))) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }
 
   const { id } = await params;
@@ -85,8 +85,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: 'Admin password required.' }, { status: 401 });
+  if (!(await authorized(request))) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }
 
   const { id } = await params;

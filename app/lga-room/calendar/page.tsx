@@ -51,6 +51,7 @@ export default function LgaRoomCalendarPage() {
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
 
   const [adminMode, setAdminMode] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showAdminSettings, setShowAdminSettings] = useState(false);
@@ -80,13 +81,21 @@ export default function LgaRoomCalendarPage() {
   useEffect(() => {
     const stored = window.localStorage.getItem(ADMIN_STORAGE_KEY);
     if (!stored) return;
+    let session: { email: string; password: string };
+    try {
+      session = JSON.parse(stored);
+    } catch {
+      window.localStorage.removeItem(ADMIN_STORAGE_KEY);
+      return;
+    }
     fetch('/api/lga-room/admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: stored }),
+      body: JSON.stringify(session),
     }).then(response => {
       if (response.ok) {
-        setAdminPassword(stored);
+        setAdminEmail(session.email);
+        setAdminPassword(session.password);
         setAdminMode(true);
       } else {
         window.localStorage.removeItem(ADMIN_STORAGE_KEY);
@@ -96,6 +105,7 @@ export default function LgaRoomCalendarPage() {
 
   function logout() {
     window.localStorage.removeItem(ADMIN_STORAGE_KEY);
+    setAdminEmail('');
     setAdminPassword('');
     setAdminMode(false);
   }
@@ -126,7 +136,7 @@ export default function LgaRoomCalendarPage() {
   }
 
   async function handleReservationAction(id: string, action: 'approve' | 'deny' | 'delete') {
-    const headers = { 'Content-Type': 'application/json', 'x-admin-password': adminPassword };
+    const headers = { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword };
     if (action === 'delete') {
       await fetch(`/api/lga-room/reservations/${id}`, { method: 'DELETE', headers });
     } else {
@@ -359,6 +369,7 @@ export default function LgaRoomCalendarPage() {
         <ReservationDetailsModal
           reservation={viewingReservation}
           adminMode={adminMode}
+          adminEmail={adminEmail}
           adminPassword={adminPassword}
           onClose={() => setViewingReservation(null)}
           onAction={handleReservationAction}
@@ -369,8 +380,9 @@ export default function LgaRoomCalendarPage() {
       {showAdminLogin && (
         <AdminLoginModal
           onClose={() => setShowAdminLogin(false)}
-          onSuccess={password => {
-            window.localStorage.setItem(ADMIN_STORAGE_KEY, password);
+          onSuccess={(email, password) => {
+            window.localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify({ email, password }));
+            setAdminEmail(email);
             setAdminPassword(password);
             setAdminMode(true);
             setShowAdminLogin(false);
@@ -379,7 +391,7 @@ export default function LgaRoomCalendarPage() {
       )}
 
       {showAdminSettings && (
-        <AdminSettingsModal adminPassword={adminPassword} onClose={() => setShowAdminSettings(false)} />
+        <AdminSettingsModal adminEmail={adminEmail} adminPassword={adminPassword} onClose={() => setShowAdminSettings(false)} />
       )}
 
       {showReports && (

@@ -6,18 +6,19 @@ export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+async function authorized(request: NextRequest) {
+  return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+}
+
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthorized(request.headers.get('x-admin-password'))) {
-    return NextResponse.json({ error: 'Admin password required.' }, { status: 401 });
+  if (!(await authorized(request))) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }
 
   try {
     const settings = await getSettings();
     return NextResponse.json({
-      storage: {
-        type: 'Vercel Blob (lga-room/reservations.json)',
-        configured: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-      },
+      storage: { configured: Boolean(process.env.BLOB_READ_WRITE_TOKEN) },
       email: getEmailStatus(),
       notify: settings,
     });
@@ -28,8 +29,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!isAdminAuthorized(request.headers.get('x-admin-password'))) {
-    return NextResponse.json({ error: 'Admin password required.' }, { status: 401 });
+  if (!(await authorized(request))) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }
 
   const body = await request.json().catch(() => null);
@@ -37,7 +38,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { buildingManagerEmail, maintenanceEmail } = body as Record<string, string>;
+  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail } = body as Record<string, string>;
+  if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
+    return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
+  }
   if (buildingManagerEmail && !EMAIL_RE.test(buildingManagerEmail)) {
     return NextResponse.json({ error: 'Building Manager email looks invalid.' }, { status: 400 });
   }
@@ -47,6 +51,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const settings = {
+      adminNotifyEmail: (adminNotifyEmail || '').trim(),
       buildingManagerEmail: (buildingManagerEmail || '').trim(),
       maintenanceEmail: (maintenanceEmail || '').trim(),
     };

@@ -15,8 +15,9 @@ function csvField(value: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isAdminAuthorized(request.headers.get('x-admin-password'))) {
-    return NextResponse.json({ error: 'Admin password required.' }, { status: 401 });
+  const authorized = await isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+  if (!authorized) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }
 
   try {
