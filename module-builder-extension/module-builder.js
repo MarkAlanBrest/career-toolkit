@@ -44,8 +44,13 @@
     const TOKENS_DEFAULT = 6000;
     const TOKENS_LONG    = 12000;
 
-    const ACTIVITY_TYPES = ["flashcard","quickcheck","termreveal","truefalse","readcheck","matching",
-        "whatwouldyoudo","finderror","spothazard","mysterymachine","decisionpoint","whathappensnext","buildprocess","beattheexpert","commonmistake","protip"];
+    const ACTIVITY_TYPES = ["flashcard","quickcheck","termreveal","truefalse","readcheck"];
+
+    // These build as real, auto-graded Canvas Quizzes (see
+    // renderQuizAssignmentBuilder / createQuizAssignment) instead of either
+    // the reveal-card HTML activities or the PDF-schema assignments.
+    // "matching" builds as a single native Canvas matching_question.
+    const QUIZ_ASSIGNMENT_TYPES = ["whatwouldyoudo","finderror","spothazard","mysterymachine","knowledge","matching"];
 
     // How many items "Build All" generates at once. Anthropic tolerates several
     // concurrent requests fine; keep this modest to avoid tripping rate limits.
@@ -65,43 +70,39 @@
         syllabus:{label:"Syllabus",icon:"\u{1F4D1}",group:"content",desc:"Full course syllabus — description, objectives, required tools/materials, grading breakdown, schedule overview, and policies."},
         homepage:{label:"Home Page",icon:"\u{1F3E0}",group:"content",desc:"Welcoming course front page — overview, how the course works, instructor intro, and quick links to key areas."},
 
-        flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"activity",desc:"Flippable term/definition cards \u2014 click a card to flip it."},
-        quickcheck:{label:"Quick Check",icon:"\u2705",group:"activity",desc:"Multiple-choice practice \u2014 click a choice to check it, right there. No grade recorded."},
-        termreveal:{label:"Vocab Builder",icon:"\u{1F4DA}",group:"activity",desc:"Click-to-expand vocabulary list with definitions and examples."},
-        truefalse:{label:"True / False",icon:"\u2696\uFE0F",group:"activity",desc:"True/False statements \u2014 click to reveal the answer and explanation."},
-        readcheck:{label:"Read + Check",icon:"\u{1F4D0}",group:"activity",desc:"Content page with comprehension questions embedded between sections \u2014 read, answer, keep reading."},
-        matching:{label:"Matching",icon:"\u{1F517}",group:"activity",desc:"Term-to-definition matching \u2014 click a definition to check if it's the right match."},
-        whatwouldyoudo:{label:"What Would You Do?",icon:"\u{1F3AD}",group:"activity",desc:"Students are presented with a realistic workplace situation that requires them to make a decision before revealing the recommended response. Instead of simply recalling facts, they think through the situation as if they were on the job, compare their choice to industry best practices, and learn why one response is better than the others. This activity develops critical thinking and decision-making skills that are essential in the skilled trades."},
-        finderror:{label:"Find the Error",icon:"\u{1F50D}",group:"activity",desc:"Students examine a statement, diagram, procedure, calculation, or workplace scenario that contains one intentional mistake. Before revealing the answer, they identify the error and consider why it is incorrect. This activity encourages careful observation, reinforces proper procedures, and develops troubleshooting skills by teaching students to recognize common mistakes they may encounter in the workplace."},
-        spothazard:{label:"Spot the Hazard",icon:"\u{1F575}\ufe0f",group:"activity",desc:"Students inspect a photograph, illustration, or workplace description to identify potential safety hazards before revealing the correct answers. Hazards are explained one by one, helping students understand not only what is unsafe but also why it creates a risk. This activity strengthens situational awareness and promotes a safety-first mindset by encouraging students to actively evaluate their work environment."},
-        mysterymachine:{label:"Mystery Machine",icon:"\u{1F9E9}",group:"activity",desc:"Students are given a set of equipment symptoms, operating conditions, or clues describing a machine problem. Using the available information, they determine the most likely cause before revealing the solution and explanation. This activity mirrors real-world troubleshooting by requiring students to think logically, eliminate possibilities, and diagnose problems like experienced technicians."},
-        decisionpoint:{label:"Decision Point",icon:"\u{1F6A6}",group:"activity",desc:"Students reach a critical point in a workplace scenario where they must choose the best course of action before revealing the outcome. Each decision demonstrates the consequences of good and poor choices, helping students understand not only what to do but also why their decisions matter. This activity builds confidence by allowing students to practice making job-related decisions in a safe learning environment."},
-        whathappensnext:{label:"What Happens Next?",icon:"\u26a1",group:"activity",desc:"Students are presented with the beginning of a process, procedure, or workplace event and are asked to predict what will happen next before revealing the answer. By making a prediction first, students become more engaged with the material and develop a stronger understanding of cause-and-effect relationships. This activity reinforces learning through curiosity and critical thinking rather than memorization."},
-        buildprocess:{label:"Build the Process",icon:"\u{1F3D7}\ufe0f",group:"activity",desc:"Students work through a procedure by revealing each step one at a time instead of viewing the entire process at once. As each stage is uncovered, they think about what should happen next before continuing. This approach transforms a standard procedure into an interactive learning experience that improves comprehension, reinforces sequencing, and helps students remember important processes."},
-        beattheexpert:{label:"Beat the Expert",icon:"\u{1F3C6}",group:"activity",desc:"Students answer a practical question or solve a workplace problem before comparing their reasoning to how an experienced professional would approach the same situation. Rather than simply revealing the correct answer, the activity explains the thought process behind the expert's decision. This helps students develop professional judgment and gain insight into how experienced tradespeople think."},
-        commonmistake:{label:"Common Mistake",icon:"\u{1F6AB}",group:"activity",desc:"Students explore one of the most frequent mistakes made by beginners in a particular skill or procedure. The activity explains why the mistake occurs, the problems it can create, and how experienced professionals avoid it. Learning from common errors helps students recognize and prevent those mistakes before they occur in real-world situations."},
-        protip:{label:"Pro Tip",icon:"\u{1F4A1}",group:"activity",desc:"Students discover practical advice, shortcuts, and industry best practices commonly used by experienced professionals but often overlooked in textbooks. These tips provide valuable real-world insight that helps students work more efficiently, safely, and professionally. By connecting classroom learning to workplace experience, this activity gives students knowledge they can immediately apply on the job."},
-        icebreaker:{label:"Ice Breaker",icon:"\u{1F9CA}",group:"activity",desc:"Light warm-up prompt or poll-style question to open a module."},
-        discussion:{label:"Discussion Prompt",icon:"\u{1F4AC}",group:"activity",desc:"Ungraded discussion topic for open reflection \u2014 students can reply/thread."},
-
-        knowledge:{label:"Knowledge Assignment",icon:"\u{1F4DD}",group:"assignment",desc:"A Knowledge Assignment evaluates the student's understanding of concepts, terminology, procedures, safety requirements, industry standards, tools, materials, and processes covered in the lesson. These assignments measure comprehension rather than physical skill and are typically completed online or on paper. The AI may generate multiple-choice, true/false, matching, fill-in-the-blank, short answer, sequencing, labeling diagrams, calculations, or scenario-based questions."},
+        flashcard:{label:"Flashcard Deck",icon:"\u{1F0CF}",group:"content",desc:"Flippable term/definition cards \u2014 click a card to flip it."},
+        quickcheck:{label:"Quick Check",icon:"\u2705",group:"content",desc:"Multiple-choice practice \u2014 click a choice to check it, right there. No grade recorded."},
+        termreveal:{label:"Vocab Builder",icon:"\u{1F4DA}",group:"content",desc:"Click-to-expand vocabulary list with definitions and examples."},
+        truefalse:{label:"True / False",icon:"\u2696\ufe0f",group:"content",desc:"True/False statements \u2014 click to reveal the answer and explanation."},
+        readcheck:{label:"Read + Check",icon:"\u{1F4D0}",group:"content",desc:"Content page with comprehension questions embedded between sections \u2014 read, answer, keep reading."},
+        matching:{label:"Matching",icon:"\u{1F517}",group:"assignment",desc:"Term-to-definition matching, built as a real auto-graded Canvas Quiz matching question \u2014 no download, scored instantly."},
+        whatwouldyoudo:{label:"What Would You Do?",icon:"\u{1F3AD}",group:"assignment",desc:"Students are presented with a realistic workplace situation that requires them to make a decision before revealing the recommended response. Instead of simply recalling facts, they think through the situation as if they were on the job, compare their choice to industry best practices, and learn why one response is better than the others. This activity develops critical thinking and decision-making skills that are essential in the skilled trades."},
+        finderror:{label:"Find the Error",icon:"\u{1F50D}",group:"assignment",desc:"Students examine a statement, diagram, procedure, calculation, or workplace scenario that contains one intentional mistake. Before revealing the answer, they identify the error and consider why it is incorrect. This activity encourages careful observation, reinforces proper procedures, and develops troubleshooting skills by teaching students to recognize common mistakes they may encounter in the workplace."},
+        spothazard:{label:"Spot the Hazard",icon:"\u{1F575}\ufe0f",group:"assignment",desc:"Students inspect a photograph, illustration, or workplace description to identify potential safety hazards before revealing the correct answers. Hazards are explained one by one, helping students understand not only what is unsafe but also why it creates a risk. This activity strengthens situational awareness and promotes a safety-first mindset by encouraging students to actively evaluate their work environment."},
+        mysterymachine:{label:"Mystery Machine",icon:"\u{1F9E9}",group:"assignment",desc:"Students are given a set of equipment symptoms, operating conditions, or clues describing a machine problem. Using the available information, they determine the most likely cause before revealing the solution and explanation. This activity mirrors real-world troubleshooting by requiring students to think logically, eliminate possibilities, and diagnose problems like experienced technicians."},
+        knowledge:{label:"Knowledge Assignment",icon:"\u{1F4DD}",group:"assignment",desc:"A Knowledge Assignment evaluates the student's understanding of concepts, terminology, procedures, safety requirements, industry standards, tools, materials, and processes covered in the lesson. Built as a real auto-graded Canvas Quiz — multiple choice, true/false, short answer, and essay questions."},
         research:{label:"Research Assignment",icon:"\u{1F52C}",group:"assignment",desc:"A Research Assignment requires students to investigate information beyond the course materials using reliable sources. Students collect, evaluate, summarize, and present information while developing research, critical thinking, and communication skills. Assignments may involve researching OSHA standards, building codes, manufacturers, new technologies, materials, careers, equipment, or industry best practices."},
         creative:{label:"Creative Assignment",icon:"\u{1F4E6}",group:"assignment",desc:"A Creative Assignment encourages students to apply course concepts by interacting with the real world. Rather than simply answering questions, students demonstrate understanding through photographs, videos, sketches, presentations, models, digital media, or other creative products. These assignments often require students to identify, document, explain, or compare real examples found in homes, businesses, construction sites, or everyday environments."},
         labproject:{label:"Lab Project",icon:"\u{1F6E0}",group:"assignment",desc:"A Lab Project requires students to demonstrate competency by physically performing a trade-related skill using proper tools, equipment, materials, and safety procedures. The assignment focuses on applying knowledge in a realistic work environment while producing a quality result that meets industry expectations. Students typically submit photographs, videos, measurements, or instructor verification as evidence of completion."},
-        troubleshooting:{label:"Troubleshooting Assignment",icon:"\u{1F50D}",group:"assignment",desc:"A Troubleshooting Assignment develops diagnostic and problem-solving skills by presenting students with equipment failures, construction defects, installation errors, or workplace problems. Students analyze symptoms, identify possible causes, determine the most likely solution, and explain the reasoning behind their decisions. These assignments simulate the decision-making required in real-world technical careers."},
-        inspection:{label:"Inspection Assignment",icon:"\u{1F4CB}",group:"assignment",desc:"An Inspection Assignment requires students to evaluate equipment, materials, structures, tools, or work areas against established standards, codes, specifications, or safety regulations. Students identify deficiencies, document observations, determine compliance, and recommend corrective actions. Inspection assignments reinforce attention to detail and quality assurance skills commonly used throughout the skilled trades."},
-        blueprint:{label:"Blueprint / Diagram Assignment",icon:"\u{1F4D0}",group:"assignment",desc:"A Blueprint or Diagram Assignment develops the student's ability to read, interpret, and apply technical drawings, blueprints, schematics, wiring diagrams, piping layouts, exploded views, or construction plans. Students may identify components, determine dimensions, follow symbols, trace systems, or answer questions based on technical documentation commonly used in industry."},
-        demonstration:{label:"Demonstration Assignment",icon:"\u{1F3A5}",group:"assignment",desc:"A Demonstration Assignment requires students to explain and demonstrate a specific skill, procedure, or operation through a recorded video, live presentation, narrated slideshow, or instructor observation. Students must not only perform the task correctly but also demonstrate an understanding of why each step is performed and how it contributes to safe and effective job performance."},
-        estimating:{label:"Estimating / Job Planning Assignment",icon:"\u{1F4B2}",group:"assignment",desc:"An Estimating or Job Planning Assignment develops planning and organizational skills by requiring students to prepare for a job before work begins. Students calculate material quantities, estimate labor, determine equipment needs, prepare cost estimates, develop project schedules, select tools, or create work plans based on project requirements. These assignments mirror the planning activities performed by technicians, foremen, and contractors."},
-        scenario:{label:"Workplace Scenario Assignment",icon:"\u{1F9E9}",group:"assignment",desc:"A Workplace Scenario Assignment presents students with realistic job-site situations requiring professional judgment and decision-making. Students evaluate information, apply technical knowledge, prioritize actions, consider safety, communicate effectively, and justify their decisions. Scenarios may involve customer interactions, safety concerns, equipment failures, ethical situations, scheduling conflicts, or other workplace challenges that have multiple reasonable solutions."},
-        gradeddiscussion:{label:"Graded Discussion",icon:"\u{1F5E3}\uFE0F",group:"assignment",desc:"Same as Discussion Prompt, but with points attached \u2014 shows up in the gradebook."},
+        gradeddiscussion:{label:"Graded Discussion",icon:"\u{1F5E3}\uFE0F",group:"assignment",desc:"A threaded discussion topic with points attached \u2014 shows up in the gradebook."},
     };
 
     const ITEM_CATEGORIES = [
         ["content", "\u{1F4C4} Content"],
-        ["activity", "\u{1F3AE} Activity Learning"],
         ["assignment", "\u{1F4DD} Assignments"]
     ];
+
+    // "assignment" group splits into three build/insert paths:
+    // the PDF-schema types (Research, Creative, Lab Project) render a
+    // fillable PDF and go through the answer-key/criteria pipeline;
+    // QUIZ_ASSIGNMENT_TYPES build as real auto-graded Canvas Quizzes; and
+    // gradeddiscussion has its own Discussion Topic path. Excluded from all
+    // three, everything else in "assignment" group falls through to PDF.
+    function isPdfAssignmentType(itemType){
+        var info = ITEM_TYPES[itemType];
+        return !!(info && info.group === "assignment" && itemType !== "gradeddiscussion" &&
+            ACTIVITY_TYPES.indexOf(itemType) < 0 && QUIZ_ASSIGNMENT_TYPES.indexOf(itemType) < 0);
+    }
 
     const PAGE_THEMES = {
         custom:{
@@ -436,6 +437,58 @@
         });
     }
 
+    // ── QUIZ_ASSIGNMENT_TYPES creation (What Would You Do?, Find the Error,
+    // Spot the Hazard, Mystery Machine, Knowledge) — a real, auto-graded
+    // Canvas Quiz. Same mc/tf/short/essay question schema and Canvas answer
+    // mapping as the standalone Quiz Builder tool elsewhere in this file,
+    // reimplemented here (rather than shared) since that tool's functions
+    // are nested in its own render closure and read from its own UI state.
+    async function createQuizForAssignment(title, description, dueDate){
+        var body = { title: title, quiz_type: "assignment", published: false, show_correct_answers: true, description: description || "" };
+        if(dueDate) body.due_at = dueDate;
+        return canvasAPI("POST", "/quizzes", { quiz: body });
+    }
+
+    var QUIZ_QUESTION_TYPE_LABELS = {mc:"Multiple Choice", tf:"True / False", short:"Short Answer", essay:"Essay", matching:"Matching"};
+
+    // Themed question stem — a colored left-accent card with an eyebrow
+    // type badge and Georgia-serif question text, matching the visual
+    // language of the rest of the tool. Answer choices are left as plain
+    // Canvas answer text (Canvas already renders those as its own styled,
+    // clickable rows — adding markup there would just clutter, not help).
+    function buildQuizQuestionHtml(q, pos, theme){
+        var label = QUIZ_QUESTION_TYPE_LABELS[q.type] || "Question";
+        var h = '<div style="font-family:Arial,sans-serif;border-left:4px solid '+theme.primary+';background:'+(theme.cardBg||"#f8fafc")+';padding:16px 20px;border-radius:0 10px 10px 0;">';
+        h += '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:'+theme.primary+';margin-bottom:8px;">Question '+pos+' — '+esc(label)+'</div>';
+        h += '<div style="font-family:Georgia,serif;font-size:16px;line-height:1.6;color:'+(theme.text||"#1e293b")+';">'+esc(q.text||"")+'</div>';
+        h += '</div>';
+        return h;
+    }
+
+    function buildQuizQuestionPayload(q, pos, theme){
+        var TYPE_MAP = {mc:"multiple_choice_question", tf:"true_false_question", short:"short_answer_question", essay:"essay_question", matching:"matching_question"};
+        var body = { question_name: "Q"+pos, question_text: buildQuizQuestionHtml(q, pos, theme), question_type: TYPE_MAP[q.type]||"essay_question", points_possible: q.type==="essay"?5:1, position: pos };
+        if(q.type === "mc"){
+            body.answers = (q.choices||[]).map(function(c){ return { answer_text: c.text, answer_weight: c.correct?100:0, answer_comments: (c.correct && q.explanation) ? q.explanation : "" }; });
+        } else if(q.type === "tf"){
+            var isTrue = q.answer === true || q.answer === "true";
+            body.answers = [{answer_text:"True",answer_weight:isTrue?100:0},{answer_text:"False",answer_weight:isTrue?0:100}];
+        } else if(q.type === "short"){
+            var alts = [q.answer].concat(q.answer_alts||[]).filter(function(a){ return a!==null && a!==undefined && a!==""; });
+            body.answers = alts.map(function(a){ return { answer_text: String(a), answer_weight: 100 }; });
+        } else if(q.type === "matching"){
+            var pairs = q.pairs||[];
+            body.points_possible = Math.max(1, pairs.length);
+            body.answers = pairs.map(function(p){ return { answer_match_left: p.term, answer_match_right: p.definition }; });
+            body.matching_answer_incorrect_matches = (q.distractors||[]).join("\n");
+        }
+        return body;
+    }
+
+    async function createQuizQuestion(quizId, q, pos, theme){
+        return canvasAPI("POST", "/quizzes/"+quizId+"/questions", { question: buildQuizQuestionPayload(q, pos, theme) });
+    }
+
     // 3-step Canvas Files API upload: register the upload (get a pre-signed
     // target), POST the bytes there, then confirm. Used to attach a
     // generated PDF to a course so it can be linked from an assignment's
@@ -484,8 +537,15 @@
         return canvasAPI("POST", "/discussion_topics", body);
     }
 
-    async function addModuleItem(moduleId, itemType, contentIdOrUrl, title, position){
-        var item = { module_item: { title: title, type: itemType } };
+    // "icon" is one of our own ITEM_TYPES emoji (e.g. 🎭 for What Would You
+    // Do?) — Canvas's own per-type icon on the Modules page isn't
+    // replaceable via the API, so instead we prefix it onto the title
+    // itself. That's stored server-side, so it shows up for every student
+    // viewing Modules, not just teachers with this extension installed —
+    // unlike a DOM-injected icon, which only that browser would ever see.
+    async function addModuleItem(moduleId, itemType, contentIdOrUrl, title, position, icon){
+        var displayTitle = icon ? (icon + " " + title) : title;
+        var item = { module_item: { title: displayTitle, type: itemType } };
         if(position != null) item.module_item.position = position;
         if(itemType === "Page"){ item.module_item.page_url = contentIdOrUrl; }
         else { item.module_item.content_id = contentIdOrUrl; }
@@ -541,17 +601,34 @@
                 var insertPosition = useExistingModule ? null : itemPosition;
 
                 try {
-                    if(itemInfo.group === "assignment" && item.type !== "gradeddiscussion"){
-                        // Every one of the 10 PDF-based assignment types
-                        // (Knowledge through Workplace Scenario) ships the
-                        // same way: render the fillable PDF, upload it to
-                        // Canvas Files, and use a short instructions banner
-                        // (plus the hidden criteria marker) as the
-                        // assignment description. Knowledge Assignment's
-                        // criteria come from its typed-question answer key;
-                        // every other type's criteria come straight from
-                        // its generic schema, since the AI-generated schema
-                        // already IS the answer key for those.
+                    if(QUIZ_ASSIGNMENT_TYPES.indexOf(item.type) >= 0){
+                        // What Would You Do?, Find the Error, Spot the Hazard,
+                        // Mystery Machine, and Knowledge all build as a real,
+                        // auto-graded Canvas Quiz — no PDF, no download.
+                        var quizTitle = data.quizTitle || canvasItemTitle(item,data,i);
+                        var questions = (data.generatedQuiz && data.generatedQuiz.questions) || [];
+                        if(!questions.length){
+                            report("Skipped (not built): " + quizTitle);
+                            results.modules[results.modules.length-1].items.push({ title: quizTitle, status: "skipped" });
+                            continue;
+                        }
+                        var quizTheme = pdfResolveTheme(data);
+                        var quizDescHtml = buildQuizAssignmentDescriptionHtml(item.type, data, questions.length, quizTheme);
+                        var newQuiz = await createQuizForAssignment(quizTitle, quizDescHtml, data.dueDate);
+                        report("Created quiz: " + quizTitle);
+                        for(var qi=0; qi<questions.length; qi++){
+                            await createQuizQuestion(newQuiz.id, questions[qi], qi+1, quizTheme);
+                        }
+                        await addModuleItem(canvasMod.id, "Quiz", newQuiz.id, quizTitle, insertPosition, itemInfo.icon);
+                        results.modules[results.modules.length-1].items.push({ title: quizTitle, status: "inserted", type: item.type });
+
+                    } else if(isPdfAssignmentType(item.type)){
+                        // The remaining PDF-based assignment types (Research,
+                        // Creative, Lab Project) ship the same way: render the
+                        // fillable PDF, upload it to Canvas Files, and use a
+                        // short instructions banner (plus the hidden criteria
+                        // marker) as the assignment description — the
+                        // AI-generated schema already IS the answer key.
                         var assignTitle = canvasItemTitle(item,data,i);
                         var pts = data.pointValue || "100";
                         var criteria = null;
@@ -561,18 +638,7 @@
                             var pdfBytes = await renderAssignmentPdf(data.generatedPdfSchema, data);
                             var pdfFile = await canvasUploadFile(assignTitle + ".pdf", new Blob([pdfBytes], {type:"application/pdf"}), "application/pdf");
                             assignHtml = renderAssignmentPdfDescription(pdfFile.id, courseId, data);
-                            if(item.type === "knowledge" && data.generatedAnswerKey){
-                                criteria = formatKnowledgeCriteria(data.generatedAnswerKey);
-                                criteria.answerFields = pdfSchemaFieldList(data.generatedPdfSchema);
-                            } else {
-                                // Also covers a Knowledge Assignment whose
-                                // schema was hand-edited in the structured
-                                // editor — that clears generatedAnswerKey and
-                                // hydrates correctAnswer/rubricNote directly
-                                // onto the schema's fields, so the schema
-                                // itself becomes the source of truth.
-                                criteria = formatAssignmentCriteria(data.generatedPdfSchema);
-                            }
+                            criteria = formatAssignmentCriteria(data.generatedPdfSchema);
                             if(criteria){
                                 // Redacted, student-safe view (points +
                                 // rubric guidance, never correctAnswer) —
@@ -594,7 +660,7 @@
 
                         var assignment = await createAssignment(assignTitle, assignHtml, pts);
                         report("Created assignment: " + assignTitle);
-                        await addModuleItem(canvasMod.id, "Assignment", assignment.id, assignTitle, insertPosition);
+                        await addModuleItem(canvasMod.id, "Assignment", assignment.id, assignTitle, insertPosition, itemInfo.icon);
                         results.modules[results.modules.length-1].items.push({ title: assignTitle, status: "inserted", type: item.type });
 
                         // Also pre-fill the AI Grader's Grading Criteria for
@@ -605,13 +671,13 @@
                             sgSaveCriteriaFor(courseId, assignment.id, criteria);
                         }
 
-                    } else if(item.type === "discussion" || item.type === "gradeddiscussion"){
+                    } else if(item.type === "gradeddiscussion"){
                         var discTitle = canvasItemTitle(item,data,i);
                         var discHtml = data.generatedHTML || "<p>Discussion prompt not yet generated.</p>";
-                        var discPts = item.type === "gradeddiscussion" ? (data.pointValue || "100") : null;
+                        var discPts = data.pointValue || "100";
                         var topic = await createDiscussionTopic(discTitle, discHtml, discPts);
                         report("Created discussion: " + discTitle);
-                        await addModuleItem(canvasMod.id, "Discussion", topic.id, discTitle, insertPosition);
+                        await addModuleItem(canvasMod.id, "Discussion", topic.id, discTitle, insertPosition, itemInfo.icon);
                         results.modules[results.modules.length-1].items.push({ title: discTitle, status: "inserted", type: item.type });
 
                     } else {
@@ -781,29 +847,53 @@
 
     // ========== ITEM DATA INIT ==========
 
+    // Distinct out-of-the-box theme per assignment type, so a course full of
+    // these doesn't look like one uniform navy default — teachers can still
+    // override via the Page Style picker in each builder.
+    var DEFAULT_ASSIGNMENT_THEME = {
+        whatwouldyoudo:{pageStyle:"navyBlue",customColor:"#1e3a5f"},
+        finderror:{pageStyle:"slateGray",customColor:"#1e3a5f"},
+        spothazard:{pageStyle:"custom",customColor:"#b91c1c"},
+        mysterymachine:{pageStyle:"custom",customColor:"#6d28d9"},
+        knowledge:{pageStyle:"forestGreen",customColor:"#1e3a5f"},
+        research:{pageStyle:"navyBlue",customColor:"#1e3a5f"},
+        creative:{pageStyle:"custom",customColor:"#db2777"},
+        labproject:{pageStyle:"slateGray",customColor:"#1e3a5f"}
+    };
+    function defaultThemeFor(itemType){
+        return DEFAULT_ASSIGNMENT_THEME[itemType] || {pageStyle:"custom", customColor:"#1e3a5f"};
+    }
+
     function initItemData(item){
         if(state.itemData[item.id])return;
-        if(item.type==="discussion"){
-            state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
-        }else if(item.type==="gradeddiscussion"){
+        if(item.type==="gradeddiscussion"){
             state.itemData[item.id]={contentType:"discussion",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",pointValue:"",dueDate:"",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:false,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build"};
-        }else if(ITEM_TYPES[item.type] && ITEM_TYPES[item.type].group==="assignment"){
-            // Shared shape for every PDF-based assignment type (Knowledge
-            // through Workplace Scenario) — see renderPdfAssignmentBuilder.
-            var shape={contentType:"pdfassignment",pageStyle:"custom",customColor:"#1e3a5f",
+        }else if(isPdfAssignmentType(item.type)){
+            // Shared shape for the remaining PDF-based assignment types
+            // (Research, Creative, Lab Project) — see renderPdfAssignmentBuilder.
+            var pdfTheme = defaultThemeFor(item.type);
+            state.itemData[item.id]={contentType:"pdfassignment",pageStyle:pdfTheme.pageStyle,customColor:pdfTheme.customColor,
                 pointValue:"",dueDate:"",textContent:"",uploadedFile:"",uploadedName:"",
                 referenceImageData:"",referenceImageType:"",referenceImageName:"",referenceImageSource:"",referenceImageAttribution:"",imageKeyword:"",
                 generatedAnswerKey:null,generatedPdfSchema:null,subView:"build"};
-            if(item.type==="knowledge"){
-                shape.typeCounts={mc:4,tf:2,matching:0,ordering:0,short:2,fillblank:0,labeling:0,calculation:0,scenario:0};
-            }
-            state.itemData[item.id]=shape;
         }else if(item.type==="video"){
             state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:true,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",includeToolbar:false,toolbarData:null};
         }else if(ACTIVITY_TYPES.indexOf(item.type)>=0){
-            var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3,matching:8,
-                whatwouldyoudo:5,finderror:6,spothazard:5,mysterymachine:5,decisionpoint:5,whathappensnext:6,buildprocess:6,beattheexpert:5,commonmistake:6,protip:8};
+            var defCounts={flashcard:8,quickcheck:5,termreveal:10,truefalse:7,readcheck:3};
             state.itemData[item.id]={contentType:"activity",activityType:item.type,pageStyle:"custom",count:defCounts[item.type]||6,includeImages:true,textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",aiEngine:"detailed",includeToolbar:false,toolbarData:null};
+        }else if(QUIZ_ASSIGNMENT_TYPES.indexOf(item.type)>=0){
+            // Knowledge Assignment keeps a real question-type mix (mc/tf/
+            // short/essay); the 4 scenario-flavored types (What Would You
+            // Do?, Find the Error, Spot the Hazard, Mystery Machine) are
+            // just N multiple-choice scenarios each; Matching is a single
+            // native matching_question with N term/definition pairs — see
+            // renderQuizAssignmentBuilder for how the UI differs per type.
+            var isKnowledge = item.type === "knowledge";
+            var quizTheme = defaultThemeFor(item.type);
+            state.itemData[item.id]={contentType:"quizassignment",pageStyle:quizTheme.pageStyle,customColor:quizTheme.customColor,
+                pointValue:"",dueDate:"",difficulty:"medium",
+                mcCount:isKnowledge?4:3, tfCount:isKnowledge?2:0, shortCount:isKnowledge?2:0, essayCount:0, pairCount:8,
+                textContent:"",uploadedFile:"",uploadedName:"",generatedQuiz:null,subView:"build"};
         }else{
             state.itemData[item.id]={contentType:"page",pageStyle:"custom",customColor:"#1e3a5f",layout:"standard",videoUrl:"",videoQuery:"",videoResults:null,videoPreviewIndex:null,showVideo2:false,video2Url:"",video2Query:"",video2Results:null,video2PreviewIndex:null,pageElements:{emojiIcons:true,sectionDividers:true,tipBoxes:true,imagePlaceholders:true,collapsible:false,quoteBoxes:false,alertBoxes:false},textContent:"",uploadedFile:"",uploadedName:"",generatedHTML:"",subView:"build",includeToolbar:false,toolbarData:null};
         }
@@ -851,7 +941,7 @@
         p += "- First, identify what KIND of document this is (e.g. \"a textbook chapter students will read in full\", \"a test/exam with questions\", \"an answer key\", \"sparse lecture notes or an outline\", \"a worksheet\", \"a short article\").\n";
         p += "- If the material is substantial reading students will consume directly (a book chapter, an article, full lecture notes) — recommend FEWER content pages, since the reading itself already covers the material. Use an intro page that tells students to read the provided material, then complete the activities, and lean on activity/assessment items (Quick Check, Vocab Builder, Read + Check, etc.) to check understanding of that reading instead of re-explaining it in content pages.\n";
         p += "- If the material is sparse, or is itself assessment material (a test, an exam, an answer key) rather than something meant to be read as-is — recommend MORE content pages, since those pages need to actually reconstruct and teach the underlying material the source implies, with nothing already there for students to read directly.\n";
-        p += "- Recommend a sensible total of 4-8 items for one module. Always start with an Intro Page unless the material clearly doesn't call for one. Don't pad the list — only include a Discussion, Ice Breaker, Assignment, or assessment item if it genuinely fits this material.\n\n";
+        p += "- Recommend a sensible total of 4-8 items for one module. Always start with an Intro Page unless the material clearly doesn't call for one. Don't pad the list — only include an Assignment or assessment item if it genuinely fits this material.\n\n";
         p += "SOURCE MATERIAL:\n";
         if(pastedText && pastedText.trim()) p += pastedText.trim()+"\n\n";
         p += getModuleSourceContext();
@@ -1079,20 +1169,30 @@
 
     function isItemBuilt(item, d){
         if(!d) return false;
-        var info=ITEM_TYPES[item.type];
-        if(info && info.group==="assignment" && item.type!=="gradeddiscussion") return !!d.generatedPdfSchema;
+        if(isPdfAssignmentType(item.type)) return !!d.generatedPdfSchema;
+        if(QUIZ_ASSIGNMENT_TYPES.indexOf(item.type) >= 0) return !!(d.generatedQuiz && d.generatedQuiz.questions && d.generatedQuiz.questions.length);
         return !!d.generatedHTML;
     }
 
     // Runs the actual generation for one item — same logic as each builder's
     // own Generate button, just without touching the DOM.
     async function generateOneItem(item, d, mod){
-        var info=ITEM_TYPES[item.type];
-        if(info && info.group==="assignment" && item.type!=="gradeddiscussion"){
-            if(item.type==="knowledge"){
-                var total=Object.values(d.typeCounts||{}).reduce(function(s,v){return s+v;},0);
-                if(!total) throw new Error("No question types selected");
-            }
+        if(QUIZ_ASSIGNMENT_TYPES.indexOf(item.type) >= 0){
+            if(!itemHasSource(d,mod)) throw new Error("No source material");
+            var qtotal = item.type==="knowledge" ? (d.mcCount||0)+(d.tfCount||0)+(d.shortCount||0)+(d.essayCount||0) : item.type==="matching" ? (d.pairCount||0) : (d.mcCount||0);
+            if(!qtotal) throw new Error("No questions configured");
+            var qraw = await callClaude(buildQuizAssignmentPrompt(d,item.type),contentModel(d),TOKENS_LONG);
+            var qcleaned = qraw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+            var qs = qcleaned.indexOf("{"), qe = qcleaned.lastIndexOf("}");
+            if(qs===-1||qe===-1) throw new Error("Could not find JSON in response");
+            var qparsed = JSON.parse(qcleaned.slice(qs,qe+1));
+            if(!qparsed.questions || !qparsed.questions.length) throw new Error("No questions returned");
+            d.quizTitle = qparsed.quizTitle || d.quizTitle;
+            d.generatedQuiz = qparsed;
+            d.subView = "result";
+            return;
+        }
+        if(isPdfAssignmentType(item.type)){
             if(!itemHasSource(d,mod)) throw new Error("No source material");
             if(!d.referenceImageData && d.imageKeyword && d.imageKeyword.trim()){
                 try{
@@ -1105,24 +1205,13 @@
                     triggerUnsplashDownload(photo.downloadLocation);
                 }catch(imgErr){ /* not fatal — proceed without an image */ }
             }
-            if(item.type==="knowledge"){
-                var raw=await callClaude(buildKnowledgeAnswerKeyPrompt(d),contentModel(d),TOKENS_LONG);
-                var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                var s=cleaned.indexOf("{"), e=cleaned.lastIndexOf("}");
-                if(s===-1||e===-1) throw new Error("Could not find JSON in response");
-                var parsed=JSON.parse(cleaned.slice(s,e+1));
-                if(!parsed.questions||!parsed.questions.length) throw new Error("No questions returned");
-                d.generatedAnswerKey=parsed;
-                d.generatedPdfSchema=knowledgeAnswerKeyToPdfSchema(parsed,d);
-            }else{
-                var raw2=await callClaude(buildAssignmentPdfPrompt(d,item.type),contentModel(d),TOKENS_LONG);
-                var cleaned2=raw2.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                var s2=cleaned2.indexOf("{"), e2=cleaned2.lastIndexOf("}");
-                if(s2===-1||e2===-1) throw new Error("Could not find JSON in response");
-                var parsedSchema=JSON.parse(cleaned2.slice(s2,e2+1));
-                d.generatedAnswerKey=null;
-                d.generatedPdfSchema=sanitizeAssignmentSchema(parsedSchema);
-            }
+            var raw2=await callClaude(buildAssignmentPdfPrompt(d,item.type),contentModel(d),TOKENS_LONG);
+            var cleaned2=raw2.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+            var s2=cleaned2.indexOf("{"), e2=cleaned2.lastIndexOf("}");
+            if(s2===-1||e2===-1) throw new Error("Could not find JSON in response");
+            var parsedSchema=JSON.parse(cleaned2.slice(s2,e2+1));
+            d.generatedAnswerKey=null;
+            d.generatedPdfSchema=sanitizeAssignmentSchema(parsedSchema);
             d.subView="result";
             return;
         }
@@ -1972,17 +2061,34 @@
     function renderAssignmentPdfDescription(fileId, courseId, itemData){
         var theme = pdfResolveTheme(itemData);
         var downloadUrl = "/courses/"+courseId+"/files/"+fileId+"/download?download_frd=1";
-        var h = '<div style="background:linear-gradient(135deg,'+theme.primary+','+(theme.accent||theme.primary)+');border-radius:12px;padding:24px 28px;margin-bottom:18px;font-family:Arial,sans-serif;color:#fff;">';
-        h += '<div style="font-size:20px;font-weight:700;margin-bottom:10px;">📄 Your Assignment is a Fillable PDF</div>';
-        h += '<ol style="margin:0;padding-left:20px;font-size:15px;line-height:1.8;">';
-        h += '<li><strong>Download</strong> the PDF below.</li>';
-        h += '<li><strong>Fill it out</strong> — type directly into the boxes (opens automatically in Chrome\'s built-in PDF viewer).</li>';
-        h += '<li><strong>Save</strong> your filled-in copy (Ctrl+S / the download icon in the PDF viewer).</li>';
-        h += '<li><strong>Submit</strong> the saved PDF here using the file upload below.</li>';
-        h += '</ol></div>';
-        h += '<p style="text-align:center;margin:18px 0;">';
-        h += '<a href="'+downloadUrl+'" target="_blank" rel="noopener" style="display:inline-block;background:'+theme.primary+';color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">📥 Download Your Assignment (PDF)</a>';
+        var title = (itemData.generatedPdfSchema && itemData.generatedPdfSchema.title) || "Your Assignment";
+        var instructions = (itemData.generatedPdfSchema && itemData.generatedPdfSchema.instructions) || "";
+
+        var h = '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;">';
+        h += '<div style="background:'+theme.primary+';padding:36px 40px;border-radius:12px 12px 0 0;">';
+        h += '<div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.7);margin-bottom:8px;">Assignment</div>';
+        h += '<h2 style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:#fff;margin:0 0 8px;">'+esc(title)+'</h2>';
+        if(instructions) h += '<p style="font-size:14px;color:rgba(255,255,255,0.85);margin:0;">'+esc(instructions)+'</p>';
+        h += '</div>';
+
+        h += '<div style="background:'+(theme.cardBg||"#fff")+';border:1px solid '+(theme.border||"#e5e7eb")+';border-top:none;border-radius:0 0 12px 12px;padding:26px 40px;">';
+        h += '<div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:'+theme.primary+';margin-bottom:16px;">How to Complete This Assignment</div>';
+        var steps = [
+            ["1","Download","Click the button below to download the PDF."],
+            ["2","Fill it out","Type directly into the boxes — it opens in your browser's built-in PDF viewer, no extra software needed."],
+            ["3","Save","Save your filled-in copy (Ctrl+S, or the download icon in the PDF viewer)."],
+            ["4","Submit","Upload the saved PDF using the file submission box on this assignment."]
+        ];
+        steps.forEach(function(s){
+            h += '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;">';
+            h += '<div style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:'+theme.primary+';color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;">'+s[0]+'</div>';
+            h += '<div><div style="font-weight:700;font-size:14px;color:'+(theme.text||"#1e293b")+';margin-bottom:2px;">'+s[1]+'</div>';
+            h += '<div style="font-size:13px;color:#64748B;line-height:1.5;">'+s[2]+'</div></div></div>';
+        });
+        h += '<p style="text-align:center;margin:22px 0 4px;">';
+        h += '<a href="'+downloadUrl+'" target="_blank" rel="noopener" style="display:inline-block;background:'+theme.primary+';color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">Download the Assignment PDF ↓</a>';
         h += '</p>';
+        h += '</div></div>';
         return h;
     }
 
@@ -2056,9 +2162,6 @@
         creative: "This is a Creative Assignment: students demonstrate understanding by identifying, documenting, explaining, or comparing REAL examples they find in homes, businesses, construction sites, or everyday environments (photos, videos, sketches, models — produced OUTSIDE this PDF and attached separately as additional files alongside this completed form, so do not ask the student to embed media in the form itself). This PDF should be a completion/reflection form: a checklist of what to document, and \"short\"/\"long\" fields asking the student to describe what they found and explain how it connects to course concepts. Use rubricNote on nearly every field — this type is judged qualitatively, not answer-key graded. SCOPE: ONE documentation task, not several separate examples to compare — 4-6 fields total is enough.",
         labproject: "This is a Lab Project: students physically perform a trade-related skill using proper tools, equipment, materials, and safety procedures, then submit photographs, videos, measurements, or instructor verification as evidence (attached separately, not embedded in this PDF). Keep this PDF SIMPLE — a real paperwork packet is unrealistic overhead for a hands-on build. Use EXACTLY three sections, nothing more: (1) \"What to Build\" — staticText describing the finished project/deliverable and its spec, no fields; (2) \"Steps to Build It\" — a numbered staticList of the actual build steps, no fields; (3) \"Grading Criteria\" — 3-6 fields (checkbox or short, each with a correctAnswer or rubricNote and points) that ARE the rubric items the teacher will use to grade the submitted evidence, e.g. \"Cuts are square and within spec\" or \"PPE worn throughout\" (checkbox, correctAnswer:\"checked\"). Do NOT add a Tools & Materials list, a separate Reflection section, or an Observations/Measurements table — those turn a hands-on build into unnecessary paperwork.",
         troubleshooting: "This is a Troubleshooting Assignment: students are given a specific equipment failure, construction defect, installation error, or workplace problem (describe a concrete, realistic scenario in staticText) and must analyze symptoms, identify possible causes, determine the most likely solution, and explain their reasoning. Include a \"short\" field for the most likely root cause (correctAnswer, since a scenario you write has a definite intended answer) and \"long\" fields for symptom analysis and reasoning (rubricNote, since a student can reach the right conclusion via different valid reasoning paths). SCOPE: ONE problem, not several — 3-4 fields total (root cause, symptom analysis, reasoning) is enough.",
-        inspection: "This is an Inspection Assignment: students evaluate equipment, materials, structures, tools, or work areas against stated standards, codes, specifications, or safety regulations, identify deficiencies, document observations, determine compliance, and recommend corrective actions. Favor checkbox/table fields for compliance checks (correctAnswer where the standard gives an objective pass/fail), and \"long\" fields for documented deficiencies and recommended corrective actions (rubricNote, since wording varies but the substance should match). SCOPE: ONE specific area/item to inspect, not an entire facility — 5-7 checklist/table fields plus one deficiency/corrective-action field is enough.",
-        blueprint: "This is a Blueprint/Diagram Assignment: students read, interpret, and apply a technical drawing, blueprint, schematic, wiring diagram, piping layout, exploded view, or construction plan. THE ACTUAL DIAGRAM IS PROVIDED SEPARATELY and will be inserted into this PDF automatically wherever a section sets \"useReferenceImage\":true — set that flag on the ONE section where students should look at the diagram to answer questions (do not describe or attempt to draw the diagram yourself in staticText). Ask students to identify components, determine dimensions, follow symbols, or trace systems shown in that image — these have definite correct answers, so give most fields a correctAnswer. SCOPE: 5-8 fields about that ONE diagram is enough — do not try to ask about every possible detail in the image.",
-        demonstration: "This is a Demonstration Assignment: students explain and demonstrate a specific skill or procedure via a recorded video, live presentation, or narrated slideshow (produced and attached separately, not embedded in this PDF). This PDF should be a companion reflection form: \"long\" fields asking the student to explain WHY each step is performed and how it contributes to safe/effective job performance (rubricNote — this is about understanding, not a single correct wording), plus a self-checklist (checkbox) confirming each required step was demonstrated. SCOPE: ONE procedure — a self-checklist (3-5 checkbox items) plus 1-2 \"why\" reflection fields is enough.",
         estimating: "This is an Estimating/Job Planning Assignment: students calculate material quantities, estimate labor, determine equipment needs, prepare cost estimates, develop schedules, or create work plans for a described job. Favor \"table\" fields for material/quantity/cost breakdowns and \"short\" fields for specific calculated totals — give these a correctAnswer (these are numeric calculations with a right answer given the job description you provide). Use \"long\" fields with rubricNote only for open-ended planning narrative (e.g. \"describe your project schedule\"). SCOPE: ONE job/task, not a full estimate packet — pick just ONE of materials/labor/equipment/scheduling to focus on (whichever the source material best supports), not all of them at once. One table plus 1-2 calculated-total fields is enough.",
         scenario: "This is a Workplace Scenario Assignment: students are given a realistic job-site situation (describe it concretely in staticText — a customer interaction, safety concern, equipment failure, ethical situation, scheduling conflict, etc.) requiring professional judgment, and must evaluate information, prioritize actions, consider safety, and justify their decision. These almost always have MULTIPLE reasonable solutions, not one correct answer — use \"long\" fields with rubricNote describing what a strong response should demonstrate (e.g. \"should prioritize safety, communicate clearly with the customer, and justify the choice\"), not a correctAnswer. SCOPE: ONE scenario, ONE decision — 3-5 fields total (the decision itself, plus 1-2 justification/reasoning fields). This is a single realistic moment a technician faces on the job, NOT a multi-part design project covering many separate sub-topics (do not ask the student to also spec out materials, calculations, or a whole system design here — that belongs in a different assignment type)."
     };
@@ -2140,24 +2243,6 @@
     }
 
     // ========== ACTIVITY PROMPT ==========
-
-    // Shared single-card template for the "scenario, then one click reveals
-    // the answer" activities (What Would You Do?, Find the Error, Mystery
-    // Machine, What Happens Next?, Beat the Expert, Common Mistake, Pro
-    // Tip) — they all share one structure and only differ in labels/
-    // framing, so this is the one place that HTML lives.
-    function activitySingleRevealCard(pri, setupLabel, revealLabel){
-        var h = '<details style="margin-bottom:14px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">\n';
-        h += '  <summary style="list-style:none;cursor:pointer;background:#f8fafc;padding:18px 22px;">\n';
-        h += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:'+pri+';margin-bottom:8px;">'+setupLabel+'</div>\n';
-        h += '    <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;line-height:1.5;">[SETUP TEXT]</div>\n';
-        h += '  </summary>\n';
-        h += '  <div style="padding:18px 22px;border-top:1px solid #e5e7eb;background:#fff;">\n';
-        h += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#166534;margin-bottom:8px;">'+revealLabel+'</div>\n';
-        h += '    <div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#374151;">[REVEAL TEXT]</div>\n';
-        h += '  </div>\n</details>\n';
-        return h;
-    }
 
     function buildActivityPrompt(itemData, itemType){
         var count = itemData.count || 6;
@@ -2270,178 +2355,6 @@
             p += '</div>\n\n';
             p += "RULES: Generate exactly " + count + " question blocks embedded at natural content breaks. Each question tests the section immediately before it. Each question has exactly 3 choices, each its own separate <details> (NOT nested inside each other) — 1 correct choice using the green ✓ feedback div, 2 wrong choices using the red ✗ feedback div that names the correct answer. Vary which position the correct choice appears in across questions. Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only. Return ONLY valid HTML, every tag closed.\n\n";
 
-        } else if(itemType === "matching"){
-            var letters = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P"];
-            p += "Generate a matching activity for Canvas LMS using nested <details>/<summary> tags — NO <style> blocks or JavaScript (Canvas strips <style> tags on save, which would break this activity entirely). Each candidate definition must be its OWN independently-clickable <details> so a student can click just one definition and see whether THAT ONE is the correct match, without the correct answer or the other options being revealed first.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:860px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<div style="background:' + pri + ';padding:36px 40px;margin-bottom:32px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#fff;margin:0 0 8px;">Matching Activity</h2>\n';
-            p += '<p style="font-family:Arial,sans-serif;font-size:14px;color:rgba(255,255,255,0.75);margin:0;">For each term, click a definition to check if it’s the right match.</p>\n';
-            p += '</div>\n\n';
-            p += "<!-- Generate " + count + " term blocks. For each: letter badge (A, B, C...), the term, then 4 candidate definitions (1 correct + 3 distractors borrowed from OTHER terms' definitions in this set), each its own separately-clickable <details>. Do NOT wrap the whole term block in one outer <details>: -->\n\n";
-            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:14px;background:#fff;">\n';
-            p += '  <div style="background:#f8fafc;padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e5e7eb;">\n';
-            p += '    <span style="background:' + pri + ';color:#fff;font-family:Arial,sans-serif;font-size:12px;font-weight:700;padding:4px 11px;border-radius:4px;flex-shrink:0;">[A/B/C...]</span>\n';
-            p += '    <span style="font-family:Georgia,serif;font-size:17px;font-weight:700;color:#1e293b;">[TERM]</span>\n';
-            p += '  </div>\n';
-            p += '  <div style="padding:12px 20px;">\n';
-            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:13px;">[CANDIDATE DEFINITION]</summary>\n';
-            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-weight:700;font-size:13px;">✓ Correct match!</div>\n';
-            p += '    </details>\n';
-            p += '    <details style="margin-bottom:6px;border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:8px 12px;border-radius:6px;background:#f9fafb;color:#374151;font-size:13px;">[CANDIDATE DEFINITION — a distractor borrowed from another term]</summary>\n';
-            p += '      <div style="padding:8px 12px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-weight:700;font-size:13px;">✗ Not this one — that definition belongs to a different term.</div>\n';
-            p += '    </details>\n';
-            p += '    <!-- repeat the distractor <details> pattern above for the other 2 distractors -->\n';
-            p += '  </div>\n</div>\n\n';
-            p += "CRITICAL RULES:\n";
-            p += "- Generate exactly " + count + " term blocks, lettered " + letters.slice(0, count).join(", ") + "\n";
-            p += "- Each term has exactly 4 candidate definitions, each its own separate <details> (NOT nested inside each other) — 1 correct using the green ✓ feedback div, 3 distractors (borrowed from other terms' definitions in this same set) using the red ✗ feedback div\n";
-            p += "- Vary which position (1st, 2nd, 3rd, 4th) the correct definition appears in across terms\n";
-            p += "- Do NOT wrap multiple candidate definitions or the whole term block in a single outer <details> — each definition must expand independently\n";
-            p += "- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n";
-            p += "- Return ONLY valid HTML, no markdown, every tag closed\n\n";
-
-        } else if(itemType === "whatwouldyoudo"){
-            p += "Generate a 'What Would You Do?' decision-making activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " realistic workplace situations from the source material, each requiring a decision.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🎭 What Would You Do?</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Read the situation, decide what you\'d do, then click to see the recommended response.</p>\n\n';
-            p += "<!-- Generate " + count + " situations using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THE SITUATION", "RECOMMENDED RESPONSE");
-            p += "\nRULES: Generate exactly " + count + " situations. [SETUP TEXT] is a specific, realistic on-the-job scenario requiring a decision — end it with a question like \"What would you do?\". [REVEAL TEXT] gives the recommended response AND briefly explains why it's better than the other reasonable options a technician might consider. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "finderror"){
-            p += "Generate a 'Find the Error' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " items, each containing one intentional mistake, from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🔍 Find the Error</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Look for the mistake before revealing what it is and how to fix it.</p>\n\n';
-            p += "<!-- Generate " + count + " items using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "SPOT THE MISTAKE", "WHAT'S WRONG");
-            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] is a statement, procedure, calculation, or workplace scenario containing exactly ONE intentional mistake, written so it reads as fully correct at first glance — do not telegraph the error. [REVEAL TEXT] identifies the specific error, explains why it's incorrect, and gives the corrected version. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "mysterymachine"){
-            p += "Generate a 'Mystery Machine' diagnostic activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " equipment-problem mysteries from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🧩 Mystery Machine</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Use the clues to diagnose the problem before revealing the solution.</p>\n\n';
-            p += "<!-- Generate " + count + " mysteries using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THE SYMPTOMS", "DIAGNOSIS");
-            p += "\nRULES: Generate exactly " + count + " mysteries. [SETUP TEXT] lists equipment symptoms, operating conditions, or clues describing a machine problem. [REVEAL TEXT] gives the most likely cause and explains the diagnostic reasoning step by step, like an experienced technician thinking it through. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "decisionpoint"){
-            p += "Generate a 'Decision Point' activity for Canvas LMS using nested <details>/<summary> tags — NO <style> blocks or JavaScript. Each possible action must be its OWN independently-clickable <details> so a student can click just one option and see its outcome, without the other options being revealed first.\n\n";
-            p += "Generate exactly " + count + " workplace decision points, each with exactly 3 possible actions to choose from.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🚦 Decision Point</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">You\'ve reached a critical decision. Click an action to see what happens.</p>\n\n';
-            p += "<!-- Generate " + count + " decision points using this exact template. Each action is its own <details> — do NOT wrap the whole scenario in one outer <details>: -->\n";
-            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden;">\n';
-            p += '  <div style="background:#f8fafc;padding:18px 22px;border-bottom:1px solid #e5e7eb;">\n';
-            p += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + pri + ';margin-bottom:8px;">DECISION POINT</div>\n';
-            p += '    <div style="font-family:Georgia,serif;font-size:16px;font-weight:700;color:#1e293b;">[SCENARIO — a critical moment requiring a choice]</div>\n';
-            p += '  </div>\n';
-            p += '  <div style="padding:14px 20px;background:#fff;">\n';
-            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:14px;font-weight:600;">[BEST ACTION]</summary>\n';
-            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-size:13px;">✓ [OUTCOME — the good result of this choice, and why it was the right call]</div>\n';
-            p += '    </details>\n';
-            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[RISKIER ACTION]</summary>\n';
-            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef9c3;color:#854d0e;font-size:13px;">⚠ [OUTCOME — a less ideal result, explaining the tradeoff or risk]</div>\n';
-            p += '    </details>\n';
-            p += '    <details style="border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[POOR ACTION]</summary>\n';
-            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-size:13px;">✗ [OUTCOME — the negative consequence of this choice, and what should happen instead]</div>\n';
-            p += '    </details>\n';
-            p += '  </div>\n</div>\n\n';
-            p += "CRITICAL RULES:\n- Generate exactly " + count + " decision points in this exact order\n- Each has exactly 3 possible actions, each its own separate <details> (NOT nested) — 1 best choice (green), 1 riskier/imperfect choice (yellow), 1 poor choice (red)\n- Vary which position the best action appears in across decision points\n- Do NOT wrap the actions or whole scenario in one outer <details> — each action must expand independently\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
-
-        } else if(itemType === "spothazard"){
-            p += "Generate a 'Spot the Hazard' safety activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript. Each area/element to check must be its OWN independently-clickable <details>.\n\n";
-            p += "Generate exactly " + count + " workplace scenes to inspect, each described in text with 4-5 specific areas/elements a student can check for hazards.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🕵️ Spot the Hazard</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Read the scene, then click each area to check it for hazards.</p>\n\n';
-            p += "<!-- Generate " + count + " scenes using this exact template. Each area is its own <details>: -->\n";
-            p += '<div style="border:1px solid #e5e7eb;border-radius:10px;margin-bottom:16px;overflow:hidden;">\n';
-            p += '  <div style="background:#f8fafc;padding:18px 22px;border-bottom:1px solid #e5e7eb;">\n';
-            p += '    <div style="font-family:Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:' + pri + ';margin-bottom:8px;">THE SCENE</div>\n';
-            p += '    <div style="font-family:Georgia,serif;font-size:15px;color:#1e293b;line-height:1.6;">[DESCRIPTION of the workplace scene/setup — describe what a student would see]</div>\n';
-            p += '  </div>\n';
-            p += '  <div style="padding:14px 20px;background:#fff;">\n';
-            p += '    <details style="margin-bottom:8px;border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[SPECIFIC AREA/ELEMENT TO CHECK]</summary>\n';
-            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#fef2f2;color:#991b1b;font-size:13px;font-weight:600;">⚠ HAZARD — [explanation of what is unsafe and why it creates a risk]</div>\n';
-            p += '    </details>\n';
-            p += '    <details style="border-radius:6px;overflow:hidden;">\n';
-            p += '      <summary style="list-style:none;cursor:pointer;padding:10px 14px;border-radius:6px;background:#f9fafb;border:1px solid #e5e7eb;color:#374151;font-size:14px;">[SPECIFIC AREA/ELEMENT THAT IS ACTUALLY SAFE]</summary>\n';
-            p += '      <div style="padding:10px 14px;margin-top:2px;border-radius:6px;background:#f0fdf4;color:#166534;font-size:13px;font-weight:600;">✓ SAFE — [brief note on why this one is not a hazard]</div>\n';
-            p += '    </details>\n';
-            p += '    <!-- generate 4-5 total areas per scene, mixing real hazards and safe items -->\n';
-            p += '  </div>\n</div>\n\n';
-            p += "CRITICAL RULES:\n- Generate exactly " + count + " scenes\n- Each scene has 4-5 specific areas/elements to check, each its own separate <details> (NOT nested) — mix real hazards (red, ⚠) with genuinely safe items (green, ✓) so students must actually evaluate each one, not just click everything\n- Base hazards on real safety concerns relevant to the trade in the source material\n- Do NOT use <style> tags, <script> tags, onclick, radio/checkbox inputs, or CSS class names — inline style attributes only\n- Return ONLY valid HTML, no markdown, every tag closed\n\n";
-
-        } else if(itemType === "whathappensnext"){
-            p += "Generate a 'What Happens Next?' prediction activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " process/event openings from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">⚡ What Happens Next?</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Predict what happens next, then click to find out.</p>\n\n';
-            p += "<!-- Generate " + count + " items using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THE SETUP", "WHAT HAPPENS");
-            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] describes the beginning of a process, procedure, or workplace event, stopping right before a key outcome — leave the reader genuinely uncertain what comes next. [REVEAL TEXT] explains what happens next and the cause-and-effect reasoning behind it. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "buildprocess"){
-            p += "Generate a 'Build the Process' sequential-reveal activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript. Break ONE procedure into sequential steps, each its own <details>, revealed one at a time in order.\n\n";
-            p += "Generate exactly " + count + " sequential steps for ONE complete procedure from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🏗 Build the Process</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Before opening each step, think about what should happen next. Then click to reveal it and continue.</p>\n\n';
-            p += "<!-- Generate " + count + " steps IN ORDER using this exact template: -->\n";
-            p += '<details style="margin-bottom:10px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">\n';
-            p += '  <summary style="list-style:none;cursor:pointer;background:' + pri + ';color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;">\n';
-            p += '    <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:3px;flex-shrink:0;">STEP [N]</span>\n';
-            p += '    <span style="font-family:Georgia,serif;font-size:15px;font-weight:700;">What happens next?</span>\n';
-            p += '  </summary>\n';
-            p += '  <div style="padding:16px 20px;background:#fff;">\n';
-            p += '    <p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#374151;margin:0;">[STEP DESCRIPTION — the specific action performed at this stage of the procedure]</p>\n';
-            p += '  </div>\n</details>\n\n';
-            p += "RULES: Generate exactly " + count + " steps for ONE single procedure, in the correct sequential order (replace [N] with 1, 2, 3...). Each step's revealed text should describe exactly what happens at that stage — specific and actionable, not vague. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "beattheexpert"){
-            p += "Generate a 'Beat the Expert' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " practical problems from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🏆 Beat the Expert</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Work through the problem yourself, then see how an expert would approach it.</p>\n\n';
-            p += "<!-- Generate " + count + " problems using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THE PROBLEM", "THE EXPERT'S APPROACH");
-            p += "\nRULES: Generate exactly " + count + " problems. [SETUP TEXT] presents a practical question or workplace problem to solve. [REVEAL TEXT] explains how an experienced professional would approach the same situation and the reasoning behind their decision — not just the final answer, but the thought process. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "commonmistake"){
-            p += "Generate a 'Common Mistake' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " frequent beginner mistakes from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">🚫 Common Mistake</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">See a mistake beginners often make, why it happens, and how pros avoid it.</p>\n\n';
-            p += "<!-- Generate " + count + " items using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THE MISTAKE", "WHY IT MATTERS");
-            p += "\nRULES: Generate exactly " + count + " items. [SETUP TEXT] names/describes one specific mistake commonly made by beginners in a particular skill or procedure. [REVEAL TEXT] explains why the mistake happens, the problems it causes, and how experienced professionals avoid it. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
-
-        } else if(itemType === "protip"){
-            p += "Generate a 'Pro Tip' activity for Canvas LMS using <details>/<summary> tags — NO <style> blocks or JavaScript.\n\n";
-            p += "Generate exactly " + count + " practical, real-world tips from the source material.\n\n";
-            p += '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;padding:36px 24px;">\n';
-            p += '<h2 style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:' + theme.text + ';margin:0 0 6px;">💡 Pro Tip</h2>\n';
-            p += '<p style="font-size:13px;color:#6B7280;margin:0 0 24px;">Discover a trick of the trade you won\'t find in a textbook.</p>\n\n';
-            p += "<!-- Generate " + count + " tips using this exact template: -->\n";
-            p += activitySingleRevealCard(pri, "THINK YOU KNOW THIS ONE?", "PRO TIP");
-            p += "\nRULES: Generate exactly " + count + " tips. [SETUP TEXT] is a short teaser question related to a real skill or task from the source material. [REVEAL TEXT] gives one practical piece of advice, shortcut, or industry best practice that experienced professionals use but textbooks often overlook, and explains why it helps. Do NOT use <style> tags, <script> tags, onclick, or CSS class names — inline style attributes only. Return ONLY valid HTML, no markdown, every tag closed.\n\n";
         }
 
         if(itemData.includeImages){
@@ -2453,6 +2366,96 @@
         if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
         p += getModuleSourceContext();
         return p;
+    }
+
+    // ========== QUIZ ASSIGNMENT PROMPT ==========
+    // whatwouldyoudo/finderror/spothazard/mysterymachine/knowledge all build
+    // as real, auto-graded Canvas Quizzes now instead of reveal-card HTML or
+    // a fillable PDF. The 4 scenario types are just N multiple-choice
+    // questions framed around their concept; Knowledge Assignment keeps a
+    // real mc/tf/short/essay type mix.
+
+    const QUIZ_ASSIGNMENT_META = {
+        whatwouldyoudo:{title:"What Would You Do?",frame:"a realistic on-the-job situation requiring a decision. The correct choice is the recommended professional response; the 3 wrong choices are other actions a technician might be tempted to take but that are worse in this situation"},
+        finderror:{title:"Find the Error",frame:"a statement, procedure, calculation, or workplace scenario. The correct choice identifies the ONE specific error or mistake present; the 3 wrong choices are other plausible-sounding but incorrect identifications"},
+        spothazard:{title:"Spot the Hazard",frame:"a workplace scene description. The correct choice identifies the genuine safety hazard present; the 3 wrong choices name things that are actually safe or aren't the real hazard"},
+        mysterymachine:{title:"Mystery Machine",frame:"a set of equipment symptoms or clues describing a machine problem. The correct choice is the most likely cause; the 3 wrong choices are other plausible-sounding but incorrect diagnoses"},
+        matching:{title:"Matching"}
+    };
+
+    function buildQuizAssignmentPrompt(itemData, itemType){
+        var isKnowledge = itemType === "knowledge";
+        var isMatching = itemType === "matching";
+        var p = "";
+        if(isKnowledge){
+            p += "You are an expert educator creating a Canvas LMS quiz that tests understanding of concepts, terminology, procedures, safety requirements, and processes from the source material.\n\n";
+            p += "Generate exactly:\n";
+            if(itemData.mcCount) p += "- " + itemData.mcCount + " multiple choice questions (4 choices, 1 correct)\n";
+            if(itemData.tfCount) p += "- " + itemData.tfCount + " true/false questions\n";
+            if(itemData.shortCount) p += "- " + itemData.shortCount + " short answer questions (one correct answer, plus reasonable alternate phrasings)\n";
+            if(itemData.essayCount) p += "- " + itemData.essayCount + " essay questions (open-ended, manually graded by the teacher)\n";
+            p += "\nDifficulty: " + (itemData.difficulty||"medium") + "\n\n";
+        } else if(isMatching){
+            var pairCount = itemData.pairCount || 8;
+            p += "You are an expert educator creating a Canvas LMS matching quiz question — students match each term on the left to its correct definition on the right.\n\n";
+            p += "Generate exactly " + pairCount + " term/definition pairs from the source material, plus 2-3 extra standalone distractor definitions (plausible-sounding but not matching any term) to make guessing harder.\n";
+            p += "Difficulty: " + (itemData.difficulty||"medium") + "\n\n";
+        } else {
+            var meta = QUIZ_ASSIGNMENT_META[itemType];
+            var count = itemData.mcCount || 5;
+            p += "You are an expert educator creating a Canvas LMS quiz called '" + meta.title + "'. Each question presents " + meta.frame + ".\n\n";
+            p += "Generate exactly " + count + " multiple choice questions (4 choices, exactly 1 correct) from the source material, each a DIFFERENT scenario or example — do not repeat the same situation twice.\n";
+            p += "Difficulty: " + (itemData.difficulty||"medium") + "\n\n";
+        }
+        p += "SOURCE MATERIAL:\n";
+        if(itemData.textContent && itemData.textContent.trim()) p += itemData.textContent + "\n\n";
+        if(itemData.uploadedFile) p += "FILE (" + itemData.uploadedName + "):\n" + itemData.uploadedFile + "\n\n";
+        p += getModuleSourceContext();
+        p += "\n\nReturn ONLY valid JSON, no markdown, no explanations:\n";
+        if(isMatching){
+            p += '{"quizTitle":"Short title","questions":[{"type":"matching","text":"Match each term to its correct definition.","pairs":[{"term":"Term 1","definition":"Definition 1"},{"term":"Term 2","definition":"Definition 2"}],"distractors":["An extra plausible-sounding wrong definition"]}]}\n\n';
+            p += "Rules:\n- Exactly ONE question object, type \"matching\"\n- \"pairs\" has exactly " + pairCount + " entries, each a distinct term and its correct definition\n- \"distractors\" has 2-3 standalone wrong definitions that don't match any term\n- Valid JSON only\n";
+        } else {
+            p += '{"quizTitle":"Short title","questions":[{"type":"mc","text":"Question text","choices":[{"text":"Choice A","correct":true},{"text":"Choice B","correct":false},{"text":"Choice C","correct":false},{"text":"Choice D","correct":false}],"explanation":"Why the correct choice is right"}]}\n\n';
+            p += "Rules:\n- \"type\" is one of: mc, tf, short, essay\n- mc: exactly 4 choices, exactly one correct:true\n- tf: no choices array — instead \"answer\": true or false\n- short: no choices array — instead \"answer\":\"the correct answer\", optional \"answer_alts\":[\"alt1\",\"alt2\"]\n- essay: no choices array, no answer field\n- Always include a brief \"explanation\" field\n- Valid JSON only, every question fully filled in\n";
+        }
+        return p;
+    }
+
+    // Themed intro banner for the Quiz's own "description" field — same
+    // visual language (Georgia serif headers, themed color banner) as the
+    // content-page templates, instead of Canvas's plain default quiz intro.
+    function buildQuizAssignmentDescriptionHtml(itemType, itemData, questionCount, theme){
+        var isKnowledge = itemType === "knowledge";
+        var isMatching = itemType === "matching";
+        var info = ITEM_TYPES[itemType] || {icon:"📝"};
+        var meta = QUIZ_ASSIGNMENT_META[itemType];
+        var title = itemData.quizTitle || (isKnowledge ? "Knowledge Check" : meta.title);
+        var sub = isKnowledge
+            ? "Answer every question below. Auto-graded questions are scored instantly — any open-ended questions will show as pending until your teacher reviews them."
+            : isMatching
+            ? "Match each term to its correct definition. This quiz is auto-graded — you'll see your results as soon as you submit."
+            : "Read each scenario carefully, then choose the best answer. This quiz is auto-graded — you'll see your results as soon as you submit.";
+        var diffLabel = {easy:"Easy", medium:"Medium", hard:"Hard"}[itemData.difficulty] || "Medium";
+        var itemCount = isMatching ? (itemData.pairCount || questionCount) : questionCount;
+        var itemNoun = isMatching ? "Pair" : "Question";
+        var estMin = Math.max(1, Math.round(itemCount * 1.2));
+
+        var h = '<div style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;">';
+        h += '<div style="background:linear-gradient(135deg,' + theme.primary + ',' + (theme.accent||theme.primary) + ');padding:36px 40px;border-radius:14px 14px 0 0;">';
+        h += '<div style="font-size:36px;margin-bottom:10px;">' + info.icon + '</div>';
+        h += '<div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.75);margin-bottom:8px;">Auto-Graded Quiz</div>';
+        h += '<h2 style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#fff;margin:0 0 10px;">' + esc(title) + '</h2>';
+        h += '<p style="font-size:14px;color:rgba(255,255,255,0.9);margin:0 0 18px;max-width:600px;line-height:1.5;">' + esc(sub) + '</p>';
+        h += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+        [[itemCount + " " + itemNoun + (itemCount!==1?"s":""), "📋"], [diffLabel + " Difficulty", "⚡"], ["~" + estMin + " min", "⏱"]].forEach(function(b){
+            h += '<div style="background:rgba(255,255,255,0.16);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:#fff;">' + b[1] + ' ' + esc(b[0]) + '</div>';
+        });
+        h += '</div></div>';
+        h += '<div style="background:' + (theme.cardBg||"#fff") + ';border:1px solid ' + (theme.border||"#e5e7eb") + ';border-top:none;border-radius:0 0 14px 14px;padding:18px 40px;">';
+        h += '<p style="font-size:13px;color:#64748B;margin:0;">💡 Take your time and read each question carefully before answering — you can review your answers before submitting.</p>';
+        h += '</div></div>';
+        return h;
     }
 
     // ========== CSS STYLES ==========
@@ -3267,18 +3270,7 @@
             quickcheck:"AI writes " + d.count + " multiple-choice questions with instant right/wrong feedback. No grade recorded.",
             termreveal:"AI builds an expandable vocabulary list — click any term to reveal its definition and examples.",
             truefalse:"AI generates true/false statements with explanations revealed on click.",
-            readcheck:"AI writes a full content page with " + d.count + " comprehension questions embedded inline between sections — students read, answer, keep reading. Like a textbook with built-in checks.",
-            matching:"AI generates " + d.count + " term-definition pairs as a self-checking exercise — select the right definition for each term to see instant ✓/✗ feedback.",
-            whatwouldyoudo:"AI writes " + d.count + " realistic workplace situations — students decide what they'd do, then reveal the recommended response and why it beats the alternatives.",
-            finderror:"AI writes " + d.count + " statements/procedures/calculations each containing one intentional mistake — students spot it before revealing the error and the fix.",
-            spothazard:"AI writes " + d.count + " workplace scenes to inspect for safety hazards — click each area to check it, with hazards explained one by one.",
-            mysterymachine:"AI writes " + d.count + " equipment-symptom mysteries — students diagnose the most likely cause before revealing the solution and explanation.",
-            decisionpoint:"AI writes " + d.count + " critical workplace decision points — each possible action reveals its own outcome, good or bad.",
-            whathappensnext:"AI writes " + d.count + " process/event openings — students predict what happens next before revealing the answer and the cause-and-effect reasoning.",
-            buildprocess:"AI writes a procedure as " + d.count + " sequential steps, revealed one at a time — students think about what comes next before uncovering each stage.",
-            beattheexpert:"AI writes " + d.count + " practical problems — students reason it out, then reveal how an experienced professional would approach the same situation.",
-            commonmistake:"AI writes " + d.count + " frequent beginner mistakes — why they happen, what they cause, and how professionals avoid them.",
-            protip:"AI writes " + d.count + " practical, real-world tips and shortcuts experienced professionals use but textbooks often skip."
+            readcheck:"AI writes a full content page with " + d.count + " comprehension questions embedded inline between sections — students read, answer, keep reading. Like a textbook with built-in checks."
         };
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
@@ -3298,9 +3290,7 @@
         h+='</div>';
 
         // Count control
-        var countLabel={flashcard:"Cards",quickcheck:"Questions",termreveal:"Terms",truefalse:"Statements",readcheck:"Inline Questions",matching:"Term Pairs",
-            whatwouldyoudo:"Situations",finderror:"Items",spothazard:"Scenes",mysterymachine:"Mysteries",decisionpoint:"Decision Points",
-            whathappensnext:"Scenarios",buildprocess:"Steps",beattheexpert:"Problems",commonmistake:"Mistakes",protip:"Tips"};
+        var countLabel={flashcard:"Cards",quickcheck:"Questions",termreveal:"Terms",truefalse:"Statements",readcheck:"Inline Questions"};
         h+='<div class="cmb-card" style="display:flex;align-items:center;gap:20px;">';
         h+='<div><label class="cmb-label">Number of '+(countLabel[item.type]||"Items")+'</label>';
         h+='<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">';
@@ -3312,8 +3302,6 @@
             h+='<div style="font-size:12px;color:#94A3B8;border-left:1px solid #e5e7eb;padding-left:20px;">Tip: 6–10 is ideal for a review session.<br>Too many can overwhelm students.</div>';
         }else if(item.type==="readcheck"){
             h+='<div style="font-size:12px;color:#94A3B8;border-left:1px solid #e5e7eb;padding-left:20px;">Tip: 2–4 questions works best.<br>Questions appear embedded between content sections.</div>';
-        }else if(item.type==="matching"){
-            h+='<div style="font-size:12px;color:#94A3B8;border-left:1px solid #e5e7eb;padding-left:20px;">Tip: 6–12 pairs is ideal.<br>Each term gets 4 choices — 1 correct + 3 distractors from the set.</div>';
         }
         h+='</div>';
 
@@ -3392,9 +3380,258 @@
         });
     }
 
+    // ========== QUIZ ASSIGNMENT BUILDER ==========
+    // What Would You Do?, Find the Error, Spot the Hazard, Mystery Machine,
+    // Knowledge — all build as a real, auto-graded Canvas Quiz. The 4
+    // scenario types just need "how many questions"; Knowledge keeps a real
+    // mc/tf/short/essay type mix.
+
+    function renderQuizAssignmentBuilder(container,item,d){
+        var info=ITEM_TYPES[item.type]||{label:"Quiz",icon:"?"};
+        if(d.subView==="result"&&d.generatedQuiz){renderQuizAssignmentResult(container,item,d);return;}
+        var isKnowledge=item.type==="knowledge";
+        var isMatching=item.type==="matching";
+        var meta=QUIZ_ASSIGNMENT_META[item.type];
+
+        var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
+        h+='<p class="cmb-desc">Ships as a real Canvas Quiz — auto-graded where possible, no download, no PDF. '+(isKnowledge?"Multiple choice, true/false, and short answer are auto-scored; essay questions still need your review.":isMatching?"A single native matching question, auto-scored instantly.":"Multiple choice, auto-scored instantly.")+'</p>';
+
+        h+='<div class="cmb-card"><label class="cmb-label">Quiz Title</label>';
+        h+='<input type="text" class="cmb-input" id="cmb-qa-title" value="'+esc(d.quizTitle||(isKnowledge?"":meta.title)||"")+'" placeholder="'+esc(isKnowledge?"e.g. Chapter 4 Knowledge Check":meta.title)+'"></div>';
+
+        h+='<div class="cmb-card"><label class="cmb-label">Page Style</label>';
+        h+='<div style="font-size:11px;color:#64748B;margin-bottom:10px;">Controls the quiz\'s intro banner color.</div>';
+        h+='<div class="cmb-theme-grid">';
+        var themeKeys=Object.keys(PAGE_THEMES);
+        for(var i=0;i<themeKeys.length;i++){
+            var tk=themeKeys[i],t=PAGE_THEMES[tk];
+            var isSel=d.pageStyle===tk;
+            h+='<div class="cmb-theme-swatch'+(isSel?' sel':'')+'" data-style="'+tk+'">';
+            h+='<div class="cmb-swatch-bar" style="background-color:'+t.swatchBg+';"><div class="cmb-swatch-main" style="background-color:'+t.swatchBg+';">'+t.emoji+'</div>';
+            h+='<div class="cmb-swatch-stripe" style="background-color:'+t.swatchAcc+';"></div></div>';
+            h+='<div class="cmb-swatch-info"><div class="cmb-swatch-name">'+esc(t.name.replace(/^.{1,4}\s/,''))+'</div>';
+            h+='<div class="cmb-swatch-preview">'+esc(t.preview)+'</div></div></div>';
+        }
+        h+='</div>';
+        if(d.pageStyle==="custom"){
+            h+='<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">';
+            h+='<label class="cmb-label" style="margin:0;">Primary Color</label>';
+            h+='<input type="color" class="cmb-color-input" id="cmb-qa-color" value="'+(d.customColor||"#1e3a5f")+'">';
+            h+='</div>';
+        }
+        h+='</div>';
+
+        h+='<div class="cmb-card"><label class="cmb-label">Difficulty</label><div class="cmb-diff-grid">';
+        var diffs=[["easy","Easy"],["medium","Medium"],["hard","Hard"]];
+        for(var j=0;j<diffs.length;j++){
+            h+='<div class="cmb-diff-btn'+(d.difficulty===diffs[j][0]?' sel':'')+'" data-diff="'+diffs[j][0]+'">'+diffs[j][1]+'</div>';
+        }
+        h+='</div></div>';
+
+        if(isKnowledge){
+            h+='<div class="cmb-card"><label class="cmb-label">Question Mix</label>';
+            var qTypes=[["mc","Multiple Choice",d.mcCount],["tf","True / False",d.tfCount],["short","Short Answer",d.shortCount],["essay","Essay (manually graded)",d.essayCount]];
+            for(var k=0;k<qTypes.length;k++){
+                h+='<div class="cmb-qmix-row"><span class="qlabel">'+qTypes[k][1]+'</span><div class="qcount">';
+                h+='<button data-qtype="'+qTypes[k][0]+'" data-dir="down">-</button><span>'+qTypes[k][2]+'</span><button data-qtype="'+qTypes[k][0]+'" data-dir="up">+</button></div></div>';
+            }
+            h+='</div>';
+        } else {
+            h+='<div class="cmb-card" style="display:flex;align-items:center;gap:20px;">';
+            h+='<div><label class="cmb-label">Number of '+(isMatching?"Pairs":"Scenarios")+'</label>';
+            h+='<div style="display:flex;align-items:center;gap:10px;margin-top:4px;">';
+            h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-qa-down" style="padding:6px 14px;">-</button>';
+            h+='<span style="font-size:20px;font-weight:700;color:#1E293B;min-width:30px;text-align:center;">'+(isMatching?d.pairCount:d.mcCount)+'</span>';
+            h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-qa-up" style="padding:6px 14px;">+</button>';
+            h+='</div></div></div>';
+        }
+
+        h+='<div class="cmb-card"><label class="cmb-label">Source Material</label>';
+        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">Describe the topic or paste notes — questions are grounded in this material.</div>';
+        h+='<div class="cmb-file-row"><input type="file" id="cmb-qa-file" accept=".pdf,.docx,.pptx,.txt" style="font-size:12px;">';
+        if(d.uploadedName) h+='<div class="cmb-file-chip">'+esc(d.uploadedName)+' <span class="x" id="cmb-qa-rmfile">&times;</span></div>';
+        h+='</div><textarea class="cmb-textarea" id="cmb-qa-text" rows="4" placeholder="Paste content for question generation...">'+esc(d.textContent||"")+'</textarea>';
+        if(curMod()&&curMod().sources.length){
+            h+='<div style="margin-top:8px;font-size:12px;color:#059669;">✓ Module source material will also be used.</div>';
+        }
+        h+='</div>';
+
+        h+='<div class="cmb-btn-row"><button class="cmb-btn cmb-btn-ai" id="cmb-qa-gen">✨ Generate Quiz</button></div>';
+        container.innerHTML=h;
+
+        container.querySelector("#cmb-qa-title").addEventListener("input",function(e){d.quizTitle=e.target.value;});
+        container.querySelectorAll(".cmb-theme-swatch").forEach(function(sc){
+            sc.addEventListener("click",function(){d.pageStyle=sc.dataset.style;render();});
+        });
+        var cc=container.querySelector("#cmb-qa-color");
+        if(cc) cc.addEventListener("input",function(e){d.customColor=e.target.value;});
+        container.querySelectorAll(".cmb-diff-btn").forEach(function(db){
+            db.addEventListener("click",function(){d.difficulty=db.dataset.diff;render();});
+        });
+        if(isKnowledge){
+            container.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
+                btn.addEventListener("click",function(){
+                    var qt=btn.dataset.qtype,dir=btn.dataset.dir;
+                    var key=qt==="mc"?"mcCount":qt==="tf"?"tfCount":qt==="short"?"shortCount":"essayCount";
+                    d[key]=Math.max(0,d[key]+(dir==="up"?1:-1));render();
+                });
+            });
+        } else {
+            var countKey = isMatching ? "pairCount" : "mcCount";
+            container.querySelector("#cmb-qa-down").addEventListener("click",function(){if(d[countKey]>(isMatching?3:1))d[countKey]--;render();});
+            container.querySelector("#cmb-qa-up").addEventListener("click",function(){if(d[countKey]<20)d[countKey]++;render();});
+        }
+        container.querySelector("#cmb-qa-text").addEventListener("input",function(e){d.textContent=e.target.value;});
+        container.querySelector("#cmb-qa-file").addEventListener("change",async function(e){
+            if(!e.target.files.length)return;
+            var f=e.target.files[0];
+            try{
+                state.status="Parsing "+f.name+"...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+                d.uploadedFile=await parseFile(f);d.uploadedName=f.name;
+                state.status="File loaded: "+f.name;state.statusType="success";render();
+            }catch(err){state.status="Error: "+err.message;state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));}
+        });
+        var rmf=container.querySelector("#cmb-qa-rmfile");
+        if(rmf)rmf.addEventListener("click",function(){d.uploadedFile="";d.uploadedName="";render();});
+
+        container.querySelector("#cmb-qa-gen").addEventListener("click",async function(){
+            if(!state.apiKey){state.status="Enter API key first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            if(!d.textContent&&!d.uploadedFile&&!(curMod()&&curMod().sources.length)){state.status="Add some source material first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            var qtotal=isKnowledge?(d.mcCount+d.tfCount+d.shortCount+d.essayCount):isMatching?d.pairCount:d.mcCount;
+            if(!qtotal){state.status=isMatching?"Add at least one pair":"Add at least one question";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
+            state.status="Generating "+qtotal+(isMatching?" pairs...":" questions...");state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
+            var btn=container.querySelector("#cmb-qa-gen");btn.disabled=true;btn.textContent="Generating...";
+            try{
+                var raw=await callClaude(buildQuizAssignmentPrompt(d,item.type),contentModel(d),TOKENS_LONG);
+                var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+                var s=cleaned.indexOf("{"), e=cleaned.lastIndexOf("}");
+                if(s===-1||e===-1) throw new Error("Could not find JSON in response");
+                var parsed=JSON.parse(cleaned.slice(s,e+1));
+                if(!parsed.questions||!parsed.questions.length) throw new Error("No questions returned");
+                d.quizTitle=parsed.quizTitle||d.quizTitle;
+                d.generatedQuiz=parsed;
+                d.subView="result";
+                state.status="Quiz generated!";state.statusType="success";render();
+            }catch(err){
+                state.status="Error: "+err.message;state.statusType="error";
+                btn.disabled=false;btn.textContent="✨ Generate Quiz";
+                renderStatus(overlayEl.querySelector("#cmb-panel"));
+            }
+        });
+    }
+
+    function renderQuizAssignmentResult(container,item,d){
+        var info=ITEM_TYPES[item.type]||{label:"Quiz",icon:"?"};
+        var questions=d.generatedQuiz.questions||[];
+        var typeLabels={mc:"Multiple Choice",tf:"True/False",short:"Short Answer",essay:"Essay",matching:"Matching"};
+        var typeColors={mc:"#7C3AED",tf:"#0EA5E9",short:"#F59E0B",essay:"#EF4444",matching:"#059669"};
+
+        var h='<h2 class="cmb-h2">'+info.icon+' '+esc(d.quizTitle||info.label)+' — Preview</h2>';
+        h+='<p class="cmb-desc">'+(item.type==="matching"?((questions[0]&&questions[0].pairs?questions[0].pairs.length:0)+' term/definition pairs. Edit terms and definitions directly.'):(questions.length+' question'+(questions.length!==1?'s':'')+'. Click an answer to toggle correct, edit text directly.'))+'</p>';
+        h+='<div class="cmb-group-card"><div class="cmb-group-body">';
+        for(var i=0;i<questions.length;i++){
+            var q=questions[i];
+            var tc=typeColors[q.type]||"#6b7280";
+            h+='<div class="cmb-q-block">';
+            h+='<span class="cmb-ver-badge" style="background:'+tc+';">'+(i+1)+'. '+(typeLabels[q.type]||q.type)+'</span>';
+            h+='<textarea class="cmb-q-text" data-qi="'+i+'">'+esc(q.text||"")+'</textarea>';
+            if(q.type==="mc"){
+                (q.choices||[]).forEach(function(c,ci){
+                    h+='<div class="cmb-ans-row">';
+                    h+='<div class="cmb-ans-dot'+(c.correct?" correct":"")+'" data-qi="'+i+'" data-ci="'+ci+'"></div>';
+                    h+='<input type="text" class="cmb-ans-input" data-qi="'+i+'" data-ci="'+ci+'" value="'+esc(c.text||"")+'">';
+                    h+='</div>';
+                });
+            } else if(q.type==="tf"){
+                h+='<div class="cmb-ans-row"><div class="cmb-ans-dot'+(q.answer===true?" correct":"")+'" data-qi="'+i+'" data-tf="true"></div><span style="font-size:12px;">True</span></div>';
+                h+='<div class="cmb-ans-row"><div class="cmb-ans-dot'+(q.answer===false?" correct":"")+'" data-qi="'+i+'" data-tf="false"></div><span style="font-size:12px;">False</span></div>';
+            } else if(q.type==="short"){
+                h+='<div class="cmb-ans-row"><input type="text" class="cmb-ans-input" data-qi="'+i+'" data-short="1" value="'+esc(q.answer||"")+'" placeholder="Correct answer"></div>';
+            } else if(q.type==="matching"){
+                (q.pairs||[]).forEach(function(p,pi){
+                    h+='<div class="cmb-ans-row">';
+                    h+='<input type="text" class="cmb-ans-input" data-qi="'+i+'" data-pair-term="'+pi+'" value="'+esc(p.term||"")+'" placeholder="Term" style="flex:0 0 40%;">';
+                    h+='<span style="font-size:12px;color:#94A3B8;">→</span>';
+                    h+='<input type="text" class="cmb-ans-input" data-qi="'+i+'" data-pair-def="'+pi+'" value="'+esc(p.definition||"")+'" placeholder="Definition">';
+                    h+='</div>';
+                });
+                h+='<div style="margin-top:8px;"><label class="cmb-label" style="font-size:11px;">Distractor definitions (one per line, optional)</label>';
+                h+='<textarea class="cmb-q-text" data-qi="'+i+'" data-distractors="1" style="min-height:50px;">'+esc((q.distractors||[]).join("\n"))+'</textarea></div>';
+            } else {
+                h+='<div style="font-size:11px;color:#94A3B8;">Essay — manually graded, no answer key.</div>';
+            }
+            h+='</div>';
+        }
+        h+='</div></div>';
+        h+='<div class="cmb-btn-row">';
+        h+='<button class="cmb-btn cmb-btn-ai" id="cmb-qa-regen">Regenerate</button>';
+        h+='<button class="cmb-btn cmb-btn-secondary" id="cmb-qa-back">Back to Settings</button>';
+        h+='</div>';
+        container.innerHTML=h;
+
+        container.querySelectorAll(".cmb-q-text:not([data-distractors])").forEach(function(ta){
+            ta.addEventListener("input",function(){
+                var qi=parseInt(ta.dataset.qi);
+                if(questions[qi]) questions[qi].text=ta.value;
+            });
+        });
+        container.querySelectorAll(".cmb-q-text[data-distractors]").forEach(function(ta){
+            ta.addEventListener("input",function(){
+                var qi=parseInt(ta.dataset.qi);
+                if(questions[qi]) questions[qi].distractors=ta.value.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+            });
+        });
+        container.querySelectorAll(".cmb-ans-input[data-ci]").forEach(function(inp){
+            inp.addEventListener("input",function(){
+                var qi=parseInt(inp.dataset.qi),ci=parseInt(inp.dataset.ci);
+                if(questions[qi]&&questions[qi].choices&&questions[qi].choices[ci]) questions[qi].choices[ci].text=inp.value;
+            });
+        });
+        container.querySelectorAll(".cmb-ans-input[data-short]").forEach(function(inp){
+            inp.addEventListener("input",function(){
+                var qi=parseInt(inp.dataset.qi);
+                if(questions[qi]) questions[qi].answer=inp.value;
+            });
+        });
+        container.querySelectorAll(".cmb-ans-input[data-pair-term]").forEach(function(inp){
+            inp.addEventListener("input",function(){
+                var qi=parseInt(inp.dataset.qi),pi=parseInt(inp.dataset.pairTerm);
+                if(questions[qi]&&questions[qi].pairs&&questions[qi].pairs[pi]) questions[qi].pairs[pi].term=inp.value;
+            });
+        });
+        container.querySelectorAll(".cmb-ans-input[data-pair-def]").forEach(function(inp){
+            inp.addEventListener("input",function(){
+                var qi=parseInt(inp.dataset.qi),pi=parseInt(inp.dataset.pairDef);
+                if(questions[qi]&&questions[qi].pairs&&questions[qi].pairs[pi]) questions[qi].pairs[pi].definition=inp.value;
+            });
+        });
+        container.querySelectorAll(".cmb-ans-dot[data-ci]").forEach(function(dot){
+            dot.addEventListener("click",function(){
+                var qi=parseInt(dot.dataset.qi),ci=parseInt(dot.dataset.ci);
+                var q=questions[qi];
+                if(!q||!q.choices)return;
+                q.choices.forEach(function(c){c.correct=false;});
+                q.choices[ci].correct=true;
+                var block=dot.closest(".cmb-q-block");
+                block.querySelectorAll(".cmb-ans-dot[data-ci]").forEach(function(dd,idx){dd.classList.toggle("correct",q.choices[idx]&&q.choices[idx].correct);});
+            });
+        });
+        container.querySelectorAll(".cmb-ans-dot[data-tf]").forEach(function(dot){
+            dot.addEventListener("click",function(){
+                var qi=parseInt(dot.dataset.qi);
+                if(!questions[qi])return;
+                questions[qi].answer = dot.dataset.tf==="true";
+                render();
+            });
+        });
+        container.querySelector("#cmb-qa-regen").addEventListener("click",function(){d.subView="build";d.generatedQuiz=null;render();});
+        container.querySelector("#cmb-qa-back").addEventListener("click",function(){d.subView="build";render();});
+    }
+
     function renderContentBuilder(container,item,d){
         if(ACTIVITY_TYPES.indexOf(item.type)>=0){renderActivityBuilder(container,item,d);return;}
-        if(ITEM_TYPES[item.type] && ITEM_TYPES[item.type].group==="assignment" && item.type!=="gradeddiscussion"){renderPdfAssignmentBuilder(container,item,d);return;}
+        if(QUIZ_ASSIGNMENT_TYPES.indexOf(item.type)>=0){renderQuizAssignmentBuilder(container,item,d);return;}
+        if(isPdfAssignmentType(item.type)){renderPdfAssignmentBuilder(container,item,d);return;}
         var info=ITEM_TYPES[item.type]||{label:"Page",icon:"?"};
         if(d.subView==="result"&&d.generatedHTML){renderContentResult(container,item,d);return;}
         var isGradedDiscussion=item.type==="gradeddiscussion";
@@ -3666,21 +3903,17 @@
         ["labeling","Labeling a Diagram"],["calculation","Calculation"],["scenario","Scenario-Based"]
     ];
 
-    // Shared builder for every "assignment"-group PDF type (all 10 —
-    // Knowledge through Workplace Scenario). Only the Generate button's
-    // logic differs by type: Knowledge routes through the typed-question
-    // engine (buildKnowledgeAnswerKeyPrompt -> knowledgeAnswerKeyToPdfSchema),
-    // everything else generates the generic schema directly
-    // (buildAssignmentPdfPrompt -> sanitizeAssignmentSchema). Both engines
-    // converge on the same d.generatedPdfSchema, which is all
-    // insertAllContent and the preview below ever need to know about.
+    // Shared builder for the remaining "assignment"-group PDF types
+    // (Research, Creative, Lab Project). Generates the generic schema
+    // directly (buildAssignmentPdfPrompt -> sanitizeAssignmentSchema) into
+    // d.generatedPdfSchema, which is all insertAllContent and the preview
+    // below ever need to know about.
     function renderPdfAssignmentBuilder(container,item,d){
         var info=ITEM_TYPES[item.type]||{label:"Assignment",icon:"?"};
         if(d.subView==="result"&&d.generatedPdfSchema){renderPdfAssignmentResult(container,item,d);return;}
-        var isKnowledge=item.type==="knowledge";
 
         var h='<h2 class="cmb-h2">'+info.icon+' Build: '+esc(info.label)+'</h2>';
-        h+='<p class="cmb-desc">Ships as a real fillable PDF — students download it, fill it out, save it, and submit it back. '+(isKnowledge?"Auto-scorable question types get graded with confidence; open-ended ones get flagged for your judgment.":"AI Grader criteria are generated alongside it automatically.")+'</p>';
+        h+='<p class="cmb-desc">Ships as a real fillable PDF — students download it, fill it out, save it, and submit it back. AI Grader criteria are generated alongside it automatically.</p>';
 
         // ── Theme picker ─────────────────────────────────────────────────
         h+='<div class="cmb-card"><label class="cmb-label">Page Style</label>';
@@ -3705,18 +3938,6 @@
         }
         h+='</div>';
 
-        // ── Question Mix (Knowledge only) ────────────────────────────────
-        if(isKnowledge){
-            h+='<div class="cmb-card"><label class="cmb-label">Question Mix</label>';
-            KNOWLEDGE_QTYPES.forEach(function(t){
-                h+='<div class="cmb-qmix-row"><span class="qlabel">'+t[1]+'</span><div class="qcount">';
-                h+='<button data-qtype="'+t[0]+'" data-dir="down">-</button><span>'+(d.typeCounts[t[0]]||0)+'</span><button data-qtype="'+t[0]+'" data-dir="up">+</button>';
-                h+='</div></div>';
-            });
-            h+='<div style="font-size:11px;color:#94A3B8;margin-top:8px;">Multiple Choice, True/False, Matching, Ordering, Fill-in-the-Blank, Labeling, and Calculation are auto-scored with confidence. Short Answer and Scenario need your judgment — the AI Grader will show you a model answer for reference.</div>';
-            h+='</div>';
-        }
-
         // ── Points / Due Date ─────────────────────────────────────────────
         h+='<div style="display:flex;gap:10px;">';
         h+='<div class="cmb-card" style="flex:1;"><label class="cmb-label">Points</label><input type="text" class="cmb-input" id="cmb-pa-pts" value="'+esc(d.pointValue||"")+'" placeholder="100"></div>';
@@ -3725,7 +3946,7 @@
 
         // ── Reference Image ───────────────────────────────────────────────
         h+='<div class="cmb-card"><label class="cmb-label">Reference Image (optional)</label>';
-        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">For assignments that need students to look at a real diagram, blueprint, or photo (e.g. Blueprint/Diagram, or a Knowledge labeling question) — '+(item.type==="blueprint"?"<strong>required for this type</strong>. ":"")+'<strong>uploading your own is strongly preferred and most accurate</strong>; AI keyword search below is a fallback, not guaranteed to match a real technical diagram.</div>';
+        h+='<div style="font-size:12px;color:#64748B;margin-bottom:8px;">For assignments that need students to look at a real diagram, blueprint, or photo (e.g. a Knowledge labeling question) — <strong>uploading your own is strongly preferred and most accurate</strong>; AI keyword search below is a fallback, not guaranteed to match a real technical diagram.</div>';
         h+='<div class="cmb-file-row"><input type="file" id="cmb-pa-img" accept="image/png,image/jpeg" style="font-size:12px;">';
         if(d.referenceImageName) h+='<div class="cmb-file-chip">'+esc(d.referenceImageName)+' <span class="x" id="cmb-pa-img-rm">&times;</span></div>';
         h+='</div>';
@@ -3752,14 +3973,6 @@
         });
         var cc=container.querySelector("#cmb-custom-color");
         if(cc) cc.addEventListener("input",function(e){d.customColor=e.target.value;});
-
-        container.querySelectorAll(".cmb-qmix-row button").forEach(function(btn){
-            btn.addEventListener("click",function(){
-                var qt=btn.dataset.qtype,dir=btn.dataset.dir;
-                d.typeCounts[qt]=Math.max(0,(d.typeCounts[qt]||0)+(dir==="up"?1:-1));
-                render();
-            });
-        });
 
         container.querySelector("#cmb-pa-pts").addEventListener("input",function(e){d.pointValue=e.target.value;});
         container.querySelector("#cmb-pa-due").addEventListener("input",function(e){d.dueDate=e.target.value;});
@@ -3811,10 +4024,6 @@
 
         container.querySelector("#cmb-pa-gen").addEventListener("click",async function(){
             if(!state.apiKey){state.status="Enter API key first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            if(isKnowledge){
-                var total=Object.values(d.typeCounts).reduce(function(s,v){return s+v;},0);
-                if(!total){state.status="Add at least one question type";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
-            }
             if(!d.textContent&&!d.uploadedFile&&!(curMod()&&curMod().sources.length)){state.status="Add some source material first";state.statusType="error";renderStatus(overlayEl.querySelector("#cmb-panel"));return;}
             state.status="Generating...";state.statusType="loading";renderStatus(overlayEl.querySelector("#cmb-panel"));
             var btn=container.querySelector("#cmb-pa-gen");btn.disabled=true;btn.textContent="Generating...";
@@ -3830,24 +4039,13 @@
                         triggerUnsplashDownload(photo.downloadLocation);
                     }catch(imgErr){ /* not fatal — proceed without an image */ }
                 }
-                if(isKnowledge){
-                    var raw=await callClaude(buildKnowledgeAnswerKeyPrompt(d),contentModel(d),TOKENS_LONG);
-                    var cleaned=raw.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                    var s=cleaned.indexOf("{"), e=cleaned.lastIndexOf("}");
-                    if(s===-1||e===-1) throw new Error("Could not find JSON in response");
-                    var parsed=JSON.parse(cleaned.slice(s,e+1));
-                    if(!parsed.questions||!parsed.questions.length) throw new Error("No questions returned");
-                    d.generatedAnswerKey=parsed;
-                    d.generatedPdfSchema=knowledgeAnswerKeyToPdfSchema(parsed,d);
-                }else{
-                    var raw2=await callClaude(buildAssignmentPdfPrompt(d,item.type),contentModel(d),TOKENS_LONG);
-                    var cleaned2=raw2.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
-                    var s2=cleaned2.indexOf("{"), e2=cleaned2.lastIndexOf("}");
-                    if(s2===-1||e2===-1) throw new Error("Could not find JSON in response");
-                    var parsedSchema=JSON.parse(cleaned2.slice(s2,e2+1));
-                    d.generatedAnswerKey=null;
-                    d.generatedPdfSchema=sanitizeAssignmentSchema(parsedSchema);
-                }
+                var raw2=await callClaude(buildAssignmentPdfPrompt(d,item.type),contentModel(d),TOKENS_LONG);
+                var cleaned2=raw2.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim();
+                var s2=cleaned2.indexOf("{"), e2=cleaned2.lastIndexOf("}");
+                if(s2===-1||e2===-1) throw new Error("Could not find JSON in response");
+                var parsedSchema=JSON.parse(cleaned2.slice(s2,e2+1));
+                d.generatedAnswerKey=null;
+                d.generatedPdfSchema=sanitizeAssignmentSchema(parsedSchema);
                 d.subView="result";
                 state.status=info.label+" generated!";state.statusType="success";render();
             }catch(err){

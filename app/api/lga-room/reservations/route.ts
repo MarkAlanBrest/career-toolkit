@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  Reservation,
+  ROOM_CLOSE_TIME,
+  ROOM_OPEN_TIME,
+  getAllReservations,
+  saveAllReservations,
+  timesOverlap,
+} from '@/lib/lgaRoom';
+
+export const dynamic = 'force-dynamic';
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function GET(request: NextRequest) {
+  const month = request.nextUrl.searchParams.get('month'); // YYYY-MM
+  const reservations = await getAllReservations();
+  const filtered = month ? reservations.filter(r => r.date.startsWith(month)) : reservations;
+  return NextResponse.json({ reservations: filtered });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
+
+  const { date, startTime, endTime, name, email, purpose } = body as Record<string, string>;
+
+  if (!date || !DATE_RE.test(date)) {
+    return NextResponse.json({ error: 'A valid date is required.' }, { status: 400 });
+  }
+  if (!startTime || !TIME_RE.test(startTime) || !endTime || !TIME_RE.test(endTime)) {
+    return NextResponse.json({ error: 'A valid start and end time are required.' }, { status: 400 });
+  }
+  if (startTime >= endTime) {
+    return NextResponse.json({ error: 'Start time must be before end time.' }, { status: 400 });
+  }
+  if (startTime < ROOM_OPEN_TIME || endTime > ROOM_CLOSE_TIME) {
+    return NextResponse.json({ error: `The room can only be booked between ${ROOM_OPEN_TIME} and ${ROOM_CLOSE_TIME}.` }, { status: 400 });
+  }
+  if (!name || !name.trim()) {
+    return NextResponse.json({ error: 'Your name is required.' }, { status: 400 });
+  }
+  if (!email || !EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: 'A valid email is required.' }, { status: 400 });
+  }
+  if (!purpose || !purpose.trim()) {
+    return NextResponse.json({ error: 'A purpose for the reservation is required.' }, { status: 400 });
+  }
+
+  const reservations = await getAllReservations();
+  const hasApprovedConflict = reservations.some(
+    r => r.date === date && r.status === 'approved' && timesOverlap(r.startTime, r.endTime, startTime, endTime)
+  );
+  if (hasApprovedConflict) {
+    return NextResponse.json({ error: 'That time is already booked.' }, { status: 409 });
+  }
+
+  const now = new Date().toISOString();
+  const reservation: Reservation = {
+    id: crypto.randomUUID(),
+    date,
+    startTime,
+    endTime,
+    name: name.trim(),
+    email: email.trim(),
+    purpose: purpose.trim(),
+    status: 'pending',
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  reservations.push(reservation);
+  await saveAllReservations(reservations);
+
+  return NextResponse.json({ reservation }, { status: 201 });
+}
