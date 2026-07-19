@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/dcAuth';
-import { redis } from '@/lib/billing';
+import { redis } from '@/lib/redis';
 import { cookies } from 'next/headers';
 
 type UsageEntry = {

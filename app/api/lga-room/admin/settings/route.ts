@@ -17,8 +17,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const settings = await getSettings();
+    // Reaching this line proves storage actually works — Vercel's Blob integration can
+    // authenticate via OIDC without BLOB_READ_WRITE_TOKEN being set, so checking for that
+    // env var directly was misleading (it could read false while storage worked fine).
     return NextResponse.json({
-      storage: { configured: Boolean(process.env.BLOB_READ_WRITE_TOKEN) },
+      storage: { configured: true },
       email: getEmailStatus(),
       notify: settings,
     });

@@ -19,11 +19,7 @@ const articles = [
   },
   {
     title: 'Reduce repetitive course setup',
-    body: 'Scheduling, date autofill, course checks, and communication tools are included for everyday Canvas maintenance. These tools are free to use and do not require AI credits.',
-  },
-  {
-    title: 'Use AI only when it helps',
-    body: 'AI-assisted grading, page creation, and quiz creation are optional. Teachers can buy prepaid credits and use them when the task is worth it. The normal Canvas tools remain available without payment.',
+    body: 'Scheduling, date autofill, course checks, and communication tools are included for everyday Canvas maintenance — free to use.',
   },
 ];
 
@@ -60,9 +56,6 @@ export default function HomePage() {
             </h1>
             <p style={{ margin: '22px 0 0', color: '#e7e9ea', fontSize: 15, lineHeight: 1.75, textAlign: 'justify' }}>
               Canvas Enhancer is a browser extension for teachers and course teams using Canvas LMS. It adds course-building, scheduling, communication, grading review, and optional AI tools inside the Canvas workflow.
-            </p>
-            <p style={{ margin: '18px 0 0', color: '#e7e9ea', fontSize: 15, lineHeight: 1.75, textAlign: 'justify' }}>
-              The standard tools are free. AI credits are separate and are used only for AI-assisted grading, page creation, and quiz creation.
             </p>
             <div style={{ marginTop: 28, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               <a href={extensionUrl} style={buttonStyle}>Install Extension</a>
@@ -110,22 +103,11 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section style={{ marginTop: 28, padding: '8px 2px 0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,260px),1fr))', gap: 24 }}>
-          <div>
-            <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>A quieter model</h2>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify' }}>
-              The extension can be used without subscriptions. Teachers can use the non-AI tools freely, then purchase AI credits only if they want AI help.
-            </p>
-          </div>
-          <div>
-            <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>For schools</h2>
-            <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify' }}>
-              A department chair or school lead can buy AI credits and send chosen amounts to teachers. Individual teachers can also buy or send credits themselves.
-            </p>
-            <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.6 }}>
-              <a href="/departments" style={{ color: blue }}>Read about department credit distribution</a>
-            </p>
-          </div>
+        <section style={{ marginTop: 28, padding: '8px 2px 0' }}>
+          <h2 style={{ margin: '0 0 12px', color: heading, fontFamily: serif, fontSize: 22 }}>A quieter model</h2>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8, textAlign: 'justify', maxWidth: 560 }}>
+            The extension can be used without any subscription — every tool is free.
+          </p>
         </section>
       </div>
 

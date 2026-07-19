@@ -17,18 +17,6 @@ const faqs = [
     a: 'Make sure the extension is enabled in your browser. Open edge://extensions (Edge) or chrome://extensions (Chrome), find Canvas Enhancer, and confirm the toggle is on. Then reload your Canvas page. The toolbar appears at the top of Canvas pages when you are signed in as a teacher or instructor.',
   },
   {
-    q: 'How do I buy AI credits?',
-    a: 'Go to canvasenhancer.com/pricing to see the available credit packs. Credits are purchased once and do not expire. You can also buy credits directly from the extension toolbar using the hub menu.',
-  },
-  {
-    q: 'My AI credits are not showing up after purchase.',
-    a: 'Credits are applied to your account automatically after payment. If they do not appear within a few minutes, reload the Canvas page and check the hub. If the issue persists, email support at the address below with your purchase confirmation.',
-  },
-  {
-    q: 'Can I send credits to another teacher?',
-    a: 'Yes. Open the hub in the extension toolbar, go to the Credits section, and use the Send Credits option. Enter the teacher\'s email address and the amount to send. The recipient must have Canvas Enhancer installed.',
-  },
-  {
     q: 'Does Canvas Enhancer work on my school\'s Canvas site?',
     a: 'Canvas Enhancer works on any Canvas LMS site hosted on instructure.com, canvas.com, or canvaslms.com. If your school uses a custom domain, the extension may not activate. Contact support with your Canvas URL and we can look into it.',
   },
@@ -38,7 +26,7 @@ const faqs = [
   },
   {
     q: 'How do I uninstall the extension?',
-    a: 'Open edge://extensions (Edge) or chrome://extensions (Chrome), find Canvas Enhancer, and click Remove. This does not delete your credit balance — credits are stored on your account and will be available if you reinstall.',
+    a: 'Open edge://extensions (Edge) or chrome://extensions (Chrome), find Canvas Enhancer, and click Remove.',
   },
 ];
 

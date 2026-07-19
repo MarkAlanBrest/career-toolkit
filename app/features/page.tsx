@@ -20,7 +20,7 @@ const sections = [
     items: [
       ['Content Studio', 'Reusable blocks for headings, callouts, cards, columns, checklists, buttons, and common instructional page sections.'],
       ['Component library', 'A consistent set of page patterns that can be reused across courses and modules.'],
-      ['AI page creation', 'Optional credit-based drafting for full Canvas page structures.'],
+      ['AI page creation', 'Drafts full Canvas page structures from a prompt.'],
     ],
   },
   {
@@ -70,7 +70,7 @@ export default function FeaturesPage() {
             Feature overview
           </h1>
           <p style={{ margin: '20px 0 0', maxWidth: 760, fontSize: 15, lineHeight: 1.8, textAlign: 'justify' }}>
-            Canvas Enhancer is organized around teacher workflow areas. Most features are non-AI tools and are available for free. AI-assisted grading, AI page creation, and AI quiz creation use prepaid credits because they create ongoing AI cost.
+            Canvas Enhancer is organized around teacher workflow areas — course content, grading, operations, and communication — all free to use.
           </p>
           <p style={{ margin: '18px 0 0', fontSize: 14, lineHeight: 1.8 }}>
             <a href={extensionUrl} style={{ color: blue, fontFamily: display, fontSize: 14 }}>Install extension</a>

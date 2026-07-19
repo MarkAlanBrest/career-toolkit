@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DcSchool, DcUser, addSchoolToIndex, addTeacherToSchool, generateId, generateToken, getSchool, getSchoolTeacherEmails, getUser, hashPassword, listSchoolIds, removeSchoolFromIndex, removeTeacherFromSchool, saveSchool, saveUser } from '@/lib/dcAuth';
-import { redis } from '@/lib/billing';
+import { redis } from '@/lib/redis';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, DELETE, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, x-admin-token' };
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }

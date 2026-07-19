@@ -23,7 +23,7 @@ export default function PrivacyPage() {
         Canvas Enhancer — Privacy Policy
       </h1>
       <p style={{ fontSize: 13, color: muted, marginBottom: 36, marginTop: 0 }}>
-        Last updated: June 2026
+        Last updated: July 2026
       </p>
 
       <Section title="Overview">
@@ -46,31 +46,8 @@ export default function PrivacyPage() {
             user ID (an integer assigned by your institution&apos;s Canvas instance) and
             your Canvas domain (e.g. <code style={{ background: '#F1F5F9', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>school.instructure.com</code>).
             These are combined into an account key (<code style={{ background: '#F1F5F9', padding: '1px 4px', borderRadius: 3, fontSize: 12 }}>userID@domain</code>)
-            stored in your browser and on our servers. This key identifies your credit
-            account and is stable across devices on the same Canvas instance.
-          </Li>
-          <Li>
-            <strong>Teacher registration (optional).</strong> If you choose to register
-            to receive credits from colleagues, you provide your name and school email
-            address through the Settings panel. This information is stored on our servers
-            and allows other teachers at your school to send credits to you by email.
-            Registration is entirely voluntary.
-          </Li>
-          <Li>
-            <strong>AI credit balance and usage.</strong> Your current credit balance,
-            total credits used, and credit transfer history are stored on our servers,
-            keyed to your account identifier.
-          </Li>
-          <Li>
-            <strong>Payment information.</strong> If you purchase AI credits, your payment
-            is processed by Stripe. We store only a Stripe customer reference ID and the
-            last 4 digits and brand of your card for display purposes. Your full card
-            number, expiry, and CVV are never transmitted to or stored by Canvas Enhancer
-            — they are held exclusively by Stripe.
-          </Li>
-          <Li>
-            <strong>Auto-reload settings.</strong> If you enable auto-reload, your chosen
-            threshold and reload amount are stored alongside your account identifier.
+            stored in your browser and on our servers to identify your saved preferences
+            and settings, stable across devices on the same Canvas instance.
           </Li>
         </ul>
       </Section>
@@ -99,10 +76,6 @@ export default function PrivacyPage() {
             authenticate requests to the Canvas API on your behalf (for example, to
             load assignment data for grading tools). No cookies are read from any
             other website.
-          </Li>
-          <Li>
-            <strong>windows</strong> — Opens the credit management panel in a new
-            browser window when requested.
           </Li>
           <Li>
             <strong>management</strong> — Allows you to uninstall Canvas Enhancer
@@ -142,29 +115,10 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="Credit sharing between teachers">
-        <p style={{ margin: '0 0 12px' }}>
-          Canvas Enhancer allows teachers to share AI credits with colleagues at the same
-          school. To send credits to another teacher, you search by their school email
-          address. Searches are scoped to your Canvas domain — you can only find teachers
-          registered on the same Canvas instance as you.
-        </p>
-        <p style={{ margin: 0 }}>
-          If you register to receive credits, your name and email become discoverable by
-          other teachers at your school searching by your exact email address. No directory
-          or list of registered teachers is ever displayed. You can request removal of your
-          registration at any time by contacting us (see below).
-        </p>
-      </Section>
-
       <Section title="How we use data">
         <p style={{ margin: '0 0 8px' }}>The data we collect is used only to:</p>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <Li>Identify your credit account across devices on the same Canvas instance</Li>
-          <Li>Track your AI credit balance and deduct credits when AI features are used</Li>
-          <Li>Enable credit transfers between teachers at the same school</Li>
-          <Li>Process payments and manage auto-reload charges through Stripe</Li>
-          <Li>Display your saved card details in the credits panel</Li>
+          <Li>Identify your saved preferences and settings across devices on the same Canvas instance</Li>
         </ul>
         <p style={{ margin: '12px 0 0' }}>
           We do not sell, share, or transfer any data to third parties for marketing,
@@ -174,20 +128,17 @@ export default function PrivacyPage() {
 
       <Section title="Data storage and security">
         <p style={{ margin: '0 0 12px' }}>
-          Credit balances, registration profiles, and settings are stored in{' '}
+          Settings are stored in{' '}
           <a href="https://upstash.com" target="_blank" rel="noopener noreferrer"
             style={{ color: blue }}>Upstash Redis</a>, a managed database with
-          encryption at rest and in transit. Payment data is stored and secured by{' '}
-          <a href="https://stripe.com/docs/security" target="_blank" rel="noopener noreferrer"
-            style={{ color: blue }}>Stripe</a>, which is PCI DSS Level 1 certified.
-          The Canvas Enhancer API runs on Vercel, a SOC 2-certified hosting provider.
+          encryption at rest and in transit. The Canvas Enhancer API runs on Vercel,
+          a SOC 2-certified hosting provider.
         </p>
       </Section>
 
       <Section title="Data retention and deletion">
         <p style={{ margin: '0 0 12px' }}>
-          Your credit balance, registration profile (if created), and settings persist
-          until you request deletion. To delete your data, email{' '}
+          Your settings persist until you request deletion. To delete your data, email{' '}
           <a href="mailto:canvasenhancer@gmail.com" style={{ color: blue }}>
             canvasenhancer@gmail.com
           </a>{' '}
@@ -196,9 +147,7 @@ export default function PrivacyPage() {
           so we can locate your record.
         </p>
         <p style={{ margin: 0 }}>
-          We will process deletion requests within 30 days. Stripe payment records are
-          subject to Stripe&apos;s own retention policies for legal and financial
-          compliance purposes.
+          We will process deletion requests within 30 days.
         </p>
       </Section>
 
@@ -217,11 +166,6 @@ export default function PrivacyPage() {
           <Li>
             <strong>Anthropic</strong> — AI processing.{' '}
             <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer"
-              style={{ color: blue }}>Privacy Policy</a>
-          </Li>
-          <Li>
-            <strong>Stripe</strong> — Payment processing.{' '}
-            <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer"
               style={{ color: blue }}>Privacy Policy</a>
           </Li>
           <Li>

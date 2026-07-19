@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession, getUser, saveUser, hashPassword, SESSION_TTL } from '@/lib/dcAuth';
-import { redis } from '@/lib/billing';
+import { redis } from '@/lib/redis';
 import { cookies } from 'next/headers';
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, PATCH, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' };

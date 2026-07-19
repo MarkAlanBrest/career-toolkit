@@ -1,5 +1,5 @@
 import { randomBytes, pbkdf2Sync, timingSafeEqual } from 'crypto';
-import { redis } from '@/lib/billing';
+import { redis } from '@/lib/redis';
 
 export const SESSION_COOKIE = 'dc_session';
 export const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days
