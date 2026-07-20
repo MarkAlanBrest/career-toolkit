@@ -1,8 +1,10 @@
-import { Archivo, Public_Sans } from 'next/font/google';
+import { Oswald, Roboto_Condensed } from 'next/font/google';
 import type { ReservationStatus } from '@/lib/lgaRoom';
 
-export const archivo = Archivo({ subsets: ['latin'], weight: ['600', '700', '800'] });
-export const publicSans = Public_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
+// These aliases are used throughout the room calendar. Their fonts mirror NCST's
+// public website while retaining the existing component API.
+export const archivo = Oswald({ subsets: ['latin'], weight: ['600', '700'] });
+export const publicSans = Roboto_Condensed({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
 export const ROOM_NAME = 'LGA Room';
 export const ROOM_LOCATION = 'New Castle School of Trades — Main Campus';
@@ -10,16 +12,16 @@ export const ROOM_OPEN_TIME = '07:00';
 export const ROOM_CLOSE_TIME = '21:00';
 export const ADMIN_STORAGE_KEY = 'lga_room_admin_password';
 
-// Warm paper ground with a deep teal-slate accent — kept deliberately apart from the
-// pending/approved/denied semantic colors below so status is never confused with brand.
-export const bg = '#F6F5F1';
+// NCST brand colors, matched to the school's public website. Status colors remain
+// deliberately separate so reservation state is never confused with brand.
+export const bg = '#F4F5F7';
 export const surface = '#FFFFFF';
-export const text = '#20241F';
-export const textMuted = '#5C6560';
-export const border = '#E2DFD5';
-export const accent = '#2C4A52';
-export const accentStrong = '#1F373D';
-export const accentTint = '#E7EFEF';
+export const text = '#25303D';
+export const textMuted = '#606B78';
+export const border = '#D9DEE7';
+export const accent = '#002D74';
+export const accentStrong = '#001F52';
+export const accentTint = '#E9EEF7';
 
 export const STATUS_STYLES: Record<ReservationStatus, { bg: string; fg: string; border: string }> = {
   pending: { bg: '#FCF3DE', fg: '#8A5A0B', border: '#EED9A6' },

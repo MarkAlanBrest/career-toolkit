@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { archivo, publicSans, ROOM_LOCATION, ROOM_NAME } from './shared';
 import styles from './landing.module.css';
@@ -129,12 +130,16 @@ function AmenityCard({ title, body, icon }: { title: string; body: string; icon:
 export default function LgaRoomLandingPage() {
   return (
     <main className={`${publicSans.className} ${styles.page}`}>
+      <div className={styles.topBar}>
+        <span>Training programs in Pennsylvania and Ohio</span>
+        <a href="https://www.ncstrades.edu/" target="_blank" rel="noreferrer">Visit the NCST main site</a>
+      </div>
       <header className={styles.siteHeader}>
         <Link className={styles.brand} href="/lga-room" aria-label="LGA Room home">
-          <span className={styles.brandMark}>LGA</span>
-          <span>
+          <Image src="/ncst-logo.png" width={160} height={41} alt="New Castle School of Trades" priority />
+          <span className={styles.roomBrand}>
             <strong>{ROOM_NAME}</strong>
-            <small>New Castle School of Trades</small>
+            <small>Room reservations</small>
           </span>
         </Link>
         <Link className={styles.headerLink} href="/lga-room/calendar">
@@ -144,7 +149,7 @@ export default function LgaRoomLandingPage() {
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.heroGlow} aria-hidden="true" />
+        <div className={styles.heroAccent} aria-hidden="true" />
         <div className={styles.heroContent}>
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
