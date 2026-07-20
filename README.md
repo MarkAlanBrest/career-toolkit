@@ -2,6 +2,10 @@
 
 Next.js service and Chrome extension for Canvas Enhancer.
 
+## System documentation
+
+- [Server and third-party services inventory](./documentation.md)
+
 ## Billing
 
 Lemon Squeezy provides checkout, subscription billing, receipts, tax handling, cancellation, and license keys. This application validates those keys and enforces AI usage on the server:
