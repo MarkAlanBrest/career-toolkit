@@ -312,35 +312,25 @@ export default function LgaRoomCalendarPage() {
                             onClick={() => setViewingReservation(r)}
                             className="lgaroom-chip"
                             style={{
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: 5,
+                              display: 'block',
                               width: '100%',
                               minWidth: 0,
                               textAlign: 'left',
                               fontSize: 10.5,
                               lineHeight: 1.35,
-                              background: 'transparent',
-                              border: 'none',
-                              borderRadius: 5,
-                              padding: '2px 4px',
+                              background: colors.bg,
+                              border: `1px solid ${colors.border}`,
+                              borderRadius: 8,
+                              padding: '3px 6px',
                               cursor: 'pointer',
-                              color: text,
+                              color: colors.fg,
                               fontVariantNumeric: 'tabular-nums',
+                              overflowWrap: 'break-word',
+                              wordBreak: 'break-word',
+                              textDecoration: r.status === 'denied' ? 'line-through' : 'none',
                             }}
                           >
-                            <span style={{ width: 6, height: 6, marginTop: 4, borderRadius: '50%', background: colors.fg, flexShrink: 0 }} />
-                            <span
-                              style={{
-                                minWidth: 0,
-                                overflowWrap: 'break-word',
-                                wordBreak: 'break-word',
-                                textDecoration: r.status === 'denied' ? 'line-through' : 'none',
-                                color: r.status === 'denied' ? textMuted : text,
-                              }}
-                            >
-                              {formatTimeLabel(r.startTime)} {r.eventName}
-                            </span>
+                            {formatTimeLabel(r.startTime)} {r.eventName}
                           </button>
                         );
                       })}

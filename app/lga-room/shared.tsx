@@ -213,7 +213,7 @@ export const lgaRoomStyles = `
   .lgaroom-daycell { transition: background-color 0.12s ease; }
   .lgaroom-daycell:hover { background-color: ${accentTint}; }
   .lgaroom-chip { transition: background-color 0.12s ease; }
-  .lgaroom-chip:hover { background-color: rgba(44,74,82,0.08) !important; }
+  .lgaroom-chip:hover { filter: brightness(0.96); }
   .lgaroom-navbtn:hover { background-color: ${accentTint} !important; }
   .lgaroom-addbtn:hover { background-color: rgba(44,74,82,0.1) !important; color: ${accentStrong} !important; }
   .lgaroom-btn-primary:hover { background-color: ${accentStrong} !important; }
