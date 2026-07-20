@@ -429,7 +429,7 @@ type AdminSettingsData = {
   storage: { configured: boolean };
   email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean; usingTestSender: boolean };
   notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
-  sender: { email: string; name: string; passwordSet: boolean };
+  sender: { email: string; name: string; passwordSet: boolean; replyToEmail: string };
 };
 
 type AdminListEntry = { email: string; createdAt: string };
@@ -448,6 +448,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [senderName, setSenderName] = useState('');
   const [senderAppPassword, setSenderAppPassword] = useState('');
   const [senderPasswordSet, setSenderPasswordSet] = useState(false);
+  const [replyToEmail, setReplyToEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -483,6 +484,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           setSenderEmail(data.sender?.email || '');
           setSenderName(data.sender?.name || '');
           setSenderPasswordSet(Boolean(data.sender?.passwordSet));
+          setReplyToEmail(data.sender?.replyToEmail || '');
         }
       })
       .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
@@ -524,7 +526,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           adminNotifyEmail, buildingManagerEmail, maintenanceEmail,
-          senderEmail, senderName, senderAppPassword,
+          senderEmail, senderName, senderAppPassword, replyToEmail,
         }),
       });
       const data = await response.json();
@@ -650,6 +652,9 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
             </Field>
             <Field label={`App password${senderPasswordSet ? ' (already set — leave blank to keep it)' : ''}`}>
               <input value={senderAppPassword} onChange={e => setSenderAppPassword(e.target.value)} type="password" style={inputStyle} placeholder={senderPasswordSet ? '••••••••' : 'app password'} autoComplete="new-password" />
+            </Field>
+            <Field label="Replies go to (optional)">
+              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender account above" />
             </Field>
           </div>
 

@@ -82,6 +82,7 @@ export async function PUT(request: NextRequest) {
         ? senderAppPassword.trim()
         : current.senderAppPassword,
       senderName: (senderName || '').trim(),
+      replyToEmail: (replyToEmail || '').trim(),
     };
     await saveSettings(settings);
     return NextResponse.json({
@@ -94,6 +95,7 @@ export async function PUT(request: NextRequest) {
         email: settings.senderEmail,
         name: settings.senderName,
         passwordSet: Boolean(settings.senderAppPassword),
+        replyToEmail: settings.replyToEmail,
       },
     });
   } catch (error) {
