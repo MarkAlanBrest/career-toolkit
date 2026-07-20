@@ -4,6 +4,7 @@ import {
   ROOM_NAME,
   accent,
   accentStrong,
+  accentTint,
   archivo,
   bg,
   border,
@@ -18,6 +19,11 @@ const USE_CASES = [
   { title: 'Seminars & workshops', body: 'Room to seat a group comfortably for a half-day or full-day session, with space to move between presentation and discussion.' },
   { title: 'Professional development', body: 'Certification courses, continuing education sessions, and skills workshops for local businesses and trades.' },
   { title: 'Community & organization meetings', body: 'A dependable, professionally maintained venue for local organizations, associations, and community groups.' },
+];
+
+const EQUIPMENT = [
+  { title: 'Central smart board', body: 'Hook up a laptop and project straight to the board — ready for slides, demos, or shared documents.' },
+  { title: 'Two duplicating monitors', body: 'A pair of mirrored TVs extend the display across the room, so everyone has a clear view regardless of where they\'re seated.' },
 ];
 
 export default function LgaRoomLandingPage() {
@@ -68,6 +74,22 @@ export default function LgaRoomLandingPage() {
               <p style={{ fontSize: 14, lineHeight: 1.6, color: textMuted, margin: 0 }}>{item.body}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section style={{ background: accentTint, padding: '48px 24px' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+          <h2 className={archivo.className} style={{ fontSize: 24, fontWeight: 700, textAlign: 'center', margin: '0 0 28px' }}>
+            In the room
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18 }}>
+            {EQUIPMENT.map(item => (
+              <div key={item.title} style={{ background: surface, border: `1px solid ${border}`, borderRadius: 12, padding: 20 }}>
+                <h3 className={archivo.className} style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>{item.title}</h3>
+                <p style={{ fontSize: 14, lineHeight: 1.6, color: textMuted, margin: 0 }}>{item.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </main>
