@@ -339,22 +339,19 @@ export default function LgaRoomCalendarPage() {
                         aria-label={`Request the room on ${dateStr}`}
                         title="Request this room"
                         style={{
-                          border: '1px solid rgba(0,45,116,0.2)',
-                          background: '#FAA200',
-                          color: accentStrong,
+                          border: 'none',
+                          background: 'transparent',
+                          color: textMuted,
                           cursor: 'pointer',
-                          fontSize: 18,
+                          fontSize: 14,
                           fontWeight: 700,
                           lineHeight: 1,
-                          borderRadius: '50%',
-                          width: 24,
-                          height: 24,
+                          borderRadius: 4,
+                          width: 18,
+                          height: 18,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          padding: 0,
-                          boxShadow: '0 2px 5px rgba(0,31,82,0.2)',
-                          transition: 'transform 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
                         }}
                       >
                         +
