@@ -239,7 +239,7 @@ export default function LgaRoomLandingPage() {
               <span className={styles.kicker}>Take a look inside</span>
               <h3 className={archivo.className}>A flexible space built to bring people together.</h3>
               <p>Preview the room’s seating, presentation displays, and professional setup before choosing your date.</p>
-              <button type="button" className={styles.photoPrompt} onClick={undefined} aria-hidden="true" tabIndex={-1}>Click the photo to expand</button>
+              <p className={styles.photoPrompt}>Click the photo to expand</p>
             </div>
           </div>
 
