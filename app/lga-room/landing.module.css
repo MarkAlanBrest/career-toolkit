@@ -192,7 +192,7 @@
 .calendarTop span, .calendarTop strong { display: block; }
 .calendarTop span { margin-bottom: 4px; color: #78878a; font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .calendarTop strong { font-size: 15px; }
-.calendarIcon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #e5efec; color: var(--teal); }
+.calendarIcon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: #e9eef7; color: var(--teal); }
 .calendarIcon svg { width: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .calendarRule { height: 1px; margin: 25px 0 19px; background: #edf0ee; }
 .monthRow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 17px; }
@@ -218,38 +218,38 @@
   gap: 13px;
   width: 290px;
   padding: 17px 18px;
-  border-left: 3px solid #83a99d;
+  border-left: 4px solid var(--mint);
   background: #fff;
   box-shadow: 0 14px 35px rgba(24, 43, 49, .16);
 }
-.floatingNote > span { color: #86a09e; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.floatingNote > span { color: var(--teal); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .floatingNote strong, .floatingNote small { display: block; }
 .floatingNote strong { margin-bottom: 3px; font-size: 12px; }
 .floatingNote small { color: #7a898c; font-size: 10px; line-height: 1.4; }
 
 .intro { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 108px 0 118px; }
 .sectionHeading { display: grid; grid-template-columns: 1fr .72fr; gap: 80px; align-items: end; margin-bottom: 55px; }
-.sectionHeading h2, .sectionHeadingLight h2, .cta h2 { margin: 14px 0 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.035em; line-height: 1.08; }
+.sectionHeading h2, .sectionHeadingLight h2, .cta h2 { margin: 14px 0 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.02em; line-height: 1.08; text-transform: uppercase; }
 .sectionHeading p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
 .amenityGrid { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .amenityCard { padding: 42px 38px 42px 0; }
 .amenityCard + .amenityCard { padding-left: 38px; border-left: 1px solid var(--line); }
-.iconBox { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 28px; border-radius: 50%; background: #e8f0ed; color: var(--teal); }
+.iconBox { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 28px; border-radius: 50%; background: #e9eef7; color: var(--teal); }
 .iconBox svg, .useCaseTop svg { width: 22px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
-.amenityCard h3 { margin: 0 0 13px; font-size: 19px; letter-spacing: -.015em; }
+.amenityCard h3 { margin: 0 0 13px; color: var(--teal); font-size: 19px; letter-spacing: -.015em; text-transform: uppercase; }
 .amenityCard p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
 
 .useCases { background: var(--teal-deep); color: #fff; }
 .useCasesInner { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 100px 0 110px; }
 .sectionHeadingLight { max-width: 620px; margin-bottom: 52px; }
-.sectionHeadingLight .kicker { color: #9bb9b4; }
+.sectionHeadingLight .kicker { color: var(--mint); }
 .useCaseGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .useCaseCard { min-height: 300px; padding: 28px; border: 1px solid rgba(255,255,255,.13); background: rgba(255,255,255,.035); transition: background .2s ease, transform .2s ease; }
 .useCaseCard:hover { transform: translateY(-3px); background: rgba(255,255,255,.065); }
 .useCaseTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 70px; }
-.useCaseTop > span { color: #9bb9b4; font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.useCaseTop > div { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; color: #b8cfca; }
-.useCaseCard h3 { margin: 0 0 13px; font-size: 20px; }
+.useCaseTop > span { color: var(--mint); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.useCaseTop > div { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(250,162,0,.55); border-radius: 50%; color: var(--mint); }
+.useCaseCard h3 { margin: 0 0 13px; font-size: 20px; text-transform: uppercase; }
 .useCaseCard p { margin: 0; color: #b7c6c8; font-size: 13px; line-height: 1.75; }
 
 .cta { background: var(--mint); }
@@ -257,11 +257,13 @@
 .cta h2 { max-width: 680px; }
 .cta p { max-width: 640px; margin: 18px 0 0; color: #556a6e; font-size: 14px; line-height: 1.7; }
 .cta .primaryButton { min-width: 205px; }
-.footer { display: flex; justify-content: space-between; align-items: center; width: min(1180px, calc(100% - 48px)); min-height: 100px; margin: 0 auto; }
+.cta .primaryButton { border-color: var(--teal); background: var(--teal); color: #fff; }
+.cta .primaryButton:hover { background: var(--teal-deep); }
+.footer { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 112px; margin: 0; padding: 0 max(24px, calc((100% - 1180px) / 2)); background: var(--teal); color: #fff; }
 .footer strong, .footer span { display: block; }
 .footer strong { margin-bottom: 4px; font-size: 13px; }
-.footer span { color: var(--muted); font-size: 10px; }
-.footer a { color: var(--teal); font-size: 12px; font-weight: 700; text-decoration: none; }
+.footer span { color: rgba(255,255,255,.65); font-size: 10px; }
+.footer a { color: var(--mint); font-size: 12px; font-weight: 700; text-decoration: none; text-transform: uppercase; }
 
 .page a:focus-visible { outline: 3px solid #6f9f96; outline-offset: 4px; }
 
@@ -272,11 +274,11 @@
 }
 
 @media (max-width: 760px) {
-  .siteHeader { width: min(100% - 32px, 1180px); height: 74px; }
+  .siteHeader { height: 74px; padding: 0 16px; }
   .brand small { display: none; }
   .headerLink { font-size: 12px; }
   .hero { min-height: auto; }
-  .heroGlow { right: -300px; top: 330px; }
+  .heroAccent { right: -300px; bottom: -160px; }
   .heroContent { display: block; width: min(100% - 32px, 620px); min-height: auto; padding: 68px 0 86px; }
   .heroCopy > p { font-size: 15px; }
   .heroVisual { min-height: 440px; margin-top: 70px; }
@@ -291,12 +293,14 @@
   .useCaseTop { margin-bottom: 48px; }
   .ctaInner { display: block; width: min(100% - 32px, 620px); padding: 76px 0; }
   .cta .primaryButton { margin-top: 30px; }
-  .footer { width: min(100% - 32px, 620px); }
+  .footer { padding-right: 16px; padding-left: 16px; }
 }
 
 @media (max-width: 480px) {
-  .brandMark { width: 38px; height: 38px; }
-  .brand strong { font-size: 13px; }
+  .brand img { width: 126px; }
+  .roomBrand { padding-left: 11px; }
+  .roomBrand strong { font-size: 13px; }
+  .roomBrand small { display: none; }
   .headerLink svg { display: none; }
   .heroCopy h1 { font-size: 40px; }
   .heroCopy h1 br { display: none; }
@@ -311,6 +315,11 @@
   .calendarTop strong { font-size: 13px; }
   .sectionHeading h2, .sectionHeadingLight h2, .cta h2 { font-size: 34px; }
   .footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 13px; }
+}
+
+@media (max-width: 560px) {
+  .topBar { justify-content: center; min-height: 30px; font-size: 10px; }
+  .topBar a { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
