@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSettings, isAdminAuthorized, saveSettings } from '@/lib/lgaRoom';
-import { getEmailStatus } from '@/lib/lgaRoomEmail';
+import { getEmailStatus, sendTestEmail } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,4 +64,22 @@ export async function PUT(request: NextRequest) {
     console.error('[lga-room] Could not save settings:', error);
     return NextResponse.json({ error: 'Could not save settings. Please try again.' }, { status: 500 });
   }
+}
+
+export async function POST(request: NextRequest) {
+  if (!(await authorized(request))) {
+    return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const email = typeof body?.email === 'string' ? body.email.trim() : '';
+  if (!email || !EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: 'Enter a valid test email address.' }, { status: 400 });
+  }
+
+  const result = await sendTestEmail(email);
+  if (!result.sent) {
+    return NextResponse.json({ error: result.error || 'The test email failed.' }, { status: 502 });
+  }
+  return NextResponse.json({ result });
 }

@@ -7,14 +7,23 @@ const FROM = process.env.RESEND_FROM_EMAIL || `${ROOM_NAME} Reservations <onboar
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
 
+export type EmailSendResult = {
+  sent: boolean;
+  recipient: string;
+  id?: string;
+  error?: string;
+};
+
 export function getEmailStatus() {
   // Never echo RESEND_FROM_EMAIL verbatim — if someone mis-pastes a secret into that
   // variable, this status endpoint must not become a way to read it back out.
   const fromLooksLikeAddress = FROM.includes('@');
+  const usingTestSender = /@resend\.dev\b/i.test(FROM);
   return {
     configured: Boolean(process.env.RESEND_API_KEY),
     fromEmail: fromLooksLikeAddress ? FROM : null,
     fromEmailInvalid: !fromLooksLikeAddress,
+    usingTestSender,
   };
 }
 
@@ -60,20 +69,36 @@ function buttonLink(label: string) {
   return `<a href="${CALENDAR_URL}" style="display:inline-block;background:#1e7d34;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:700;">${label}</a>`;
 }
 
-async function send(to: string, subject: string, html: string, replyTo?: string) {
+function emailErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return 'The email provider rejected the message.';
+}
+
+async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
+  if (!process.env.RESEND_API_KEY) {
+    return { sent: false, recipient: to, error: 'Email sending is not configured.' };
+  }
   try {
-    const { error } = await resend.emails.send({ from: FROM, to, replyTo, subject, html });
-    if (error) console.error(`[lga-room] Email to ${to} failed:`, error);
+    const { data, error } = await resend.emails.send({ from: FROM, to, replyTo, subject, html });
+    if (error) {
+      const message = emailErrorMessage(error);
+      console.error(`[lga-room] Email to ${to} failed:`, error);
+      return { sent: false, recipient: to, error: message };
+    }
+    return { sent: true, recipient: to, id: data?.id };
   } catch (error) {
     console.error(`[lga-room] Email to ${to} failed:`, error);
+    return { sent: false, recipient: to, error: emailErrorMessage(error) };
   }
 }
 
-export async function sendAdminNotification(reservation: Reservation): Promise<void> {
+export async function sendAdminNotification(reservation: Reservation): Promise<EmailSendResult | null> {
   try {
     const settings = await getSettings();
-    if (!settings.adminNotifyEmail) return;
-    await send(
+    if (!settings.adminNotifyEmail) return null;
+    return await send(
       settings.adminNotifyEmail,
       `New ${ROOM_NAME} request — ${formatDateLabel(reservation.date)}`,
       `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
@@ -86,12 +111,13 @@ export async function sendAdminNotification(reservation: Reservation): Promise<v
     );
   } catch (error) {
     console.error('[lga-room] Admin notification failed:', error);
+    return { sent: false, recipient: 'configured administrator', error: emailErrorMessage(error) };
   }
 }
 
-export async function sendRequesterDecision(reservation: Reservation): Promise<void> {
+export async function sendRequesterDecision(reservation: Reservation): Promise<EmailSendResult> {
   const approved = reservation.status === 'approved';
-  await send(
+  return send(
     reservation.email,
     `Your ${ROOM_NAME} request was ${approved ? 'approved' : 'not approved'}`,
     `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
@@ -103,8 +129,8 @@ export async function sendRequesterDecision(reservation: Reservation): Promise<v
   );
 }
 
-export async function sendRequesterTimeChanged(reservation: Reservation): Promise<void> {
-  await send(
+export async function sendRequesterTimeChanged(reservation: Reservation): Promise<EmailSendResult> {
+  return send(
     reservation.email,
     `Your ${ROOM_NAME} reservation was rescheduled`,
     `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
@@ -116,11 +142,11 @@ export async function sendRequesterTimeChanged(reservation: Reservation): Promis
   );
 }
 
-export async function sendBuildingManagerNotification(reservation: Reservation): Promise<void> {
+export async function sendBuildingManagerNotification(reservation: Reservation): Promise<EmailSendResult | null> {
   try {
     const settings = await getSettings();
-    if (!settings.buildingManagerEmail) return;
-    await send(
+    if (!settings.buildingManagerEmail) return null;
+    return await send(
       settings.buildingManagerEmail,
       `${ROOM_NAME} approved — ${formatDateLabel(reservation.date)}`,
       `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
@@ -132,14 +158,15 @@ export async function sendBuildingManagerNotification(reservation: Reservation):
     );
   } catch (error) {
     console.error('[lga-room] Building Manager notification failed:', error);
+    return { sent: false, recipient: 'configured building manager', error: emailErrorMessage(error) };
   }
 }
 
-export async function sendMaintenanceNotification(reservation: Reservation): Promise<void> {
+export async function sendMaintenanceNotification(reservation: Reservation): Promise<EmailSendResult | null> {
   try {
     const settings = await getSettings();
-    if (!settings.maintenanceEmail) return;
-    await send(
+    if (!settings.maintenanceEmail) return null;
+    return await send(
       settings.maintenanceEmail,
       `${ROOM_NAME} approved — ${formatDateLabel(reservation.date)}`,
       `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
@@ -151,5 +178,17 @@ export async function sendMaintenanceNotification(reservation: Reservation): Pro
     );
   } catch (error) {
     console.error('[lga-room] Maintenance notification failed:', error);
+    return { sent: false, recipient: 'configured maintenance address', error: emailErrorMessage(error) };
   }
+}
+
+export async function sendTestEmail(to: string): Promise<EmailSendResult> {
+  return send(
+    to,
+    `${ROOM_NAME} email test`,
+    `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
+      <h2 style="margin:0 0 8px;">Email test successful</h2>
+      <p style="margin:0;">The ${ROOM_NAME} reservation system can send email to this address.</p>
+    </div>`
+  );
 }

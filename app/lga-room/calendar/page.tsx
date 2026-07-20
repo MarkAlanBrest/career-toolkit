@@ -44,6 +44,7 @@ export default function LgaRoomCalendarPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [emailNotice, setEmailNotice] = useState('');
 
   const [requestDate, setRequestDate] = useState<string | null>(null);
   const [viewingReservation, setViewingReservation] = useState<Reservation | null>(null);
@@ -152,18 +153,31 @@ export default function LgaRoomCalendarPage() {
   }
 
   async function handleReservationAction(id: string, action: 'approve' | 'deny' | 'delete') {
+    setEmailNotice('');
     const headers = { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword };
+    let response: Response;
     if (action === 'delete') {
-      await fetch(`/api/lga-room/reservations/${id}`, { method: 'DELETE', headers });
+      response = await fetch(`/api/lga-room/reservations/${id}`, { method: 'DELETE', headers });
     } else {
-      await fetch(`/api/lga-room/reservations/${id}`, {
+      response = await fetch(`/api/lga-room/reservations/${id}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'denied' }),
       });
     }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setEmailNotice(data?.error || 'The reservation could not be updated.');
+      return;
+    }
+    const failedEmails = Array.isArray(data?.emails)
+      ? data.emails.filter((email: { sent?: boolean }) => !email.sent)
+      : [];
+    if (failedEmails.length) {
+      setEmailNotice(`The reservation was updated, but ${failedEmails.length} notification email${failedEmails.length === 1 ? '' : 's'} could not be sent. Check Admin Settings or the Resend delivery log.`);
+    }
     setViewingReservation(null);
-    loadReservations();
+    void loadReservations();
   }
 
   return (
@@ -260,6 +274,12 @@ export default function LgaRoomCalendarPage() {
         </div>
 
         {loadError && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 12 }}>{loadError}</div>}
+        {emailNotice && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, color: '#8A5A0B', background: '#FCF3DE', border: '1px solid #EED9A6', borderRadius: 8, padding: '9px 12px', fontSize: 13, marginBottom: 12 }}>
+            <span>{emailNotice}</span>
+            <button onClick={() => setEmailNotice('')} aria-label="Dismiss notification" style={{ border: 0, background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+        )}
 
         <div style={{ background: surface, border: `1px solid ${border}`, borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 2px rgba(32,36,31,0.04), 0 10px 28px rgba(32,36,31,0.06)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', background: accentTint }}>
@@ -394,11 +414,12 @@ export default function LgaRoomCalendarPage() {
           date={requestDate}
           existing={reservationsByDate.get(requestDate) || []}
           onClose={() => setRequestDate(null)}
-          onCreated={reservation => {
+          onCreated={(reservation, emailWarning) => {
             setReservations(current => [
               ...current.filter(item => item.id !== reservation.id),
               reservation,
             ]);
+            setEmailNotice(emailWarning || '');
             setRequestDate(null);
           }}
         />

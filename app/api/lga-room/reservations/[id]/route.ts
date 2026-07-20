@@ -6,6 +6,7 @@ import {
   timesOverlap,
 } from '@/lib/lgaRoom';
 import {
+  EmailSendResult,
   sendBuildingManagerNotification,
   sendMaintenanceNotification,
   sendRequesterDecision,
@@ -61,23 +62,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     reservations[index] = updated;
     await saveAllReservations(reservations);
 
+    const emails: EmailSendResult[] = [];
     const justApproved = updated.status !== current.status && updated.status === 'approved';
     const justDenied = updated.status !== current.status && updated.status === 'denied';
     if (justApproved || justDenied) {
-      await sendRequesterDecision(updated);
+      emails.push(await sendRequesterDecision(updated));
     }
     if (justApproved) {
-      await sendBuildingManagerNotification(updated);
-      await sendMaintenanceNotification(updated);
+      const results = await Promise.all([
+        sendBuildingManagerNotification(updated),
+        sendMaintenanceNotification(updated),
+      ]);
+      emails.push(...results.filter((result): result is EmailSendResult => result !== null));
     }
 
     const timeChanged = body.notifyTimeChange === true &&
       (updated.date !== current.date || updated.startTime !== current.startTime || updated.endTime !== current.endTime);
     if (timeChanged) {
-      await sendRequesterTimeChanged(updated);
+      emails.push(await sendRequesterTimeChanged(updated));
     }
 
-    return NextResponse.json({ reservation: updated });
+    return NextResponse.json({ reservation: updated, emails });
   } catch (error) {
     console.error('[lga-room] Could not update reservation:', error);
     return NextResponse.json({ error: 'Could not save this change. Please try again.' }, { status: 500 });

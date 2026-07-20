@@ -37,7 +37,7 @@ export function RequestModal({
   date: string;
   existing: Reservation[];
   onClose: () => void;
-  onCreated: (reservation: Reservation) => void;
+  onCreated: (reservation: Reservation, emailWarning?: string) => void;
 }) {
   const [name, setName] = useState('');
   const [organization, setOrganization] = useState('');
@@ -75,7 +75,10 @@ export function RequestModal({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not submit request.');
-      onCreated(data.reservation as Reservation);
+      const emailWarning = data.email && !data.email.sent
+        ? 'Your reservation was saved, but the administrator notification email could not be sent.'
+        : undefined;
+      onCreated(data.reservation as Reservation, emailWarning);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit request.');
     } finally {
@@ -424,7 +427,7 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
 
 type AdminSettingsData = {
   storage: { configured: boolean };
-  email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean };
+  email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean; usingTestSender: boolean };
   notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
 };
 
@@ -442,6 +445,8 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [maintenanceEmail, setMaintenanceEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState('');
 
   const [admins, setAdmins] = useState<AdminListEntry[] | null>(null);
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -521,6 +526,26 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
     }
   }
 
+  async function handleTestEmail() {
+    setTestingEmail(true);
+    setError('');
+    setTestEmailResult('');
+    try {
+      const response = await fetch('/api/lga-room/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ email: adminNotifyEmail }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'The test email failed.');
+      setTestEmailResult(`Test email sent to ${adminNotifyEmail}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The test email failed.');
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
   async function handleAddAdmin() {
     setAddingAdmin(true);
     setAdminsError('');
@@ -581,9 +606,11 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                     ? 'Email sending is not set up yet'
                     : settings.email.fromEmailInvalid
                       ? 'Email sending address looks incorrect — contact your developer'
-                      : 'Email sending is working'
+                      : settings.email.usingTestSender
+                        ? 'Test sender only — emails to other recipients will be rejected'
+                        : 'Email provider is configured — use the test below to verify delivery'
                 }
-                ok={settings.email.configured && !settings.email.fromEmailInvalid}
+                ok={settings.email.configured && !settings.email.fromEmailInvalid && !settings.email.usingTestSender}
               />
             </div>
           </div>
@@ -606,8 +633,12 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
               <button onClick={handleSaveNotify} disabled={saving} className="lgaroom-btn-primary" style={primaryButtonStyle}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
+              <button onClick={handleTestEmail} disabled={testingEmail || !adminNotifyEmail} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
+                {testingEmail ? 'Sending test…' : 'Send test email'}
+              </button>
               {saved && <span style={{ fontSize: 12.5, color: '#1F7A4D' }}>Saved</span>}
             </div>
+            {testEmailResult && <div style={{ marginTop: 8, fontSize: 12.5, color: '#1F7A4D' }}>{testEmailResult}</div>}
           </div>
 
           <div>

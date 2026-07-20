@@ -97,9 +97,12 @@ export async function POST(request: NextRequest) {
 
     reservations.push(reservation);
     await saveAllReservations(reservations);
-    await sendAdminNotification(reservation);
+    const emailResult = await sendAdminNotification(reservation);
 
-    return NextResponse.json({ reservation }, { status: 201 });
+    return NextResponse.json({
+      reservation,
+      email: emailResult ? { sent: emailResult.sent } : null,
+    }, { status: 201 });
   } catch (error) {
     console.error('[lga-room] Could not submit reservation:', error);
     return NextResponse.json({ error: 'Could not submit your request. Please try again.' }, { status: 500 });
