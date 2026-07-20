@@ -244,6 +244,7 @@ export default function LgaRoomCalendarPage() {
                     className="lgaroom-daycell"
                     style={{
                       minHeight: 92,
+                      minWidth: 0,
                       borderRight: `1px solid ${border}`,
                       padding: 6,
                       opacity: inMonth ? 1 : 0.42,
@@ -302,7 +303,7 @@ export default function LgaRoomCalendarPage() {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, overflowY: 'auto', maxHeight: 58 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, overflowY: 'auto', maxHeight: 76 }}>
                       {dayReservations.map(r => {
                         const colors = STATUS_STYLES[r.status];
                         return (
@@ -312,10 +313,13 @@ export default function LgaRoomCalendarPage() {
                             className="lgaroom-chip"
                             style={{
                               display: 'flex',
-                              alignItems: 'center',
+                              alignItems: 'flex-start',
                               gap: 5,
+                              width: '100%',
+                              minWidth: 0,
                               textAlign: 'left',
                               fontSize: 10.5,
+                              lineHeight: 1.35,
                               background: 'transparent',
                               border: 'none',
                               borderRadius: 5,
@@ -325,12 +329,12 @@ export default function LgaRoomCalendarPage() {
                               fontVariantNumeric: 'tabular-nums',
                             }}
                           >
-                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: colors.fg, flexShrink: 0 }} />
+                            <span style={{ width: 6, height: 6, marginTop: 4, borderRadius: '50%', background: colors.fg, flexShrink: 0 }} />
                             <span
                               style={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                minWidth: 0,
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-word',
                                 textDecoration: r.status === 'denied' ? 'line-through' : 'none',
                                 color: r.status === 'denied' ? textMuted : text,
                               }}
