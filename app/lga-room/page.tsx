@@ -149,7 +149,6 @@ export default function LgaRoomLandingPage() {
       </header>
 
       <section className={styles.hero}>
-        <div className={styles.heroAccent} aria-hidden="true" />
         <div className={styles.heroContent}>
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>

@@ -95,17 +95,6 @@
   mask-image: linear-gradient(to right, #000, transparent 72%);
 }
 
-.heroAccent {
-  position: absolute;
-  right: -120px;
-  bottom: -190px;
-  width: 600px;
-  height: 270px;
-  background: var(--mint);
-  opacity: .94;
-  transform: rotate(-8deg);
-}
-
 .heroContent {
   position: relative;
   display: grid;
@@ -283,7 +272,6 @@
   .brand small { display: none; }
   .headerLink { font-size: 12px; }
   .hero { min-height: auto; }
-  .heroAccent { right: -300px; bottom: -160px; }
   .heroContent { display: block; width: min(100% - 32px, 620px); min-height: auto; padding: 68px 0 86px; }
   .heroCopy > p { font-size: 15px; }
   .heroVisual { min-height: 440px; margin-top: 70px; }
