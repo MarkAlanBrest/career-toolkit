@@ -29,6 +29,7 @@ export type LgaRoomSettings = {
   senderEmail: string;
   senderAppPassword: string;
   senderName: string;
+  replyToEmail: string;
 };
 
 export type AdminAccount = {
@@ -133,6 +134,7 @@ const EMPTY_SETTINGS: LgaRoomSettings = {
   senderEmail: '',
   senderAppPassword: '',
   senderName: '',
+  replyToEmail: '',
 };
 
 export async function getSettings(): Promise<LgaRoomSettings> {
@@ -146,6 +148,7 @@ export async function getSettings(): Promise<LgaRoomSettings> {
     senderEmail: typeof data?.senderEmail === 'string' ? data.senderEmail : '',
     senderAppPassword: typeof data?.senderAppPassword === 'string' ? data.senderAppPassword : '',
     senderName: typeof data?.senderName === 'string' ? data.senderName : '',
+    replyToEmail: typeof data?.replyToEmail === 'string' ? data.replyToEmail : '',
   };
 }
 

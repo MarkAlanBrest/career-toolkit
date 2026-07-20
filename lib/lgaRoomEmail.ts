@@ -12,6 +12,7 @@ async function getSenderConfig() {
     user: settings.senderEmail || process.env.OUTLOOK_USER || '',
     pass: settings.senderAppPassword || process.env.OUTLOOK_APP_PASSWORD || '',
     fromName: settings.senderName || process.env.OUTLOOK_FROM_NAME || `${ROOM_NAME} Reservations`,
+    replyTo: settings.replyToEmail || undefined,
   };
 }
 
@@ -93,7 +94,7 @@ function emailErrorMessage(error: unknown): string {
 }
 
 async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
-  const { user, pass, fromName } = await getSenderConfig();
+  const { user, pass, fromName, replyTo: defaultReplyTo } = await getSenderConfig();
   if (!user || !pass) {
     return { sent: false, recipient: to, error: 'Email sending is not configured.' };
   }
@@ -104,7 +105,7 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
       secure: false,
       auth: { user, pass },
     });
-    const info = await transporter.sendMail({ from: `${fromName} <${user}>`, to, replyTo, subject, html });
+    const info = await transporter.sendMail({ from: `${fromName} <${user}>`, to, replyTo: replyTo || defaultReplyTo, subject, html });
     return { sent: true, recipient: to, id: info.messageId };
   } catch (error) {
     console.error(`[lga-room] Email to ${to} failed:`, error);
