@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Reservation } from '@/lib/lgaRoom';
 import { getFederalHolidays } from '@/lib/lgaRoomHolidays';
 import {
@@ -57,24 +57,42 @@ export default function LgaRoomCalendarPage() {
 
   const today = useMemo(() => new Date(), []);
 
-  async function loadReservations() {
-    setLoading(true);
+  const loadReservations = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setLoadError('');
     try {
-      const response = await fetch('/api/lga-room/reservations');
+      const response = await fetch('/api/lga-room/reservations', { cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not load reservations.');
       setReservations(data.reservations || []);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Could not load reservations.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadReservations();
-  }, []);
+    void loadReservations();
+  }, [loadReservations]);
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadReservations(true);
+    }, 15_000);
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === 'visible') void loadReservations(true);
+    }
+
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    return () => {
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+    };
+  }, [loadReservations]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(ADMIN_STORAGE_KEY);
@@ -179,6 +197,21 @@ export default function LgaRoomCalendarPage() {
       </header>
 
       <section style={{ maxWidth: 840, margin: '0 auto', padding: '18px 16px 24px' }}>
+        <div
+          style={{
+            marginBottom: 14,
+            padding: '10px 14px',
+            background: accentTint,
+            border: `1px solid ${border}`,
+            borderRadius: 8,
+            color: accentStrong,
+            fontSize: 13,
+            fontWeight: 600,
+            textAlign: 'center',
+          }}
+        >
+          Click the &quot;+&quot; at the date you want to request and input your details
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ display: 'flex', border: `1px solid ${border}`, borderRadius: 8, overflow: 'hidden', background: surface }}>
@@ -208,6 +241,14 @@ export default function LgaRoomCalendarPage() {
               style={{ ...secondaryButtonStyle, padding: '6px 12px', fontSize: 12.5 }}
             >
               Today
+            </button>
+            <button
+              onClick={() => void loadReservations()}
+              disabled={loading}
+              className="lgaroom-btn-secondary"
+              style={{ ...secondaryButtonStyle, padding: '6px 12px', fontSize: 12.5, opacity: loading ? 0.65 : 1 }}
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
 
@@ -278,19 +319,22 @@ export default function LgaRoomCalendarPage() {
                         aria-label={`Request the room on ${dateStr}`}
                         title="Request this room"
                         style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: textMuted,
+                          border: '1px solid rgba(0,45,116,0.2)',
+                          background: '#FAA200',
+                          color: accentStrong,
                           cursor: 'pointer',
-                          fontSize: 14,
+                          fontSize: 18,
                           fontWeight: 700,
                           lineHeight: 1,
-                          borderRadius: 4,
-                          width: 18,
-                          height: 18,
+                          borderRadius: '50%',
+                          width: 24,
+                          height: 24,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          padding: 0,
+                          boxShadow: '0 2px 5px rgba(0,31,82,0.2)',
+                          transition: 'transform 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
                         }}
                       >
                         +
@@ -350,9 +394,12 @@ export default function LgaRoomCalendarPage() {
           date={requestDate}
           existing={reservationsByDate.get(requestDate) || []}
           onClose={() => setRequestDate(null)}
-          onCreated={() => {
+          onCreated={reservation => {
+            setReservations(current => [
+              ...current.filter(item => item.id !== reservation.id),
+              reservation,
+            ]);
             setRequestDate(null);
-            loadReservations();
           }}
         />
       )}

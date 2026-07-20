@@ -37,7 +37,7 @@ export function RequestModal({
   date: string;
   existing: Reservation[];
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (reservation: Reservation) => void;
 }) {
   const [name, setName] = useState('');
   const [organization, setOrganization] = useState('');
@@ -75,7 +75,7 @@ export function RequestModal({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not submit request.');
-      onCreated();
+      onCreated(data.reservation as Reservation);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit request.');
     } finally {

@@ -217,7 +217,7 @@ export const lgaRoomStyles = `
   .lgaroom-chip { transition: background-color 0.12s ease; }
   .lgaroom-chip:hover { filter: brightness(0.96); }
   .lgaroom-navbtn:hover { background-color: ${accentTint} !important; }
-  .lgaroom-addbtn:hover { background-color: rgba(44,74,82,0.1) !important; color: ${accentStrong} !important; }
+  .lgaroom-addbtn:hover { background-color: #FFB52C !important; transform: scale(1.12); box-shadow: 0 3px 8px rgba(0,31,82,0.28) !important; }
   .lgaroom-btn-primary:hover { background-color: ${accentStrong} !important; }
   .lgaroom-btn-secondary:hover { background-color: ${accentTint} !important; }
   .lgaroom-closebtn:hover { background-color: ${accentTint} !important; }
