@@ -26,6 +26,9 @@ export type LgaRoomSettings = {
   adminNotifyEmail: string;
   buildingManagerEmail: string;
   maintenanceEmail: string;
+  senderEmail: string;
+  senderAppPassword: string;
+  senderName: string;
 };
 
 export type AdminAccount = {
@@ -123,14 +126,26 @@ export async function saveAllReservations(reservations: Reservation[]): Promise<
   });
 }
 
+const EMPTY_SETTINGS: LgaRoomSettings = {
+  adminNotifyEmail: '',
+  buildingManagerEmail: '',
+  maintenanceEmail: '',
+  senderEmail: '',
+  senderAppPassword: '',
+  senderName: '',
+};
+
 export async function getSettings(): Promise<LgaRoomSettings> {
   const result = await get(SETTINGS_PATHNAME, { access: 'private' });
-  if (!result) return { adminNotifyEmail: '', buildingManagerEmail: '', maintenanceEmail: '' };
+  if (!result) return { ...EMPTY_SETTINGS };
   const data = await new Response(result.stream).json();
   return {
     adminNotifyEmail: typeof data?.adminNotifyEmail === 'string' ? data.adminNotifyEmail : '',
     buildingManagerEmail: typeof data?.buildingManagerEmail === 'string' ? data.buildingManagerEmail : '',
     maintenanceEmail: typeof data?.maintenanceEmail === 'string' ? data.maintenanceEmail : '',
+    senderEmail: typeof data?.senderEmail === 'string' ? data.senderEmail : '',
+    senderAppPassword: typeof data?.senderAppPassword === 'string' ? data.senderAppPassword : '',
+    senderName: typeof data?.senderName === 'string' ? data.senderName : '',
   };
 }
 

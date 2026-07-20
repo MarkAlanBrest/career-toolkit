@@ -22,8 +22,18 @@ export async function GET(request: NextRequest) {
     // env var directly was misleading (it could read false while storage worked fine).
     return NextResponse.json({
       storage: { configured: true },
-      email: getEmailStatus(),
-      notify: settings,
+      email: await getEmailStatus(),
+      notify: {
+        adminNotifyEmail: settings.adminNotifyEmail,
+        buildingManagerEmail: settings.buildingManagerEmail,
+        maintenanceEmail: settings.maintenanceEmail,
+      },
+      // Never echo senderAppPassword back — the admin re-enters it only to change it.
+      sender: {
+        email: settings.senderEmail,
+        name: settings.senderName,
+        passwordSet: Boolean(settings.senderAppPassword),
+      },
     });
   } catch (error) {
     console.error('[lga-room] Could not load settings:', error);
@@ -41,7 +51,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail } = body as Record<string, string>;
+  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail, senderAppPassword, senderName } = body as Record<string, string>;
   if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
     return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
   }
@@ -51,15 +61,37 @@ export async function PUT(request: NextRequest) {
   if (maintenanceEmail && !EMAIL_RE.test(maintenanceEmail)) {
     return NextResponse.json({ error: 'Maintenance email looks invalid.' }, { status: 400 });
   }
+  if (senderEmail && !EMAIL_RE.test(senderEmail)) {
+    return NextResponse.json({ error: 'Sender email looks invalid.' }, { status: 400 });
+  }
 
   try {
+    // A blank senderAppPassword means "keep the existing one" — the field is never
+    // pre-filled with the real value, so an admin saving other fields shouldn't wipe it.
+    const current = await getSettings();
     const settings = {
       adminNotifyEmail: (adminNotifyEmail || '').trim(),
       buildingManagerEmail: (buildingManagerEmail || '').trim(),
       maintenanceEmail: (maintenanceEmail || '').trim(),
+      senderEmail: (senderEmail || '').trim(),
+      senderAppPassword: typeof senderAppPassword === 'string' && senderAppPassword.trim()
+        ? senderAppPassword.trim()
+        : current.senderAppPassword,
+      senderName: (senderName || '').trim(),
     };
     await saveSettings(settings);
-    return NextResponse.json({ notify: settings });
+    return NextResponse.json({
+      notify: {
+        adminNotifyEmail: settings.adminNotifyEmail,
+        buildingManagerEmail: settings.buildingManagerEmail,
+        maintenanceEmail: settings.maintenanceEmail,
+      },
+      sender: {
+        email: settings.senderEmail,
+        name: settings.senderName,
+        passwordSet: Boolean(settings.senderAppPassword),
+      },
+    });
   } catch (error) {
     console.error('[lga-room] Could not save settings:', error);
     return NextResponse.json({ error: 'Could not save settings. Please try again.' }, { status: 500 });

@@ -182,8 +182,9 @@ Never put secret values in this document or commit them to source control.
 | `KV_REST_API_URL` | Treat as sensitive | Alternate Vercel Marketplace name for the Redis endpoint. Not currently listed in `.env.example`. |
 | `KV_REST_API_TOKEN` | Yes | Alternate Vercel Marketplace name for the Redis token. Not currently listed in `.env.example`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob access when token-based configuration is used. Vercel OIDC integration may also supply access. |
-| `RESEND_API_KEY` | Yes | Resend API access. |
-| `RESEND_FROM_EMAIL` | No, but configuration-sensitive | Verified sender address/display name. |
+| `OUTLOOK_USER` | Yes | Outlook/Microsoft 365 address used to send LGA room emails via SMTP. |
+| `OUTLOOK_APP_PASSWORD` | Yes | App password for the Outlook account (requires 2-Step Verification). |
+| `OUTLOOK_FROM_NAME` | No | Optional display name shown as the sender. |
 | `LGA_ROOM_ADMIN_PASSWORD` | Yes | Break-glass LGA master password. |
 | `NEXT_PUBLIC_APP_URL` | No | Public application base URL used in email links. |
 | `NEXT_PUBLIC_EXTENSION_URL` | No | Extension installation URL used by marketing pages. It is referenced in code but missing from `.env.example`. |

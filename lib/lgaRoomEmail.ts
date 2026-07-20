@@ -1,11 +1,29 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import { Reservation, ROOM_NAME, getSettings } from '@/lib/lgaRoom';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 'placeholder');
-
-const FROM = process.env.RESEND_FROM_EMAIL || `${ROOM_NAME} Reservations <onboarding@resend.dev>`;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
+
+// Whoever configures a sender account in the admin settings UI becomes the "primary
+// emailer" — env vars are only a fallback for the first deploy before anyone has done that.
+async function getSenderConfig() {
+  const settings = await getSettings();
+  return {
+    user: settings.senderEmail || process.env.OUTLOOK_USER || '',
+    pass: settings.senderAppPassword || process.env.OUTLOOK_APP_PASSWORD || '',
+    fromName: settings.senderName || process.env.OUTLOOK_FROM_NAME || `${ROOM_NAME} Reservations`,
+  };
+}
+
+// Most personal/work email providers issue app passwords for SMTP AUTH; picking the host
+// from the sender's own domain means each admin can bring whichever account they already have.
+function resolveSmtpHost(email: string): string {
+  const domain = email.split('@')[1]?.toLowerCase() || '';
+  if (domain === 'gmail.com') return 'smtp.gmail.com';
+  if (domain === 'yahoo.com' || domain === 'ymail.com') return 'smtp.mail.yahoo.com';
+  if (domain === 'icloud.com' || domain === 'me.com' || domain === 'mac.com') return 'smtp.mail.me.com';
+  return 'smtp.office365.com'; // outlook.com, hotmail.com, live.com, and Microsoft 365 custom domains
+}
 
 export type EmailSendResult = {
   sent: boolean;
@@ -14,16 +32,14 @@ export type EmailSendResult = {
   error?: string;
 };
 
-export function getEmailStatus() {
-  // Never echo RESEND_FROM_EMAIL verbatim — if someone mis-pastes a secret into that
-  // variable, this status endpoint must not become a way to read it back out.
-  const fromLooksLikeAddress = FROM.includes('@');
-  const usingTestSender = /@resend\.dev\b/i.test(FROM);
+export async function getEmailStatus() {
+  const { user, pass, fromName } = await getSenderConfig();
+  const fromEmail = user ? `${fromName} <${user}>` : '';
   return {
-    configured: Boolean(process.env.RESEND_API_KEY),
-    fromEmail: fromLooksLikeAddress ? FROM : null,
-    fromEmailInvalid: !fromLooksLikeAddress,
-    usingTestSender,
+    configured: Boolean(user && pass),
+    fromEmail: fromEmail || null,
+    fromEmailInvalid: false,
+    usingTestSender: false,
   };
 }
 
@@ -77,17 +93,19 @@ function emailErrorMessage(error: unknown): string {
 }
 
 async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
-  if (!process.env.RESEND_API_KEY) {
+  const { user, pass, fromName } = await getSenderConfig();
+  if (!user || !pass) {
     return { sent: false, recipient: to, error: 'Email sending is not configured.' };
   }
   try {
-    const { data, error } = await resend.emails.send({ from: FROM, to, replyTo, subject, html });
-    if (error) {
-      const message = emailErrorMessage(error);
-      console.error(`[lga-room] Email to ${to} failed:`, error);
-      return { sent: false, recipient: to, error: message };
-    }
-    return { sent: true, recipient: to, id: data?.id };
+    const transporter = nodemailer.createTransport({
+      host: resolveSmtpHost(user),
+      port: 587,
+      secure: false,
+      auth: { user, pass },
+    });
+    const info = await transporter.sendMail({ from: `${fromName} <${user}>`, to, replyTo, subject, html });
+    return { sent: true, recipient: to, id: info.messageId };
   } catch (error) {
     console.error(`[lga-room] Email to ${to} failed:`, error);
     return { sent: false, recipient: to, error: emailErrorMessage(error) };
