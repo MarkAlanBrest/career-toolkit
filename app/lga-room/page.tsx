@@ -254,6 +254,7 @@ export default function LgaRoomLandingPage() {
               <span className={styles.kicker}>Room rental</span>
               <h2 className={archivo.className}>$150.00 for up to 3 hours</h2>
               <p><strong>$50.00</strong> per hour thereafter</p>
+              <p>NCST Corporate Sponsors get to reserve the space for no cost.</p>
             </div>
             <div className={styles.scholarshipImpact}>
               <span aria-hidden="true">♥</span>
