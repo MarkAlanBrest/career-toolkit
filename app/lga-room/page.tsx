@@ -81,17 +81,17 @@ function PeopleIcon() {
 const AMENITIES = [
   {
     title: 'Central smart board',
-    body: 'Connect a laptop and present slides, documents, demonstrations, or video on the room’s central display.',
+    body: 'Connect a laptop for slides, documents, demonstrations, or video.',
     icon: <DisplayIcon />,
   },
   {
     title: 'Dual room monitors',
-    body: 'Two mirrored displays keep your content visible throughout the room, wherever your guests are seated.',
+    body: 'Mirrored displays keep content visible throughout the room.',
     icon: <ScreensIcon />,
   },
   {
     title: 'Flexible scheduling',
-    body: 'Request the room for the time your event needs, with availability from 7:00 AM to 9:00 PM.',
+    body: 'Request the time you need from 7:00 AM to 9:00 PM.',
     icon: <ClockIcon />,
   },
 ];
@@ -100,19 +100,19 @@ const USE_CASES = [
   {
     eyebrow: 'Meet',
     title: 'Business meetings & training',
-    body: 'A focused setting for leadership meetings, staff training, client presentations, and team planning.',
+    body: 'Leadership meetings, staff training, client presentations, and planning.',
     icon: <BriefcaseIcon />,
   },
   {
     eyebrow: 'Teach',
     title: 'Seminars & workshops',
-    body: 'A presentation-ready room for professional development, certification courses, and hands-on instruction.',
+    body: 'Professional development, certification courses, and instruction.',
     icon: <WorkshopIcon />,
   },
   {
     eyebrow: 'Connect',
     title: 'Community gatherings',
-    body: 'A dependable, professionally maintained venue for associations, organizations, and local groups.',
+    body: 'A dependable venue for associations, organizations, and local groups.',
     icon: <PeopleIcon />,
   },
 ];
@@ -223,63 +223,62 @@ export default function LgaRoomLandingPage() {
         </div>
       </section>
 
-      <section className={styles.intro} id="space">
-        <div className={styles.sectionHeading}>
-          <div>
-            <span className={styles.kicker}>The space</span>
-            <h2 className={archivo.className}>Everything you need to lead the room.</h2>
+      <section className={styles.compactSection} id="space">
+        <div className={styles.compactPanel}>
+          <div className={styles.compactHeading}>
+            <div>
+              <span className={styles.kicker}>The space</span>
+              <h2 className={archivo.className}>Everything you need to lead the room.</h2>
+            </div>
+            <p>Smart presentation tools in a comfortable, professional setting.</p>
           </div>
-          <p>
-            Purposeful technology and a comfortable, professional environment let you focus on the people and ideas in front of you.
-          </p>
-        </div>
-        <div className={styles.amenityGrid}>
-          {AMENITIES.map(item => <AmenityCard key={item.title} {...item} />)}
-        </div>
-      </section>
 
-      <section className={styles.useCases}>
-        <div className={styles.useCasesInner}>
-          <div className={styles.sectionHeadingLight}>
-            <span className={styles.kicker}>Made for more</span>
-            <h2 className={archivo.className}>One room. Plenty of possibilities.</h2>
+          <div className={styles.amenityGrid}>
+            {AMENITIES.map(item => <AmenityCard key={item.title} {...item} />)}
+          </div>
+
+          <div className={styles.compactDivider} />
+
+          <div className={styles.possibilitiesHeading}>
+            <div>
+              <span className={styles.kicker}>Made for more</span>
+              <h2 className={archivo.className}>One room. Plenty of possibilities.</h2>
+            </div>
           </div>
           <div className={styles.useCaseGrid}>
             {USE_CASES.map(item => (
               <article className={styles.useCaseCard} key={item.title}>
                 <div className={styles.useCaseTop}>
-                  <span>{item.eyebrow}</span>
                   <div>{item.icon}</div>
+                  <span>{item.eyebrow}</span>
                 </div>
                 <h3 className={archivo.className}>{item.title}</h3>
                 <p>{item.body}</p>
               </article>
             ))}
           </div>
-        </div>
-      </section>
 
-      <section className={styles.cta}>
-        <div className={styles.ctaInner}>
-          <div>
-            <span className={styles.kicker}>Plan your event</span>
-            <h2 className={archivo.className}>Your next great meeting starts here.</h2>
-            <p>Check the calendar, choose an available time, and send your reservation request in just a few steps.</p>
+          <div className={styles.bookingBar}>
+            <div>
+              <span className={styles.bookingKicker}>Plan your event</span>
+              <h2 className={archivo.className}>Your next meeting starts here.</h2>
+              <p>Choose an available time and send your request.</p>
+            </div>
+            <Link className={styles.compactButton} href="/lga-room/calendar">
+              Check availability
+              <ArrowIcon />
+            </Link>
           </div>
-          <Link className={styles.primaryButton} href="/lga-room/calendar">
-            Check availability
-            <ArrowIcon />
-          </Link>
+
+          <footer className={styles.compactFooter}>
+            <div>
+              <strong>{ROOM_NAME}</strong>
+              <span>{ROOM_LOCATION}</span>
+            </div>
+            <Link href="/lga-room/calendar">Reservations</Link>
+          </footer>
         </div>
       </section>
-
-      <footer className={styles.footer}>
-        <div>
-          <strong>{ROOM_NAME}</strong>
-          <span>{ROOM_LOCATION}</span>
-        </div>
-        <Link href="/lga-room/calendar">Reservations</Link>
-      </footer>
     </main>
   );
 }

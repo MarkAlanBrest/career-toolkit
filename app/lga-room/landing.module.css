@@ -227,50 +227,55 @@
 .floatingNote strong { margin-bottom: 3px; font-size: 12px; }
 .floatingNote small { color: #7a898c; font-size: 10px; line-height: 1.4; }
 
-.intro { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 108px 0 118px; }
-.sectionHeading { display: grid; grid-template-columns: 1fr .72fr; gap: 80px; align-items: end; margin-bottom: 55px; }
-.sectionHeading h2, .sectionHeadingLight h2, .cta h2 { margin: 14px 0 0; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.02em; line-height: 1.08; text-transform: uppercase; }
-.sectionHeading p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.75; }
-.amenityGrid { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.amenityCard { padding: 42px 38px 42px 0; }
-.amenityCard + .amenityCard { padding-left: 38px; border-left: 1px solid var(--line); }
-.iconBox { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 28px; border-radius: 50%; background: #e9eef7; color: var(--teal); }
-.iconBox svg, .useCaseTop svg { width: 22px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
-.amenityCard h3 { margin: 0 0 13px; color: var(--teal); font-size: 19px; letter-spacing: -.015em; text-transform: uppercase; }
-.amenityCard p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+.compactSection { padding: 52px 24px; background: var(--cream); }
+.compactPanel { width: min(1180px, 100%); margin: 0 auto; border: 1px solid var(--line); background: #fff; box-shadow: 0 18px 45px rgba(0, 31, 82, .08); }
+.compactHeading { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 40px; padding: 34px 36px 26px; }
+.compactHeading h2, .possibilitiesHeading h2 { margin: 7px 0 0; color: var(--teal); font-size: clamp(24px, 3vw, 34px); letter-spacing: -.015em; line-height: 1.08; text-transform: uppercase; }
+.compactHeading p { max-width: 360px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 
-.useCases { background: var(--teal-deep); color: #fff; }
-.useCasesInner { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 100px 0 110px; }
-.sectionHeadingLight { max-width: 620px; margin-bottom: 52px; }
-.sectionHeadingLight .kicker { color: var(--mint); }
-.useCaseGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.useCaseCard { min-height: 300px; padding: 28px; border: 1px solid rgba(255,255,255,.13); background: rgba(255,255,255,.035); transition: background .2s ease, transform .2s ease; }
-.useCaseCard:hover { transform: translateY(-3px); background: rgba(255,255,255,.065); }
-.useCaseTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 70px; }
-.useCaseTop > span { color: var(--mint); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.useCaseTop > div { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid rgba(250,162,0,.55); border-radius: 50%; color: var(--mint); }
-.useCaseCard h3 { margin: 0 0 13px; font-size: 20px; text-transform: uppercase; }
-.useCaseCard p { margin: 0; color: #b7c6c8; font-size: 13px; line-height: 1.75; }
+.amenityGrid { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0 36px 30px; }
+.amenityCard { display: grid; grid-template-columns: 38px 1fr; column-gap: 14px; padding: 16px 26px 16px 0; }
+.amenityCard + .amenityCard { padding-left: 26px; border-left: 1px solid var(--line); }
+.iconBox { display: grid; grid-row: 1 / 3; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #e9eef7; color: var(--teal); }
+.iconBox svg, .useCaseTop svg { width: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.amenityCard h3 { margin: 0 0 5px; color: var(--teal); font-size: 15px; letter-spacing: -.01em; text-transform: uppercase; }
+.amenityCard p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.compactDivider { height: 1px; margin: 0 36px; background: var(--line); }
 
-.cta { background: var(--mint); }
-.ctaInner { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 70px; width: min(1060px, calc(100% - 48px)); margin: 0 auto; padding: 90px 0; }
-.cta h2 { max-width: 680px; }
-.cta p { max-width: 640px; margin: 18px 0 0; color: #556a6e; font-size: 14px; line-height: 1.7; }
-.cta .primaryButton { min-width: 205px; }
-.cta .primaryButton { border-color: var(--teal); background: var(--teal); color: #fff; }
-.cta .primaryButton:hover { background: var(--teal-deep); }
-.footer { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 112px; margin: 0; padding: 0 max(24px, calc((100% - 1180px) / 2)); background: var(--teal); color: #fff; }
-.footer strong, .footer span { display: block; }
-.footer strong { margin-bottom: 4px; font-size: 13px; }
-.footer span { color: rgba(255,255,255,.65); font-size: 10px; }
-.footer a { color: var(--mint); font-size: 12px; font-weight: 700; text-decoration: none; text-transform: uppercase; }
+.possibilitiesHeading { padding: 27px 36px 18px; }
+.possibilitiesHeading h2 { font-size: clamp(22px, 2.6vw, 30px); }
+.useCaseGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 36px 32px; }
+.useCaseCard { padding: 18px; border: 1px solid #d9e1ee; border-top: 3px solid var(--teal); background: #f6f8fc; transition: border-color .2s ease, transform .2s ease; }
+.useCaseCard:hover { transform: translateY(-2px); border-color: #aebbd0; }
+.useCaseTop { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+.useCaseTop > span { color: var(--teal); font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.useCaseTop > div { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 50%; background: var(--mint); color: var(--teal); }
+.useCaseTop svg { width: 14px; }
+.useCaseCard h3 { margin: 0 0 6px; color: var(--teal); font-size: 16px; text-transform: uppercase; }
+.useCaseCard p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+
+.bookingBar { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 30px; padding: 24px 36px; background: var(--teal); color: #fff; }
+.bookingKicker { color: var(--mint); font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.bookingBar h2 { margin: 4px 0 0; font-size: 23px; letter-spacing: -.01em; line-height: 1.1; text-transform: uppercase; }
+.bookingBar p { margin: 6px 0 0; color: rgba(255,255,255,.68); font-size: 11px; }
+.compactButton { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 44px; padding: 0 20px; border: 2px solid var(--mint); background: var(--mint); color: var(--teal); font-size: 12px; font-weight: 800; text-decoration: none; text-transform: uppercase; transition: background .2s ease, transform .2s ease; }
+.compactButton:hover { transform: translateY(-2px); background: #ffb52c; }
+.compactButton svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+.compactFooter { display: flex; align-items: center; justify-content: space-between; min-height: 58px; padding: 10px 36px; background: var(--teal-deep); color: #fff; }
+.compactFooter strong, .compactFooter span { display: inline; }
+.compactFooter strong { font-size: 12px; }
+.compactFooter span { margin-left: 12px; color: rgba(255,255,255,.6); font-size: 10px; }
+.compactFooter a { color: var(--mint); font-size: 10px; font-weight: 800; text-decoration: none; text-transform: uppercase; }
 
 .page a:focus-visible { outline: 3px solid #6f9f96; outline-offset: 4px; }
 
 @media (max-width: 920px) {
   .heroContent { grid-template-columns: 1fr 390px; gap: 36px; }
   .heroCopy h1 { font-size: clamp(40px, 5.8vw, 56px); }
-  .sectionHeading { gap: 40px; }
+  .amenityCard { grid-template-columns: 32px 1fr; padding-right: 18px; }
+  .amenityCard + .amenityCard { padding-left: 18px; }
+  .iconBox { width: 32px; height: 32px; }
 }
 
 @media (max-width: 760px) {
@@ -283,17 +288,20 @@
   .heroCopy > p { font-size: 15px; }
   .heroVisual { min-height: 440px; margin-top: 70px; }
   .calendarCard { right: 34px; }
-  .intro, .useCasesInner { width: min(100% - 32px, 620px); padding: 78px 0 86px; }
-  .sectionHeading { display: block; margin-bottom: 40px; }
-  .sectionHeading p { margin-top: 22px; }
+  .compactSection { padding: 30px 16px; }
+  .compactHeading { display: block; padding: 28px 24px 20px; }
+  .compactHeading p { margin-top: 10px; }
   .amenityGrid, .useCaseGrid { grid-template-columns: 1fr; }
-  .amenityCard { padding: 30px 0; }
+  .amenityGrid { padding: 0 24px 22px; }
+  .amenityCard { grid-template-columns: 38px 1fr; padding: 13px 0; }
   .amenityCard + .amenityCard { padding-left: 0; border-top: 1px solid var(--line); border-left: none; }
-  .useCaseCard { min-height: 250px; }
-  .useCaseTop { margin-bottom: 48px; }
-  .ctaInner { display: block; width: min(100% - 32px, 620px); padding: 76px 0; }
-  .cta .primaryButton { margin-top: 30px; }
-  .footer { padding-right: 16px; padding-left: 16px; }
+  .iconBox { width: 38px; height: 38px; }
+  .compactDivider { margin: 0 24px; }
+  .possibilitiesHeading { padding: 24px 24px 15px; }
+  .useCaseGrid { padding: 0 24px 24px; }
+  .bookingBar { grid-template-columns: 1fr; gap: 18px; padding: 24px; }
+  .compactButton { width: 100%; }
+  .compactFooter { padding: 12px 24px; }
 }
 
 @media (max-width: 480px) {
@@ -313,8 +321,9 @@
   .visualBackdrop { inset: 24px 0 14px 20px; }
   .floatingNote { right: -6px; width: 250px; }
   .calendarTop strong { font-size: 13px; }
-  .sectionHeading h2, .sectionHeadingLight h2, .cta h2 { font-size: 34px; }
-  .footer { align-items: flex-start; flex-direction: column; justify-content: center; gap: 13px; }
+  .compactHeading h2, .possibilitiesHeading h2 { font-size: 25px; }
+  .compactFooter { align-items: flex-start; flex-direction: column; justify-content: center; gap: 5px; }
+  .compactFooter span { display: block; margin: 2px 0 0; }
 }
 
 @media (max-width: 560px) {
