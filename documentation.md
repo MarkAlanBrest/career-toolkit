@@ -182,9 +182,13 @@ Never put secret values in this document or commit them to source control.
 | `KV_REST_API_URL` | Treat as sensitive | Alternate Vercel Marketplace name for the Redis endpoint. Not currently listed in `.env.example`. |
 | `KV_REST_API_TOKEN` | Yes | Alternate Vercel Marketplace name for the Redis token. Not currently listed in `.env.example`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob access when token-based configuration is used. Vercel OIDC integration may also supply access. |
-| `OUTLOOK_USER` | Yes | Outlook/Microsoft 365 address used to send LGA room emails via SMTP. |
-| `OUTLOOK_APP_PASSWORD` | Yes | App password for the Outlook account (requires 2-Step Verification). |
-| `OUTLOOK_FROM_NAME` | No | Optional display name shown as the sender. |
+| `MAILJET_API_KEY` | Yes (primary) | Mailjet API key, used as SMTP username. Takes priority over the Outlook fallback below. |
+| `MAILJET_SECRET_KEY` | Yes (primary) | Mailjet secret key, used as SMTP password. |
+| `MAILJET_FROM_EMAIL` | Yes (primary) | Sender address — must be verified in Mailjet (Account > Sender addresses). |
+| `MAILJET_FROM_NAME` | No | Optional display name shown as the sender. |
+| `OUTLOOK_USER` | No, fallback only | Outlook/Microsoft 365 address used to send LGA room emails via SMTP if Mailjet isn't configured. |
+| `OUTLOOK_APP_PASSWORD` | No, fallback only | App password for the Outlook account (requires 2-Step Verification). |
+| `OUTLOOK_FROM_NAME` | No | Optional display name shown as the sender (fallback path). |
 | `LGA_ROOM_ADMIN_PASSWORD` | Yes | Break-glass LGA master password. |
 | `NEXT_PUBLIC_APP_URL` | No | Public application base URL used in email links. |
 | `NEXT_PUBLIC_EXTENSION_URL` | No | Extension installation URL used by marketing pages. It is referenced in code but missing from `.env.example`. |

@@ -4,13 +4,39 @@ import { Reservation, ROOM_NAME, getSettings } from '@/lib/lgaRoom';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
 
-// Whoever configures a sender account in the admin settings UI becomes the "primary
-// emailer" — env vars are only a fallback for the first deploy before anyone has done that.
-async function getSenderConfig() {
+type SenderConfig = {
+  host: string;
+  authUser: string;
+  authPass: string;
+  fromEmail: string;
+  fromName: string;
+  replyTo?: string;
+};
+
+// Mailjet takes priority when configured — it's one shared service account (set via Vercel
+// env vars), unlike the personal-inbox path below, which is a per-admin self-serve fallback.
+async function getSenderConfig(): Promise<SenderConfig> {
   const settings = await getSettings();
+  const mailjetApiKey = process.env.MAILJET_API_KEY || '';
+  const mailjetSecretKey = process.env.MAILJET_SECRET_KEY || '';
+
+  if (mailjetApiKey && mailjetSecretKey) {
+    return {
+      host: 'in-v3.mailjet.com',
+      authUser: mailjetApiKey,
+      authPass: mailjetSecretKey,
+      fromEmail: process.env.MAILJET_FROM_EMAIL || settings.senderEmail || '',
+      fromName: process.env.MAILJET_FROM_NAME || settings.senderName || `${ROOM_NAME} Reservations`,
+      replyTo: settings.replyToEmail || undefined,
+    };
+  }
+
+  const user = settings.senderEmail || process.env.OUTLOOK_USER || '';
   return {
-    user: settings.senderEmail || process.env.OUTLOOK_USER || '',
-    pass: settings.senderAppPassword || process.env.OUTLOOK_APP_PASSWORD || '',
+    host: resolveSmtpHost(user),
+    authUser: user,
+    authPass: settings.senderAppPassword || process.env.OUTLOOK_APP_PASSWORD || '',
+    fromEmail: user,
     fromName: settings.senderName || process.env.OUTLOOK_FROM_NAME || `${ROOM_NAME} Reservations`,
     replyTo: settings.replyToEmail || undefined,
   };
@@ -34,11 +60,11 @@ export type EmailSendResult = {
 };
 
 export async function getEmailStatus() {
-  const { user, pass, fromName } = await getSenderConfig();
-  const fromEmail = user ? `${fromName} <${user}>` : '';
+  const { authUser, authPass, fromEmail, fromName } = await getSenderConfig();
+  const displayFrom = fromEmail ? `${fromName} <${fromEmail}>` : '';
   return {
-    configured: Boolean(user && pass),
-    fromEmail: fromEmail || null,
+    configured: Boolean(authUser && authPass && fromEmail),
+    fromEmail: displayFrom || null,
     fromEmailInvalid: false,
     usingTestSender: false,
   };
@@ -94,18 +120,18 @@ function emailErrorMessage(error: unknown): string {
 }
 
 async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
-  const { user, pass, fromName, replyTo: defaultReplyTo } = await getSenderConfig();
-  if (!user || !pass) {
+  const { host, authUser, authPass, fromEmail, fromName, replyTo: defaultReplyTo } = await getSenderConfig();
+  if (!authUser || !authPass || !fromEmail) {
     return { sent: false, recipient: to, error: 'Email sending is not configured.' };
   }
   try {
     const transporter = nodemailer.createTransport({
-      host: resolveSmtpHost(user),
+      host,
       port: 587,
       secure: false,
-      auth: { user, pass },
+      auth: { user: authUser, pass: authPass },
     });
-    const info = await transporter.sendMail({ from: `${fromName} <${user}>`, to, replyTo: replyTo || defaultReplyTo, subject, html });
+    const info = await transporter.sendMail({ from: `${fromName} <${fromEmail}>`, to, replyTo: replyTo || defaultReplyTo, subject, html });
     return { sent: true, recipient: to, id: info.messageId };
   } catch (error) {
     console.error(`[lga-room] Email to ${to} failed:`, error);
