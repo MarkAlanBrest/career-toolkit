@@ -32,7 +32,7 @@ export default function RoomPhoto() {
         aria-label="See a larger photo of the LGA Room"
       >
         <Image
-          src="/lga-room-interior.png"
+          src="/lga-room-interior.jpg"
           alt="The LGA Room with presentation screens, tables, and seating"
           fill
           sizes="(max-width: 760px) calc(100vw - 80px), 520px"
@@ -56,7 +56,7 @@ export default function RoomPhoto() {
           </button>
           <div className={styles.lightboxImage} onClick={event => event.stopPropagation()}>
             <Image
-              src="/lga-room-interior.png"
+              src="/lga-room-interior.jpg"
               alt="The LGA Room with presentation screens, tables, and seating"
               fill
               priority
