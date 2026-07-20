@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
 import { archivo, publicSans, ROOM_LOCATION, ROOM_NAME } from './shared';
+import RoomPhoto from './room-photo';
 import styles from './landing.module.css';
 
 function ArrowIcon() {
@@ -232,8 +233,35 @@ export default function LgaRoomLandingPage() {
             <p>Smart presentation tools in a comfortable, professional setting.</p>
           </div>
 
+          <div className={styles.roomShowcase}>
+            <RoomPhoto />
+            <div className={styles.roomShowcaseCopy}>
+              <span className={styles.kicker}>Take a look inside</span>
+              <h3 className={archivo.className}>A flexible space built to bring people together.</h3>
+              <p>Preview the room’s seating, presentation displays, and professional setup before choosing your date.</p>
+              <button type="button" className={styles.photoPrompt} onClick={undefined} aria-hidden="true" tabIndex={-1}>Click the photo to expand</button>
+            </div>
+          </div>
+
           <div className={styles.amenityGrid}>
             {AMENITIES.map(item => <AmenityCard key={item.title} {...item} />)}
+          </div>
+
+          <div className={styles.compactDivider} />
+
+          <div className={styles.scholarshipPanel}>
+            <div className={styles.pricingBlock}>
+              <span className={styles.kicker}>Room rental</span>
+              <h2 className={archivo.className}>$150.00 for up to 3 hours</h2>
+              <p><strong>$50.00</strong> per hour thereafter</p>
+            </div>
+            <div className={styles.scholarshipImpact}>
+              <span aria-hidden="true">♥</span>
+              <div>
+                <strong>Every rental supports student scholarships.</strong>
+                <p>These funds go directly into our annual scholarship allowance for NCST’s in-house students.</p>
+              </div>
+            </div>
           </div>
 
           <div className={styles.compactDivider} />
