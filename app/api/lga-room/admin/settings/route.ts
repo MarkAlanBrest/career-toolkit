@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
         email: settings.senderEmail,
         name: settings.senderName,
         passwordSet: Boolean(settings.senderAppPassword),
+        replyToEmail: settings.replyToEmail,
       },
     });
   } catch (error) {
@@ -51,7 +52,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail, senderAppPassword, senderName } = body as Record<string, string>;
+  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail, senderAppPassword, senderName, replyToEmail } = body as Record<string, string>;
   if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
     return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
   }
@@ -63,6 +64,9 @@ export async function PUT(request: NextRequest) {
   }
   if (senderEmail && !EMAIL_RE.test(senderEmail)) {
     return NextResponse.json({ error: 'Sender email looks invalid.' }, { status: 400 });
+  }
+  if (replyToEmail && !EMAIL_RE.test(replyToEmail)) {
+    return NextResponse.json({ error: 'Reply-to email looks invalid.' }, { status: 400 });
   }
 
   try {
