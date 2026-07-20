@@ -429,7 +429,7 @@ type AdminSettingsData = {
   storage: { configured: boolean };
   email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean; usingTestSender: boolean };
   notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
-  sender: { email: string; name: string; passwordSet: boolean; replyToEmail: string };
+  sender: { replyToEmail: string };
 };
 
 type AdminListEntry = { email: string; createdAt: string };
@@ -444,10 +444,6 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [adminNotifyEmail, setAdminNotifyEmail] = useState('');
   const [buildingManagerEmail, setBuildingManagerEmail] = useState('');
   const [maintenanceEmail, setMaintenanceEmail] = useState('');
-  const [senderEmail, setSenderEmail] = useState('');
-  const [senderName, setSenderName] = useState('');
-  const [senderAppPassword, setSenderAppPassword] = useState('');
-  const [senderPasswordSet, setSenderPasswordSet] = useState(false);
   const [replyToEmail, setReplyToEmail] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -481,9 +477,6 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           setAdminNotifyEmail(data.notify?.adminNotifyEmail || '');
           setBuildingManagerEmail(data.notify?.buildingManagerEmail || '');
           setMaintenanceEmail(data.notify?.maintenanceEmail || '');
-          setSenderEmail(data.sender?.email || '');
-          setSenderName(data.sender?.name || '');
-          setSenderPasswordSet(Boolean(data.sender?.passwordSet));
           setReplyToEmail(data.sender?.replyToEmail || '');
         }
       })
@@ -524,23 +517,10 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
       const response = await fetch('/api/lga-room/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({
-          adminNotifyEmail, buildingManagerEmail, maintenanceEmail,
-          senderEmail, senderName, senderAppPassword, replyToEmail,
-        }),
+        body: JSON.stringify({ adminNotifyEmail, buildingManagerEmail, maintenanceEmail, replyToEmail }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
-      setSenderPasswordSet(Boolean(data.sender?.passwordSet));
-      setSenderAppPassword('');
-      setSettings(prev => prev && {
-        ...prev,
-        email: {
-          ...prev.email,
-          configured: Boolean(data.sender?.email && data.sender?.passwordSet),
-          fromEmail: data.sender?.email ? `${data.sender.name || `${ROOM_NAME} Reservations`} <${data.sender.email}>` : null,
-        },
-      });
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings.');
@@ -639,30 +619,13 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           </div>
 
           <div style={{ marginBottom: 18 }}>
-            <SectionLabel>Sender account</SectionLabel>
-            <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              The email account this system sends from. Use a dedicated account, not your personal inbox —
-              you'll need an app password from that account's provider (not its regular login password).
-            </div>
-            <Field label="Sender email">
-              <input value={senderEmail} onChange={e => setSenderEmail(e.target.value)} type="email" style={inputStyle} placeholder="lgaroom@outlook.com" />
-            </Field>
-            <Field label="Display name (optional)">
-              <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} />
-            </Field>
-            <Field label={`App password${senderPasswordSet ? ' (already set — leave blank to keep it)' : ''}`}>
-              <input value={senderAppPassword} onChange={e => setSenderAppPassword(e.target.value)} type="password" style={inputStyle} placeholder={senderPasswordSet ? '••••••••' : 'app password'} autoComplete="new-password" />
-            </Field>
-            <Field label="Replies go to (optional)">
-              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender account above" />
-            </Field>
-          </div>
-
-          <div style={{ marginBottom: 18 }}>
             <SectionLabel>Notification emails</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
               Who gets emailed, and when. Leave any of these blank to turn that email off.
             </div>
+            <Field label="Replies go to (optional)">
+              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sending address" />
+            </Field>
             <Field label="New request alerts (you)">
               <input value={adminNotifyEmail} onChange={e => setAdminNotifyEmail(e.target.value)} type="email" style={inputStyle} placeholder="you@example.com" />
             </Field>

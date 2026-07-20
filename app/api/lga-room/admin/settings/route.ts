@@ -28,13 +28,7 @@ export async function GET(request: NextRequest) {
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,
       },
-      // Never echo senderAppPassword back — the admin re-enters it only to change it.
-      sender: {
-        email: settings.senderEmail,
-        name: settings.senderName,
-        passwordSet: Boolean(settings.senderAppPassword),
-        replyToEmail: settings.replyToEmail,
-      },
+      sender: { replyToEmail: settings.replyToEmail },
     });
   } catch (error) {
     console.error('[lga-room] Could not load settings:', error);
@@ -70,18 +64,19 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    // A blank senderAppPassword means "keep the existing one" — the field is never
-    // pre-filled with the real value, so an admin saving other fields shouldn't wipe it.
+    // The admin UI no longer sends senderEmail/senderName/senderAppPassword (Mailjet, set via
+    // Vercel env vars, is the real sender config now) — preserve whatever's already stored
+    // instead of wiping it just because this request omitted those fields.
     const current = await getSettings();
     const settings = {
       adminNotifyEmail: (adminNotifyEmail || '').trim(),
       buildingManagerEmail: (buildingManagerEmail || '').trim(),
       maintenanceEmail: (maintenanceEmail || '').trim(),
-      senderEmail: (senderEmail || '').trim(),
+      senderEmail: typeof senderEmail === 'string' ? senderEmail.trim() : current.senderEmail,
       senderAppPassword: typeof senderAppPassword === 'string' && senderAppPassword.trim()
         ? senderAppPassword.trim()
         : current.senderAppPassword,
-      senderName: (senderName || '').trim(),
+      senderName: typeof senderName === 'string' ? senderName.trim() : current.senderName,
       replyToEmail: (replyToEmail || '').trim(),
     };
     await saveSettings(settings);
@@ -91,12 +86,7 @@ export async function PUT(request: NextRequest) {
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,
       },
-      sender: {
-        email: settings.senderEmail,
-        name: settings.senderName,
-        passwordSet: Boolean(settings.senderAppPassword),
-        replyToEmail: settings.replyToEmail,
-      },
+      sender: { replyToEmail: settings.replyToEmail },
     });
   } catch (error) {
     console.error('[lga-room] Could not save settings:', error);
