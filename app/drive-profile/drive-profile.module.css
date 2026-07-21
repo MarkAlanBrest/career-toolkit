@@ -43,3 +43,20 @@
 .optionCard:hover {
   transform: translateY(-2px);
 }
+
+.hazardStripe {
+  background: repeating-linear-gradient(
+    135deg,
+    #F59E0B,
+    #F59E0B 18px,
+    #18181B 18px,
+    #18181B 36px
+  );
+}
+
+.plateTexture {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.03) 0, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(255,255,255,0.03) 0, transparent 40%),
+    linear-gradient(135deg, #1C1C1F, #27272A 45%, #18181B);
+}

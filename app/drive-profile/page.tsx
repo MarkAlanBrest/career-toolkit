@@ -17,6 +17,7 @@ type Answer = { most?: StyleKey; least?: StyleKey };
 
 const font = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
 const display = 'Georgia, "Times New Roman", serif';
+const industrial = '"Arial Black","Segoe UI Black",Impact,Arial,sans-serif';
 
 export default function DriveProfilePage() {
   const [phase, setPhase] = useState<Phase>('intro');
@@ -85,80 +86,117 @@ export default function DriveProfilePage() {
 function IntroScreen({ onStart }: { onStart: () => void }) {
   return (
     <div
-      className={styles.animatedGradient}
+      className={styles.plateTexture}
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg,#7C3AED,#DB2777,#F97316,#7C3AED)',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 20px',
       }}
     >
-      <div
-        className={styles.fadeUp}
-        style={{
-          maxWidth: 640,
-          width: '100%',
-          background: 'rgba(15,23,42,0.55)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: 24,
-          border: '1px solid rgba(255,255,255,0.15)',
-          padding: '48px 40px',
-          textAlign: 'center',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.35)',
-        }}
-      >
-        <div style={{ fontSize: 44, marginBottom: 6 }}>🔥🌟🌿🧭</div>
-        <h1 style={{ fontFamily: display, color: '#fff', fontSize: 'clamp(30px,5vw,42px)', margin: '4px 0 10px', fontWeight: 700 }}>
-          Drive Profile
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 16, lineHeight: 1.7, margin: '0 0 28px' }}>
-          Discover what actually motivates you — and get a detailed, personal playbook for making it work,
-          at work and everywhere else.
-        </p>
+      <div className={styles.hazardStripe} style={{ height: 10, width: '100%' }} />
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 30 }}>
-          {STYLE_ORDER.map(key => (
-            <div
-              key={key}
-              style={{
-                background: STYLES[key].colorSoft,
-                color: '#111827',
-                borderRadius: 12,
-                padding: '10px 14px',
-                fontSize: 13,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span style={{ fontSize: 16 }}>{STYLES[key].emoji}</span> {STYLES[key].label}
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={onStart}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', width: '100%' }}>
+        <div
+          className={styles.fadeUp}
           style={{
-            background: '#fff',
-            color: '#1E1B4B',
-            border: 'none',
-            borderRadius: 999,
-            padding: '16px 36px',
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+            maxWidth: 640,
+            width: '100%',
+            background: '#1E1E22',
+            borderRadius: 6,
+            border: '1px solid #3F3F46',
+            borderTop: '4px solid #F59E0B',
+            padding: '48px 40px',
+            textAlign: 'center',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
           }}
         >
-          Start My Profile →
-        </button>
-        <div style={{ marginTop: 16, color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }}>
-          {QUESTIONS.length} quick questions · about 5 minutes · nothing saved, nothing to sign up for
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              background: '#27272A',
+              border: '1px solid #F59E0B',
+              borderRadius: 4,
+              padding: '6px 14px',
+              marginBottom: 20,
+              color: '#F59E0B',
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+            }}
+          >
+            🛠 Work-Style Assessment
+          </div>
+          <h1
+            style={{
+              fontFamily: industrial,
+              color: '#fff',
+              fontSize: 'clamp(28px,5vw,40px)',
+              margin: '4px 0 12px',
+              fontWeight: 900,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}
+          >
+            Drive Profile
+          </h1>
+          <p style={{ color: '#A1A1AA', fontSize: 16, lineHeight: 1.7, margin: '0 0 28px' }}>
+            Find out what actually drives you on the job — and get a straight-talk playbook for putting it to work.
+          </p>
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 30 }}>
+            {STYLE_ORDER.map(key => (
+              <div
+                key={key}
+                style={{
+                  background: '#27272A',
+                  color: '#E4E4E7',
+                  borderRadius: 4,
+                  borderLeft: `3px solid ${STYLES[key].color}`,
+                  padding: '10px 14px',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 15 }}>{STYLES[key].emoji}</span> {STYLES[key].label}
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={onStart}
+            style={{
+              background: '#F59E0B',
+              color: '#18181B',
+              border: 'none',
+              borderRadius: 4,
+              padding: '16px 36px',
+              fontSize: 15,
+              fontWeight: 800,
+              letterSpacing: 0.5,
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              boxShadow: '0 10px 30px rgba(245,158,11,0.25)',
+            }}
+          >
+            Start My Profile →
+          </button>
+          <div style={{ marginTop: 16, color: '#71717A', fontSize: 12.5 }}>
+            {QUESTIONS.length} quick questions · about 5 minutes · nothing saved, nothing to sign up for
+          </div>
         </div>
       </div>
+
+      <div className={styles.hazardStripe} style={{ height: 10, width: '100%' }} />
     </div>
   );
 }
