@@ -113,7 +113,7 @@ function isRecent(course: CanvasCourse): boolean {
   const date = new Date(source);
   if (Number.isNaN(date.getTime())) return false;
   const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 2);
+  cutoff.setMonth(cutoff.getMonth() - 18);
   return date >= cutoff;
 }
 

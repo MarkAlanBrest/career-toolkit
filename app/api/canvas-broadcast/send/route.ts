@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       failedCount: result.failed,
       errors: result.errors,
     });
-    await redis.del(`canvas-broadcast:snapshot:${campus}`);
+    await redis.del(`canvas-broadcast:snapshot:18-months:${campus}`);
     return NextResponse.json({ result, record }, { status: result.status === 'Failed' ? 502 : 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Broadcast failed before Canvas accepted it.';

@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (!campus || !(campus in CAMPUSES)) return NextResponse.json({ error: 'Choose a valid campus.' }, { status: 400 });
 
   try {
-    const cacheKey = `canvas-broadcast:snapshot:${campus}`;
+    const cacheKey = `canvas-broadcast:snapshot:18-months:${campus}`;
     if (request.nextUrl.searchParams.has('refresh')) await redis.del(cacheKey);
     const cached = await redis.get<Awaited<ReturnType<typeof buildRecipientSnapshot>>>(cacheKey);
     if (cached) return NextResponse.json({ ...cached, studentIds: undefined, courses: undefined, cached: true });
