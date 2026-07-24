@@ -38,8 +38,12 @@ const MAX_RETRIES = 3;
 const BATCH_SIZE = 100;
 
 function canvasConfig() {
-  const baseUrl = process.env.CANVAS_BASE_URL?.replace(/\/+$/, '');
-  const token = process.env.CANVAS_API_TOKEN;
+  const baseUrl = process.env.CANVAS_BASE_URL?.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+  const token = process.env.CANVAS_API_TOKEN
+    ?.trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
   const accountId = process.env.CANVAS_ACCOUNT_ID || '1';
   if (!baseUrl || !token) {
     throw new Error('Canvas is not configured. Set CANVAS_BASE_URL and CANVAS_API_TOKEN.');
