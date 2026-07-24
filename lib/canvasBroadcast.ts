@@ -183,6 +183,13 @@ export type SendResult = {
   errors: string[];
 };
 
+export async function getCanvasSelfProfile(): Promise<{ id: number; name: string }> {
+  const response = await canvasFetch('/api/v1/users/self/profile');
+  const profile = await response.json() as { id?: number; name?: string };
+  if (!profile.id) throw new Error('Canvas did not return the token owner’s user ID.');
+  return { id: profile.id, name: profile.name || `Canvas user ${profile.id}` };
+}
+
 export function sanitizeMessageHtml(input: string): string {
   return input
     .replace(/<\s*(script|style|iframe|object|embed|form)\b[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
@@ -234,6 +241,32 @@ export async function sendCanvasAnnouncements(
   message: string,
 ): Promise<SendResult> {
   const outcomes = await mapWithConcurrency(courses, 4, async course => {
+    const warnings: string[] = [];
+    try {
+      const tab = new URLSearchParams();
+      tab.set('hidden', 'false');
+      await canvasFetch(`/api/v1/courses/${course.id}/tabs/announcements`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tab.toString(),
+      });
+    } catch (error) {
+      warnings.push(`navigation could not be enabled: ${error instanceof Error ? error.message : 'unknown Canvas error'}`);
+    }
+
+    try {
+      const settings = new URLSearchParams();
+      settings.set('show_announcements_on_home_page', 'true');
+      settings.set('home_page_announcement_limit', '3');
+      await canvasFetch(`/api/v1/courses/${course.id}/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: settings.toString(),
+      });
+    } catch (error) {
+      warnings.push(`homepage announcements could not be enabled: ${error instanceof Error ? error.message : 'unknown Canvas error'}`);
+    }
+
     const form = new URLSearchParams();
     form.set('title', title);
     form.set('message', message);
@@ -246,19 +279,22 @@ export async function sendCanvasAnnouncements(
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString(),
       });
-      return { ok: true, error: '' };
+      return {
+        ok: true,
+        error: warnings.length ? `${course.name} (${course.id}) — announcement posted, but ${warnings.join('; ')}` : '',
+      };
     } catch (error) {
       return {
         ok: false,
-        error: `${course.name} (${course.id}): ${error instanceof Error ? error.message : 'Unknown Canvas error'}`,
+        error: `${course.name} (${course.id}) — announcement failed: ${error instanceof Error ? error.message : 'Unknown Canvas error'}${warnings.length ? `; ${warnings.join('; ')}` : ''}`,
       };
     }
   });
   const sent = outcomes.filter(item => item.ok).length;
-  const errors = outcomes.filter(item => !item.ok).map(item => item.error);
+  const errors = outcomes.filter(item => item.error).map(item => item.error);
   const failed = courses.length - sent;
   return {
-    status: sent === courses.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
+    status: sent === courses.length && !errors.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
     sent,
     failed,
     errors,

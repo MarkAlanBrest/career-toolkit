@@ -20,7 +20,7 @@ export type BroadcastRecord = {
   createdAt: string;
   campus: CampusCode;
   campusName: string;
-  delivery: 'inbox' | 'announcement';
+  delivery: 'inbox' | 'announcement' | 'test';
   subject: string;
   body: string;
   recipientCount: number;

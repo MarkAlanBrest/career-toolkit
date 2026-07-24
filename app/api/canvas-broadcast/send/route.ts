@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { broadcastAuthError, isBroadcastAuthorized } from '@/lib/broadcastAuth';
 import { addBroadcast } from '@/lib/broadcastStore';
-import { buildRecipientSnapshot, CAMPUSES, sanitizeMessageHtml, sendCanvasAnnouncements, sendCanvasConversation, type CampusCode } from '@/lib/canvasBroadcast';
+import { buildRecipientSnapshot, CAMPUSES, sanitizeMessageHtml, sendCanvasAnnouncements, type CampusCode } from '@/lib/canvasBroadcast';
 import { redis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   const subject = String(input?.subject || '').trim();
   const body = sanitizeMessageHtml(String(input?.body || '').trim());
   const idempotencyKey = String(input?.idempotencyKey || '');
-  const delivery = input?.delivery === 'announcement' ? 'announcement' : 'inbox';
+  const delivery = 'announcement' as const;
   if (!campus || !(campus in CAMPUSES) || !subject || !body || !idempotencyKey) {
     return NextResponse.json({ error: 'Campus, subject, message, and confirmation token are required.' }, { status: 400 });
   }
@@ -46,9 +46,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({ error: 'No active students are eligible for this campus.', record }, { status: 400 });
     }
-    const result = delivery === 'announcement'
-      ? await sendCanvasAnnouncements(snapshot.courses, subject, body)
-      : await sendCanvasConversation(snapshot.studentIds, subject, body);
+    const result = await sendCanvasAnnouncements(snapshot.courses, subject, body);
     const record = await addBroadcast({
       campus,
       campusName: snapshot.campusName,
