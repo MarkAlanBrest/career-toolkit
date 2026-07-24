@@ -40,6 +40,7 @@ Configure these server-side environment variables before using it:
 CANVAS_BASE_URL=https://your-school.instructure.com
 CANVAS_API_TOKEN=your-server-only-token
 CANVAS_ACCOUNT_ID=1
+CANVAS_BROADCAST_ADMIN_EMAIL=admin@example.com
 CANVAS_BROADCAST_ADMIN_PASSWORD=choose-a-strong-access-key
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=

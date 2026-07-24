@@ -69,7 +69,8 @@ function Icon({ name }: { name: 'people' | 'book' | 'clock' | 'shield' | 'send' 
 }
 
 export default function CanvasBroadcastPage() {
-  const [adminKey, setAdminKey] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [authorized, setAuthorized] = useState(false);
   const [campus, setCampus] = useState<CampusCode>('ELPC');
   const [summaries, setSummaries] = useState(blankSummary);
@@ -90,17 +91,13 @@ export default function CanvasBroadcastPage() {
   const summary = summaries[campus];
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('canvas-broadcast-key') || '';
-    if (saved) {
-      setAdminKey(saved);
-      void connect(saved);
-    }
+    void restoreSession();
   }, []);
 
-  async function api(path: string, init?: RequestInit, key = adminKey) {
+  async function api(path: string, init?: RequestInit) {
     const response = await fetch(path, {
       ...init,
-      headers: { 'Content-Type': 'application/json', 'x-broadcast-key': key, ...init?.headers },
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
       cache: 'no-store',
     });
     const data = await response.json().catch(() => ({}));
@@ -108,31 +105,55 @@ export default function CanvasBroadcastPage() {
     return data;
   }
 
-  async function connect(key = adminKey) {
-    setNotice({ type: 'info', text: 'Connecting securely…' });
+  async function restoreSession() {
     try {
-      const [templateData, historyData] = await Promise.all([
-        api('/api/canvas-broadcast/templates', undefined, key),
-        api('/api/canvas-broadcast/history', undefined, key),
-      ]);
-      setTemplates(templateData.templates);
-      setHistory(historyData.broadcasts);
-      setAuthorized(true);
-      sessionStorage.setItem('canvas-broadcast-key', key);
-      setNotice(null);
-      void loadSummary(campus, key);
+      const status = await api('/api/canvas-broadcast/auth');
+      if (status.authenticated) await loadWorkspace();
+    } catch {}
+  }
+
+  async function loadWorkspace() {
+    const [templateData, historyData] = await Promise.all([
+      api('/api/canvas-broadcast/templates'),
+      api('/api/canvas-broadcast/history'),
+    ]);
+    setTemplates(templateData.templates);
+    setHistory(historyData.broadcasts);
+    setAuthorized(true);
+    setNotice(null);
+    void loadSummary(campus);
+  }
+
+  async function connect() {
+    setNotice({ type: 'info', text: 'Signing in securely…' });
+    try {
+      await api('/api/canvas-broadcast/auth', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      setPassword('');
+      await loadWorkspace();
     } catch (error) {
       setAuthorized(false);
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to connect.' });
     }
   }
 
-  async function loadSummary(code: CampusCode, key = adminKey, force = false) {
+  async function signOut() {
+    await api('/api/canvas-broadcast/auth', { method: 'DELETE' }).catch(() => null);
+    setAuthorized(false);
+    setTemplates([]);
+    setHistory([]);
+    setSummaries(blankSummary);
+    setNotice({ type: 'info', text: 'You have signed out.' });
+  }
+
+  async function loadSummary(code: CampusCode, force = false) {
     setSummaryLoading(true);
     setNotice(null);
     try {
       const suffix = force ? `&refresh=${Date.now()}` : '';
-      const data = await api(`/api/canvas-broadcast/summary?campus=${code}${suffix}`, undefined, key);
+      const data = await api(`/api/canvas-broadcast/summary?campus=${code}${suffix}`);
       setSummaries(previous => ({ ...previous, [code]: data }));
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to calculate recipients.' });
@@ -298,8 +319,21 @@ export default function CanvasBroadcastPage() {
             <p>Reach every active student in eligible Canvas courses with one clear, deduplicated message.</p>
           </div>
           <div className={styles.access}>
-            <label htmlFor="access-key">Administrator access key</label>
-            <div><input id="access-key" type="password" value={adminKey} onChange={e => setAdminKey(e.target.value)} onKeyDown={e => e.key === 'Enter' && void connect()} placeholder="Enter access key" /><button onClick={() => void connect()} disabled={!adminKey}>Connect</button></div>
+            {authorized ? (
+              <div className={styles.signedIn}>
+                <span>Signed in as <strong>{email || 'Administrator'}</strong></span>
+                <button onClick={() => void signOut()}>Sign out</button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="login-email">Administrator login</label>
+                <div className={styles.loginFields}>
+                  <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="username" />
+                  <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && void connect()} placeholder="Password" autoComplete="current-password" />
+                  <button onClick={() => void connect()} disabled={!email || !password}>Sign in</button>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -328,7 +362,7 @@ export default function CanvasBroadcastPage() {
           <div className={styles.summaryIdentity}><span>RECIPIENT SUMMARY</span><strong>{CAMPUSES.find(item => item.code === campus)?.name}</strong><small>{summary ? `Calculated ${formatDate(summary.calculatedAt)}` : 'Select a campus to calculate'}</small></div>
           <div className={styles.metric}><div><Icon name="book" /></div><span><strong>{summaryLoading ? '—' : (summary?.courseCount ?? '—')}</strong><small>Eligible courses</small></span></div>
           <div className={styles.metric}><div><Icon name="people" /></div><span><strong>{summaryLoading ? '—' : (summary?.studentCount.toLocaleString() ?? '—')}</strong><small>Unique active students</small></span></div>
-          <button className={styles.refresh} onClick={() => void loadSummary(campus, adminKey, true)} disabled={!authorized || summaryLoading} title="Refresh recipient count"><Icon name="refresh" /></button>
+          <button className={styles.refresh} onClick={() => void loadSummary(campus, true)} disabled={!authorized || summaryLoading} title="Refresh recipient count"><Icon name="refresh" /></button>
         </section>
 
         <div className={`${styles.twoCol} ${!authorized ? styles.locked : ''}`}>
