@@ -474,6 +474,16 @@ export default function CanvasBroadcastPage() {
           </div>
         </section>
 
+        {summaryLoading && (
+          <div className={styles.loadingPanel} role="status" aria-live="polite">
+            <span className={styles.spinner} aria-hidden="true" />
+            <div>
+              <strong>Loading {CAMPUSES.find(item => item.code === campus)?.name} — please wait</strong>
+              <small>Scanning recent courses and active student enrollments. This may take a moment.</small>
+            </div>
+          </div>
+        )}
+
         <section className={`${styles.summaryCard} ${!authorized ? styles.locked : ''}`}>
           <div className={styles.summaryIdentity}><span>RECIPIENT SUMMARY</span><strong>{CAMPUSES.find(item => item.code === campus)?.name}</strong><small>{summary ? `Calculated ${formatDate(summary.calculatedAt)}` : 'Select a campus to calculate'}</small></div>
           <div className={styles.metric}><div><Icon name="book" /></div><span><strong>{summaryLoading ? '—' : (summary?.courseCount ?? '—')}</strong><small>Eligible courses</small></span></div>
