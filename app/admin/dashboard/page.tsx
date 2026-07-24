@@ -52,6 +52,26 @@ export default function AdminDashboardPage() {
         Admin Dashboard
       </h1>
 
+      <section className="mb-8 rounded-2xl border border-amber-300/30 bg-slate-950 p-6 text-white shadow-xl">
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-amber-300">
+              New course builder
+            </p>
+            <h2 className="mt-2 text-2xl font-bold">Build with Mason</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
+              Upload section PDFs and turn them into dynamic AI-taught lessons.
+            </p>
+          </div>
+          <Link
+            href="/admin/mason"
+            className="shrink-0 rounded-xl bg-amber-400 px-5 py-3 text-center font-bold text-slate-950 hover:bg-amber-300"
+          >
+            Open Mason Studio
+          </Link>
+        </div>
+      </section>
+
       <section>
         <h2 className="text-xl font-semibold text-white mb-4">
           Available Courses

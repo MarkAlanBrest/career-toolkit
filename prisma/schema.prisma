@@ -27,3 +27,30 @@ model CourseRecords {
   Progress   Int
   SlidesPath String?
 }
+
+model MasonCourse {
+  id          Int            @id @default(autoincrement())
+  title       String
+  slug        String         @unique
+  description String?
+  published   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  sections    MasonSection[]
+}
+
+model MasonSection {
+  id          Int         @id @default(autoincrement())
+  courseId    Int
+  title       String
+  position    Int
+  fileName    String
+  mimeType    String      @default("application/pdf")
+  pdfData     Bytes
+  lessonPlan  Json
+  createdAt   DateTime    @default(now())
+  course      MasonCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, position])
+  @@index([courseId])
+}

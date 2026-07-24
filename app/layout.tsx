@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Career Safety Training",
-  description: "Interactive workplace safety courses and completion certificates.",
+  title: "Mason | AI Safety Training",
+  description: "Dynamic, source-grounded workplace training taught by Mason.",
 };
 
 export default function RootLayout({

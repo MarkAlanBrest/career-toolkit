@@ -1,0 +1,141 @@
+export type LessonMoment = {
+  kind: "explain" | "visual" | "question" | "scenario" | "summary";
+  title: string;
+  narration: string;
+  prompt: string | null;
+  choices: string[] | null;
+  correctAnswer: number | null;
+  feedback: string | null;
+  pageNumber: number | null;
+};
+
+export type LessonPlan = {
+  sectionTitle: string;
+  opening: string;
+  objectives: string[];
+  summary: string;
+  keyFacts: string[];
+  moments: LessonMoment[];
+};
+
+export type PublicMasonSection = {
+  id: number;
+  title: string;
+  position: number;
+  fileName: string;
+  lessonPlan: LessonPlan;
+};
+
+export type PublicMasonCourse = {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  published: boolean;
+  sections: PublicMasonSection[];
+};
+
+export const demoCourse: PublicMasonCourse = {
+  id: 0,
+  title: "Ladder Safety with Mason",
+  slug: "demo",
+  description: "A short preview of Mason's dynamic teaching experience.",
+  published: true,
+  sections: [
+    {
+      id: 0,
+      title: "Safe Ladder Setup",
+      position: 1,
+      fileName: "demo.pdf",
+      lessonPlan: {
+        sectionTitle: "Safe Ladder Setup",
+        opening:
+          "Let’s learn how a thirty-second setup check can prevent a life-changing fall.",
+        objectives: [
+          "Recognize a stable setup surface",
+          "Apply the 4-to-1 rule",
+          "Know when a ladder should not be used",
+        ],
+        summary:
+          "A safe ladder starts on firm, level ground, uses the correct angle, and is secured before climbing.",
+        keyFacts: [
+          "Inspect the ladder before each use.",
+          "For every four feet of height, place the base one foot out.",
+          "Never compensate for uneven ground with loose objects.",
+        ],
+        moments: [
+          {
+            kind: "explain",
+            title: "Before your feet leave the ground",
+            narration:
+              "Most ladder incidents begin before anyone climbs. Start by checking the ladder, the surface, and the space around the work.",
+            prompt: null,
+            choices: null,
+            correctAnswer: null,
+            feedback: null,
+            pageNumber: null,
+          },
+          {
+            kind: "visual",
+            title: "The 4-to-1 rule",
+            narration:
+              "Picture an extension ladder reaching sixteen feet high. Its base should be four feet away from the wall. This creates a stable climbing angle.",
+            prompt: "What changes if the ladder reaches twenty feet?",
+            choices: null,
+            correctAnswer: null,
+            feedback: null,
+            pageNumber: null,
+          },
+          {
+            kind: "scenario",
+            title: "You arrive at the job",
+            narration:
+              "The only available ground is uneven gravel. A coworker suggests placing scrap wood under one foot of the ladder.",
+            prompt: "What is the safest decision?",
+            choices: [
+              "Use the scrap wood",
+              "Have someone hold the ladder",
+              "Move the work or create a proper level surface",
+            ],
+            correctAnswer: 2,
+            feedback:
+              "Correct—the ladder needs firm, level support. A helper cannot make an unstable setup safe.",
+            pageNumber: null,
+          },
+          {
+            kind: "question",
+            title: "Quick check",
+            narration: "Let’s make sure the setup ratio is clear.",
+            prompt:
+              "A ladder reaches twelve feet up a wall. About how far out should its base be?",
+            choices: ["1 foot", "3 feet", "6 feet"],
+            correctAnswer: 1,
+            feedback:
+              "Exactly. Twelve divided by four is three, so the base belongs about three feet out.",
+            pageNumber: null,
+          },
+          {
+            kind: "summary",
+            title: "Your setup habit",
+            narration:
+              "Inspect first, choose firm and level ground, set the correct angle, and secure the ladder. If any part feels improvised, stop and correct it.",
+            prompt: null,
+            choices: null,
+            correctAnswer: null,
+            feedback: null,
+            pageNumber: null,
+          },
+        ],
+      },
+    },
+  ],
+};
+
+export function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64);
+}

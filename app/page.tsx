@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function CourseCodePage() {
   const router = useRouter();
@@ -102,6 +103,12 @@ export default function CourseCodePage() {
             <li>✔ Final assessments and completion certificates</li>
             <li>✔ Resume-building workplace credentials</li>
           </ul>
+          <Link
+            href="/mason/demo"
+            className="mt-8 inline-flex rounded-xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300"
+          >
+            Meet Mason, your AI instructor
+          </Link>
         </div>
 
         <div className="bg-slate-800 rounded-2xl p-8 border border-slate-600 shadow-2xl">
