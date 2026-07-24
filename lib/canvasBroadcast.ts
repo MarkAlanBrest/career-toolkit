@@ -31,6 +31,7 @@ export type RecipientSnapshot = {
   courseCount: number;
   studentCount: number;
   studentIds: number[];
+  courses: Array<{ id: number; name: string }>;
   calculatedAt: string;
 };
 
@@ -154,11 +155,13 @@ export async function buildRecipientSnapshot(campus: CampusCode): Promise<Recipi
   );
 
   const studentIds = new Set<number>();
+  const eligibleCourses: Array<{ id: number; name: string }> = [];
   let courseCount = 0;
-  enrollments.forEach(rows => {
+  enrollments.forEach((rows, index) => {
     const active = rows.filter(isActiveStudent);
     if (!active.length) return;
     courseCount += 1;
+    eligibleCourses.push({ id: candidates[index].id, name: candidates[index].name || candidates[index].course_code || `Course ${candidates[index].id}` });
     active.forEach(row => studentIds.add(row.user_id));
   });
 
@@ -168,6 +171,7 @@ export async function buildRecipientSnapshot(campus: CampusCode): Promise<Recipi
     courseCount,
     studentCount: studentIds.size,
     studentIds: Array.from(studentIds),
+    courses: eligibleCourses,
     calculatedAt: new Date().toISOString(),
   };
 }
@@ -218,6 +222,43 @@ export async function sendCanvasConversation(
   const failed = studentIds.length - sent;
   return {
     status: sent === studentIds.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
+    sent,
+    failed,
+    errors,
+  };
+}
+
+export async function sendCanvasAnnouncements(
+  courses: Array<{ id: number; name: string }>,
+  title: string,
+  message: string,
+): Promise<SendResult> {
+  const outcomes = await mapWithConcurrency(courses, 4, async course => {
+    const form = new URLSearchParams();
+    form.set('title', title);
+    form.set('message', message);
+    form.set('is_announcement', 'true');
+    form.set('published', 'true');
+    form.set('lock_comment', 'true');
+    try {
+      await canvasFetch(`/api/v1/courses/${course.id}/discussion_topics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+      });
+      return { ok: true, error: '' };
+    } catch (error) {
+      return {
+        ok: false,
+        error: `${course.name} (${course.id}): ${error instanceof Error ? error.message : 'Unknown Canvas error'}`,
+      };
+    }
+  });
+  const sent = outcomes.filter(item => item.ok).length;
+  const errors = outcomes.filter(item => !item.ok).map(item => item.error);
+  const failed = courses.length - sent;
+  return {
+    status: sent === courses.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
     sent,
     failed,
     errors,

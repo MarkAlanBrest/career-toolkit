@@ -31,8 +31,9 @@ Verify a production build with `npm run build`.
 # Canvas Broadcast Center
 
 The administrator broadcast tool is available at `/canvas-broadcast`. It reads eligible Canvas
-courses and active student enrollments on the server, deduplicates recipients, sends Canvas Inbox
-conversations in batches, and stores reusable templates plus the last 25 broadcast attempts.
+courses and active student enrollments on the server, then sends either deduplicated Canvas Inbox
+conversations or one announcement per eligible course. It stores reusable templates plus the last
+25 broadcast attempts.
 
 Configure these server-side environment variables before using it:
 
