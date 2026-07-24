@@ -25,7 +25,9 @@ the OpenAI Responses API to create a source-grounded lesson plan with teaching
 moments, questions, scenarios, and references to useful PDF pages.
 
 Add `OPENAI_API_KEY` to `.env` to enable lesson generation and live student
-questions. The classroom preview at `/mason/demo` works without an API key.
+questions. The same key enables Mason's natural AI voice through the speech
+endpoint. The classroom preview at `/mason/demo` works without an API key and
+falls back to the device voice when natural audio is unavailable.
 
 ## Administration
 
