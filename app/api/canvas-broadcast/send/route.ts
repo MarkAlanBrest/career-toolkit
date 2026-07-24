@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
-  if (!isBroadcastAuthorized(request)) return NextResponse.json(broadcastAuthError(), { status: 401 });
+  if (!(await isBroadcastAuthorized(request))) return NextResponse.json(broadcastAuthError(), { status: 401 });
   const input = await request.json().catch(() => null);
   const campus = input?.campus as CampusCode | undefined;
   const subject = String(input?.subject || '').trim();

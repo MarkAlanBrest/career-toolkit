@@ -41,11 +41,16 @@ CANVAS_BASE_URL=https://your-school.instructure.com
 CANVAS_API_TOKEN=your-server-only-token
 CANVAS_ACCOUNT_ID=1
 CANVAS_BROADCAST_ADMIN_EMAIL=admin@example.com
-CANVAS_BROADCAST_ADMIN_PASSWORD=choose-a-strong-access-key
+CANVAS_BROADCAST_ADMIN_PASSWORD=choose-a-strong-password
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
 ```
 
-The Redis variables are strongly recommended in production. Without them, the existing local
+The administrator email/password are optional bootstrap credentials. On the first successful
+sign-in they are copied into the database, after which administrator names, emails, passwords,
+and additional accounts are managed from the app.
+
+The Redis variables are required for durable production accounts and strongly recommended for all
+production data. Without them, the existing local
 file-backed development store is used and data is not durable on serverless hosting. Never prefix
 the Canvas token with `NEXT_PUBLIC_`.

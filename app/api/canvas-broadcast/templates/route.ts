@@ -10,12 +10,12 @@ function invalid(input: any) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isBroadcastAuthorized(request)) return NextResponse.json(broadcastAuthError(), { status: 401 });
+  if (!(await isBroadcastAuthorized(request))) return NextResponse.json(broadcastAuthError(), { status: 401 });
   return NextResponse.json({ templates: await listTemplates() });
 }
 
 export async function POST(request: NextRequest) {
-  if (!isBroadcastAuthorized(request)) return NextResponse.json(broadcastAuthError(), { status: 401 });
+  if (!(await isBroadcastAuthorized(request))) return NextResponse.json(broadcastAuthError(), { status: 401 });
   const input = await request.json().catch(() => null);
   if (invalid(input)) return NextResponse.json({ error: 'Template name, subject, and message are required.' }, { status: 400 });
   const template = await saveTemplate({
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!isBroadcastAuthorized(request)) return NextResponse.json(broadcastAuthError(), { status: 401 });
+  if (!(await isBroadcastAuthorized(request))) return NextResponse.json(broadcastAuthError(), { status: 401 });
   const id = request.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Template ID is required.' }, { status: 400 });
   const deleted = await deleteTemplate(id);

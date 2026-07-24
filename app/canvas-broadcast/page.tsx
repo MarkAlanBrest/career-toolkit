@@ -34,6 +34,13 @@ type Broadcast = {
   failedCount: number;
   errors: string[];
 };
+type AdminAccount = {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const CAMPUSES: Array<{ code: CampusCode; name: string; location: string }> = [
   { code: 'NCST', name: 'New Castle', location: 'Pennsylvania' },
@@ -69,9 +76,15 @@ function Icon({ name }: { name: 'people' | 'book' | 'clock' | 'shield' | 'send' 
 }
 
 export default function CanvasBroadcastPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authorized, setAuthorized] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState<AdminAccount | null>(null);
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
+  const [editingAccount, setEditingAccount] = useState<AdminAccount | null>(null);
+  const [accountForm, setAccountForm] = useState({ name: '', email: '', password: '' });
   const [campus, setCampus] = useState<CampusCode>('ELPC');
   const [summaries, setSummaries] = useState(blankSummary);
   const [summaryLoading, setSummaryLoading] = useState(false);
@@ -82,7 +95,7 @@ export default function CanvasBroadcastPage() {
   const [history, setHistory] = useState<Broadcast[]>([]);
   const [savingName, setSavingName] = useState('');
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  const [modal, setModal] = useState<'save' | 'confirm' | 'details' | null>(null);
+  const [modal, setModal] = useState<'save' | 'confirm' | 'details' | 'accounts' | null>(null);
   const [selectedBroadcast, setSelectedBroadcast] = useState<Broadcast | null>(null);
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -108,7 +121,12 @@ export default function CanvasBroadcastPage() {
   async function restoreSession() {
     try {
       const status = await api('/api/canvas-broadcast/auth');
-      if (status.authenticated) await loadWorkspace();
+      setSetupRequired(Boolean(status.setupRequired));
+      if (status.authenticated) {
+        setCurrentAccount(status.account);
+        setEmail(status.account?.email || '');
+        await loadWorkspace();
+      }
     } catch {}
   }
 
@@ -129,8 +147,11 @@ export default function CanvasBroadcastPage() {
     try {
       await api('/api/canvas-broadcast/auth', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ action: setupRequired ? 'setup' : 'login', name, email, password }),
       });
+      const status = await api('/api/canvas-broadcast/auth');
+      setCurrentAccount(status.account);
+      setSetupRequired(false);
       setPassword('');
       await loadWorkspace();
     } catch (error) {
@@ -142,10 +163,60 @@ export default function CanvasBroadcastPage() {
   async function signOut() {
     await api('/api/canvas-broadcast/auth', { method: 'DELETE' }).catch(() => null);
     setAuthorized(false);
+    setCurrentAccount(null);
     setTemplates([]);
     setHistory([]);
     setSummaries(blankSummary);
     setNotice({ type: 'info', text: 'You have signed out.' });
+  }
+
+  async function openAccounts() {
+    try {
+      const data = await api('/api/canvas-broadcast/accounts');
+      setAccounts(data.accounts);
+      setEditingAccount(null);
+      setAccountForm({ name: '', email: '', password: '' });
+      setModal('accounts');
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to load administrators.' });
+    }
+  }
+
+  function editAccount(account: AdminAccount) {
+    setEditingAccount(account);
+    setAccountForm({ name: account.name, email: account.email, password: '' });
+  }
+
+  async function saveAccount() {
+    try {
+      const data = await api('/api/canvas-broadcast/accounts', {
+        method: editingAccount ? 'PATCH' : 'POST',
+        body: JSON.stringify({ id: editingAccount?.id, ...accountForm }),
+      });
+      setAccounts(items => editingAccount
+        ? items.map(item => item.id === data.account.id ? data.account : item)
+        : [...items, data.account]);
+      if (currentAccount?.id === data.account.id) {
+        setCurrentAccount(data.account);
+        setEmail(data.account.email);
+      }
+      setEditingAccount(null);
+      setAccountForm({ name: '', email: '', password: '' });
+      setNotice({ type: 'success', text: editingAccount ? 'Administrator updated.' : 'Administrator added.' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to save administrator.' });
+    }
+  }
+
+  async function removeAccount(account: AdminAccount) {
+    if (!window.confirm(`Remove ${account.name} (${account.email})?`)) return;
+    try {
+      await api(`/api/canvas-broadcast/accounts?id=${encodeURIComponent(account.id)}`, { method: 'DELETE' });
+      setAccounts(items => items.filter(item => item.id !== account.id));
+      setNotice({ type: 'success', text: 'Administrator removed.' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to remove administrator.' });
+    }
   }
 
   async function loadSummary(code: CampusCode, force = false) {
@@ -321,16 +392,18 @@ export default function CanvasBroadcastPage() {
           <div className={styles.access}>
             {authorized ? (
               <div className={styles.signedIn}>
-                <span>Signed in as <strong>{email || 'Administrator'}</strong></span>
+                <span>Signed in as <strong>{currentAccount?.name || 'Administrator'}</strong></span>
+                <button onClick={() => void openAccounts()}>Manage admins</button>
                 <button onClick={() => void signOut()}>Sign out</button>
               </div>
             ) : (
               <>
-                <label htmlFor="login-email">Administrator login</label>
+                <label htmlFor="login-email">{setupRequired ? 'Create first administrator' : 'Administrator login'}</label>
                 <div className={styles.loginFields}>
+                  {setupRequired && <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full name" autoComplete="name" />}
                   <input id="login-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address" autoComplete="username" />
                   <input id="login-password" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && void connect()} placeholder="Password" autoComplete="current-password" />
-                  <button onClick={() => void connect()} disabled={!email || !password}>Sign in</button>
+                  <button onClick={() => void connect()} disabled={!email || !password || (setupRequired && !name)}>{setupRequired ? 'Create account' : 'Sign in'}</button>
                 </div>
               </>
             )}
@@ -459,6 +532,34 @@ export default function CanvasBroadcastPage() {
             <iframe className={styles.preview} title="Broadcast message" sandbox="" srcDoc={`<!doctype html><style>body{font:15px/1.55 Arial,sans-serif;color:#26313a;padding:16px;margin:0}a{color:#146ca4}</style>${selectedBroadcast.body}`} />
             {selectedBroadcast.errors?.length > 0 && <div className={styles.errorDetails}><strong>Canvas/API details</strong>{selectedBroadcast.errors.map((error, index) => <p key={index}>{error}</p>)}</div>}
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Close</button><button className={styles.primary} onClick={reuseBroadcast}>Reuse message</button></div>
+          </>}
+          {modal === 'accounts' && <>
+            <span className={styles.modalKicker}>ACCESS MANAGEMENT</span>
+            <h2>Administrators</h2>
+            <p>Add or update the people who can use the Broadcast Center. Passwords are securely hashed and never displayed.</p>
+            <div className={styles.accountList}>
+              {accounts.map(account => (
+                <div key={account.id} className={styles.accountRow}>
+                  <div className={styles.accountAvatar}>{account.name.slice(0, 1).toUpperCase()}</div>
+                  <div><strong>{account.name}</strong><span>{account.email}{account.id === currentAccount?.id ? ' · You' : ''}</span></div>
+                  <button className={styles.textButton} onClick={() => editAccount(account)}>Edit</button>
+                  <button className={styles.dangerButton} onClick={() => void removeAccount(account)} disabled={account.id === currentAccount?.id}>Remove</button>
+                </div>
+              ))}
+            </div>
+            <div className={styles.accountForm}>
+              <h3>{editingAccount ? 'Edit administrator' : 'Add administrator'}</h3>
+              <div className={styles.accountFields}>
+                <label><span>Name</span><input value={accountForm.name} onChange={e => setAccountForm(form => ({ ...form, name: e.target.value }))} placeholder="Full name" /></label>
+                <label><span>Email</span><input type="email" value={accountForm.email} onChange={e => setAccountForm(form => ({ ...form, email: e.target.value }))} placeholder="name@school.edu" /></label>
+                <label className={styles.passwordField}><span>{editingAccount ? 'New password (optional)' : 'Password'}</span><input type="password" value={accountForm.password} onChange={e => setAccountForm(form => ({ ...form, password: e.target.value }))} placeholder={editingAccount ? 'Leave blank to keep current password' : 'At least 10 characters'} /></label>
+              </div>
+              <div className={styles.accountFormActions}>
+                {editingAccount && <button className={styles.secondary} onClick={() => { setEditingAccount(null); setAccountForm({ name: '', email: '', password: '' }); }}>Cancel edit</button>}
+                <button className={styles.primary} onClick={() => void saveAccount()} disabled={!accountForm.name || !accountForm.email || (!editingAccount && accountForm.password.length < 10)}>{editingAccount ? 'Save changes' : 'Add administrator'}</button>
+              </div>
+            </div>
+            <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Done</button></div>
           </>}
         </div>
       </div>}
