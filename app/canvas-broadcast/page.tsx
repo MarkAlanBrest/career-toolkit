@@ -1,0 +1,433 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import styles from './broadcast.module.css';
+
+type CampusCode = 'NCST' | 'ELPC' | 'NATS';
+type Summary = {
+  campus: CampusCode;
+  campusName: string;
+  courseCount: number;
+  studentCount: number;
+  calculatedAt: string;
+  cached?: boolean;
+};
+type Template = {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+type Broadcast = {
+  id: string;
+  createdAt: string;
+  campus: CampusCode;
+  campusName: string;
+  subject: string;
+  body: string;
+  recipientCount: number;
+  eligibleCourseCount: number;
+  status: 'Sent' | 'Partial failure' | 'Failed';
+  sentCount: number;
+  failedCount: number;
+  errors: string[];
+};
+
+const CAMPUSES: Array<{ code: CampusCode; name: string; location: string }> = [
+  { code: 'NCST', name: 'New Castle', location: 'Pennsylvania' },
+  { code: 'ELPC', name: 'East Liverpool', location: 'Ohio' },
+  { code: 'NATS', name: 'Baltimore', location: 'Maryland' },
+];
+
+const blankSummary: Record<CampusCode, Summary | null> = { NCST: null, ELPC: null, NATS: null };
+
+function stripHtml(html: string) {
+  if (typeof document === 'undefined') return html;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return (div.textContent || '').trim();
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function Icon({ name }: { name: 'people' | 'book' | 'clock' | 'shield' | 'send' | 'refresh' }) {
+  const paths = {
+    people: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    book: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></>,
+    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></>,
+    send: <><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>,
+    refresh: <><path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M18.5 9A7 7 0 0 0 6 6.5L4 9M5.5 15A7 7 0 0 0 18 17.5l2-2.5"/></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+export default function CanvasBroadcastPage() {
+  const [adminKey, setAdminKey] = useState('');
+  const [authorized, setAuthorized] = useState(false);
+  const [campus, setCampus] = useState<CampusCode>('ELPC');
+  const [summaries, setSummaries] = useState(blankSummary);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [subject, setSubject] = useState('');
+  const [bodyLength, setBodyLength] = useState(0);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [history, setHistory] = useState<Broadcast[]>([]);
+  const [savingName, setSavingName] = useState('');
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+  const [modal, setModal] = useState<'save' | 'confirm' | 'details' | null>(null);
+  const [selectedBroadcast, setSelectedBroadcast] = useState<Broadcast | null>(null);
+  const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const summary = summaries[campus];
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem('canvas-broadcast-key') || '';
+    if (saved) {
+      setAdminKey(saved);
+      void connect(saved);
+    }
+  }, []);
+
+  async function api(path: string, init?: RequestInit, key = adminKey) {
+    const response = await fetch(path, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', 'x-broadcast-key': key, ...init?.headers },
+      cache: 'no-store',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'The request could not be completed.');
+    return data;
+  }
+
+  async function connect(key = adminKey) {
+    setNotice({ type: 'info', text: 'Connecting securely…' });
+    try {
+      const [templateData, historyData] = await Promise.all([
+        api('/api/canvas-broadcast/templates', undefined, key),
+        api('/api/canvas-broadcast/history', undefined, key),
+      ]);
+      setTemplates(templateData.templates);
+      setHistory(historyData.broadcasts);
+      setAuthorized(true);
+      sessionStorage.setItem('canvas-broadcast-key', key);
+      setNotice(null);
+      void loadSummary(campus, key);
+    } catch (error) {
+      setAuthorized(false);
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to connect.' });
+    }
+  }
+
+  async function loadSummary(code: CampusCode, key = adminKey, force = false) {
+    setSummaryLoading(true);
+    setNotice(null);
+    try {
+      const suffix = force ? `&refresh=${Date.now()}` : '';
+      const data = await api(`/api/canvas-broadcast/summary?campus=${code}${suffix}`, undefined, key);
+      setSummaries(previous => ({ ...previous, [code]: data }));
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to calculate recipients.' });
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
+  function chooseCampus(code: CampusCode) {
+    setCampus(code);
+    if (!summaries[code] && authorized) void loadSummary(code);
+  }
+
+  function runCommand(command: string, value?: string) {
+    editorRef.current?.focus();
+    document.execCommand(command, false, value);
+  }
+
+  function addLink() {
+    const url = window.prompt('Enter the full link URL');
+    if (url && /^https?:\/\//i.test(url)) runCommand('createLink', url);
+  }
+
+  function setEditorHtml(html: string) {
+    if (editorRef.current) editorRef.current.innerHTML = html;
+    setBodyLength(stripHtml(html).length);
+  }
+
+  function currentBody() {
+    return editorRef.current?.innerHTML || '';
+  }
+
+  function loadTemplate() {
+    const template = templates.find(item => item.id === selectedTemplate);
+    if (!template) return;
+    setSubject(template.subject);
+    setEditorHtml(template.body);
+    setNotice({ type: 'success', text: `“${template.name}” loaded. Review it before sending.` });
+  }
+
+  function openSave(template?: Template) {
+    const target = template || templates.find(item => item.id === selectedTemplate) || null;
+    setEditingTemplate(target);
+    setSavingName(target?.name || subject || '');
+    setModal('save');
+  }
+
+  async function saveMessage() {
+    if (!savingName.trim() || !subject.trim() || !stripHtml(currentBody())) {
+      setNotice({ type: 'error', text: 'Add a template name, subject, and message first.' });
+      return;
+    }
+    try {
+      const data = await api('/api/canvas-broadcast/templates', {
+        method: 'POST',
+        body: JSON.stringify({ id: editingTemplate?.id, name: savingName, subject, body: currentBody() }),
+      });
+      setTemplates(items => editingTemplate
+        ? items.map(item => item.id === data.template.id ? data.template : item)
+        : [data.template, ...items]);
+      setSelectedTemplate(data.template.id);
+      setModal(null);
+      setNotice({ type: 'success', text: `Template “${data.template.name}” saved.` });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to save template.' });
+    }
+  }
+
+  async function removeTemplate() {
+    const template = templates.find(item => item.id === selectedTemplate);
+    if (!template || !window.confirm(`Delete “${template.name}”? This cannot be undone.`)) return;
+    try {
+      await api(`/api/canvas-broadcast/templates?id=${encodeURIComponent(template.id)}`, { method: 'DELETE' });
+      setTemplates(items => items.filter(item => item.id !== template.id));
+      setSelectedTemplate('');
+      setNotice({ type: 'success', text: 'Template deleted.' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Unable to delete template.' });
+    }
+  }
+
+  function requestSend() {
+    if (!summary || summaryLoading) {
+      setNotice({ type: 'error', text: 'Wait for the recipient count to finish calculating.' });
+      return;
+    }
+    if (!summary.studentCount) {
+      setNotice({ type: 'error', text: 'There are no eligible active students for this campus.' });
+      return;
+    }
+    if (!subject.trim() || !stripHtml(currentBody())) {
+      setNotice({ type: 'error', text: 'Add a subject and message before sending.' });
+      return;
+    }
+    setModal('confirm');
+  }
+
+  async function send() {
+    setSending(true);
+    setModal(null);
+    setNotice({ type: 'info', text: 'Sending broadcast. Keep this page open…' });
+    try {
+      const data = await api('/api/canvas-broadcast/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          campus,
+          subject,
+          body: currentBody(),
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      });
+      setHistory(items => [data.record, ...items].slice(0, 25));
+      setSummaries(previous => ({ ...previous, [campus]: null }));
+      const result = data.result;
+      setNotice({
+        type: result.status === 'Sent' ? 'success' : 'error',
+        text: result.status === 'Sent'
+          ? `Broadcast sent to ${result.sent.toLocaleString()} students.`
+          : `${result.sent.toLocaleString()} sent; ${result.failed.toLocaleString()} failed. See broadcast details.`,
+      });
+      void loadSummary(campus);
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'The broadcast failed.' });
+      try {
+        const data = await api('/api/canvas-broadcast/history');
+        setHistory(data.broadcasts);
+      } catch {}
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function showBroadcast(item: Broadcast) {
+    setSelectedBroadcast(item);
+    setModal('details');
+  }
+
+  function reuseBroadcast() {
+    if (!selectedBroadcast) return;
+    setSubject(selectedBroadcast.subject);
+    setEditorHtml(selectedBroadcast.body);
+    setCampus(selectedBroadcast.campus);
+    setModal(null);
+    setNotice({ type: 'success', text: 'Message loaded for reuse. It has not been sent.' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  return (
+    <main className={styles.page}>
+      <header className={styles.topbar}>
+        <div className={styles.brand}>
+          <div className={styles.mark}>C</div>
+          <div><strong>Canvas Broadcast Center</strong><span>Student Communications</span></div>
+        </div>
+        <div className={styles.secure}><Icon name="shield" /> Server-secured Canvas connection</div>
+      </header>
+
+      <div className={styles.shell}>
+        <section className={styles.intro}>
+          <div>
+            <span className={styles.eyebrow}>ADMINISTRATOR TOOL</span>
+            <h1>Send a campus broadcast</h1>
+            <p>Reach every active student in eligible Canvas courses with one clear, deduplicated message.</p>
+          </div>
+          <div className={styles.access}>
+            <label htmlFor="access-key">Administrator access key</label>
+            <div><input id="access-key" type="password" value={adminKey} onChange={e => setAdminKey(e.target.value)} onKeyDown={e => e.key === 'Enter' && void connect()} placeholder="Enter access key" /><button onClick={() => void connect()} disabled={!adminKey}>Connect</button></div>
+          </div>
+        </section>
+
+        {notice && <div className={`${styles.notice} ${styles[notice.type]}`} role="status">{notice.text}<button onClick={() => setNotice(null)} aria-label="Dismiss">×</button></div>}
+
+        <section className={`${styles.card} ${!authorized ? styles.locked : ''}`} aria-disabled={!authorized}>
+          <div className={styles.sectionHead}>
+            <div><span className={styles.step}>01</span><h2>Choose a campus</h2></div>
+            <span className={styles.hint}>Course codes are matched automatically</span>
+          </div>
+          <div className={styles.campusGrid}>
+            {CAMPUSES.map(item => {
+              const itemSummary = summaries[item.code];
+              return (
+                <button key={item.code} className={`${styles.campus} ${campus === item.code ? styles.campusActive : ''}`} onClick={() => chooseCampus(item.code)} disabled={!authorized}>
+                  <span className={styles.radio} />
+                  <span className={styles.campusCopy}><strong>{item.name}</strong><small>{item.location} · {item.code}</small></span>
+                  {itemSummary && <span className={styles.campusCount}>{itemSummary.studentCount.toLocaleString()}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className={`${styles.summaryCard} ${!authorized ? styles.locked : ''}`}>
+          <div className={styles.summaryIdentity}><span>RECIPIENT SUMMARY</span><strong>{CAMPUSES.find(item => item.code === campus)?.name}</strong><small>{summary ? `Calculated ${formatDate(summary.calculatedAt)}` : 'Select a campus to calculate'}</small></div>
+          <div className={styles.metric}><div><Icon name="book" /></div><span><strong>{summaryLoading ? '—' : (summary?.courseCount ?? '—')}</strong><small>Eligible courses</small></span></div>
+          <div className={styles.metric}><div><Icon name="people" /></div><span><strong>{summaryLoading ? '—' : (summary?.studentCount.toLocaleString() ?? '—')}</strong><small>Unique active students</small></span></div>
+          <button className={styles.refresh} onClick={() => void loadSummary(campus, adminKey, true)} disabled={!authorized || summaryLoading} title="Refresh recipient count"><Icon name="refresh" /></button>
+        </section>
+
+        <div className={`${styles.twoCol} ${!authorized ? styles.locked : ''}`}>
+          <section className={styles.card}>
+            <div className={styles.sectionHead}>
+              <div><span className={styles.step}>02</span><h2>Saved messages</h2></div>
+            </div>
+            <label className={styles.label} htmlFor="template">Message template</label>
+            <select id="template" value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} disabled={!authorized}>
+              <option value="">Choose a saved message…</option>
+              {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+            </select>
+            <div className={styles.templateActions}>
+              <button className={styles.secondary} onClick={loadTemplate} disabled={!selectedTemplate}>Load message</button>
+              <button className={styles.textButton} onClick={() => openSave()} disabled={!subject.trim()}>Save current</button>
+              <button className={styles.textButton} onClick={() => openSave(templates.find(item => item.id === selectedTemplate))} disabled={!selectedTemplate}>Rename / update</button>
+              <button className={styles.dangerButton} onClick={removeTemplate} disabled={!selectedTemplate}>Delete</button>
+            </div>
+          </section>
+
+          <section className={styles.tipCard}>
+            <div className={styles.tipIcon}>i</div>
+            <div><strong>One message per student</strong><p>Students enrolled in multiple eligible courses are automatically deduplicated by Canvas user ID.</p></div>
+          </section>
+        </div>
+
+        <section className={`${styles.card} ${!authorized ? styles.locked : ''}`}>
+          <div className={styles.sectionHead}>
+            <div><span className={styles.step}>03</span><h2>Compose your message</h2></div>
+            <span className={styles.hint}>Delivered through Canvas Inbox</span>
+          </div>
+          <label className={styles.label} htmlFor="subject">Subject</label>
+          <input id="subject" className={styles.subject} value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} placeholder="Enter a clear, specific subject" disabled={!authorized} />
+          <div className={styles.editorLabel}><label className={styles.label}>Message</label><span>{bodyLength.toLocaleString()} characters</span></div>
+          <div className={styles.toolbar} role="toolbar" aria-label="Message formatting">
+            <button onClick={() => runCommand('bold')} title="Bold"><b>B</b></button>
+            <button onClick={() => runCommand('italic')} title="Italic"><i>I</i></button>
+            <span />
+            <button onClick={() => runCommand('formatBlock', 'H2')} title="Heading">H2</button>
+            <button onClick={() => runCommand('formatBlock', 'P')} title="Paragraph">P</button>
+            <span />
+            <button onClick={() => runCommand('insertUnorderedList')} title="Bulleted list">• List</button>
+            <button onClick={() => runCommand('insertOrderedList')} title="Numbered list">1. List</button>
+            <button onClick={addLink} title="Add link">Link</button>
+          </div>
+          <div ref={editorRef} className={styles.editor} contentEditable={authorized} suppressContentEditableWarning data-placeholder="Write your message to students here…" onInput={() => setBodyLength(stripHtml(currentBody()).length)} />
+          <div className={styles.sendRow}>
+            <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
+            <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || summaryLoading || !summary?.studentCount}><Icon name="send" />{sending ? 'SENDING…' : 'SEND MESSAGE'}</button>
+          </div>
+        </section>
+
+        <section className={`${styles.card} ${styles.historyCard} ${!authorized ? styles.locked : ''}`}>
+          <div className={styles.sectionHead}>
+            <div><span className={styles.step}>04</span><h2>Last 25 broadcasts</h2></div>
+            <span className={styles.hint}>{history.length} recorded</span>
+          </div>
+          <div className={styles.tableWrap}>
+            <table>
+              <thead><tr><th>Date & time</th><th>Campus</th><th>Subject</th><th>Recipients</th><th>Status</th></tr></thead>
+              <tbody>
+                {history.length ? history.map(item => (
+                  <tr key={item.id} onClick={() => showBroadcast(item)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && showBroadcast(item)}>
+                    <td>{formatDate(item.createdAt)}</td><td>{item.campusName}</td><td className={styles.subjectCell}>{item.subject}</td><td>{item.recipientCount.toLocaleString()}</td>
+                    <td><span className={`${styles.status} ${styles[item.status.replace(' ', '').toLowerCase()]}`}>{item.status}</span></td>
+                  </tr>
+                )) : <tr><td colSpan={5} className={styles.empty}>No broadcasts have been sent yet.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      {modal && <div className={styles.backdrop} role="presentation" onMouseDown={e => e.target === e.currentTarget && !sending && setModal(null)}>
+        <div className={styles.modal} role="dialog" aria-modal="true">
+          {modal === 'save' && <>
+            <span className={styles.modalKicker}>SAVED MESSAGE</span><h2>{editingTemplate ? 'Update template' : 'Save this message'}</h2>
+            <p>Give this message a short name so administrators can find it later.</p>
+            <label className={styles.label} htmlFor="template-name">Template name</label>
+            <input id="template-name" autoFocus value={savingName} onChange={e => setSavingName(e.target.value)} maxLength={100} placeholder="e.g. Schedule reminder" />
+            <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Cancel</button><button className={styles.primary} onClick={saveMessage}>Save template</button></div>
+          </>}
+          {modal === 'confirm' && summary && <>
+            <div className={styles.confirmIcon}><Icon name="send" /></div>
+            <span className={styles.modalKicker}>FINAL CONFIRMATION</span><h2>Ready to send?</h2>
+            <p className={styles.confirmText}>You are about to send <strong>“{subject}”</strong> to <strong>{summary.studentCount.toLocaleString()} students</strong> at <strong>{summary.campusName}</strong>.</p>
+            <div className={styles.confirmStats}><span><b>{summary.courseCount}</b> eligible courses</span><span><b>{summary.studentCount.toLocaleString()}</b> unique students</span></div>
+            <div className={styles.warning}>The recipient list will be recalculated immediately before sending. This action cannot be recalled from Canvas.</div>
+            <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Go back</button><button className={styles.sendConfirm} onClick={send}>Confirm & send</button></div>
+          </>}
+          {modal === 'details' && selectedBroadcast && <>
+            <div className={styles.detailHead}><div><span className={styles.modalKicker}>BROADCAST DETAILS</span><h2>{selectedBroadcast.subject}</h2></div><span className={`${styles.status} ${styles[selectedBroadcast.status.replace(' ', '').toLowerCase()]}`}>{selectedBroadcast.status}</span></div>
+            <div className={styles.detailMeta}><span><b>Sent</b>{formatDate(selectedBroadcast.createdAt)}</span><span><b>Campus</b>{selectedBroadcast.campusName}</span><span><b>Recipients</b>{selectedBroadcast.recipientCount.toLocaleString()}</span><span><b>Courses</b>{selectedBroadcast.eligibleCourseCount}</span></div>
+            <iframe className={styles.preview} title="Broadcast message" sandbox="" srcDoc={`<!doctype html><style>body{font:15px/1.55 Arial,sans-serif;color:#26313a;padding:16px;margin:0}a{color:#146ca4}</style>${selectedBroadcast.body}`} />
+            {selectedBroadcast.errors?.length > 0 && <div className={styles.errorDetails}><strong>Canvas/API details</strong>{selectedBroadcast.errors.map((error, index) => <p key={index}>{error}</p>)}</div>}
+            <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Close</button><button className={styles.primary} onClick={reuseBroadcast}>Reuse message</button></div>
+          </>}
+        </div>
+      </div>}
+    </main>
+  );
+}

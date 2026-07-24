@@ -28,3 +28,23 @@ npm run dev
 ```
 
 Verify a production build with `npm run build`.
+# Canvas Broadcast Center
+
+The administrator broadcast tool is available at `/canvas-broadcast`. It reads eligible Canvas
+courses and active student enrollments on the server, deduplicates recipients, sends Canvas Inbox
+conversations in batches, and stores reusable templates plus the last 25 broadcast attempts.
+
+Configure these server-side environment variables before using it:
+
+```env
+CANVAS_BASE_URL=https://your-school.instructure.com
+CANVAS_API_TOKEN=your-server-only-token
+CANVAS_ACCOUNT_ID=1
+CANVAS_BROADCAST_ADMIN_PASSWORD=choose-a-strong-access-key
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
+```
+
+The Redis variables are strongly recommended in production. Without them, the existing local
+file-backed development store is used and data is not durable on serverless hosting. Never prefix
+the Canvas token with `NEXT_PUBLIC_`.
