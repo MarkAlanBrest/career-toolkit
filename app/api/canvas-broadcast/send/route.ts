@@ -15,9 +15,12 @@ export async function POST(request: NextRequest) {
   const subject = String(input?.subject || '').trim();
   const body = sanitizeMessageHtml(String(input?.body || '').trim());
   const idempotencyKey = String(input?.idempotencyKey || '');
+  const expectedCourseIds = Array.isArray(input?.expectedCourseIds)
+    ? input.expectedCourseIds.map(Number).filter(Number.isFinite).sort((a: number, b: number) => a - b)
+    : [];
   const delivery = 'announcement' as const;
-  if (!campus || !(campus in CAMPUSES) || !subject || !body || !idempotencyKey) {
-    return NextResponse.json({ error: 'Campus, subject, message, and confirmation token are required.' }, { status: 400 });
+  if (!campus || !(campus in CAMPUSES) || !subject || !body || !idempotencyKey || !expectedCourseIds.length) {
+    return NextResponse.json({ error: 'Campus, reviewed course list, subject, message, and confirmation token are required.' }, { status: 400 });
   }
   if (subject.length > 255 || body.length > 50000) {
     return NextResponse.json({ error: 'The subject or message is too long.' }, { status: 400 });
@@ -30,6 +33,13 @@ export async function POST(request: NextRequest) {
   try {
     // Recalculate at send time so the confirmation is never used with a stale recipient list.
     const snapshot = await buildRecipientSnapshot(campus);
+    const currentCourseIds = snapshot.courses.map(course => course.id).sort((a, b) => a - b);
+    if (currentCourseIds.length !== expectedCourseIds.length
+      || currentCourseIds.some((id, index) => id !== expectedCourseIds[index])) {
+      return NextResponse.json({
+        error: 'The eligible course list changed after your review. Refresh the campus data and review the courses again before posting.',
+      }, { status: 409 });
+    }
     if (!snapshot.studentCount) {
       const record = await addBroadcast({
         campus,

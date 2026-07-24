@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
     const cacheKey = `canvas-broadcast:snapshot:created-6-months:${campus}`;
     if (request.nextUrl.searchParams.has('refresh')) await redis.del(cacheKey);
     const cached = await redis.get<Awaited<ReturnType<typeof buildRecipientSnapshot>>>(cacheKey);
-    if (cached) return NextResponse.json({ ...cached, studentIds: undefined, courses: undefined, cached: true });
+    if (cached) return NextResponse.json({ ...cached, studentIds: undefined, cached: true });
     const snapshot = await buildRecipientSnapshot(campus);
     await redis.set(cacheKey, snapshot, { ex: 300 });
-    return NextResponse.json({ ...snapshot, studentIds: undefined, courses: undefined, cached: false });
+    return NextResponse.json({ ...snapshot, studentIds: undefined, cached: false });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to load recipients.' }, { status: 502 });
   }

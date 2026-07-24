@@ -9,6 +9,7 @@ type Summary = {
   campusName: string;
   courseCount: number;
   studentCount: number;
+  courses: Array<{ id: number; name: string }>;
   calculatedAt: string;
   cached?: boolean;
 };
@@ -89,6 +90,7 @@ export default function CanvasBroadcastPage() {
   const [campus, setCampus] = useState<CampusCode>('ELPC');
   const [summaries, setSummaries] = useState(blankSummary);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [reviewedSnapshot, setReviewedSnapshot] = useState('');
   const [subject, setSubject] = useState('');
   const [testCourseUrl, setTestCourseUrl] = useState('');
   const [bodyLength, setBodyLength] = useState(0);
@@ -97,7 +99,7 @@ export default function CanvasBroadcastPage() {
   const [history, setHistory] = useState<Broadcast[]>([]);
   const [savingName, setSavingName] = useState('');
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
-  const [modal, setModal] = useState<'save' | 'confirm' | 'details' | 'accounts' | null>(null);
+  const [modal, setModal] = useState<'save' | 'confirm' | 'details' | 'accounts' | 'courses' | null>(null);
   const [selectedBroadcast, setSelectedBroadcast] = useState<Broadcast | null>(null);
   const [sending, setSending] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -225,6 +227,7 @@ export default function CanvasBroadcastPage() {
 
   async function loadSummary(code: CampusCode, force = false) {
     setSummaryLoading(true);
+    setReviewedSnapshot('');
     setNotice(null);
     try {
       const suffix = force ? `&refresh=${Date.now()}` : '';
@@ -319,6 +322,11 @@ export default function CanvasBroadcastPage() {
       setNotice({ type: 'error', text: 'There are no eligible active students for this campus.' });
       return;
     }
+    if (reviewedSnapshot !== summary.calculatedAt) {
+      setNotice({ type: 'error', text: 'Review and approve the eligible course list before posting.' });
+      setModal('courses');
+      return;
+    }
     if (!subject.trim() || !stripHtml(currentBody())) {
       setNotice({ type: 'error', text: 'Add a subject and message before sending.' });
       return;
@@ -337,6 +345,7 @@ export default function CanvasBroadcastPage() {
           campus,
           subject,
           body: currentBody(),
+          expectedCourseIds: summary?.courses.map(course => course.id) || [],
           idempotencyKey: crypto.randomUUID(),
         }),
       });
@@ -488,7 +497,10 @@ export default function CanvasBroadcastPage() {
           <div className={styles.summaryIdentity}><span>RECIPIENT SUMMARY</span><strong>{CAMPUSES.find(item => item.code === campus)?.name}</strong><small>{summary ? `Calculated ${formatDate(summary.calculatedAt)}` : 'Select a campus to calculate'}</small></div>
           <div className={styles.metric}><div><Icon name="book" /></div><span><strong>{summaryLoading ? '—' : (summary?.courseCount ?? '—')}</strong><small>Eligible courses</small></span></div>
           <div className={styles.metric}><div><Icon name="people" /></div><span><strong>{summaryLoading ? '—' : (summary?.studentCount.toLocaleString() ?? '—')}</strong><small>Unique active students</small></span></div>
-          <button className={styles.refresh} onClick={() => void loadSummary(campus, true)} disabled={!authorized || summaryLoading} title="Refresh recipient count"><Icon name="refresh" /></button>
+          <div className={styles.summaryActions}>
+            <button className={styles.reviewButton} onClick={() => setModal('courses')} disabled={!authorized || summaryLoading || !summary?.courses.length}>{reviewedSnapshot === summary?.calculatedAt ? 'Courses reviewed ✓' : 'Review courses'}</button>
+            <button className={styles.refresh} onClick={() => void loadSummary(campus, true)} disabled={!authorized || summaryLoading} title="Refresh recipient count"><Icon name="refresh" /></button>
+          </div>
         </section>
 
         <div className={`${styles.twoCol} ${!authorized ? styles.locked : ''}`}>
@@ -544,7 +556,7 @@ export default function CanvasBroadcastPage() {
             <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
             <div className={styles.sendActions}>
               <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'POSTING TEST…' : 'POST TEST ANNOUNCEMENT'}</button>
-              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount}><Icon name="send" />{sending ? 'POSTING…' : 'POST ANNOUNCEMENTS'}</button>
+              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount || reviewedSnapshot !== summary?.calculatedAt}><Icon name="send" />{sending ? 'POSTING…' : 'POST ANNOUNCEMENTS'}</button>
             </div>
           </div>
         </section>
@@ -621,6 +633,20 @@ export default function CanvasBroadcastPage() {
               </div>
             </div>
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Done</button></div>
+          </>}
+          {modal === 'courses' && summary && <>
+            <span className={styles.modalKicker}>SAFETY REVIEW</span>
+            <h2>Courses receiving this announcement</h2>
+            <p>Review all {summary.courseCount} eligible courses for {summary.campusName}. The send will be blocked if this list changes afterward.</p>
+            <div className={styles.courseReviewList}>
+              {[...summary.courses].sort((a, b) => a.name.localeCompare(b.name)).map((course, index) => (
+                <div key={course.id}><span>{index + 1}</span><strong>{course.name}</strong><small>Canvas course ID: {course.id}</small></div>
+              ))}
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.secondary} onClick={() => setModal(null)}>Cancel</button>
+              <button className={styles.primary} onClick={() => { setReviewedSnapshot(summary.calculatedAt); setModal(null); setNotice({ type: 'success', text: `${summary.courseCount} courses reviewed and approved.` }); }}>I reviewed these courses</button>
+            </div>
           </>}
         </div>
       </div>}
