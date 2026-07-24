@@ -108,12 +108,12 @@ export function courseCampus(course: Pick<CanvasCourse, 'name' | 'course_code'>)
 }
 
 function isRecent(course: CanvasCourse): boolean {
-  const source = course.start_at || course.term?.start_at || course.created_at;
+  const source = course.created_at;
   if (!source) return false;
   const date = new Date(source);
   if (Number.isNaN(date.getTime())) return false;
   const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 18);
+  cutoff.setMonth(cutoff.getMonth() - 6);
   return date >= cutoff;
 }
 
