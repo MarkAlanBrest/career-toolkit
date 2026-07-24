@@ -33,8 +33,8 @@ Verify a production build with `npm run build`.
 The administrator broadcast tool is available at `/canvas-broadcast`. It reads eligible Canvas
 courses and active student enrollments on the server, then posts one announcement per eligible
 course. It stores reusable templates plus the last
-25 broadcast attempts. A private test action sends only to the Canvas account that owns the API
-token and never uses the campus recipient list.
+25 broadcast attempts. A test action accepts a Canvas course URL and posts only in that course.
+For safety, the server blocks test courses containing more than one active student.
 
 Before posting, the app enables the Announcements navigation tab and configures each eligible
 course to show up to three recent announcements on its homepage. Visibility-setting failures are

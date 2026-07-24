@@ -90,6 +90,7 @@ export default function CanvasBroadcastPage() {
   const [summaries, setSummaries] = useState(blankSummary);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [subject, setSubject] = useState('');
+  const [testCourseUrl, setTestCourseUrl] = useState('');
   const [bodyLength, setBodyLength] = useState(0);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -106,6 +107,7 @@ export default function CanvasBroadcastPage() {
   const summary = summaries[campus];
 
   useEffect(() => {
+    setTestCourseUrl(localStorage.getItem('canvas-broadcast-test-course-url') || '');
     void restoreSession();
   }, []);
 
@@ -366,9 +368,14 @@ export default function CanvasBroadcastPage() {
       setNotice({ type: 'error', text: 'Add a subject and message before sending a test.' });
       return;
     }
-    if (!window.confirm('Send this test only to the Canvas account that owns the API token? No students will receive it.')) return;
+    if (!testCourseUrl.trim()) {
+      setNotice({ type: 'error', text: 'Enter the Canvas URL for your test course.' });
+      return;
+    }
+    if (!window.confirm('Post this test announcement only in the selected test course? The server will block it if the course has more than one active student.')) return;
     setTesting(true);
-    setNotice({ type: 'info', text: 'Sending a private test to your Canvas account…' });
+    localStorage.setItem('canvas-broadcast-test-course-url', testCourseUrl.trim());
+    setNotice({ type: 'info', text: 'Checking the test course and posting the announcement…' });
     try {
       const data = await api('/api/canvas-broadcast/test-send', {
         method: 'POST',
@@ -376,11 +383,12 @@ export default function CanvasBroadcastPage() {
           campus,
           subject,
           body: currentBody(),
+          courseUrl: testCourseUrl,
           idempotencyKey: crypto.randomUUID(),
         }),
       });
       setHistory(items => [data.record, ...items].slice(0, 25));
-      setNotice({ type: 'success', text: `Test sent only to ${data.recipient.name}. No students received it.` });
+      setNotice({ type: 'success', text: `Test announcement posted only in “${data.course.name}” (${data.course.activeStudentCount} active student${data.course.activeStudentCount === 1 ? '' : 's'}).` });
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'The test message failed.' });
       try {
@@ -518,10 +526,14 @@ export default function CanvasBroadcastPage() {
             <button onClick={addLink} title="Add link">Link</button>
           </div>
           <div ref={editorRef} className={styles.editor} contentEditable={authorized} suppressContentEditableWarning data-placeholder="Write your message to students here…" onInput={() => setBodyLength(stripHtml(currentBody()).length)} />
+          <div className={styles.testCourse}>
+            <div><strong>Test course</strong><small>Paste a Canvas course URL containing no more than one active student.</small></div>
+            <input type="url" value={testCourseUrl} onChange={e => setTestCourseUrl(e.target.value)} onBlur={() => localStorage.setItem('canvas-broadcast-test-course-url', testCourseUrl.trim())} placeholder="https://your-school.instructure.com/courses/12345" />
+          </div>
           <div className={styles.sendRow}>
             <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
             <div className={styles.sendActions}>
-              <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0}>{testing ? 'SENDING TEST…' : 'SEND TEST TO ME'}</button>
+              <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'POSTING TEST…' : 'POST TEST ANNOUNCEMENT'}</button>
               <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount}><Icon name="send" />{sending ? 'POSTING…' : 'POST ANNOUNCEMENTS'}</button>
             </div>
           </div>

@@ -36,7 +36,6 @@ export type RecipientSnapshot = {
 };
 
 const MAX_RETRIES = 3;
-const BATCH_SIZE = 100;
 
 function canvasConfig() {
   const baseUrl = process.env.CANVAS_BASE_URL?.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
@@ -183,11 +182,30 @@ export type SendResult = {
   errors: string[];
 };
 
-export async function getCanvasSelfProfile(): Promise<{ id: number; name: string }> {
-  const response = await canvasFetch('/api/v1/users/self/profile');
-  const profile = await response.json() as { id?: number; name?: string };
-  if (!profile.id) throw new Error('Canvas did not return the token owner’s user ID.');
-  return { id: profile.id, name: profile.name || `Canvas user ${profile.id}` };
+export async function getCanvasTestCourse(courseUrl: string): Promise<{ id: number; name: string; activeStudentCount: number }> {
+  const { baseUrl } = canvasConfig();
+  let supplied: URL;
+  try {
+    supplied = new URL(courseUrl.trim());
+  } catch {
+    throw new Error('Enter a complete Canvas course URL.');
+  }
+  if (supplied.origin !== new URL(baseUrl).origin) {
+    throw new Error('The test course URL must use the configured Canvas site.');
+  }
+  const match = supplied.pathname.match(/\/courses\/(\d+)(?:\/|$)/);
+  if (!match) throw new Error('The URL does not contain a valid Canvas course ID.');
+  const id = Number(match[1]);
+  const courseResponse = await canvasFetch(`/api/v1/courses/${id}`);
+  const course = await courseResponse.json() as CanvasCourse;
+  const enrollments = await getAll<CanvasEnrollment>(
+    `/api/v1/courses/${id}/enrollments?per_page=100&type[]=StudentEnrollment&state[]=active`,
+  );
+  return {
+    id,
+    name: course.name || course.course_code || `Course ${id}`,
+    activeStudentCount: new Set(enrollments.filter(isActiveStudent).map(item => item.user_id)).size,
+  };
 }
 
 export function sanitizeMessageHtml(input: string): string {
@@ -196,43 +214,6 @@ export function sanitizeMessageHtml(input: string): string {
     .replace(/<\s*(script|style|iframe|object|embed|form)\b[^>]*\/?\s*>/gi, '')
     .replace(/\s+on[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(href|src)\s*=\s*(["'])\s*(?:javascript|data):[\s\S]*?\2/gi, ' $1="#"');
-}
-
-export async function sendCanvasConversation(
-  studentIds: number[],
-  subject: string,
-  body: string,
-): Promise<SendResult> {
-  let sent = 0;
-  const errors: string[] = [];
-
-  for (let start = 0; start < studentIds.length; start += BATCH_SIZE) {
-    const batch = studentIds.slice(start, start + BATCH_SIZE);
-    const form = new URLSearchParams();
-    batch.forEach(id => form.append('recipients[]', String(id)));
-    form.set('subject', subject);
-    form.set('body', body);
-    form.set('group_conversation', 'false');
-
-    try {
-      await canvasFetch('/api/v1/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form.toString(),
-      });
-      sent += batch.length;
-    } catch (error) {
-      errors.push(`Recipients ${start + 1}-${start + batch.length}: ${error instanceof Error ? error.message : 'Unknown Canvas error'}`);
-    }
-  }
-
-  const failed = studentIds.length - sent;
-  return {
-    status: sent === studentIds.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
-    sent,
-    failed,
-    errors,
-  };
 }
 
 export async function sendCanvasAnnouncements(
