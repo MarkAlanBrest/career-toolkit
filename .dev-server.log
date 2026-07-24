@@ -1,0 +1,22 @@
+
+> safety-training-platform@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.9:3000
+- Environments: .env
+
+✓ Starting...
+Creating turbopack project {
+  dir: 'C:\\Users\\MarkBrest\\Desktop\\Web Apps\\safety-training-platform',
+  testMode: true
+}
+Failed to benchmark file I/O: The system cannot find the path specified. (os error 3)
+✓ Ready in 1589ms
+ GET /mason/demo 404 in 3.1s (compile: 3.0s, render: 116ms)
+ GET /admin/mason 200 in 1571ms (compile: 1241ms, render: 330ms)
+ GET /admin/mason 200 in 65ms (compile: 9ms, render: 57ms)
+ GET /api/mason/courses 200 in 719ms (compile: 404ms, render: 316ms)
+ GET /mason/demo 200 in 1986ms (compile: 1870ms, render: 115ms)
+ GET /admin/mason 200 in 65ms (compile: 6ms, render: 59ms)
