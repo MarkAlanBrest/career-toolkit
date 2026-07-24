@@ -34,8 +34,6 @@ const testFields = [
   "Test8",
 ] as const;
 
-type TestField = (typeof testFields)[number];
-
 export default function RosterPage() {
   const course =
     typeof window !== "undefined"
@@ -97,7 +95,7 @@ export default function RosterPage() {
         s.LastName,
         s.Email,
         s.Code,
-        ...testFields.map((f) => (s as any)[f]),
+        ...testFields.map((f) => s[f]),
       ].join(",")
     );
 
@@ -255,7 +253,7 @@ export default function RosterPage() {
                 <td className="border px-3 py-2">{s.Code}</td>
                 {testFields.map((field) => (
                   <td key={field} className="border px-3 py-2 text-center">
-                    {(s as any)[field]}
+                    {s[field]}
                   </td>
                 ))}
               </tr>
@@ -347,7 +345,7 @@ function EditStudentModal({
               value={
                 form[field] !== undefined
                   ? String(form[field])
-                  : String((student as any)[field] ?? "")
+                  : String(student[field] ?? "")
               }
               onChange={(v) =>
                 setForm((prev) => ({

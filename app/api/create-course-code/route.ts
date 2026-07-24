@@ -1,85 +1,81 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { getAllCourses } from "@/lib/courses";
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import mysql from "mysql2/promise";
-import fs from "fs/promises";
 
-// Generate course code
 function generateCourseCode(folder: string) {
-  const prefix = folder.slice(0, 3).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const year = new Date().getFullYear();
-  return `${prefix}-${random}-${year}`;
+  const prefix = folder.replace(/[^a-z0-9]/gi, "").slice(0, 3).toUpperCase();
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${prefix}-${random}-${new Date().getFullYear()}`;
+}
+
+async function getUnusedCourseCode(folder: string) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const code = generateCourseCode(folder);
+    const existing = await prisma.courseRecords.findUnique({ where: { Code: code } });
+    if (!existing) return code;
+  }
+
+  throw new Error("Unable to generate a unique course code.");
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { courseFolder, firstName, lastName, email } = body;
+    const courseFolder = String(body.courseFolder ?? "").trim();
+    const firstName = String(body.firstName ?? "").trim();
+    const lastName = String(body.lastName ?? "").trim();
+    const email = String(body.email ?? "").trim().toLowerCase();
 
     if (!courseFolder || !firstName || !lastName || !email) {
       return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
+        { error: "Course, first name, last name, and email are required." },
+        { status: 400 },
       );
     }
 
-    // ✅ FIXED PATH — Vercel needs the full app/ prefix
-    const raw = await fs.readFile(
-      `data/courses/${courseFolder}/module.json`,
+    const course = getAllCourses().find((item) => item.folder === courseFolder);
 
-      "utf8"
-    );
-
-    const json = JSON.parse(raw);
-    const realCourseName = json.courseName;
-
-    const courseCode = generateCourseCode(courseFolder);
+    if (!course) {
+      return NextResponse.json({ error: "Unknown course." }, { status: 404 });
+    }
 
     const startDate = new Date();
     const endDate = new Date(startDate);
     endDate.setFullYear(endDate.getFullYear() + 1);
 
-    const db = await mysql.createConnection(process.env.DATABASE_URL!);
+    const courseCode = await getUnusedCourseCode(courseFolder);
 
-    try {
-      const [result] = await db.query(
-        `INSERT INTO CourseRecords
-         (FirstName, LastName, Email, CourseName, Code,
-          StartDate, EndDate,
-          Test1, Test2, Test3, Test4, Test5, Test6, Test7, Test8,
-          Progress, SlidesPath)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          firstName,
-          lastName,
-          email,
-          realCourseName,
-          courseCode,
-          startDate,
-          endDate,
-          0, 0, 0, 0, 0, 0, 0, 0,
-          0,
-          courseFolder
-        ]
-      );
+    await prisma.courseRecords.create({
+      data: {
+        FirstName: firstName,
+        LastName: lastName,
+        Email: email,
+        CourseName: course.courseName,
+        Code: courseCode,
+        StartDate: startDate,
+        EndDate: endDate,
+        Test1: 0,
+        Test2: 0,
+        Test3: 0,
+        Test4: 0,
+        Test5: 0,
+        Test6: 0,
+        Test7: 0,
+        Test8: 0,
+        Progress: 0,
+        SlidesPath: courseFolder,
+      },
+    });
 
-      await db.end();
-      return NextResponse.json({ success: true, courseCode });
-
-    } catch (e: any) {
-      await db.end();
-      return NextResponse.json(
-        { error: e.message, code: e.code },
-        { status: 500 }
-      );
-    }
-
-  } catch (err: any) {
+    return NextResponse.json({ success: true, courseCode });
+  } catch (error) {
+    console.error("Create course code failed:", error);
     return NextResponse.json(
-      { error: err.message || "Server error" },
-      { status: 500 }
+      { error: "Unable to create the course code." },
+      { status: 500 },
     );
   }
 }

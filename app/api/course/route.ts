@@ -1,68 +1,49 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import mysql from "mysql2/promise";
-import { promises as fs } from "fs";
-import path from "path";
+import { prisma } from "@/lib/prisma";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
+    const code = new URL(req.url).searchParams.get("code")?.trim().toUpperCase();
 
     if (!code) {
-      return Response.json({ error: "No code provided" }, { status: 400 });
+      return Response.json({ error: "No course code provided." }, { status: 400 });
     }
 
-    // ⭐ Connect to DB
-    const db = await mysql.createConnection(process.env.DATABASE_URL!);
+    const record = await prisma.courseRecords.findUnique({ where: { Code: code } });
 
-    const [rows]: any = await db.query(
-      "SELECT * FROM CourseRecords WHERE Code = ? COLLATE utf8mb4_general_ci",
-      [code]
-    );
-
-    await db.end();
-
-    if (!rows.length) {
+    if (!record) {
       return Response.json({ error: "Invalid course code." }, { status: 404 });
     }
 
-    const record = rows[0];
+    let totalSlides: number | null = null;
 
-    // ⭐ Load module.json from data/courses/<SlidesPath>/module.json
-    const folder = record.SlidesPath;
-    let totalSlides = null;
+    if (record.SlidesPath) {
+      const modulePath = path.join(
+        process.cwd(),
+        "data",
+        "courses",
+        record.SlidesPath,
+        "module.json",
+      );
 
-    if (folder) {
       try {
-        const jsonPath = path.join(
-          process.cwd(),
-          "data",
-          "courses",
-          folder,
-          "module.json"
-        );
-
-        const file = await fs.readFile(jsonPath, "utf8");
-        const json = JSON.parse(file);
-
-        totalSlides = json.totalSlides ?? null;
-      } catch (err) {
-        console.error("Failed to read module JSON:", err);
+        const course = JSON.parse(await fs.readFile(modulePath, "utf8"));
+        totalSlides = Number(course.totalSlides) || course.slides?.length || null;
+      } catch {
+        totalSlides = null;
       }
     }
 
-    // ⭐ Return DB record + totalSlides
-    return Response.json({
-      ...record,
-      TotalSlides: totalSlides
-    });
-
-  } catch (err: any) {
+    return Response.json({ ...record, TotalSlides: totalSlides });
+  } catch (error) {
+    console.error("Course lookup failed:", error);
     return Response.json(
-      { error: err.message || "Server error" },
-      { status: 500 }
+      { error: "The training database is unavailable." },
+      { status: 500 },
     );
   }
 }

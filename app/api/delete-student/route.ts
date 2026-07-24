@@ -1,42 +1,27 @@
-import mysql from "mysql2/promise";
+export const runtime = "nodejs";
 
-async function getConnection() {
-  return mysql.createConnection(process.env.DATABASE_URL!);
-
-}
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export async function DELETE(req: Request) {
-  let conn;
+  const id = Number(new URL(req.url).searchParams.get("id"));
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return Response.json({ error: "Invalid learner id." }, { status: 400 });
+  }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      return new Response("Missing id", { status: 400 });
+    await prisma.courseRecords.delete({ where: { id } });
+    return Response.json({ success: true });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return Response.json({ error: "Learner not found." }, { status: 404 });
     }
 
-    conn = await getConnection();
-
-    const [result]: any = await conn.execute(
-      `DELETE FROM CourseRecords WHERE id = ?`,
-      [id]
-    );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        affectedRows: result?.affectedRows ?? 0,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  } catch (err) {
-    console.error("Delete error:", err);
-    return new Response("Database error", { status: 500 });
-  } finally {
-    if (conn) await conn.end();
+    console.error("Delete learner failed:", error);
+    return Response.json({ error: "Database error." }, { status: 500 });
   }
 }

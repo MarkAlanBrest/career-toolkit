@@ -1,44 +1,35 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import mysql from "mysql2/promise";
 
 export async function GET(req: Request) {
   const cookieStore = await cookies();
-  const auth = cookieStore.get("admin-auth")?.value;
 
-  if (auth !== "true") {
+  if (cookieStore.get("admin-auth")?.value !== "true") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const course = searchParams.get("course");
+  const course = new URL(req.url).searchParams.get("course")?.trim();
 
   if (!course) {
     return NextResponse.json({ error: "Missing course" }, { status: 400 });
   }
-const db = await mysql.createConnection({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-});
 
+  try {
+    const students = await prisma.courseRecords.findMany({
+      where: { SlidesPath: course },
+      orderBy: [{ LastName: "asc" }, { FirstName: "asc" }],
+    });
 
-  const [rows]: any = await db.query(
-    "SELECT * FROM CourseRecords WHERE SlidesPath = ?",
-[course]
-
-
-   
-  );
-
-  await db.end();
-
-  return NextResponse.json({
-    students: Array.isArray(rows) ? rows : [],
-  });
+    return NextResponse.json({ students });
+  } catch (error) {
+    console.error("Roster database error:", error);
+    return NextResponse.json(
+      { error: "The training database is unavailable." },
+      { status: 500 },
+    );
+  }
 }

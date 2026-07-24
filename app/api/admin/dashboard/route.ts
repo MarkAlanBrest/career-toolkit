@@ -1,28 +1,28 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import mysql from "mysql2/promise";
 
 export async function GET() {
   const cookieStore = await cookies();
-  const auth = cookieStore.get("admin-auth")?.value;
 
-  if (auth !== "true") {
+  if (cookieStore.get("admin-auth")?.value !== "true") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = await mysql.createConnection(process.env.DATABASE_URL!);
+  try {
+    const records = await prisma.courseRecords.findMany({
+      orderBy: { StartDate: "desc" },
+    });
 
-  const [rows]: any = await db.query("SELECT * FROM CourseRecords");
-
-  await db.end();
-
-  const records = Array.isArray(rows) ? rows : [];
-
-  return NextResponse.json({
-    totalRecords: records.length,
-    records,
-  });
+    return NextResponse.json({ totalRecords: records.length, records });
+  } catch (error) {
+    console.error("Admin dashboard database error:", error);
+    return NextResponse.json(
+      { error: "The training database is unavailable." },
+      { status: 500 },
+    );
+  }
 }

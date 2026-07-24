@@ -1,75 +1,63 @@
-import mysql from "mysql2/promise";
+export const runtime = "nodejs";
 
-async function getConnection() {
-  return mysql.createConnection(process.env.DATABASE_URL!);
-}
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
+const allowedFields = new Set([
+  "FirstName",
+  "LastName",
+  "Email",
+  "Code",
+  "Test1",
+  "Test2",
+  "Test3",
+  "Test4",
+  "Test5",
+  "Test6",
+  "Test7",
+  "Test8",
+  "Progress",
+]);
 
 export async function PATCH(req: Request) {
-  let conn;
-
   try {
     const body = await req.json();
-    const { id, updates } = body;
+    const id = Number(body.id);
+    const updates = body.updates;
 
-    if (!id || !updates || typeof updates !== "object") {
-      return new Response("Missing id or updates", { status: 400 });
+    if (
+      !Number.isInteger(id) ||
+      id <= 0 ||
+      !updates ||
+      typeof updates !== "object" ||
+      Array.isArray(updates)
+    ) {
+      return Response.json({ error: "Invalid learner update." }, { status: 400 });
     }
 
-    const allowed = [
-      "FirstName",
-      "LastName",
-      "Email",
-      "Code",
-      "Test1",
-      "Test2",
-      "Test3",
-      "Test4",
-      "Test5",
-      "Test6",
-      "Test7",
-      "Test8",
-      "Progress",
-    ];
+    const data = Object.fromEntries(
+      Object.entries(updates).filter(([key]) => allowedFields.has(key)),
+    ) as Prisma.CourseRecordsUpdateInput;
 
-    const setParts: string[] = [];
-    const values: any[] = [];
-
-    for (const key of Object.keys(updates)) {
-      if (allowed.includes(key)) {
-        setParts.push(`${key} = ?`);
-        values.push(updates[key]);
-      }
+    if (Object.keys(data).length === 0) {
+      return Response.json({ error: "No valid fields to update." }, { status: 400 });
     }
 
-    if (setParts.length === 0) {
-      return new Response("No valid fields to update", { status: 400 });
+    if (typeof data.Code === "string") {
+      data.Code = data.Code.trim().toUpperCase();
     }
 
-    values.push(id);
+    const record = await prisma.courseRecords.update({ where: { id }, data });
+    return Response.json({ success: true, record });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return Response.json({ error: "Learner not found." }, { status: 404 });
+    }
 
-    conn = await getConnection();
-
-    const [result]: any = await conn.execute(
-      `UPDATE CourseRecords SET ${setParts.join(", ")} WHERE id = ?`,
-      values
-    );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        affectedRows: result?.affectedRows ?? 0,
-        changedRows: result?.changedRows ?? 0,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  } catch (err) {
-    console.error("Update error:", err);
-    return new Response("Database error", { status: 500 });
-  } finally {
-    if (conn) await conn.end();
+    console.error("Learner update failed:", error);
+    return Response.json({ error: "Database error." }, { status: 500 });
   }
 }

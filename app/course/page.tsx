@@ -128,7 +128,9 @@ function CourseContent()  {
   const [loading, setLoading] = useState(true);
   const [isLight, setIsLight] = useState(false);
   const [testPassed, setTestPassed] = useState(false);
-  const [testAnswers, setTestAnswers] = useState<any[]>([]);
+  const [testAnswers, setTestAnswers] = useState<
+    Array<number | boolean | null>
+  >([]);
 const [testScore, setTestScore] = useState<number | null>(null);
 const [recordId, setRecordId] = useState<number | null>(null);
 
@@ -176,13 +178,6 @@ const [recordId, setRecordId] = useState<number | null>(null);
   }, []);
 
   const current = slides[index];
-  const textMain = isLight ? "text-slate-900" : "text-white";
-  const textSoft = isLight ? "text-slate-700" : "text-slate-200";
-  const panelBg = isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800 border-slate-600";
-
-
-
-
   // ⭐ UPDATED — Next slide now updates progress
   const nextSlide = () => {
     if (index < slides.length - 1) {
@@ -629,7 +624,7 @@ useEffect(() => {
 
         {slide.downloadPdf && (
           <button
-            onClick={() => downloadPDF("report", "BusinessLaw25-Report.pdf")}
+            onClick={() => downloadPDF("report", "Training-Report.pdf")}
             className="px-6 py-3 bg-green-600 text-white rounded-xl"
           >
             Download PDF Report

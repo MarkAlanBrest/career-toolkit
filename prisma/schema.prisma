@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
 }
 
 model CourseRecords {
@@ -13,7 +13,7 @@ model CourseRecords {
   LastName   String
   Email      String
   CourseName String
-  Code       String
+  Code       String    @unique
   StartDate  DateTime
   EndDate    DateTime?
   Test1      Int

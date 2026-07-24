@@ -45,9 +45,9 @@ export default function CourseCodePage() {
         <div className="max-w-6xl mx-auto px-8 py-5 flex justify-between items-center">
 
           <div>
-            <h1 className="text-xl font-bold">Assignments</h1>
+            <h1 className="text-xl font-bold">Career Safety Training</h1>
             <p className="text-sm text-slate-300">
-              Access the BusinessLaw25 assignment portal with your assignment code.
+              Professional training for a safer, stronger workforce
             </p>
           </div>
 
@@ -56,7 +56,7 @@ export default function CourseCodePage() {
 
             <input
               type="text"
-              placeholder="Enter Assignment Code"
+              placeholder="Enter Course Code"
               className="px-4 py-2 rounded bg-white text-slate-900 uppercase tracking-wider"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -87,34 +87,34 @@ export default function CourseCodePage() {
 
         <div>
           <h2 className="text-4xl font-bold mb-6">
-            BusinessLaw25 Assignment
+            Industry-Ready Safety Training
           </h2>
 
           <p className="text-lg text-slate-200 mb-6 leading-relaxed">
-            Complete the BusinessLaw25 assignment with interactive learning,
-            quizzes, and a final report you can download as a PDF.
+            Build practical workplace skills through interactive courses,
+            knowledge checks, final assessments, and completion certificates.
           </p>
 
           <ul className="space-y-3 text-slate-200">
-            <li>✔ Interactive learning activities</li>
-            <li>✔ Quiz questions with instant feedback</li>
+            <li>✔ Practical, job-focused safety lessons</li>
+            <li>✔ Knowledge checks with instant feedback</li>
             <li>✔ Progress saved automatically</li>
-            <li>✔ Final report and PDF export</li>
-            <li>✔ Designed for BusinessLaw25 assignment delivery</li>
+            <li>✔ Final assessments and completion certificates</li>
+            <li>✔ Resume-building workplace credentials</li>
           </ul>
         </div>
 
         <div className="bg-slate-800 rounded-2xl p-8 border border-slate-600 shadow-2xl">
-          <h3 className="text-2xl font-bold mb-4">BusinessLaw25 Overview</h3>
+          <h3 className="text-2xl font-bold mb-4">Why Safety Training Matters</h3>
 
           <p className="text-slate-200 leading-relaxed mb-4">
-            This assignment helps students review core business law concepts,
-            complete interactive questions, and produce a final score report.
+            Employers value workers who recognize hazards, follow procedures,
+            and contribute to a strong safety culture from day one.
           </p>
 
           <p className="text-slate-200 leading-relaxed">
-            The portal is built for active learning and includes a PDF report
-            you can download when the assignment is complete.
+            Enter the course code provided by your instructor to begin or
+            resume training from your last completed slide.
           </p>
         </div>
 
@@ -128,21 +128,21 @@ export default function CourseCodePage() {
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
             <h4 className="text-xl font-semibold mb-3">Interactive Learning</h4>
             <p className="text-slate-300">
-              Engage with assignment content using built-in questions and slides.
+              Learn through focused lessons, scenarios, and interactive activities.
             </p>
           </div>
 
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
-            <h4 className="text-xl font-semibold mb-3">Quiz Feedback</h4>
+            <h4 className="text-xl font-semibold mb-3">Knowledge Checks</h4>
             <p className="text-slate-300">
               Get instant feedback and see how well you understand key concepts.
             </p>
           </div>
 
           <div className="bg-slate-900 rounded-xl p-6 border border-slate-700">
-            <h4 className="text-xl font-semibold mb-3">Downloadable Report</h4>
+            <h4 className="text-xl font-semibold mb-3">Completion Certificate</h4>
             <p className="text-slate-300">
-              Finish the assignment and download a PDF report with your score.
+              Pass the final assessment and print your training certificate.
             </p>
           </div>
 
@@ -153,7 +153,7 @@ export default function CourseCodePage() {
       {/* ===== FOOTER ===== */}
       <footer className="text-center py-8 text-slate-400 text-sm space-y-2">
 
-        <div>BusinessLaw25 Assignment Portal</div>
+        <div>Professional Safety Training Platform</div>
 
         {/* 🔒 SMALL ADMIN LINK */}
         <div>
@@ -161,7 +161,7 @@ export default function CourseCodePage() {
             href="/admin/login"
             className="text-slate-500 hover:text-slate-400 text-xs"
           >
-            Instructor Login
+            Training Administrator
           </a>
         </div>
 

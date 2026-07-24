@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 
+type Course = {
+  courseName: string;
+  folder: string;
+};
+
 export default function CreateCourseCodePage() {
   // Get folder name from URL
 const courseFolder = window?.location?.pathname?.split("/")?.pop() || "";
@@ -9,7 +14,7 @@ const courseFolder = window?.location?.pathname?.split("/")?.pop() || "";
   
   console.log("FOLDER:", courseFolder);
 
-  const [course, setCourse] = useState<any>(null);
+  const [course, setCourse] = useState<Course | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -48,7 +53,7 @@ const courseFolder = window?.location?.pathname?.split("/")?.pop() || "";
   }
 
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
 
@@ -69,6 +74,12 @@ const courseFolder = window?.location?.pathname?.split("/")?.pop() || "";
     });
 
     const data = await res.json();
+
+    if (!res.ok || !data.courseCode) {
+      alert(data.error || "Unable to create the course code.");
+      setLoading(false);
+      return;
+    }
 
     setGeneratedCode(data.courseCode);
     setLoading(false);
