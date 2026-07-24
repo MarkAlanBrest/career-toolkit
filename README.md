@@ -11,9 +11,9 @@ npm run db:init
 npm run dev
 ```
 
-Open `http://localhost:3000`. The SQLite database is stored at
-`prisma/dev.db`. Running `npm run db:init` is safe to repeat and upgrades older
-copies of the local training database without removing learner records.
+Copy `.env.example` to `.env`, replace its placeholder with the Neon PostgreSQL
+connection string, and then open `http://localhost:3000`. Running
+`npm run db:init` synchronizes the training schema to the configured database.
 
 Course definitions live under `data/courses/<course-folder>/module.json`.
 
@@ -23,7 +23,7 @@ The administration area is available at `/admin/login`. After signing in, an
 administrator can create learner course codes, view course rosters, edit
 results, export CSV files, and remove records.
 
-## Production database
+## Database
 
-Local SQLite is intended for local or single-server use. A serverless deployment
-needs a persistent hosted database and the matching Prisma driver adapter.
+The application uses Neon PostgreSQL through Prisma's serverless Neon adapter.
+The same database can be used for local development and a Vercel deployment.
