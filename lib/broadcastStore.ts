@@ -8,6 +8,7 @@ const HISTORY_KEY = 'canvas-broadcast:history';
 const CAREER_FAIR_SEED_KEY = 'canvas-broadcast:seed:ncst-career-fair-2026-v2';
 const CAR_SHOW_SEED_KEY = 'canvas-broadcast:seed:ncst-car-show-v1';
 const EXIT_INTERVIEW_SEED_KEY = 'canvas-broadcast:seed:ncst-exit-interview-v1';
+const CAREER_SERVICES_SEED_KEY = 'canvas-broadcast:seed:ncst-career-services-v1';
 
 export type MessageTemplate = {
   id: string;
@@ -139,6 +140,35 @@ export async function listTemplates() {
       ? templates.map(item => item.id === exitInterviewTemplate.id ? exitInterviewTemplate : item)
       : [exitInterviewTemplate, ...templates];
     await redis.set(EXIT_INTERVIEW_SEED_KEY, true);
+    changed = true;
+  }
+
+  if (!(await redis.get(CAREER_SERVICES_SEED_KEY))) {
+    const careerServicesTemplate: MessageTemplate = {
+      id: 'ncst-career-services-overview',
+      name: 'NCST Career Services Overview',
+      subject: 'NCST Career Services Is Here to Help',
+      body: [
+        '<h2>NCST Career Services Is Here to Help</h2>',
+        '<p>Hello NCST Students!</p>',
+        '<p>Career Services at New Castle School of Trades is here to support you as you prepare to enter the workforce, advance in your current career, or explore new employment opportunities.</p>',
+        '<p>Our goal is to help you feel prepared, confident, and connected to employers looking for skilled workers.</p>',
+        '<h2>How Career Services Can Help</h2>',
+        '<ul><li><strong>Résumé assistance:</strong> Create, review, and improve your résumé so it clearly presents your skills and training.</li><li><strong>Job-search support:</strong> Identify openings, develop a job-search plan, and learn effective application strategies.</li><li><strong>Interview preparation:</strong> Practice common interview questions and learn how to present yourself professionally.</li><li><strong>Employer connections:</strong> Learn about employers seeking candidates with training in your field.</li><li><strong>Career fairs and recruiting events:</strong> Prepare for opportunities to meet employers, unions, and industry representatives.</li><li><strong>Professional preparation:</strong> Get guidance on workplace communication, professional appearance, and employer expectations.</li><li><strong>Exit interviews:</strong> Review your employment status, career goals, contact information, and next steps as you complete your program.</li><li><strong>Graduate support:</strong> Continue receiving career assistance after graduation as you build your career.</li></ul>',
+        '<h2>When Should You Contact Career Services?</h2>',
+        '<p>You do not need to wait until graduation. Contact Career Services whenever you need help with a résumé, application, interview, job lead, employer question, or career decision.</p>',
+        '<p>Even if you are already employed, Career Services can help you prepare for future opportunities and stay connected with the skilled-trades community.</p>',
+        '<p><strong>Your NCST training is an important step toward your career—and Career Services is here to help you take the next one.</strong></p>',
+        '<h2>Contact Career Services</h2>',
+        '<p><strong>[CONTACT NAME]</strong><br>[TITLE]<br>Email: <a href="mailto:[EMAIL]">[EMAIL]</a><br>Phone: <a href="tel:[PHONE]">[PHONE]</a></p>',
+      ].join(''),
+      createdAt: now,
+      updatedAt: now,
+    };
+    templates = templates.some(item => item.id === careerServicesTemplate.id)
+      ? templates.map(item => item.id === careerServicesTemplate.id ? careerServicesTemplate : item)
+      : [careerServicesTemplate, ...templates];
+    await redis.set(CAREER_SERVICES_SEED_KEY, true);
     changed = true;
   }
 
