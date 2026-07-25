@@ -3,6 +3,7 @@ import { Reservation, ROOM_NAME, getSettings } from '@/lib/lgaRoom';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type SenderConfig = {
   provider: 'microsoft-graph' | 'smtp';
@@ -22,8 +23,8 @@ type SenderConfig = {
 async function getSenderConfig(): Promise<SenderConfig> {
   const settings = await getSettings();
   if (
-    settings.microsoftTenantId &&
-    settings.microsoftClientId &&
+    GUID_RE.test(settings.microsoftTenantId) &&
+    GUID_RE.test(settings.microsoftClientId) &&
     settings.microsoftClientSecret &&
     settings.senderEmail
   ) {

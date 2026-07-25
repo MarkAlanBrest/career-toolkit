@@ -679,13 +679,49 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
               <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} />
             </Field>
             <Field label="Microsoft tenant ID">
-              <input value={microsoftTenantId} onChange={e => setMicrosoftTenantId(e.target.value)} type="text" style={inputStyle} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" />
+              <input
+                value={microsoftTenantId}
+                onChange={e => setMicrosoftTenantId(e.target.value)}
+                type="text"
+                name="microsoft-directory-tenant-id"
+                style={inputStyle}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                autoComplete="one-time-code"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={36}
+                data-lpignore="true"
+                data-1p-ignore
+              />
             </Field>
             <Field label="Application (client) ID">
-              <input value={microsoftClientId} onChange={e => setMicrosoftClientId(e.target.value)} type="text" style={inputStyle} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" />
+              <input
+                value={microsoftClientId}
+                onChange={e => setMicrosoftClientId(e.target.value)}
+                type="text"
+                name="microsoft-application-client-id"
+                style={inputStyle}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                autoComplete="one-time-code"
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={36}
+                data-lpignore="true"
+                data-1p-ignore
+              />
             </Field>
             <Field label={`Client secret${microsoftClientSecretSet ? ' (saved — leave blank to keep it)' : ''}`}>
-              <input value={microsoftClientSecret} onChange={e => setMicrosoftClientSecret(e.target.value)} type="password" style={inputStyle} placeholder={microsoftClientSecretSet ? '••••••••••••' : 'secret value'} autoComplete="new-password" />
+              <input
+                value={microsoftClientSecret}
+                onChange={e => setMicrosoftClientSecret(e.target.value)}
+                type="password"
+                name="microsoft-application-client-secret-value"
+                style={inputStyle}
+                placeholder={microsoftClientSecretSet ? '••••••••••••' : 'secret value'}
+                autoComplete="off"
+                data-lpignore="true"
+                data-1p-ignore
+              />
             </Field>
             <Field label="Replies go to (optional)">
               <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender mailbox" />

@@ -5,6 +5,7 @@ import { getEmailStatus, sendTestEmail } from '@/lib/lgaRoomEmail';
 export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function authorized(request: NextRequest) {
   return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
@@ -32,8 +33,8 @@ export async function GET(request: NextRequest) {
         email: settings.senderEmail,
         name: settings.senderName,
         replyToEmail: settings.replyToEmail,
-        microsoftTenantId: settings.microsoftTenantId,
-        microsoftClientId: settings.microsoftClientId,
+        microsoftTenantId: GUID_RE.test(settings.microsoftTenantId) ? settings.microsoftTenantId : '',
+        microsoftClientId: GUID_RE.test(settings.microsoftClientId) ? settings.microsoftClientId : '',
         microsoftClientSecretSet: Boolean(settings.microsoftClientSecret),
       },
     });
@@ -71,6 +72,16 @@ export async function PUT(request: NextRequest) {
   }
   if (replyToEmail && !EMAIL_RE.test(replyToEmail)) {
     return NextResponse.json({ error: 'Reply-to email looks invalid.' }, { status: 400 });
+  }
+  if (microsoftTenantId && !GUID_RE.test(microsoftTenantId.trim())) {
+    return NextResponse.json({
+      error: 'Microsoft tenant ID must be the Directory (tenant) ID in GUID format.',
+    }, { status: 400 });
+  }
+  if (microsoftClientId && !GUID_RE.test(microsoftClientId.trim())) {
+    return NextResponse.json({
+      error: 'Application ID must be the Application (client) ID in GUID format, not a client secret.',
+    }, { status: 400 });
   }
 
   try {
