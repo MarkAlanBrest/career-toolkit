@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import MasonClassroom from "@/components/MasonClassroom";
+import MasonLearningCanvas from "@/components/MasonLearningCanvas";
 import { prisma } from "@/lib/prisma";
 import { demoCourse, type LessonPlan, type PublicMasonCourse } from "@/lib/mason";
 
@@ -11,7 +12,7 @@ export default async function MasonCoursePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  if (slug === "demo") return <MasonClassroom course={demoCourse} />;
+  if (slug === "demo") return <MasonLearningCanvas course={demoCourse} />;
 
   const record = await prisma.masonCourse.findUnique({
     where: { slug },

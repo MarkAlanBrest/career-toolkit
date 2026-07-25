@@ -7,6 +7,11 @@ export type LessonMoment = {
   correctAnswer: number | null;
   feedback: string | null;
   pageNumber: number | null;
+  cue?: string | null;
+  visualAction?: "none" | "zoom" | "spotlight" | "compare" | null;
+  focusX?: number | null;
+  focusY?: number | null;
+  focusScale?: number | null;
 };
 
 export type LessonPlan = {
@@ -80,6 +85,11 @@ export const demoCourse: PublicMasonCourse = {
             title: "The 4-to-1 rule",
             narration:
               "Picture an extension ladder reaching sixteen feet high. Its base should be four feet away from the wall. This creates a stable climbing angle.",
+            cue: "I want to show you why the angle matters. Watch what happens at the base of the ladder.",
+            visualAction: "zoom",
+            focusX: 46,
+            focusY: 72,
+            focusScale: 1.45,
             prompt: "What changes if the ladder reaches twenty feet?",
             choices: null,
             correctAnswer: null,

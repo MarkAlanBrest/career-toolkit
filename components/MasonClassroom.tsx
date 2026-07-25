@@ -47,6 +47,8 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
   const [thinking, setThinking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sceneVisible, setSceneVisible] = useState(true);
+  const [transitioning, setTransitioning] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
@@ -71,7 +73,10 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
     momentIndex === section.lessonPlan.moments.length - 1;
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const latest = timeline[timeline.length - 1];
+    if (thinking || latest?.type === "message") {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
   }, [timeline, thinking]);
 
   useEffect(() => {
@@ -84,30 +89,49 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
 
   function chooseSection(index: number) {
     stopSpeaking();
+    setSceneVisible(false);
     setSectionIndex(index);
     setMomentIndex(0);
     setTimeline(firstTimeline());
     setAnswers({});
     setSpeaking(false);
     setMenuOpen(false);
+    window.setTimeout(() => setSceneVisible(true), 120);
   }
 
   function continueLesson() {
-    if (atCourseEnd) return;
+    if (atCourseEnd || transitioning) return;
     stopSpeaking();
+    setTransitioning(true);
+    setSceneVisible(false);
 
     if (momentIndex < section.lessonPlan.moments.length - 1) {
       const next = momentIndex + 1;
-      setMomentIndex(next);
-      setTimeline((current) => [
-        ...current,
-        { id: `moment-${sectionIndex}-${next}-${Date.now()}`, type: "moment", momentIndex: next },
-      ]);
+      const nextMoment = section.lessonPlan.moments[next];
+      window.setTimeout(() => {
+        setMomentIndex(next);
+        setTimeline((current) => [
+          ...current,
+          {
+            id: `moment-${sectionIndex}-${next}-${Date.now()}`,
+            type: "moment",
+            momentIndex: next,
+          },
+        ]);
+        setSceneVisible(true);
+        setTransitioning(false);
+        window.setTimeout(() => {
+          void speak(
+            `${nextMoment.cue ? `${nextMoment.cue} ` : ""}${nextMoment.title}. ${nextMoment.narration} ${nextMoment.prompt || ""}`,
+          );
+        }, 250);
+      }, 480);
       return;
     }
 
     const nextSection = sectionIndex + 1;
-    setSectionIndex(nextSection);
+    window.setTimeout(() => {
+      setSectionIndex(nextSection);
     setMomentIndex(0);
     setTimeline([
       {
@@ -118,7 +142,16 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
       },
       { id: `moment-${nextSection}-0`, type: "moment", momentIndex: 0 },
     ]);
-    setAnswers({});
+      setAnswers({});
+      setSceneVisible(true);
+      setTransitioning(false);
+    const firstMoment = course.sections[nextSection].lessonPlan.moments[0];
+    window.setTimeout(() => {
+      void speak(
+        `Great work. Let’s move into ${course.sections[nextSection].title}. ${firstMoment.cue || ""} ${firstMoment.title}. ${firstMoment.narration}`,
+      );
+      }, 250);
+    }, 480);
   }
 
   async function speak(text: string) {
@@ -355,38 +388,77 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
             )}
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
-            <div className="mx-auto max-w-4xl px-4 py-8 sm:px-8">
-              <div className="mb-10 text-center">
-                <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-3xl bg-[#0b1b2c] text-amber-300 shadow-xl">
-                  <Bot size={34} />
-                </div>
-                <h2 className="text-2xl font-bold">Class is in session</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Talk naturally. Ask Mason to slow down, explain why, or show an example.
-                </p>
-              </div>
-
+          <div
+            className="relative min-h-0 flex-1 overflow-y-auto bg-white"
+            aria-live="polite"
+          >
+            <div className="pointer-events-none fixed inset-y-16 right-0 w-2/3 bg-[radial-gradient(circle_at_80%_20%,rgba(253,230,138,.28),transparent_38%),radial-gradient(circle_at_15%_85%,rgba(186,230,253,.3),transparent_42%)]" />
+            <div className="relative min-h-full px-5 py-6 sm:px-9 sm:py-8 lg:px-12">
               <div className="space-y-8">
-                {timeline.map((entry) =>
-                  entry.type === "moment" ? (
+                <div className="relative min-h-[calc(100vh-14rem)] overflow-hidden">
+                  <div className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-amber-200/30 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-32 -left-24 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl" />
+                  <div
+                    className={`relative transition-all duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${
+                      sceneVisible
+                        ? "translate-y-0 scale-100 opacity-100 blur-0"
+                        : "-translate-y-5 scale-[.985] opacity-0 blur-sm"
+                    }`}
+                  >
                     <MasonMoment
-                      key={entry.id}
-                      moment={section.lessonPlan.moments[entry.momentIndex]}
-                      momentIndex={entry.momentIndex}
+                      key={`${sectionIndex}-${momentIndex}`}
+                      moment={section.lessonPlan.moments[momentIndex]}
+                      momentIndex={momentIndex}
                       section={section}
-                      answer={answers[entry.momentIndex]}
+                      answer={answers[momentIndex]}
                       onAnswer={selectAnswer}
                       onSpeak={speak}
+                      isLatest
                     />
-                  ) : (
+                  </div>
+                  {transitioning && (
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-4 py-2 text-sm font-bold text-white shadow-xl">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-amber-300" />
+                        Mason is changing the view
+                      </div>
+                    </div>
+                  )}
+                  {!thinking && (
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+                      {atCourseEnd ? (
+                        <div className="rounded-full bg-emerald-100 px-6 py-3 text-center font-bold text-emerald-900 shadow-lg">
+                          <CheckCircle2 className="mr-2 inline" size={19} />
+                          You completed this course.
+                        </div>
+                      ) : (
+                        <button
+                          onClick={continueLesson}
+                          disabled={transitioning}
+                          className="rounded-full bg-[#0b1b2c] px-7 py-3 font-bold text-white shadow-xl transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
+                        >
+                          {transitioning ? "Changing the view…" : "I’m ready—what’s next?"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {timeline
+                  .filter(
+                    (
+                      entry,
+                    ): entry is Extract<TimelineEntry, { type: "message" }> =>
+                      entry.type === "message",
+                  )
+                  .slice(-6)
+                  .map((entry) => (
                     <ChatMessage
                       key={entry.id}
                       entry={entry}
                       onSpeak={speak}
                     />
-                  ),
-                )}
+                  ))}
 
                 {thinking && (
                   <div className="flex items-start gap-3">
@@ -402,7 +474,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                 )}
 
                 {!thinking && (
-                  <div className="flex justify-center pt-2">
+                  <div className="hidden">
                     {atCourseEnd ? (
                       <div className="rounded-2xl bg-emerald-100 px-6 py-4 text-center font-bold text-emerald-900">
                         <CheckCircle2 className="mx-auto mb-1" />
@@ -411,9 +483,10 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                     ) : (
                       <button
                         onClick={continueLesson}
-                        className="rounded-2xl bg-[#0b1b2c] px-7 py-3.5 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800"
+                        disabled={transitioning}
+                        className="rounded-2xl bg-[#0b1b2c] px-7 py-3.5 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
                       >
-                        Continue the lesson
+                        {transitioning ? "Changing the view…" : "Continue with Mason"}
                       </button>
                     )}
                   </div>
@@ -514,6 +587,7 @@ function MasonMoment({
   answer,
   onAnswer,
   onSpeak,
+  isLatest,
 }: {
   moment: LessonMoment;
   momentIndex: number;
@@ -521,30 +595,78 @@ function MasonMoment({
   answer?: AnswerState;
   onAnswer: (moment: LessonMoment, index: number, momentIndex: number) => void;
   onSpeak: (text: string) => void;
+  isLatest: boolean;
 }) {
+  const [arrived, setArrived] = useState(!isLatest);
+  const [focused, setFocused] = useState(!isLatest);
+  const hasVisual =
+    Boolean(moment.pageNumber && section.id !== 0) || moment.kind === "visual";
+
+  useEffect(() => {
+    const initialTimer = window.setTimeout(() => {
+      setArrived(!isLatest);
+      setFocused(!isLatest);
+    }, 0);
+    const arrivalTimer = isLatest
+      ? window.setTimeout(() => setArrived(true), 80)
+      : undefined;
+    const focusTimer = isLatest
+      ? window.setTimeout(
+          () => setFocused(true),
+          moment.cue ? 1900 : 850,
+        )
+      : undefined;
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearTimeout(arrivalTimer);
+      window.clearTimeout(focusTimer);
+    };
+  }, [isLatest, moment]);
+
   return (
-    <div className="flex items-start gap-3">
+    <div
+      className={`flex items-start gap-3 transition-all duration-700 ease-out ${
+        arrived ? "translate-y-0 opacity-100" : "translate-y-5 opacity-0"
+      }`}
+    >
       <MasonAvatar />
-      <article className="min-w-0 max-w-[calc(100%-3.25rem)] flex-1 rounded-3xl rounded-tl-md bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
+      <article className="min-w-0 max-w-[calc(100%-3.25rem)] flex-1 p-1 sm:p-2">
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[.15em] text-slate-500">
             {moment.kind}
           </span>
           <button
             onClick={() =>
-              onSpeak(`${moment.title}. ${moment.narration} ${moment.prompt || ""}`)
+              onSpeak(
+                `${moment.cue ? `${moment.cue} ` : ""}${moment.title}. ${moment.narration} ${moment.prompt || ""}`,
+              )
             }
             className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900"
           >
             <Volume2 size={15} /> Listen
           </button>
         </div>
+        {moment.cue && hasVisual && (
+          <div
+            className={`mb-4 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 transition-all delay-300 duration-700 ${
+              arrived ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
+            }`}
+          >
+            <Sparkles size={16} className="shrink-0 text-amber-600" />
+            “{moment.cue}”
+          </div>
+        )}
         <h3 className="text-xl font-bold sm:text-2xl">{moment.title}</h3>
         <p className="mt-3 text-[17px] leading-8 text-slate-700">
           {moment.narration}
         </p>
 
-        <TeachingVisual moment={moment} section={section} />
+        <TeachingVisual
+          moment={moment}
+          section={section}
+          focused={focused}
+          onToggleFocus={() => setFocused((value) => !value)}
+        />
 
         {moment.prompt && (
           <div className="mt-5 rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100">
@@ -590,24 +712,62 @@ function MasonMoment({
 function TeachingVisual({
   moment,
   section,
+  focused,
+  onToggleFocus,
 }: {
   moment: LessonMoment;
   section: PublicMasonSection;
+  focused: boolean;
+  onToggleFocus: () => void;
 }) {
+  const action = moment.visualAction || (moment.kind === "visual" ? "zoom" : "none");
+  const focusX = moment.focusX ?? 50;
+  const focusY = moment.focusY ?? 50;
+  const focusScale = moment.focusScale ?? 1.35;
+  const shouldFocus = focused && action !== "none";
+
   if (moment.pageNumber && section.id !== 0) {
     return (
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+      <div
+        className={`mt-5 overflow-hidden rounded-2xl border bg-slate-950 transition-all duration-700 ${
+          focused
+            ? "border-amber-300 shadow-[0_18px_55px_rgba(15,23,42,.25)]"
+            : "border-slate-200"
+        }`}
+      >
         <div className="flex items-center justify-between bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
           <span className="flex items-center gap-2">
-            <ImageIcon size={14} /> Mason is showing the source
+            <ImageIcon size={14} />
+            {shouldFocus ? "Mason is focusing on a detail" : "Mason is showing the source"}
           </span>
-          <span>Page {moment.pageNumber}</span>
+          <button
+            onClick={onToggleFocus}
+            className="rounded-lg bg-white px-2.5 py-1 shadow-sm hover:bg-amber-50"
+          >
+            {shouldFocus ? "Show full page" : `Focus detail · page ${moment.pageNumber}`}
+          </button>
         </div>
-        <iframe
-          title={`Source page ${moment.pageNumber}`}
-          src={`/api/mason/sections/${section.id}/pdf#page=${moment.pageNumber}&toolbar=0&navpanes=0`}
-          className="h-[430px] w-full bg-white"
-        />
+        <div className="relative h-[430px] overflow-hidden bg-white">
+          <div
+            className="absolute inset-0 transition-transform duration-[1400ms] ease-[cubic-bezier(.22,1,.36,1)]"
+            style={{
+              transform: shouldFocus ? `scale(${focusScale})` : "scale(1)",
+              transformOrigin: `${focusX}% ${focusY}%`,
+            }}
+          >
+            <iframe
+              title={`Source page ${moment.pageNumber}`}
+              src={`/api/mason/sections/${section.id}/pdf#page=${moment.pageNumber}&toolbar=0&navpanes=0`}
+              className="h-full w-full bg-white"
+            />
+          </div>
+          {shouldFocus && action === "spotlight" && (
+            <span
+              className="pointer-events-none absolute h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-amber-300 shadow-[0_0_0_999px_rgba(2,8,23,.55),0_0_35px_rgba(251,191,36,.8)] transition-all duration-1000"
+              style={{ left: `${focusX}%`, top: `${focusY}%` }}
+            />
+          )}
+        </div>
       </div>
     );
   }
@@ -615,7 +775,13 @@ function TeachingVisual({
   if (moment.kind !== "visual") return null;
 
   return (
-    <div className="mt-5 grid overflow-hidden rounded-2xl border border-slate-200 bg-[#0b1b2c] text-white sm:grid-cols-[.85fr_1.15fr]">
+    <div
+      className={`mt-5 grid overflow-hidden rounded-2xl border bg-[#0b1b2c] text-white transition-all duration-700 sm:grid-cols-[.85fr_1.15fr] ${
+        focused
+          ? "border-amber-300 shadow-[0_18px_55px_rgba(15,23,42,.3)]"
+          : "border-slate-200"
+      }`}
+    >
       <div className="flex flex-col justify-center p-5">
         <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-amber-300">
           <Sparkles size={15} /> Mason&apos;s visual
@@ -626,8 +792,20 @@ function TeachingVisual({
         <div className="mt-4 rounded-xl bg-white/10 p-3 text-center text-xl font-black text-amber-300">
           Height ÷ 4 = Base
         </div>
+        <button
+          onClick={onToggleFocus}
+          className="mt-3 text-left text-xs font-bold text-slate-400 hover:text-white"
+        >
+          {focused ? "Return to full view" : "Zoom into the setup"}
+        </button>
       </div>
-      <div className="relative min-h-60 overflow-hidden bg-gradient-to-b from-sky-200 to-sky-50">
+      <div
+        className="relative min-h-60 overflow-hidden bg-gradient-to-b from-sky-200 to-sky-50 transition-transform duration-[1400ms] ease-[cubic-bezier(.22,1,.36,1)]"
+        style={{
+          transform: shouldFocus ? `scale(${focusScale})` : "scale(1)",
+          transformOrigin: `${focusX}% ${focusY}%`,
+        }}
+      >
         <div className="absolute bottom-0 right-8 h-[88%] w-4 bg-slate-700" />
         <div className="absolute bottom-0 left-0 right-0 h-8 bg-emerald-800" />
         <div className="absolute bottom-7 left-[30%] h-[82%] w-3 origin-bottom rotate-[19deg] rounded bg-amber-500 shadow-xl">
@@ -645,6 +823,12 @@ function TeachingVisual({
         <div className="absolute right-14 top-10 flex h-[68%] items-center border-l-2 border-dashed border-slate-500 pl-2 text-xs font-black text-slate-700">
           4 parts up
         </div>
+        {shouldFocus && (
+          <span
+            className="pointer-events-none absolute h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-amber-300 shadow-[0_0_0_999px_rgba(2,8,23,.28),0_0_30px_rgba(251,191,36,.85)] transition-all duration-1000"
+            style={{ left: `${focusX}%`, top: `${focusY}%` }}
+          />
+        )}
       </div>
     </div>
   );
