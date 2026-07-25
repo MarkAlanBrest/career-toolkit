@@ -5,16 +5,19 @@ import { useState } from "react";
 export default function Page() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const login = async () => {
-const res = await fetch("/api/login", {
-        method: "POST",
+    setError("");
+    const res = await fetch("/api/login", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
+    const data = await res.json();
 
     if (!res.ok) {
-      alert("Login failed");
+      setError(data.error || "Login failed.");
       return;
     }
 
@@ -47,6 +50,12 @@ const res = await fetch("/api/login", {
           onChange={(e) => setPassword(e.target.value)}
           className="w-full mb-6 px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-blue-900"
         />
+
+        {error && (
+          <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
 
         <button
           onClick={login}
