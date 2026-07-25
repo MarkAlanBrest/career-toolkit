@@ -20,18 +20,24 @@ export async function getAdminSession(request: Request) {
   const token = readCookie(request, ADMIN_COOKIE);
   if (!token) return null;
 
-  return prisma.adminSession.findFirst({
-    where: {
-      tokenHash: hashSessionToken(token),
-      expiresAt: { gt: new Date() },
-      admin: { active: true },
-    },
+  const session = await prisma.adminSession.findUnique({
+    where: { tokenHash: hashSessionToken(token) },
     include: {
       admin: {
-        select: { id: true, email: true, name: true },
+        select: { id: true, email: true, name: true, active: true },
       },
     },
   });
+
+  if (
+    !session ||
+    !session.admin.active ||
+    session.expiresAt.getTime() <= Date.now()
+  ) {
+    return null;
+  }
+
+  return session;
 }
 
 export async function requireAdmin(request: Request) {
