@@ -182,6 +182,66 @@ export type SendResult = {
   errors: string[];
 };
 
+function htmlToPlainText(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/\s*(p|div|h[1-6]|li|ul|ol)\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export async function sendCanvasInboxMessages(
+  studentIds: number[],
+  subject: string,
+  message: string,
+): Promise<SendResult> {
+  const batches: number[][] = [];
+  for (let index = 0; index < studentIds.length; index += 90) {
+    batches.push(studentIds.slice(index, index + 90));
+  }
+  const body = htmlToPlainText(message);
+  const outcomes = await mapWithConcurrency(batches, 3, async batch => {
+    const form = new URLSearchParams();
+    batch.forEach(id => form.append('recipients[]', String(id)));
+    form.set('subject', subject);
+    form.set('body', body);
+    form.set('force_new', 'true');
+    form.set('group_conversation', 'false');
+    form.set('bulk_message', 'true');
+    form.set('mode', 'async');
+    try {
+      await canvasFetch('/api/v1/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString(),
+      });
+      return { sent: batch.length, error: '' };
+    } catch (error) {
+      return {
+        sent: 0,
+        error: `Inbox message failed for a batch of ${batch.length} students: ${error instanceof Error ? error.message : 'Unknown Canvas error'}`,
+      };
+    }
+  });
+  const sent = outcomes.reduce((total, outcome) => total + outcome.sent, 0);
+  const errors = outcomes.filter(outcome => outcome.error).map(outcome => outcome.error);
+  const failed = studentIds.length - sent;
+  return {
+    status: sent === studentIds.length ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
+    sent,
+    failed,
+    errors,
+  };
+}
+
 export async function getCanvasTestCourse(courseUrl: string): Promise<{ id: number; name: string; activeStudentCount: number }> {
   const { baseUrl } = canvasConfig();
   let supplied: URL;

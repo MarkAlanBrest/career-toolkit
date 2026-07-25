@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import styles from './broadcast.module.css';
 
 type CampusCode = 'NCST' | 'ELPC' | 'NATS';
+type Delivery = 'inbox' | 'announcement' | 'both';
 type Summary = {
   campus: CampusCode;
   campusName: string;
@@ -26,7 +27,7 @@ type Broadcast = {
   createdAt: string;
   campus: CampusCode;
   campusName: string;
-  delivery?: 'inbox' | 'announcement' | 'test';
+  delivery?: Delivery | 'test';
   subject: string;
   body: string;
   recipientCount: number;
@@ -92,6 +93,7 @@ export default function CanvasBroadcastPage() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [reviewedSnapshot, setReviewedSnapshot] = useState('');
   const [subject, setSubject] = useState('');
+  const [delivery, setDelivery] = useState<Delivery>('announcement');
   const [testCourseUrl, setTestCourseUrl] = useState('');
   const [bodyLength, setBodyLength] = useState(0);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -343,6 +345,7 @@ export default function CanvasBroadcastPage() {
         method: 'POST',
         body: JSON.stringify({
           campus,
+          delivery,
           subject,
           body: currentBody(),
           expectedCourseIds: summary?.courses.map(course => course.id) || [],
@@ -352,13 +355,14 @@ export default function CanvasBroadcastPage() {
       setHistory(items => [data.record, ...items].slice(0, 25));
       setSummaries(previous => ({ ...previous, [campus]: null }));
       const result = data.result;
+      const deliveryLabel = delivery === 'both' ? 'Inbox messages and announcements' : delivery === 'inbox' ? 'Inbox messages' : 'Announcements';
       setNotice({
         type: result.status === 'Sent' ? 'success' : 'error',
         text: result.status === 'Sent'
-          ? `Announcement posted in ${result.sent.toLocaleString()} courses.`
+          ? `${deliveryLabel} sent successfully.`
           : result.failed === 0
-            ? `${result.sent.toLocaleString()} announcements posted with course visibility warnings. See broadcast details.`
-            : `${result.sent.toLocaleString()} course announcements posted; ${result.failed.toLocaleString()} failed.`,
+            ? `${deliveryLabel} sent with warnings. See broadcast details.`
+            : `${deliveryLabel}: ${result.sent.toLocaleString()} accepted; ${result.failed.toLocaleString()} failed.`,
       });
       void loadSummary(campus);
     } catch (error) {
@@ -529,10 +533,37 @@ export default function CanvasBroadcastPage() {
 
         <section className={`${styles.card} ${!authorized ? styles.locked : ''}`}>
           <div className={styles.sectionHead}>
-            <div><span className={styles.step}>03</span><h2>Compose announcement</h2></div>
-            <span className={styles.hint}>Posted to eligible Canvas courses</span>
+            <div><span className={styles.step}>03</span><h2>Compose broadcast</h2></div>
+            <span className={styles.hint}>Send to eligible Canvas students and courses</span>
           </div>
-          <div className={styles.announcementNote}>One announcement will be posted in every eligible course. Students enrolled in multiple courses may receive it more than once. Email delivery follows each student’s Canvas notification settings.</div>
+          <label className={styles.label}>Delivery method</label>
+          <div className={styles.deliveryGrid} role="radiogroup" aria-label="Delivery method">
+            {([
+              ['inbox', 'Email', 'One private Canvas Inbox message per student'],
+              ['announcement', 'Announcements', 'One post in every eligible course'],
+              ['both', 'Both', 'Send the Inbox message and post announcements'],
+            ] as Array<[Delivery, string, string]>).map(([value, label, description]) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={delivery === value}
+                className={delivery === value ? styles.deliveryActive : ''}
+                onClick={() => setDelivery(value)}
+                disabled={!authorized}
+              >
+                <span className={styles.radio} />
+                <span><strong>{label}</strong><small>{description}</small></span>
+              </button>
+            ))}
+          </div>
+          <div className={styles.announcementNote}>
+            {delivery === 'inbox'
+              ? 'Each unique student receives a private Canvas Inbox message. External email delivery follows that student’s Canvas notification preferences.'
+              : delivery === 'both'
+                ? 'Each unique student receives a private Canvas Inbox message, and one announcement is posted in every eligible course. Students in multiple courses may see more than one announcement.'
+                : 'One announcement will be posted in every eligible course. Students enrolled in multiple courses may receive it more than once. Email delivery follows each student’s Canvas notification settings.'}
+          </div>
           <label className={styles.label} htmlFor="subject">Subject</label>
           <input id="subject" className={styles.subject} value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} placeholder="Enter a clear, specific subject" disabled={!authorized} />
           <div className={styles.editorLabel}><label className={styles.label}>Message</label><span>{bodyLength.toLocaleString()} characters</span></div>
@@ -556,7 +587,7 @@ export default function CanvasBroadcastPage() {
             <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
             <div className={styles.sendActions}>
               <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'POSTING TEST…' : 'POST TEST ANNOUNCEMENT'}</button>
-              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount || reviewedSnapshot !== summary?.calculatedAt}><Icon name="send" />{sending ? 'POSTING…' : 'POST ANNOUNCEMENTS'}</button>
+              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount || reviewedSnapshot !== summary?.calculatedAt}><Icon name="send" />{sending ? 'SENDING…' : delivery === 'both' ? 'SEND BOTH' : delivery === 'inbox' ? 'SEND EMAIL' : 'POST ANNOUNCEMENTS'}</button>
             </div>
           </div>
         </section>
@@ -572,7 +603,7 @@ export default function CanvasBroadcastPage() {
               <tbody>
                 {history.length ? history.map(item => (
                   <tr key={item.id} onClick={() => showBroadcast(item)} tabIndex={0} onKeyDown={e => e.key === 'Enter' && showBroadcast(item)}>
-                    <td>{formatDate(item.createdAt)}</td><td>{item.campusName}</td><td>{item.delivery === 'announcement' ? 'Announcement' : item.delivery === 'test' ? 'Test' : 'Inbox'}</td><td className={styles.subjectCell}>{item.subject}</td><td>{item.recipientCount.toLocaleString()}</td>
+                    <td>{formatDate(item.createdAt)}</td><td>{item.campusName}</td><td>{item.delivery === 'both' ? 'Both' : item.delivery === 'announcement' ? 'Announcement' : item.delivery === 'test' ? 'Test' : 'Email'}</td><td className={styles.subjectCell}>{item.subject}</td><td>{item.recipientCount.toLocaleString()}</td>
                     <td><span className={`${styles.status} ${styles[item.status.replace(' ', '').toLowerCase()]}`}>{item.status}</span></td>
                   </tr>
                 )) : <tr><td colSpan={6} className={styles.empty}>No broadcasts have been sent yet.</td></tr>}
@@ -594,14 +625,18 @@ export default function CanvasBroadcastPage() {
           {modal === 'confirm' && summary && <>
             <div className={styles.confirmIcon}><Icon name="send" /></div>
             <span className={styles.modalKicker}>FINAL CONFIRMATION</span><h2>Ready to send?</h2>
-            <p className={styles.confirmText}>You are about to post <strong>“{subject}”</strong> as an announcement in <strong>{summary.courseCount} courses</strong> at <strong>{summary.campusName}</strong>.</p>
+            <p className={styles.confirmText}>You are about to send <strong>“{subject}”</strong> by <strong>{delivery === 'both' ? 'email and announcements' : delivery === 'inbox' ? 'email' : 'announcements'}</strong> at <strong>{summary.campusName}</strong>.</p>
             <div className={styles.confirmStats}><span><b>{summary.courseCount}</b> eligible courses</span><span><b>{summary.studentCount.toLocaleString()}</b> unique students</span></div>
-            <div className={styles.warning}>The app will enable the Announcements navigation tab, show up to three recent announcements on each course homepage, and post one announcement per eligible course. Students in multiple courses may receive duplicates.</div>
+            <div className={styles.warning}>{delivery === 'inbox'
+              ? 'The app will create a separate private Canvas Inbox conversation for each unique student. Canvas sends external email according to each student’s notification preferences.'
+              : delivery === 'both'
+                ? 'The app will create private Inbox messages and post one announcement per eligible course. Students in multiple courses may see duplicate announcements.'
+                : 'The app will enable the Announcements navigation tab, show up to three recent announcements on each course homepage, and post one announcement per eligible course. Students in multiple courses may receive duplicates.'}</div>
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Go back</button><button className={styles.sendConfirm} onClick={send}>Confirm & send</button></div>
           </>}
           {modal === 'details' && selectedBroadcast && <>
             <div className={styles.detailHead}><div><span className={styles.modalKicker}>BROADCAST DETAILS</span><h2>{selectedBroadcast.subject}</h2></div><span className={`${styles.status} ${styles[selectedBroadcast.status.replace(' ', '').toLowerCase()]}`}>{selectedBroadcast.status}</span></div>
-            <div className={styles.detailMeta}><span><b>Sent</b>{formatDate(selectedBroadcast.createdAt)}</span><span><b>Delivery</b>{selectedBroadcast.delivery === 'announcement' ? 'Announcement' : selectedBroadcast.delivery === 'test' ? 'Private test' : 'Canvas Inbox'}</span><span><b>Recipients</b>{selectedBroadcast.recipientCount.toLocaleString()}</span><span><b>Courses</b>{selectedBroadcast.eligibleCourseCount}</span></div>
+            <div className={styles.detailMeta}><span><b>Sent</b>{formatDate(selectedBroadcast.createdAt)}</span><span><b>Delivery</b>{selectedBroadcast.delivery === 'both' ? 'Email + Announcement' : selectedBroadcast.delivery === 'announcement' ? 'Announcement' : selectedBroadcast.delivery === 'test' ? 'Private test' : 'Canvas Inbox / Email'}</span><span><b>Recipients</b>{selectedBroadcast.recipientCount.toLocaleString()}</span><span><b>Courses</b>{selectedBroadcast.eligibleCourseCount}</span></div>
             <iframe className={styles.preview} title="Broadcast message" sandbox="" srcDoc={`<!doctype html><style>body{font:15px/1.55 Arial,sans-serif;color:#26313a;padding:16px;margin:0}a{color:#146ca4}</style>${selectedBroadcast.body}`} />
             {selectedBroadcast.errors?.length > 0 && <div className={styles.errorDetails}><strong>Canvas/API details</strong>{selectedBroadcast.errors.map((error, index) => <p key={index}>{error}</p>)}</div>}
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Close</button><button className={styles.primary} onClick={reuseBroadcast}>Reuse message</button></div>

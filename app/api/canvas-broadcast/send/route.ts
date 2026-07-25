@@ -2,7 +2,15 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { broadcastAuthError, isBroadcastAuthorized } from '@/lib/broadcastAuth';
 import { addBroadcast } from '@/lib/broadcastStore';
-import { buildRecipientSnapshot, CAMPUSES, sanitizeMessageHtml, sendCanvasAnnouncements, type CampusCode } from '@/lib/canvasBroadcast';
+import {
+  buildRecipientSnapshot,
+  CAMPUSES,
+  sanitizeMessageHtml,
+  sendCanvasAnnouncements,
+  sendCanvasInboxMessages,
+  type CampusCode,
+  type SendResult,
+} from '@/lib/canvasBroadcast';
 import { redis } from '@/lib/redis';
 
 export const dynamic = 'force-dynamic';
@@ -18,8 +26,9 @@ export async function POST(request: NextRequest) {
   const expectedCourseIds = Array.isArray(input?.expectedCourseIds)
     ? input.expectedCourseIds.map(Number).filter(Number.isFinite).sort((a: number, b: number) => a - b)
     : [];
-  const delivery = 'announcement' as const;
-  if (!campus || !(campus in CAMPUSES) || !subject || !body || !idempotencyKey || !expectedCourseIds.length) {
+  const delivery = input?.delivery as 'inbox' | 'announcement' | 'both' | undefined;
+  if (!campus || !(campus in CAMPUSES) || !['inbox', 'announcement', 'both'].includes(delivery || '')
+    || !subject || !body || !idempotencyKey || !expectedCourseIds.length) {
     return NextResponse.json({ error: 'Campus, reviewed course list, subject, message, and confirmation token are required.' }, { status: 400 });
   }
   if (subject.length > 255 || body.length > 50000) {
@@ -56,7 +65,25 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json({ error: 'No active students are eligible for this campus.', record }, { status: 400 });
     }
-    const result = await sendCanvasAnnouncements(snapshot.courses, subject, body);
+    const announcementResult = delivery === 'announcement' || delivery === 'both'
+      ? await sendCanvasAnnouncements(snapshot.courses, subject, body)
+      : null;
+    const inboxResult = delivery === 'inbox' || delivery === 'both'
+      ? await sendCanvasInboxMessages(snapshot.studentIds, subject, body)
+      : null;
+    const results = [
+      announcementResult && { label: 'Announcement', result: announcementResult },
+      inboxResult && { label: 'Inbox', result: inboxResult },
+    ].filter(Boolean) as Array<{ label: string; result: SendResult }>;
+    const sent = results.reduce((total, item) => total + item.result.sent, 0);
+    const failed = results.reduce((total, item) => total + item.result.failed, 0);
+    const errors = results.flatMap(item => item.result.errors.map(error => `${item.label}: ${error}`));
+    const result: SendResult = {
+      status: failed === 0 && errors.length === 0 ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
+      sent,
+      failed,
+      errors,
+    };
     const record = await addBroadcast({
       campus,
       campusName: snapshot.campusName,
