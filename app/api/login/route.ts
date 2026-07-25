@@ -1,35 +1,55 @@
 export const runtime = "nodejs";
+
+import { randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { ADMIN_COOKIE, hashSessionToken } from "@/lib/admin-session";
 
-export async function POST(req: Request) {
-  const { email, password } = await req.json();
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  const sessionSecret = process.env.ADMIN_SESSION_SECRET;
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
 
-  if (!adminEmail || !adminPassword || !sessionSecret) {
-    return NextResponse.json(
-      { error: "Admin access is not configured." },
-      { status: 503 },
-    );
-  }
+    const admin = await prisma.adminUser.findUnique({ where: { email } });
+    if (!admin || !admin.active || !(await bcrypt.compare(password, admin.passwordHash))) {
+      return NextResponse.json(
+        { error: "Invalid email or password." },
+        { status: 401 },
+      );
+    }
 
-  if (
-    String(email).trim().toLowerCase() === adminEmail.trim().toLowerCase() &&
-    password === adminPassword
-  ) {
-    const res = NextResponse.json({ ok: true });
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000);
 
-    res.cookies.set("admin-auth", sessionSecret, {
+    await prisma.$transaction([
+      prisma.adminSession.deleteMany({
+        where: { expiresAt: { lte: new Date() } },
+      }),
+      prisma.adminSession.create({
+        data: {
+          tokenHash: hashSessionToken(token),
+          adminId: admin.id,
+          expiresAt,
+        },
+      }),
+    ]);
+
+    const response = NextResponse.json({ ok: true });
+    response.cookies.set(ADMIN_COOKIE, token, {
       path: "/",
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
-      maxAge: 60 * 60 * 12,
+      expires: expiresAt,
     });
-
-    return res;
+    return response;
+  } catch (error) {
+    console.error("Admin login failed:", error);
+    return NextResponse.json(
+      { error: "Admin login is temporarily unavailable." },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
 }

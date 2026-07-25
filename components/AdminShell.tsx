@@ -36,7 +36,7 @@ export default function AdminShell({
   const currentPath = pathname || "";
 
   async function logout() {
-    await fetch("/admin/logout", { method: "GET" });
+    await fetch("/admin/logout", { method: "POST" });
     router.push("/admin/login");
     router.refresh();
   }

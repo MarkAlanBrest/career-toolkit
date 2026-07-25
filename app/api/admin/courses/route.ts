@@ -7,8 +7,12 @@ import {
   isCourseIntensity,
   isCourseTheme,
 } from "@/lib/course-options";
+import { requireAdmin } from "@/lib/admin-session";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   const courses = await prisma.masonCourse.findMany({
     orderBy: { updatedAt: "desc" },
     include: {
@@ -35,6 +39,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await request.json();
     const title = String(body.title || "").trim();

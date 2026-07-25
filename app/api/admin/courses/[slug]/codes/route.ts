@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { randomInt } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-session";
 
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -22,6 +23,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const { slug } = await params;
     const body = await request.json();

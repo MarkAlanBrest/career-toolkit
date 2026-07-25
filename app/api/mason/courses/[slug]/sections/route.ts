@@ -3,11 +3,15 @@ export const runtime = "nodejs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateLessonPlan } from "@/lib/mason-generator";
+import { requireAdmin } from "@/lib/admin-session";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const { slug } = await params;
     const course = await prisma.masonCourse.findUnique({

@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateLessonPlan } from "@/lib/mason-generator";
 import { slugify } from "@/lib/mason";
+import { requireAdmin } from "@/lib/admin-session";
 
 export async function GET() {
   const courses = await prisma.masonCourse.findMany({
@@ -21,6 +22,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const form = await request.formData();
     const title = String(form.get("title") || "").trim();

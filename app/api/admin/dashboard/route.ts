@@ -3,14 +3,11 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { requireAdmin } from "@/lib/admin-session";
 
-export async function GET() {
-  const cookieStore = await cookies();
-
-  if (cookieStore.get("admin-auth")?.value !== "true") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(request: Request) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const records = await prisma.courseRecords.findMany({

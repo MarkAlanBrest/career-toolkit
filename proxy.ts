@@ -11,9 +11,7 @@ export function proxy(request: NextRequest) {
 
   if (
     (isAdminPage || isAdminApi) &&
-    (!process.env.ADMIN_SESSION_SECRET ||
-      request.cookies.get("admin-auth")?.value !==
-        process.env.ADMIN_SESSION_SECRET)
+    !request.cookies.get("admin-session")?.value
   ) {
     if (isAdminApi) {
       return Response.json({ error: "Unauthorized." }, { status: 401 });

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { demoCourse } from "@/lib/mason";
+import { requireAdmin } from "@/lib/admin-session";
 
 export async function GET(
   _request: Request,
@@ -38,6 +39,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   const { slug } = await params;
   const body = await request.json();
   const course = await prisma.masonCourse.update({

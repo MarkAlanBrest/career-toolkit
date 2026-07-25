@@ -6,11 +6,15 @@ import {
   isCourseIntensity,
   isCourseTheme,
 } from "@/lib/course-options";
+import { requireAdmin } from "@/lib/admin-session";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   const { slug } = await params;
   const course = await prisma.masonCourse.findUnique({
     where: { slug },
@@ -62,6 +66,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
+  const unauthorized = await requireAdmin(request);
+  if (unauthorized) return unauthorized;
+
   try {
     const { slug } = await params;
     const body = await request.json();
