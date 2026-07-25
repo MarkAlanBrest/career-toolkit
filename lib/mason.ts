@@ -42,9 +42,9 @@ export type PublicMasonCourse = {
 
 export const demoCourse: PublicMasonCourse = {
   id: 0,
-  title: "Ladder Safety with Mason",
+  title: "Interactive Ladder Safety",
   slug: "demo",
-  description: "A short preview of Mason's dynamic teaching experience.",
+  description: "A short preview of an AI-guided teaching experience.",
   published: true,
   sections: [
     {

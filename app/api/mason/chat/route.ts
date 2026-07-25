@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL || "gpt-5.6-sol",
         instructions:
-          "You are Mason, a warm, direct AI safety teacher. Answer conversationally using only the supplied lesson source. Teach instead of merely giving an answer: explain the reason, use a short example when useful, and ask at most one helpful follow-up. If the source does not establish an answer, say so clearly.",
+          "You are a warm, direct AI course instructor. Answer conversationally using only the supplied lesson source. Teach instead of merely giving an answer: explain the reason, use a short example when useful, and ask at most one helpful follow-up. If the source does not establish an answer, say so clearly.",
         input: [
           { role: "developer", content: source },
           ...messages.map((message) => ({
@@ -74,14 +74,14 @@ export async function POST(request: Request) {
     });
     const data = await response.json();
     if (!response.ok) {
-      throw new Error(data?.error?.message || "Mason could not respond.");
+      throw new Error(data?.error?.message || "The instructor could not respond.");
     }
 
     return Response.json({ reply: data.output_text });
   } catch (error) {
-    console.error("Mason chat failed:", error);
+    console.error("Instructor chat failed:", error);
     const message =
-      error instanceof Error ? error.message : "Mason could not respond.";
+      error instanceof Error ? error.message : "The instructor could not respond.";
     return Response.json({ error: message }, { status: 500 });
   }
 }

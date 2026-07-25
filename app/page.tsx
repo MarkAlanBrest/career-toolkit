@@ -33,7 +33,7 @@ export default function CourseCodePage() {
 
       if (data.claimed) {
         router.push(
-          `/mason/${data.course.slug}?code=${encodeURIComponent(code)}`,
+          `/training/${data.course.slug}?code=${encodeURIComponent(code)}`,
         );
       } else {
         router.push(`/enroll?code=${encodeURIComponent(code)}`);

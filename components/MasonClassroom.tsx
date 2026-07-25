@@ -296,8 +296,8 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                 <Bot size={24} />
               </div>
               <div>
-                <p className="text-lg font-bold">Mason</p>
-                <p className="text-xs text-emerald-300">AI teacher · online</p>
+                <p className="text-lg font-bold">Course Instructor</p>
+                <p className="text-xs text-emerald-300">AI-guided lesson</p>
               </div>
             </div>
             <button className="lg:hidden" onClick={() => setMenuOpen(false)}>
@@ -381,7 +381,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
             ) : (
               <div className="hidden text-right sm:block">
                 <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                  Mason natural voice
+                  Natural instructor voice
                 </span>
                 <p className="mt-1 text-[10px] text-slate-400">AI-generated voice</p>
               </div>
@@ -420,7 +420,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                     <div className="absolute inset-0 grid place-items-center">
                       <div className="flex items-center gap-2 rounded-full bg-slate-950/90 px-4 py-2 text-sm font-bold text-white shadow-xl">
                         <span className="h-2 w-2 animate-pulse rounded-full bg-amber-300" />
-                        Mason is changing the view
+                        Your instructor is changing the view
                       </div>
                     </div>
                   )}
@@ -486,7 +486,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                         disabled={transitioning}
                         className="rounded-2xl bg-[#0b1b2c] px-7 py-3.5 font-bold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:opacity-50"
                       >
-                        {transitioning ? "Changing the view…" : "Continue with Mason"}
+                        {transitioning ? "Changing the view…" : "Continue lesson"}
                       </button>
                     )}
                   </div>
@@ -518,7 +518,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
                   }
                 }}
                 rows={1}
-                placeholder="Talk to Mason…"
+                placeholder="Ask about this lesson…"
                 className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 outline-none placeholder:text-slate-400"
               />
               <button
@@ -529,7 +529,7 @@ export default function MasonClassroom({ course }: { course: PublicMasonCourse }
               </button>
             </form>
             <p className="mt-2 text-center text-[11px] text-slate-400">
-              Mason answers from the approved course material.
+              Answers are grounded in the approved course material.
             </p>
           </div>
         </section>
@@ -738,7 +738,7 @@ function TeachingVisual({
         <div className="flex items-center justify-between bg-slate-100 px-4 py-2 text-xs font-bold text-slate-600">
           <span className="flex items-center gap-2">
             <ImageIcon size={14} />
-            {shouldFocus ? "Mason is focusing on a detail" : "Mason is showing the source"}
+            {shouldFocus ? "Focusing on an important detail" : "Showing the source material"}
           </span>
           <button
             onClick={onToggleFocus}
@@ -784,7 +784,7 @@ function TeachingVisual({
     >
       <div className="flex flex-col justify-center p-5">
         <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.15em] text-amber-300">
-          <Sparkles size={15} /> Mason&apos;s visual
+          <Sparkles size={15} /> Instructor visual
         </div>
         <p className="text-sm leading-6 text-slate-300">
           The base distance is one quarter of the working height.

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
         voice: process.env.MASON_VOICE || "cedar",
         input,
         instructions:
-          "Speak as Mason, a warm and confident male instructor. Sound natural, attentive, and conversational—not like an announcer. Use thoughtful pauses, vary emphasis to make important safety concepts memorable, and slow slightly for questions and numerical instructions.",
+          "Speak as a warm and confident instructor. Sound natural, attentive, and conversational—not like an announcer. Use thoughtful pauses, vary emphasis to make important safety concepts memorable, and slow slightly for questions and numerical instructions.",
         response_format: "mp3",
         speed: 0.96,
       }),
@@ -35,9 +35,9 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Mason speech generation failed:", error);
+      console.error("Instructor speech generation failed:", error);
       return Response.json(
-        { error: "Mason could not generate audio." },
+        { error: "Instructor audio could not be generated." },
         { status: response.status },
       );
     }
@@ -49,9 +49,9 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    console.error("Mason speech route failed:", error);
+    console.error("Instructor speech route failed:", error);
     return Response.json(
-      { error: "Mason could not generate audio." },
+      { error: "Instructor audio could not be generated." },
       { status: 500 },
     );
   }

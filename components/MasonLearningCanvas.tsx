@@ -184,8 +184,8 @@ export default function MasonLearningCanvas({
               <Bot size={24} />
             </div>
             <div className="hidden lg:block">
-              <p className="font-bold">Mason</p>
-              <p className="text-xs text-emerald-300">AI instructor</p>
+              <p className="font-bold">Course Instructor</p>
+              <p className="text-xs text-emerald-300">AI-guided lesson</p>
             </div>
           </div>
           <div className="hidden p-5 lg:block">
@@ -290,7 +290,7 @@ export default function MasonLearningCanvas({
                   onClick={() => (speaking ? audioRef.current?.pause() : void speak(feedback))}
                   className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-500"
                 >
-                  <Volume2 size={14} /> {speaking ? "Speaking…" : "Hear Mason"}
+                  <Volume2 size={14} /> {speaking ? "Speaking…" : "Hear narration"}
                 </button>
               </div>
               {phase === "complete" && (
@@ -309,7 +309,7 @@ export default function MasonLearningCanvas({
             <input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              placeholder="Ask Mason…"
+              placeholder="Ask the instructor…"
               className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm outline-none"
             />
             <button

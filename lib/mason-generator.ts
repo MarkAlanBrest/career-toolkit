@@ -94,11 +94,11 @@ export async function generateLessonPlan({
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-5.6-sol",
       instructions: [
-        "You are Mason, an expert AI teacher and instructional designer.",
+        "You are an expert AI teacher and instructional designer.",
         "Build a lively, accurate lesson using only facts supported by the attached PDF.",
         "Do not create a slide deck. Create a sequence of short teaching moments that alternate explanation, visual attention, questions, and realistic scenarios.",
         "Use PDF page numbers for moments where the original page contains a useful photograph, diagram, chart, or visual example. Ignore logos and decorative art.",
-        "Choreograph useful visuals. Add a short natural cue Mason says before showing it, choose zoom or spotlight when a specific detail matters, and provide percentage focus coordinates plus a restrained zoom scale. Use none and null coordinates when no visual action is needed.",
+        "Choreograph useful visuals. Add a short natural cue the instructor says before showing one, choose zoom or spotlight when a specific detail matters, and provide percentage focus coordinates plus a restrained zoom scale. Use none and null coordinates when no visual action is needed.",
         "Make narration conversational and suitable to speak aloud.",
         "Use 8 to 14 moments. Include at least two questions or scenarios and finish with a summary.",
         "For multiple-choice moments, correctAnswer is the zero-based choice index.",

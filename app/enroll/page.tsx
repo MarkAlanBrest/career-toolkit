@@ -29,7 +29,7 @@ function EnrollForm() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "This code is not valid.");
         if (data.claimed) {
-          router.replace(`/mason/${data.course.slug}?code=${encodeURIComponent(code)}`);
+          router.replace(`/training/${data.course.slug}?code=${encodeURIComponent(code)}`);
           return;
         }
         setCourse(data.course);
@@ -61,7 +61,7 @@ function EnrollForm() {
       setSubmitting(false);
       return;
     }
-    router.push(`/mason/${data.course.slug}?code=${encodeURIComponent(code)}`);
+    router.push(`/training/${data.course.slug}?code=${encodeURIComponent(code)}`);
   }
 
   if (loading) {

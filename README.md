@@ -17,16 +17,16 @@ connection string, and then open `http://localhost:3000`. Running
 
 Course definitions live under `data/courses/<course-folder>/module.json`.
 
-## Mason AI lessons
+## AI-generated lessons
 
-Mason Studio is available at `/admin/mason`. Create a course by uploading one
+Training Studio is available at `/admin/courses`. Create a course by uploading one
 PDF for each section. The backend stores the source PDF in PostgreSQL and uses
 the OpenAI Responses API to create a source-grounded lesson plan with teaching
 moments, questions, scenarios, and references to useful PDF pages.
 
 Add `OPENAI_API_KEY` to `.env` to enable lesson generation and live student
-questions. The same key enables Mason's natural AI voice through the speech
-endpoint. The classroom preview at `/mason/demo` works without an API key and
+questions. The same key enables natural instructor narration through the speech
+endpoint. The classroom preview at `/training/demo` works without an API key and
 falls back to the device voice when natural audio is unavailable.
 
 ## Administration

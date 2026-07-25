@@ -211,7 +211,7 @@ export default function CourseEditorPage() {
       eyebrow={course.published ? "Published program" : "Draft program"}
       actions={
         <Link
-          href={`/mason/${course.slug}`}
+          href={`/training/${course.slug}`}
           className="rounded-xl border border-[#10283f]/15 bg-white px-4 py-3 text-sm font-bold text-[#10283f]"
         >
           Preview course
