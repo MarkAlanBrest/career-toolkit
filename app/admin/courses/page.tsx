@@ -83,8 +83,8 @@ export default function CoursesPage() {
             Build your first training program
           </h2>
           <p className="mx-auto mt-3 max-w-xl leading-7 text-[#63707a]">
-            Choose the program structure and visual direction, then add source PDFs
-            section by section.
+            Choose the program structure and visual direction, then generate each
+            section from uploaded source material.
           </p>
           <Link
             href="/admin/courses/new"

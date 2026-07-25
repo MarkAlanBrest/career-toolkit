@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
               [BookOpen, totals.programs, "Training programs", `${totals.published} published`],
               [KeyRound, totals.codes, "Codes available", "Ready to sell or assign"],
               [Users, totals.learners, "Enrolled learners", "Across every program"],
-              [BookOpen, courses.reduce((sum, item) => sum + item._count.sections, 0), "Course sections", "Built from source PDFs"],
+              [BookOpen, courses.reduce((sum, item) => sum + item._count.sections, 0), "Course sections", "Generated from source material"],
             ].map(([Icon, value, label, note]) => {
               const MetricIcon = Icon as typeof BookOpen;
               return (

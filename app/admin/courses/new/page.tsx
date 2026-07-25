@@ -48,8 +48,8 @@ export default function NewCoursePage() {
               Program essentials
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#69757e]">
-              Start with the learning purpose. PDFs and sections are added after the
-              program is saved.
+              Start with the learning purpose. Source material and sections are added
+              after the program is saved.
             </p>
           </div>
 

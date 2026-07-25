@@ -127,7 +127,7 @@ export default function CourseCodePage() {
 
           <p className="text-slate-200 leading-relaxed">
             Enter the course code provided by your instructor to begin or
-            resume training from your last completed slide.
+            resume training from your last completed lesson.
           </p>
         </div>
 
