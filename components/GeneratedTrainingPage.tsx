@@ -332,7 +332,8 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
           "--page": palette.page,
         } as React.CSSProperties
       }
-      className="min-h-screen bg-[var(--page)] text-slate-800"
+      data-course-theme={course.theme || "heritage"}
+      className="course-shell min-h-screen bg-[var(--page)] text-slate-800"
     >
       <button
         type="button"
@@ -344,7 +345,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
       </button>
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[290px] border-r border-white/10 bg-[var(--dark)] text-white transition-transform lg:translate-x-0 ${
+        className={`course-sidebar fixed inset-y-0 left-0 z-50 w-[290px] border-r border-white/10 bg-[var(--dark)] text-white transition-transform lg:translate-x-0 ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -408,7 +409,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
       </aside>
 
       <div className="lg:pl-[290px]">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[color:var(--page)]/95 backdrop-blur">
+        <header className="course-topbar sticky top-0 z-30 border-b border-slate-200/80 bg-[color:var(--page)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1050px] items-center justify-between gap-4 px-6 py-4 pl-20 lg:px-14">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[var(--ink)]">{section.title}</p>
@@ -422,7 +423,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
           </div>
         </header>
 
-        <article className="mx-auto max-w-[1050px] px-6 pb-24 pt-14 sm:px-10 lg:px-14 lg:pt-20">
+        <article className="course-article mx-auto max-w-[1050px] px-6 pb-24 pt-14 sm:px-10 lg:px-14 lg:pt-20">
           <div className="max-w-[790px]">
             <p className="text-xs font-bold uppercase tracking-[.24em] text-[var(--accent)]">
               Section {String(sectionIndex + 1).padStart(2, "0")}

@@ -26,3 +26,126 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Course themes deliberately change more than palette. The learner should be
+ * able to identify a theme from its typography, geometry, density, and surface
+ * treatment even if the page is viewed in grayscale.
+ */
+.course-shell {
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+/* Heritage: traditional editorial typography on warm paper. */
+.course-shell[data-course-theme="heritage"] {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
+    radial-gradient(circle at 85% 8%, rgba(217, 160, 54, 0.11), transparent 28rem);
+}
+
+.course-shell[data-course-theme="heritage"] .course-article h1,
+.course-shell[data-course-theme="heritage"] .course-article h2,
+.course-shell[data-course-theme="heritage"] .course-article h3,
+.course-shell[data-course-theme="heritage"] .course-sidebar h1 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.course-shell[data-course-theme="heritage"] .course-article > div:first-child {
+  border-left: 3px solid var(--accent);
+  padding-left: clamp(1.25rem, 3vw, 2.5rem);
+}
+
+/* Industrial: dense, squared-off, high-contrast equipment-manual styling. */
+.course-shell[data-course-theme="industrial"] {
+  background-image:
+    linear-gradient(rgba(32, 42, 50, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 42, 50, 0.045) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.course-shell[data-course-theme="industrial"] .course-sidebar {
+  border-right: 5px solid var(--accent);
+}
+
+.course-shell[data-course-theme="industrial"] .course-topbar {
+  border-bottom: 3px solid var(--ink);
+}
+
+.course-shell[data-course-theme="industrial"] .course-article {
+  max-width: 1120px;
+}
+
+.course-shell[data-course-theme="industrial"] .course-article h1,
+.course-shell[data-course-theme="industrial"] .course-article h2,
+.course-shell[data-course-theme="industrial"] .course-article h3 {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.course-shell[data-course-theme="industrial"] .rounded-3xl,
+.course-shell[data-course-theme="industrial"] .rounded-2xl,
+.course-shell[data-course-theme="industrial"] .rounded-xl {
+  border-radius: 0.25rem;
+}
+
+.course-shell[data-course-theme="industrial"] .course-article > div:first-child {
+  border-bottom: 8px solid var(--accent);
+  padding-bottom: 2rem;
+}
+
+/* Clean: bright, open, restrained, and distinctly digital. */
+.course-shell[data-course-theme="clean"] {
+  background-image:
+    radial-gradient(circle at 100% 0, rgba(49, 120, 198, 0.1), transparent 30rem),
+    linear-gradient(#fff, #f8fbff);
+}
+
+.course-shell[data-course-theme="clean"] .course-sidebar {
+  box-shadow: 12px 0 40px rgba(36, 52, 71, 0.12);
+}
+
+.course-shell[data-course-theme="clean"] .course-article {
+  max-width: 970px;
+  padding-top: 6rem;
+}
+
+.course-shell[data-course-theme="clean"] .course-article h1 {
+  font-weight: 700;
+  letter-spacing: -0.055em;
+}
+
+.course-shell[data-course-theme="clean"] .course-article > div:first-child {
+  border-top: 1px solid rgba(49, 120, 198, 0.25);
+  padding-top: 2rem;
+}
+
+/* Field: earthy, tactile, and relaxed without losing professionalism. */
+.course-shell[data-course-theme="field"] {
+  background-image:
+    radial-gradient(circle at 12% 12%, rgba(189, 113, 55, 0.12), transparent 24rem),
+    radial-gradient(circle at 90% 75%, rgba(36, 74, 59, 0.1), transparent 28rem);
+}
+
+.course-shell[data-course-theme="field"] .course-sidebar {
+  border-right: 4px solid rgba(189, 113, 55, 0.8);
+}
+
+.course-shell[data-course-theme="field"] .course-article {
+  max-width: 1020px;
+}
+
+.course-shell[data-course-theme="field"] .course-article h1,
+.course-shell[data-course-theme="field"] .course-article h2,
+.course-shell[data-course-theme="field"] .course-sidebar h1 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.course-shell[data-course-theme="field"] .rounded-3xl {
+  border-radius: 2.25rem 0.75rem;
+}
+
+.course-shell[data-course-theme="field"] .course-article > div:first-child {
+  border-left: 8px solid rgba(189, 113, 55, 0.35);
+  padding-left: clamp(1.25rem, 3vw, 2.5rem);
+}
