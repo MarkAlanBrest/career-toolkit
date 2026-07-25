@@ -465,6 +465,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [microsoftClientId, setMicrosoftClientId] = useState('');
   const [microsoftClientSecret, setMicrosoftClientSecret] = useState('');
   const [microsoftClientSecretSet, setMicrosoftClientSecretSet] = useState(false);
+  const [editingMicrosoftSettings, setEditingMicrosoftSettings] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -558,8 +559,17 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
       if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
       setMicrosoftClientSecretSet(Boolean(data.sender?.microsoftClientSecretSet));
       setMicrosoftClientSecret('');
+      setEditingMicrosoftSettings(false);
       setSettings(prev => prev ? {
         ...prev,
+        sender: {
+          email: senderEmail,
+          name: senderName,
+          replyToEmail,
+          microsoftTenantId,
+          microsoftClientId,
+          microsoftClientSecretSet: Boolean(data.sender?.microsoftClientSecretSet),
+        },
         email: {
           ...prev.email,
           configured: Boolean(
@@ -608,6 +618,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
       if (!saveResponse.ok) throw new Error(saveData?.error || 'Could not save email settings.');
       setMicrosoftClientSecretSet(Boolean(saveData.sender?.microsoftClientSecretSet));
       setMicrosoftClientSecret('');
+      setEditingMicrosoftSettings(false);
       setSaved(true);
 
       const response = await fetch('/api/lga-room/admin/settings', {
@@ -702,16 +713,26 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
               permission, grant admin consent, and scope it to this mailbox. The client secret is saved
               server-side and is never shown again. Microsoft uses the mailbox&apos;s directory display name on sent mail.
             </div>
+            {!editingMicrosoftSettings && (
+              <button
+                type="button"
+                onClick={() => setEditingMicrosoftSettings(true)}
+                className="lgaroom-btn-secondary"
+                style={{ ...secondaryButtonStyle, marginBottom: 12 }}
+              >
+                Edit Microsoft settings
+              </button>
+            )}
             <Field label="Sender email">
-              <input value={senderEmail} onChange={e => setSenderEmail(e.target.value)} type="email" style={inputStyle} placeholder="lgaroom@yourschool.edu" />
+              <input value={senderEmail} onChange={e => setSenderEmail(e.target.value)} type="email" style={inputStyle} placeholder="lgaroom@yourschool.edu" readOnly={!editingMicrosoftSettings} />
             </Field>
             <Field label="Display name label (optional)">
-              <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} />
+              <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} readOnly={!editingMicrosoftSettings} />
             </Field>
             <Field label="Microsoft tenant ID">
               <input
                 value={microsoftTenantId}
-                onChange={e => setMicrosoftTenantId(e.target.value)}
+                onChange={e => setMicrosoftTenantId(e.target.value.replace(/[^0-9a-f-]/gi, '').slice(0, 36))}
                 type="text"
                 name="microsoft-directory-tenant-id"
                 style={inputStyle}
@@ -722,12 +743,13 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                 maxLength={36}
                 data-lpignore="true"
                 data-1p-ignore
+                readOnly={!editingMicrosoftSettings}
               />
             </Field>
             <Field label="Application (client) ID">
               <input
                 value={microsoftClientId}
-                onChange={e => setMicrosoftClientId(e.target.value)}
+                onChange={e => setMicrosoftClientId(e.target.value.replace(/[^0-9a-f-]/gi, '').slice(0, 36))}
                 type="text"
                 name="microsoft-application-client-id"
                 style={inputStyle}
@@ -738,6 +760,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                 maxLength={36}
                 data-lpignore="true"
                 data-1p-ignore
+                readOnly={!editingMicrosoftSettings}
               />
             </Field>
             <Field label={`Client secret${microsoftClientSecretSet ? ' (saved — leave blank to keep it)' : ''}`}>
@@ -751,11 +774,36 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                 autoComplete="off"
                 data-lpignore="true"
                 data-1p-ignore
+                readOnly={!editingMicrosoftSettings}
               />
             </Field>
             <Field label="Replies go to (optional)">
-              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender mailbox" />
+              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender mailbox" readOnly={!editingMicrosoftSettings} />
             </Field>
+            {editingMicrosoftSettings && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={handleSaveNotify} disabled={saving} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+                  {saving ? 'Saving…' : 'Save Microsoft settings'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSenderEmail(settings.sender.email || '');
+                    setSenderName(settings.sender.name || '');
+                    setReplyToEmail(settings.sender.replyToEmail || '');
+                    setMicrosoftTenantId(settings.sender.microsoftTenantId || '');
+                    setMicrosoftClientId(settings.sender.microsoftClientId || '');
+                    setMicrosoftClientSecret('');
+                    setEditingMicrosoftSettings(false);
+                  }}
+                  disabled={saving}
+                  className="lgaroom-btn-secondary"
+                  style={secondaryButtonStyle}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom: 18 }}>
