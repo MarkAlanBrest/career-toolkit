@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -94,6 +93,7 @@ export default function CourseEditorPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [logoData, setLogoData] = useState<string | null>(null);
+  const [accentColor, setAccentColor] = useState<string | null>(null);
 
   async function load() {
     if (!slug) return;
@@ -102,6 +102,7 @@ export default function CourseEditorPage() {
     if (!response.ok) throw new Error(data.error || "Course could not be loaded.");
     setCourse(data);
     setLogoData(data.logoData || null);
+    setAccentColor(data.accentColor || null);
   }
 
   useEffect(() => {
@@ -522,15 +523,29 @@ export default function CourseEditorPage() {
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold">Accent color</span>
                   <span className="flex items-center gap-3">
+                    <input type="hidden" name="accentColor" value={accentColor || ""} />
                     <input
-                      name="accentColor"
                       type="color"
-                      defaultValue={course.accentColor || "#d9a036"}
+                      value={
+                        accentColor ||
+                        courseThemes.find((option) => option.id === course.theme)?.colors[2] ||
+                        "#d9a036"
+                      }
+                      onChange={(event) => setAccentColor(event.target.value)}
                       className="h-12 w-16 cursor-pointer rounded-xl border border-[#10283f]/15 bg-white p-1"
                     />
-                    <span className="text-xs leading-5 text-[#78838a]">
+                    <span className="flex-1 text-xs leading-5 text-[#78838a]">
                       Used for highlights, progress, and key actions.
                     </span>
+                    {accentColor && (
+                      <button
+                        type="button"
+                        onClick={() => setAccentColor(null)}
+                        className="text-xs font-bold text-[#53616b] underline"
+                      >
+                        Use theme color
+                      </button>
+                    )}
                   </span>
                 </label>
               </div>

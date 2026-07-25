@@ -23,11 +23,38 @@ import NarratedExplainer from "@/components/NarratedExplainer";
 
 type Answer = { selected: number; submitted: boolean };
 
-const themes: Record<string, { ink: string; accent: string; pale: string; dark: string }> = {
-  heritage: { ink: "#17231d", accent: "#a25d36", pale: "#f4ede2", dark: "#17372f" },
-  industrial: { ink: "#17202a", accent: "#e09a20", pale: "#f5f2ea", dark: "#23303b" },
-  clean: { ink: "#172433", accent: "#2879a8", pale: "#edf5f8", dark: "#163e56" },
-  field: { ink: "#20291d", accent: "#6f873d", pale: "#f0f3e8", dark: "#34472b" },
+const themes: Record<
+  string,
+  { ink: string; accent: string; pale: string; dark: string; page: string }
+> = {
+  heritage: {
+    ink: "#10283f",
+    accent: "#d9a036",
+    pale: "#fff7e1",
+    dark: "#10283f",
+    page: "#f5f1e8",
+  },
+  industrial: {
+    ink: "#202a32",
+    accent: "#e87524",
+    pale: "#fff0e6",
+    dark: "#202a32",
+    page: "#f1f3f4",
+  },
+  clean: {
+    ink: "#243447",
+    accent: "#3178c6",
+    pale: "#eef6ff",
+    dark: "#243447",
+    page: "#ffffff",
+  },
+  field: {
+    ink: "#244a3b",
+    accent: "#bd7137",
+    pale: "#f6e8dd",
+    dark: "#244a3b",
+    page: "#f3efe3",
+  },
 };
 
 function paragraphs(text: string) {
@@ -302,9 +329,10 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
           "--accent": accentColor,
           "--pale": palette.pale,
           "--dark": palette.dark,
+          "--page": palette.page,
         } as React.CSSProperties
       }
-      className="min-h-screen bg-[#f7f5f0] text-slate-800"
+      className="min-h-screen bg-[var(--page)] text-slate-800"
     >
       <button
         type="button"
@@ -380,7 +408,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
       </aside>
 
       <div className="lg:pl-[290px]">
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[#f7f5f0]/95 backdrop-blur">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-[color:var(--page)]/95 backdrop-blur">
           <div className="mx-auto flex max-w-[1050px] items-center justify-between gap-4 px-6 py-4 pl-20 lg:px-14">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[var(--ink)]">{section.title}</p>
