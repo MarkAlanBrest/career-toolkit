@@ -6,11 +6,13 @@ import {
   getSettings,
   isAdminAuthorized,
   isMicrosoftAdminAllowed,
+  saveSettings,
 } from '@/lib/lgaRoom';
 
 export const dynamic = 'force-dynamic';
 
-const LOGIN_SCOPES = 'https://graph.microsoft.com/User.Read offline_access openid profile email';
+const LOGIN_SCOPES =
+  'https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.Send offline_access openid profile email';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function setSessionCookie(response: NextResponse, email: string) {
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
     );
     const data = await response.json().catch(() => ({})) as {
       access_token?: string;
+      refresh_token?: string;
       error?: string;
       error_description?: string;
     };
@@ -111,13 +114,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Microsoft did not return a sign-in token.' }, { status: 502 });
     }
     const profileResponse = await fetch(
-      'https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName',
+      'https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName',
       {
         headers: { Authorization: `Bearer ${data.access_token}` },
         cache: 'no-store',
       }
     );
     const profile = await profileResponse.json().catch(() => ({})) as {
+      displayName?: string;
       mail?: string;
       userPrincipalName?: string;
       error?: { message?: string };
@@ -133,7 +137,27 @@ export async function POST(request: NextRequest) {
         error: `${email} is not on the LGA Room administrator list.`,
       }, { status: 403 });
     }
-    const result = NextResponse.json({ authenticated: true, email });
+    const needsSenderConnection = !settings.microsoftRefreshToken || !settings.senderEmail;
+    if (needsSenderConnection) {
+      if (!data.refresh_token) {
+        return NextResponse.json({
+          error: 'Microsoft signed you in but did not provide permission to send mail. Sign in again and approve the requested permissions.',
+        }, { status: 502 });
+      }
+      await saveSettings({
+        ...settings,
+        senderEmail: email,
+        senderName: profile.displayName?.trim() || settings.senderName || 'LGA Room Reservations',
+        microsoftClientSecret: '',
+        microsoftRefreshToken: data.refresh_token,
+        microsoftConnectedAt: new Date().toISOString(),
+      });
+    }
+    const result = NextResponse.json({
+      authenticated: true,
+      email,
+      senderConnected: Boolean(settings.microsoftRefreshToken) || needsSenderConnection,
+    });
     await setSessionCookie(result, email);
     return result;
   }
