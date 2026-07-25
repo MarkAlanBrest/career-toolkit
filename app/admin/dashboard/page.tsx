@@ -1,140 +1,129 @@
-// app/admin/dashboard/page.tsx
-import Link from "next/link";
-import { getAllCourses } from "@/lib/courses";
+"use client";
 
-export const dynamic = "force-dynamic";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  BookOpen,
+  KeyRound,
+  LoaderCircle,
+  Plus,
+  Users,
+} from "lucide-react";
+import AdminShell from "@/components/AdminShell";
+
+type Course = {
+  id: number;
+  title: string;
+  slug: string;
+  published: boolean;
+  availableCodes: number;
+  _count: {
+    sections: number;
+    enrollments: number;
+  };
+};
 
 export default function AdminDashboardPage() {
-  const courses = getAllCourses();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/courses", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : []))
+      .then(setCourses)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totals = useMemo(
+    () => ({
+      programs: courses.length,
+      published: courses.filter((course) => course.published).length,
+      codes: courses.reduce((total, course) => total + course.availableCodes, 0),
+      learners: courses.reduce((total, course) => total + course._count.enrollments, 0),
+    }),
+    [courses],
+  );
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
-
-      {/* Top Action Bar */}
-      <div className="flex justify-end gap-3 mb-6">
-
-        {/* Test Course Code */}
+    <AdminShell
+      title="Training operations"
+      eyebrow="Overview"
+      actions={
         <Link
-          href="/"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm"
+          href="/admin/courses/new"
+          className="flex items-center gap-2 rounded-xl bg-[#10283f] px-4 py-3 text-sm font-bold text-white"
         >
-          Test Course Code
+          <Plus size={17} /> New program
         </Link>
-
-        {/* Log Out — FIXED */}
-        <form
-          action={async () => {
-            "use server";
-            const { cookies } = await import("next/headers");
-            const { redirect } = await import("next/navigation");
-
-            const cookieStore = await cookies();
-            cookieStore.set("admin-auth", "", {
-              httpOnly: true,
-              path: "/",
-              expires: new Date(0),
-            });
-
-            redirect("/admin/login");
-          }}
-        >
-          <button
-            type="submit"
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm"
-          >
-            Log Out
-          </button>
-        </form>
-
-      </div>
-
-      <h1 className="text-3xl font-bold text-white mb-8">
-        Admin Dashboard
-      </h1>
-
-      <section className="mb-8 rounded-2xl border border-amber-300/30 bg-slate-950 p-6 text-white shadow-xl">
-        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.18em] text-amber-300">
-              New course builder
-            </p>
-            <h2 className="mt-2 text-2xl font-bold">Build with Mason</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">
-              Upload section PDFs and turn them into dynamic AI-taught lessons.
-            </p>
-          </div>
-          <Link
-            href="/admin/mason"
-            className="shrink-0 rounded-xl bg-amber-400 px-5 py-3 text-center font-bold text-slate-950 hover:bg-amber-300"
-          >
-            Open Mason Studio
-          </Link>
+      }
+    >
+      {loading ? (
+        <div className="grid min-h-72 place-items-center">
+          <LoaderCircle className="animate-spin text-[#a06e16]" size={30} />
         </div>
-      </section>
+      ) : (
+        <>
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              [BookOpen, totals.programs, "Training programs", `${totals.published} published`],
+              [KeyRound, totals.codes, "Codes available", "Ready to sell or assign"],
+              [Users, totals.learners, "Enrolled learners", "Across every program"],
+              [BookOpen, courses.reduce((sum, item) => sum + item._count.sections, 0), "Course sections", "Built from source PDFs"],
+            ].map(([Icon, value, label, note]) => {
+              const MetricIcon = Icon as typeof BookOpen;
+              return (
+                <article key={String(label)} className="rounded-3xl border border-[#10283f]/10 bg-white p-6 shadow-sm">
+                  <MetricIcon className="text-[#c1871b]" size={23} />
+                  <p className="mt-5 font-serif text-4xl font-semibold text-[#10283f]">{String(value)}</p>
+                  <p className="mt-1 font-bold text-[#263746]">{String(label)}</p>
+                  <p className="mt-1 text-xs text-[#7a858c]">{String(note)}</p>
+                </article>
+              );
+            })}
+          </section>
 
-      <section>
-        <h2 className="text-xl font-semibold text-white mb-4">
-          Available Courses
-        </h2>
-
-        {courses.length === 0 ? (
-          <p className="text-sm text-slate-600">
-            No courses found. Add a folder under <code>public/</code> with a{" "}
-            <code>module.json</code> file.
-          </p>
-        ) : (
-          <ul className="space-y-4">
-            {courses.map((course) => (
-              <li
-                key={course.folder}
-                className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-4">
+          <section className="mt-8 rounded-3xl border border-[#10283f]/10 bg-white p-7">
+            <div className="flex items-end justify-between gap-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[.17em] text-[#9a6812]">Recent programs</p>
+                <h2 className="mt-1 font-serif text-3xl font-semibold text-[#10283f]">Continue building</h2>
+              </div>
+              <Link href="/admin/courses" className="text-sm font-bold text-[#10283f]">View all</Link>
+            </div>
+            <div className="mt-6 divide-y divide-[#10283f]/10">
+              {courses.slice(0, 5).map((course) => (
+                <Link
+                  key={course.id}
+                  href={`/admin/courses/${course.slug}`}
+                  className="flex items-center justify-between gap-5 py-4"
+                >
                   <div>
-                    <div className="text-lg font-semibold text-slate-900">
-                      {course.courseName}
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-[#10283f]">{course.title}</p>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${course.published ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
+                        {course.published ? "Published" : "Draft"}
+                      </span>
                     </div>
-
-                    {course.description && (
-                      <p className="text-sm text-slate-600 mt-1">
-                        {course.description}
-                      </p>
-                    )}
-
-                    {course.duration && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Duration: {course.duration}
-                      </p>
-                    )}
-
-                    <p className="text-xs text-slate-400 mt-1">
-                      Folder: <code>{course.folder}</code>
+                    <p className="mt-1 text-xs text-[#7a858c]">
+                      {course._count.sections} sections · {course._count.enrollments} learners · {course.availableCodes} codes ready
                     </p>
                   </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Link
-                      href={`/admin/create/${course.folder}`}
-                      className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                    >
-                      Create Course Code
-                    </Link>
-
-                    <Link
-
-                          href={`/admin/roster/${course.folder}`}
-
-                      className="inline-flex items-center px-4 py-2 text-sm rounded-md bg-green-600 text-white hover:bg-green-700 shadow-sm"
-                    >
-                      Class Roster
-                    </Link>
-                  </div>
+                  <ArrowRight size={18} className="text-[#9a6812]" />
+                </Link>
+              ))}
+              {courses.length === 0 && (
+                <div className="py-10 text-center">
+                  <p className="text-[#6c7881]">No programs yet.</p>
+                  <Link href="/admin/courses/new" className="mt-4 inline-flex items-center gap-2 font-bold text-[#10283f]">
+                    Create the first program <ArrowRight size={17} />
+                  </Link>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+    </AdminShell>
   );
 }

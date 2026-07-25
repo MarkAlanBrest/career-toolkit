@@ -274,3 +274,115 @@ React expects the `children` prop of <title> tags to be a string, number, bigint
 ⚠ Fast Refresh had to perform a full reload due to a runtime error.
 React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
 React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length 2 instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.
+⨯ Error [PrismaClientValidationError]: 
+Invalid `{imported module ./lib/prisma.ts}["prisma"].masonCourse.findMany()` invocation in
+C:\Users\MarkBrest\Desktop\Web Apps\safety-training-platform\.next\dev\server\chunks\[root-of-the-server]__bf090ddc._.js:272:161
+
+  269 ;
+  270 ;
+  271 async function GET() {
+→ 272     const courses = await {imported module ./lib/prisma.ts}["prisma"].masonCourse.findMany({
+            orderBy: {
+              updatedAt: "desc"
+            },
+            include: {
+              _count: {
+                select: {
+                  sections: true,
+                  enrollmentCodes: true,
+                  ~~~~~~~~~~~~~~~
+                  enrollments: true
+                }
+              },
+              enrollmentCodes: {
+                where: {
+                  status: "available"
+                },
+                select: {
+                  id: true
+                }
+              }
+            }
+          })
+
+Unknown field `enrollmentCodes` for select statement on model `MasonCourseCountOutputType`. Available options are marked with ?.
+    at <unknown> (app\api\admin\courses\route.ts:12:44)
+    at async GET (app\api\admin\courses\route.ts:12:19)
+  10 |
+  11 | export async function GET() {
+> 12 |   const courses = await prisma.masonCourse.findMany({
+     |                                            ^
+  13 |     orderBy: { updatedAt: "desc" },
+  14 |     include: {
+  15 |       _count: { {
+  clientVersion: '7.5.0'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'findUnique')
+    at GET (app\api\enroll\route.ts:16:50)
+  14 |   }
+  15 |
+> 16 |   const accessCode = await prisma.enrollmentCode.findUnique({
+     |                                                  ^
+  17 |     where: { code },
+  18 |     include: {
+  19 |       course: {
+⨯ Error [PrismaClientValidationError]: 
+Invalid `{imported module ./lib/prisma.ts}["prisma"].masonCourse.findMany()` invocation in
+C:\Users\MarkBrest\Desktop\Web Apps\safety-training-platform\.next\dev\server\chunks\[root-of-the-server]__bf090ddc._.js:272:161
+
+  269 ;
+  270 ;
+  271 async function GET() {
+→ 272     const courses = await {imported module ./lib/prisma.ts}["prisma"].masonCourse.findMany({
+            orderBy: {
+              updatedAt: "desc"
+            },
+            include: {
+              _count: {
+                select: {
+                  sections: true,
+                  enrollmentCodes: true,
+                  ~~~~~~~~~~~~~~~
+                  enrollments: true
+                }
+              },
+              enrollmentCodes: {
+                where: {
+                  status: "available"
+                },
+                select: {
+                  id: true
+                }
+              }
+            }
+          })
+
+Unknown field `enrollmentCodes` for select statement on model `MasonCourseCountOutputType`. Available options are marked with ?.
+    at <unknown> (app\api\admin\courses\route.ts:12:44)
+    at async GET (app\api\admin\courses\route.ts:12:19)
+  10 |
+  11 | export async function GET() {
+> 12 |   const courses = await prisma.masonCourse.findMany({
+     |                                            ^
+  13 |     orderBy: { updatedAt: "desc" },
+  14 |     include: {
+  15 |       _count: { {
+  clientVersion: '7.5.0'
+}
+⨯ TypeError: Cannot read properties of undefined (reading 'findUnique')
+    at GET (app\api\enroll\route.ts:16:50)
+  14 |   }
+  15 |
+> 16 |   const accessCode = await prisma.enrollmentCode.findUnique({
+     |                                                  ^
+  17 |     where: { code },
+  18 |     include: {
+  19 |       course: {

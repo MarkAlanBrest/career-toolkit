@@ -3,68 +3,120 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode } from "react";
+import {
+  BookOpen,
+  ExternalLink,
+  LayoutDashboard,
+  LogOut,
+  Plus,
+  ShieldCheck,
+} from "lucide-react";
 
 type Props = {
   children: ReactNode;
+  title?: string;
+  eyebrow?: string;
+  actions?: ReactNode;
 };
 
 const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/courses", label: "Courses" },
-  { href: "/admin/create-course", label: "Create Course" },
-  { href: "/admin/students", label: "Students" },
-  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/courses", label: "Training programs", icon: BookOpen },
+  { href: "/admin/courses/new", label: "New program", icon: Plus },
 ];
 
-export default function AdminShell({ children }: Props) {
+export default function AdminShell({
+  children,
+  title = "Training administration",
+  eyebrow = "Course operations",
+  actions,
+}: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const currentPath = pathname || "";
 
-  const handleLogout = async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
+  async function logout() {
+    await fetch("/admin/logout", { method: "GET" });
     router.push("/admin/login");
     router.refresh();
-  };
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-300 to-slate-500">
+    <div className="min-h-screen bg-[#edf1f2] text-[#17202b]">
       <div className="flex min-h-screen">
-        <aside className="w-72 bg-blue-950 text-white shadow-2xl">
-          <div className="border-b border-white/10 px-6 py-6">
-            <h1 className="text-2xl font-bold">Admin Panel</h1>
-            <p className="mt-1 text-sm text-blue-100">Training Platform</p>
+        <aside className="hidden w-64 shrink-0 flex-col bg-[#10283f] text-white lg:flex">
+          <div className="border-b border-white/10 px-6 py-7">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f2b744] text-[#10283f]">
+                <ShieldCheck size={23} />
+              </span>
+              <div>
+                <p className="font-serif text-xl font-semibold">Training Studio</p>
+                <p className="text-xs text-slate-400">Administration</p>
+              </div>
+            </div>
           </div>
 
-          <nav className="flex flex-col gap-2 p-4">
+          <nav className="flex-1 space-y-1 p-4">
             {navItems.map((item) => {
-              const active = pathname === item.href;
+              const Icon = item.icon;
+              const active =
+                currentPath === item.href ||
+                (item.href === "/admin/courses" &&
+                  currentPath.startsWith("/admin/courses/") &&
+                  currentPath !== "/admin/courses/new");
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`rounded-xl px-4 py-3 text-sm font-medium transition ${
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
                     active
-                      ? "bg-white text-blue-950"
-                      : "text-white hover:bg-blue-900"
+                      ? "bg-white text-[#10283f]"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
                   }`}
                 >
+                  <Icon size={18} />
                   {item.label}
                 </Link>
               );
             })}
-
-            <button
-              onClick={handleLogout}
-              className="mt-6 rounded-xl bg-red-600 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-red-700"
-            >
-              Logout
-            </button>
           </nav>
+
+          <div className="space-y-2 border-t border-white/10 p-4">
+            <Link
+              href="/"
+              className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <ExternalLink size={17} /> View learner site
+            </Link>
+            <button
+              onClick={logout}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              <LogOut size={17} /> Sign out
+            </button>
+          </div>
         </aside>
 
-        <main className="flex-1 p-6">
-          <div className="rounded-3xl bg-white p-6 shadow-xl">{children}</div>
-        </main>
+        <div className="min-w-0 flex-1">
+          <header className="border-b border-[#10283f]/10 bg-white">
+            <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[.18em] text-[#a06e16]">
+                  {eyebrow}
+                </p>
+                <h1 className="mt-1 font-serif text-3xl font-semibold text-[#10283f]">
+                  {title}
+                </h1>
+              </div>
+              {actions && <div className="flex items-center gap-3">{actions}</div>}
+            </div>
+          </header>
+
+          <main className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8">
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );

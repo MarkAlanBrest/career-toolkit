@@ -1,0 +1,161 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  KeyRound,
+  LoaderCircle,
+  Plus,
+  Users,
+} from "lucide-react";
+import AdminShell from "@/components/AdminShell";
+
+type Course = {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  theme: string;
+  intensity: string;
+  estimatedMinutes: number;
+  published: boolean;
+  availableCodes: number;
+  _count: {
+    sections: number;
+    enrollmentCodes: number;
+    enrollments: number;
+  };
+};
+
+function duration(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = minutes / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hr`;
+}
+
+export default function CoursesPage() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/courses", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Courses could not be loaded.");
+        setCourses(data);
+      })
+      .catch((caught) =>
+        setError(caught instanceof Error ? caught.message : "Courses could not be loaded."),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <AdminShell
+      title="Training programs"
+      eyebrow="Course library"
+      actions={
+        <Link
+          href="/admin/courses/new"
+          className="flex items-center gap-2 rounded-xl bg-[#10283f] px-4 py-3 text-sm font-bold text-white"
+        >
+          <Plus size={17} /> New program
+        </Link>
+      }
+    >
+      {loading ? (
+        <div className="grid min-h-72 place-items-center">
+          <LoaderCircle className="animate-spin text-[#a06e16]" size={30} />
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
+          {error}
+        </div>
+      ) : courses.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-[#10283f]/20 bg-white p-12 text-center">
+          <BookOpen className="mx-auto text-[#d09a31]" size={42} />
+          <h2 className="mt-5 font-serif text-3xl font-semibold text-[#10283f]">
+            Build your first training program
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl leading-7 text-[#63707a]">
+            Choose the program structure and visual direction, then add source PDFs
+            section by section.
+          </p>
+          <Link
+            href="/admin/courses/new"
+            className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#10283f] px-5 py-3 font-bold text-white"
+          >
+            Create a program <ArrowRight size={18} />
+          </Link>
+        </div>
+      ) : (
+        <div className="grid gap-5 xl:grid-cols-2">
+          {courses.map((course) => (
+            <article
+              key={course.id}
+              className="rounded-3xl border border-[#10283f]/10 bg-white p-6 shadow-[0_14px_35px_rgba(16,40,63,.07)]"
+            >
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[.13em] ${
+                        course.published
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {course.published ? "Published" : "Draft"}
+                    </span>
+                    <span className="rounded-full bg-[#fff3d7] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.13em] text-[#8d6012]">
+                      {course.intensity}
+                    </span>
+                  </div>
+                  <h2 className="mt-4 font-serif text-2xl font-semibold text-[#10283f]">
+                    {course.title}
+                  </h2>
+                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-[#63707a]">
+                    {course.description || "No program description yet."}
+                  </p>
+                </div>
+                {course.published && (
+                  <CheckCircle2 className="shrink-0 text-emerald-600" size={22} />
+                )}
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  [BookOpen, `${course._count.sections}`, "Sections"],
+                  [Clock3, duration(course.estimatedMinutes), "Estimate"],
+                  [KeyRound, `${course.availableCodes}`, "Codes ready"],
+                  [Users, `${course._count.enrollments}`, "Enrolled"],
+                ].map(([Icon, value, label]) => {
+                  const MetricIcon = Icon as typeof BookOpen;
+                  return (
+                    <div key={String(label)} className="rounded-2xl bg-[#f3f6f6] p-3">
+                      <MetricIcon size={16} className="text-[#a06e16]" />
+                      <p className="mt-2 text-lg font-bold text-[#10283f]">{String(value)}</p>
+                      <p className="text-[11px] font-semibold text-[#7a858c]">{String(label)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Link
+                href={`/admin/courses/${course.slug}`}
+                className="mt-6 flex items-center justify-between border-t border-[#10283f]/10 pt-5 text-sm font-bold text-[#10283f]"
+              >
+                Open course studio <ArrowRight size={17} />
+              </Link>
+            </article>
+          ))}
+        </div>
+      )}
+    </AdminShell>
+  );
+}

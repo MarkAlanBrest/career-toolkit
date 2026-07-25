@@ -22,7 +22,7 @@ export default function CourseCodePage() {
     setError("");
 
     try {
-      const res = await fetch(`/api/course?code=${encodeURIComponent(code)}`);
+      const res = await fetch(`/api/enroll?code=${encodeURIComponent(code)}`);
       const data = await res.json();
 
       if (!res.ok || data.error) {
@@ -31,7 +31,13 @@ export default function CourseCodePage() {
         return;
       }
 
-      router.push(`/dashboard?code=${encodeURIComponent(code)}`);
+      if (data.claimed) {
+        router.push(
+          `/mason/${data.course.slug}?code=${encodeURIComponent(code)}`,
+        );
+      } else {
+        router.push(`/enroll?code=${encodeURIComponent(code)}`);
+      }
     } catch {
       setError("Server error.");
       setLoading(false);
@@ -104,10 +110,10 @@ export default function CourseCodePage() {
             <li>✔ Resume-building workplace credentials</li>
           </ul>
           <Link
-            href="/mason/demo"
+            href="/lesson/blueprint-reading"
             className="mt-8 inline-flex rounded-xl bg-amber-400 px-6 py-3 font-bold text-slate-950 hover:bg-amber-300"
           >
-            Meet Mason, your AI instructor
+            View an example lesson
           </Link>
         </div>
 

@@ -29,28 +29,70 @@ model CourseRecords {
 }
 
 model MasonCourse {
-  id          Int            @id @default(autoincrement())
-  title       String
-  slug        String         @unique
-  description String?
-  published   Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  sections    MasonSection[]
+  id               Int                @id @default(autoincrement())
+  title            String
+  slug             String             @unique
+  description      String?
+  audience         String?
+  theme            String             @default("heritage")
+  intensity        String             @default("standard")
+  estimatedMinutes Int                @default(60)
+  published        Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  sections         MasonSection[]
+  enrollmentCodes EnrollmentCode[]
+  enrollments      CourseEnrollment[]
 }
 
 model MasonSection {
-  id          Int         @id @default(autoincrement())
-  courseId    Int
-  title       String
-  position    Int
-  fileName    String
-  mimeType    String      @default("application/pdf")
-  pdfData     Bytes
-  lessonPlan  Json
-  createdAt   DateTime    @default(now())
-  course      MasonCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id               Int         @id @default(autoincrement())
+  courseId         Int
+  title            String
+  position         Int
+  estimatedMinutes Int         @default(15)
+  fileName         String
+  mimeType         String      @default("application/pdf")
+  pdfData          Bytes
+  lessonPlan       Json
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  course           MasonCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([courseId, position])
   @@index([courseId])
+}
+
+model EnrollmentCode {
+  id         Int               @id @default(autoincrement())
+  code       String            @unique
+  courseId   Int
+  batchName  String?
+  status     String            @default("available")
+  expiresAt  DateTime?
+  createdAt  DateTime          @default(now())
+  claimedAt  DateTime?
+  course     MasonCourse       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment CourseEnrollment?
+
+  @@index([courseId, status])
+}
+
+model CourseEnrollment {
+  id             Int            @id @default(autoincrement())
+  courseId       Int
+  codeId         Int            @unique
+  firstName      String
+  lastName       String
+  email          String
+  status         String         @default("active")
+  progress       Int            @default(0)
+  enrolledAt     DateTime       @default(now())
+  lastAccessedAt DateTime       @default(now())
+  completedAt    DateTime?
+  course         MasonCourse    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  code           EnrollmentCode @relation(fields: [codeId], references: [id], onDelete: Restrict)
+
+  @@index([courseId, status])
+  @@index([email])
 }
