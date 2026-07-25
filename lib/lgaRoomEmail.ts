@@ -18,16 +18,17 @@ type SenderConfig = {
   microsoftClientSecret?: string;
 };
 
-// An admin-configured Microsoft 365 mailbox takes priority. Mailjet remains as the
-// deployment-level fallback while a school transitions its sender.
+// Once Microsoft setup has started, never fall back silently: a bad Graph setup must
+// fail visibly rather than sending through Mailjet. Mailjet is used only when no
+// Microsoft credentials have been saved at all.
 async function getSenderConfig(): Promise<SenderConfig> {
   const settings = await getSettings();
-  if (
-    GUID_RE.test(settings.microsoftTenantId) &&
-    GUID_RE.test(settings.microsoftClientId) &&
-    settings.microsoftClientSecret &&
-    settings.senderEmail
-  ) {
+  const microsoftSetupExists = Boolean(
+    settings.microsoftTenantId ||
+    settings.microsoftClientId ||
+    settings.microsoftClientSecret
+  );
+  if (microsoftSetupExists) {
     return {
       provider: 'microsoft-graph',
       host: '',
@@ -91,7 +92,14 @@ export async function getEmailStatus() {
   const displayFrom = fromEmail ? `${fromName} <${fromEmail}>` : '';
   return {
     configured: config.provider === 'microsoft-graph'
-      ? Boolean(config.microsoftTenantId && config.microsoftClientId && config.microsoftClientSecret && fromEmail)
+      ? Boolean(
+          config.microsoftTenantId &&
+          GUID_RE.test(config.microsoftTenantId) &&
+          config.microsoftClientId &&
+          GUID_RE.test(config.microsoftClientId) &&
+          config.microsoftClientSecret &&
+          fromEmail
+        )
       : Boolean(authUser && authPass && fromEmail),
     fromEmail: displayFrom || null,
     provider: config.provider === 'microsoft-graph' ? 'Microsoft 365' : 'Mailjet / SMTP',
@@ -153,10 +161,23 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
   const config = await getSenderConfig();
   const { host, authUser, authPass, fromEmail, fromName, replyTo: defaultReplyTo } = config;
   const configured = config.provider === 'microsoft-graph'
-    ? Boolean(config.microsoftTenantId && config.microsoftClientId && config.microsoftClientSecret && fromEmail)
+    ? Boolean(
+        config.microsoftTenantId &&
+        GUID_RE.test(config.microsoftTenantId) &&
+        config.microsoftClientId &&
+        GUID_RE.test(config.microsoftClientId) &&
+        config.microsoftClientSecret &&
+        fromEmail
+      )
     : Boolean(authUser && authPass && fromEmail);
   if (!configured) {
-    return { sent: false, recipient: to, error: 'Email sending is not configured.' };
+    return {
+      sent: false,
+      recipient: to,
+      error: config.provider === 'microsoft-graph'
+        ? 'Microsoft 365 settings are incomplete or invalid. Mailjet was not used.'
+        : 'Email sending is not configured.',
+    };
   }
   try {
     if (config.provider === 'microsoft-graph') {
