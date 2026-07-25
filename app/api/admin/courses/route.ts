@@ -73,6 +73,9 @@ export async function POST(request: Request) {
         theme,
         intensity,
         estimatedMinutes,
+        published: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 

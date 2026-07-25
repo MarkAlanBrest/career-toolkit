@@ -55,6 +55,8 @@ export async function POST(
         mimeType: file.type,
         pdfData: pdf,
         lessonPlan: lessonPlan as unknown as Prisma.InputJsonValue,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
       select: {
         id: true,
