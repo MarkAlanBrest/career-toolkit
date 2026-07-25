@@ -4,16 +4,18 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAdminPage = pathname.startsWith("/admin");
   const isAdminApi = pathname.startsWith("/api/admin");
+  const isResumePage = pathname.startsWith("/resumes");
+  const isResumeApi = pathname.startsWith("/api/resumes");
 
   if (pathname === "/admin/login") {
     return NextResponse.next();
   }
 
   if (
-    (isAdminPage || isAdminApi) &&
+    (isAdminPage || isAdminApi || isResumePage || isResumeApi) &&
     !request.cookies.get("admin-session")?.value
   ) {
-    if (isAdminApi) {
+    if (isAdminApi || isResumeApi) {
       return Response.json({ error: "Unauthorized." }, { status: 401 });
     }
 
@@ -26,5 +28,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/admin/:path*", "/api/admin/:path*", "/resumes/:path*", "/api/resumes/:path*"],
 };
