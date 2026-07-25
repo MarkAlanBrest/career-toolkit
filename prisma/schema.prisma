@@ -52,8 +52,6 @@ model MasonSection {
   position         Int
   estimatedMinutes Int         @default(15)
   fileName         String
-  mimeType         String      @default("application/pdf")
-  pdfData          Bytes
   lessonPlan       Json
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt

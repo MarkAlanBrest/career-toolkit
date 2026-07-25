@@ -21,6 +21,18 @@ export async function POST(
       return Response.json({ error: "Invalid section." }, { status: 400 });
     }
 
+    const form = await request.formData();
+    const file = form.get("pdf");
+    if (!(file instanceof File) || file.type !== "application/pdf") {
+      return Response.json(
+        { error: "Choose a new source PDF to rebuild this section." },
+        { status: 400 },
+      );
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      return Response.json({ error: "PDF files are limited to 25 MB." }, { status: 400 });
+    }
+
     const section = await prisma.masonSection.findFirst({
       where: { id: sectionId, course: { slug } },
       include: {
@@ -33,9 +45,10 @@ export async function POST(
       return Response.json({ error: "Section not found." }, { status: 404 });
     }
 
+    const pdf = Buffer.from(await file.arrayBuffer());
     const lessonPlan = await generateLessonPlan({
-      pdf: Buffer.from(section.pdfData),
-      fileName: section.fileName,
+      pdf,
+      fileName: file.name,
       courseTitle: section.course.title,
       sectionTitle: section.title,
       intensity: section.course.intensity,
@@ -45,6 +58,7 @@ export async function POST(
     const updated = await prisma.masonSection.update({
       where: { id: section.id },
       data: {
+        fileName: file.name,
         lessonPlan: lessonPlan as unknown as Prisma.InputJsonValue,
         updatedAt: new Date(),
       },

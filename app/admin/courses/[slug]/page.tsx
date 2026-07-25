@@ -188,14 +188,16 @@ export default function CourseEditorPage() {
     setBusy(false);
   }
 
-  async function regenerateSection(sectionId: number) {
+  async function regenerateSection(sectionId: number, pdf: File) {
     if (!course) return;
     setRegeneratingId(sectionId);
     setError("");
     setMessage("");
+    const form = new FormData();
+    form.set("pdf", pdf);
     const response = await fetch(
       `/api/admin/courses/${course.slug}/sections/${sectionId}/regenerate`,
-      { method: "POST" },
+      { method: "POST", body: form },
     );
     const data = await response.json();
     if (!response.ok) setError(data.error || "The section could not be regenerated.");
@@ -331,18 +333,28 @@ export default function CourseEditorPage() {
                       <span className="flex items-center gap-1.5 text-xs font-bold text-[#6e7981]">
                         <Clock3 size={14} /> {section.estimatedMinutes} min
                       </span>
-                      <button
-                        type="button"
-                        disabled={regeneratingId !== null}
-                        onClick={() => regenerateSection(section.id)}
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#10283f]/15 px-3 py-2 text-xs font-bold text-[#10283f] transition hover:bg-[#edf1f2] disabled:opacity-50"
+                      <label
+                        className={`inline-flex items-center gap-2 rounded-lg border border-[#10283f]/15 px-3 py-2 text-xs font-bold text-[#10283f] transition hover:bg-[#edf1f2] ${
+                          regeneratingId !== null ? "pointer-events-none opacity-50" : "cursor-pointer"
+                        }`}
                       >
                         <RefreshCw
                           size={14}
                           className={regeneratingId === section.id ? "animate-spin" : ""}
                         />
-                        {regeneratingId === section.id ? "Rebuilding…" : "Regenerate page"}
-                      </button>
+                        {regeneratingId === section.id ? "Rebuilding…" : "Rebuild with new PDF"}
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          className="sr-only"
+                          disabled={regeneratingId !== null}
+                          onChange={(event) => {
+                            const pdf = event.target.files?.[0];
+                            if (pdf) regenerateSection(section.id, pdf);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
                     </div>
                   </article>
                 ))}
@@ -361,7 +373,8 @@ export default function CourseEditorPage() {
                 </p>
                 <h2 className="mt-2 text-xl font-bold">Create a section from PDF</h2>
                 <p className="mt-2 text-xs leading-5 text-slate-300">
-                  The source remains attached to the section for future editing and regeneration.
+                  The PDF is used once to create the page, then discarded. The generated
+                  lesson becomes the saved course content.
                 </p>
               </div>
               <input

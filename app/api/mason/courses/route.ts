@@ -78,8 +78,6 @@ export async function POST(request: Request) {
             position: 1,
             estimatedMinutes: 15,
             fileName: file.name,
-            mimeType: file.type,
-            pdfData: pdf,
             lessonPlan: lessonPlan as unknown as Prisma.InputJsonValue,
             createdAt: new Date(),
             updatedAt: new Date(),
