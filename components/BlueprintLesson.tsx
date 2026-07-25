@@ -1,27 +1,27 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
-  Bot,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
   Clock3,
   Eye,
   Layers3,
   Lock,
+  LoaderCircle,
+  Pause,
   Play,
-  Send,
+  RotateCcw,
   Sparkles,
   Target,
+  Volume2,
   X,
 } from "lucide-react";
 
 type LineType = "object" | "hidden" | "center";
-type ChatEntry = { role: "user" | "assistant"; content: string };
 
 const lineDetails: Record<
   LineType,
@@ -50,74 +50,12 @@ const lineDetails: Record<
 };
 
 export default function BlueprintLesson() {
-  const [progress, setProgress] = useState(0);
   const [lineType, setLineType] = useState<LineType>("object");
-  const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatEntry[]>([]);
-  const [thinking, setThinking] = useState(false);
   const [panel, setPanel] = useState<"activities" | "mastery" | null>(null);
-  const [openSection, setOpenSection] = useState(2);
-
-  useEffect(() => {
-    const update = () => {
-      const available =
-        document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(
-        available > 0 ? Math.min(100, Math.round((window.scrollY / available) * 100)) : 0,
-      );
-    };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
-  }, []);
-
-  async function askMason(event: FormEvent) {
-    event.preventDefault();
-    const clean = question.trim();
-    if (!clean || thinking) return;
-    const next: ChatEntry[] = [...messages, { role: "user", content: clean }];
-    setMessages(next);
-    setQuestion("");
-    setThinking(true);
-    try {
-      const response = await fetch("/api/mason/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionId: 0, messages: next }),
-      });
-      const data = await response.json();
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          content:
-            data.reply ||
-            "Object lines show visible edges. Hidden lines reveal edges behind the visible surface, while center lines locate symmetrical geometry.",
-        },
-      ]);
-    } catch {
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          content:
-            "Object lines show visible edges. Hidden lines reveal edges behind the visible surface, while center lines locate symmetrical geometry.",
-        },
-      ]);
-    } finally {
-      setThinking(false);
-    }
-  }
 
   return (
     <main className="min-h-screen bg-[#f5f1e8] text-[#17202b]">
       <header className="sticky top-0 z-40 border-b border-[#17202b]/10 bg-[#f9f6ef]/95 backdrop-blur-xl">
-        <div className="h-1 bg-[#d8d2c5]">
-          <div
-            className="h-full bg-[#e0a42b] transition-[width] duration-200"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
         <div className="mx-auto flex h-16 max-w-[1680px] items-center justify-between px-5 lg:px-10">
           <div className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#10283f] text-[#f2b744]">
@@ -131,61 +69,14 @@ export default function BlueprintLesson() {
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="hidden items-center gap-2 text-[#6e7883] sm:flex">
+            <span className="flex items-center gap-2 text-[#6e7883]">
               <Clock3 size={16} /> 14 minutes
             </span>
-            <span className="rounded-full bg-[#10283f] px-3 py-1.5 text-xs font-bold text-white">
-              {progress}% read
-            </span>
-          </div>
-        </div>
-        <div className="hidden">
-          <div className="mx-auto flex max-w-[1100px] items-center px-5 py-2 lg:px-10">
-            {[
-              ["Read", 0],
-              ["Explore lines", 22],
-              ["Connect views", 48],
-              ["Activities", 76],
-              ["Mastery", 94],
-            ].map(([label, threshold], index, items) => {
-              const reached = progress >= Number(threshold);
-              return (
-                <div key={String(label)} className="flex min-w-0 flex-1 items-center">
-                  <div className="flex min-w-0 flex-col items-center gap-1">
-                    <span
-                      className={`grid h-5 w-5 place-items-center rounded-full border-2 text-[9px] font-black transition ${
-                        reached
-                          ? "border-[#d89d29] bg-[#d89d29] text-[#10283f]"
-                          : "border-[#b9c0c4] bg-[#f9f6ef] text-[#7a858c]"
-                      }`}
-                    >
-                      {reached ? <CheckCircle2 size={12} /> : index + 1}
-                    </span>
-                    <span
-                      className={`hidden truncate text-[10px] font-bold sm:block ${
-                        reached ? "text-[#10283f]" : "text-[#899197]"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </div>
-                  {index < items.length - 1 && (
-                    <span className="mx-2 mb-4 h-0.5 flex-1 overflow-hidden bg-[#d8dde0]">
-                      <span
-                        className={`block h-full bg-[#d89d29] transition-all ${
-                          progress >= Number(items[index + 1][1]) ? "w-full" : "w-0"
-                        }`}
-                      />
-                    </span>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-[1680px] grid-cols-1 gap-8 px-5 pb-24 pt-10 lg:px-10 xl:grid-cols-[220px_minmax(0,1fr)_310px]">
+      <div className="mx-auto grid max-w-[1320px] grid-cols-1 gap-10 px-5 pb-24 pt-10 lg:px-10 xl:grid-cols-[220px_minmax(0,980px)]">
         <aside className="hidden xl:block">
           <div className="sticky top-24 overflow-hidden rounded-[1.75rem] bg-white p-4 text-[#10283f] shadow-[0_18px_45px_rgba(16,40,63,.1)] ring-1 ring-[#10283f]/10">
             <div className="border-b border-[#10283f]/10 px-1 pb-5 pt-1">
@@ -197,157 +88,65 @@ export default function BlueprintLesson() {
               </h2>
             </div>
 
-            <nav className="mt-4 max-h-[58vh] space-y-1 overflow-y-auto pr-1">
+            <nav className="mt-4 space-y-1">
               {[
                 {
                   number: "01",
                   title: "Drawing orientation",
                   state: "complete",
-                  items: [
-                    { label: "Sheets, views, and title blocks", state: "complete" },
-                  ],
                 },
                 {
                   number: "02",
                   title: "Lines & views",
                   state: "active",
-                  items: [
-                    { label: "Introduction to line conventions", state: "complete" },
-                    { label: "The language of lines", state: "current" },
-                    { label: "Activity: Find hidden lines", state: "activity" },
-                    { label: "Activity: Match the views", state: "activity" },
-                    { label: "Activity: Correct the drawing", state: "activity" },
-                    { label: "Mastery check", state: "locked" },
-                  ],
                 },
                 {
                   number: "03",
                   title: "Dimensions & scale",
                   state: "upcoming",
-                  items: [
-                    { label: "Reading dimensions", state: "locked" },
-                    { label: "Scale and measurement", state: "locked" },
-                    { label: "Guided activities", state: "locked" },
-                    { label: "Mastery check", state: "locked" },
-                  ],
                 },
                 {
                   number: "04",
                   title: "Symbols & notes",
                   state: "upcoming",
-                  items: [
-                    { label: "Common drawing symbols", state: "locked" },
-                    { label: "General and local notes", state: "locked" },
-                    { label: "Mastery check", state: "locked" },
-                  ],
                 },
-              ].map((sectionItem) => {
-                const sectionNumber = Number(sectionItem.number);
-                const expanded = openSection === sectionNumber;
-                return (
-                  <div key={sectionItem.number}>
-                    <button
-                      onClick={() =>
-                        setOpenSection(expanded ? 0 : sectionNumber)
-                      }
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
-                        sectionItem.state === "active"
-                          ? "bg-[#fff2d2] text-[#10283f] ring-1 ring-[#d9a036]/25"
-                          : "text-[#596671] hover:bg-[#f4f6f6] hover:text-[#10283f]"
-                      }`}
-                    >
-                      <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[10px] font-black ${
-                          sectionItem.state === "complete"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : sectionItem.state === "active"
-                              ? "bg-[#d9a036] text-white"
-                              : "bg-[#edf0f1] text-[#7a858c]"
-                        }`}
-                      >
-                        {sectionItem.state === "complete" ? (
-                          <CheckCircle2 size={15} />
-                        ) : (
-                          sectionItem.number
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1 text-sm font-semibold leading-5">
-                        {sectionItem.title}
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={`shrink-0 transition-transform ${
-                          expanded ? "rotate-180" : ""
-                        }`}
-                      />
-                    </button>
-
-                    <div
-                      className={`grid transition-[grid-template-rows,opacity] duration-300 ${
-                        expanded
-                          ? "grid-rows-[1fr] opacity-100"
-                          : "grid-rows-[0fr] opacity-0"
-                      }`}
-                    >
-                      <div className="overflow-hidden">
-                        <div className="ml-6 border-l border-[#10283f]/10 py-2 pl-3">
-                          {sectionItem.items.map((item) => (
-                            <button
-                              key={item.label}
-                              onClick={() => {
-                                if (item.state === "activity") setPanel("activities");
-                                if (
-                                  item.label === "Mastery check" &&
-                                  item.state !== "locked"
-                                ) {
-                                  setPanel("mastery");
-                                }
-                              }}
-                              disabled={item.state === "locked"}
-                              className={`flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left text-xs leading-5 transition ${
-                                item.state === "current"
-                                  ? "bg-[#eef3f4] font-bold text-[#10283f]"
-                                  : item.state === "activity"
-                                    ? "font-semibold text-[#9a6b18] hover:bg-[#fff8e9]"
-                                    : item.state === "complete"
-                                      ? "text-[#53616c]"
-                                      : "text-[#a1a8ad]"
-                              }`}
-                            >
-                              <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center">
-                                {item.state === "complete" ? (
-                                  <CheckCircle2 size={14} className="text-emerald-600" />
-                                ) : item.state === "locked" ? (
-                                  <Lock size={12} />
-                                ) : item.state === "activity" ? (
-                                  <Play size={12} />
-                                ) : (
-                                  <span className="h-2 w-2 rounded-full bg-[#f2b744]" />
-                                )}
-                              </span>
-                              <span>{item.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              ].map((sectionItem) => (
+                <button
+                  key={sectionItem.number}
+                  disabled={sectionItem.state === "upcoming"}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                    sectionItem.state === "active"
+                      ? "bg-[#fff2d2] text-[#10283f] ring-1 ring-[#d9a036]/25"
+                      : sectionItem.state === "complete"
+                        ? "text-[#40505c] hover:bg-[#f4f6f6]"
+                        : "cursor-default text-[#9aa2a8]"
+                  }`}
+                >
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-[10px] font-black ${
+                      sectionItem.state === "complete"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : sectionItem.state === "active"
+                          ? "bg-[#d9a036] text-white"
+                          : "bg-[#edf0f1] text-[#7a858c]"
+                    }`}
+                  >
+                    {sectionItem.state === "complete" ? (
+                      <CheckCircle2 size={15} />
+                    ) : (
+                      sectionItem.number
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-semibold leading-5">
+                    {sectionItem.title}
+                  </span>
+                  {sectionItem.state === "upcoming" && (
+                    <Lock size={13} className="shrink-0 text-[#a7adb1]" />
+                  )}
+                </button>
+              ))}
             </nav>
 
-            <div className="mt-7 rounded-2xl border border-[#10283f]/10 bg-[#f5f7f7] p-4">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-[#66727b]">Course progress</span>
-                <span className="text-[#10283f]">18%</span>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dfe4e5]">
-                <div className="h-full w-[18%] rounded-full bg-[#d9a036]" />
-              </div>
-              <p className="mt-3 text-xs leading-5 text-[#7b858c]">
-                1 of 6 sub-lessons completed
-              </p>
-            </div>
           </div>
         </aside>
 
@@ -456,16 +255,31 @@ export default function BlueprintLesson() {
             <h2 className="max-w-3xl font-serif text-4xl font-semibold tracking-tight text-[#10283f] sm:text-5xl">
               Line style communicates visibility and purpose.
             </h2>
-            <div className="mt-8 grid gap-8 text-lg leading-8 text-[#4c5966] md:grid-cols-2">
+            <div className="mt-9 max-w-3xl space-y-6 text-lg leading-8 text-[#4c5966]">
               <p>
-                The same physical edge may appear as a visible object line in one
-                view and a hidden line in another. The object has not changed—only
-                your viewing direction has.
+                Every line on a technical drawing represents a decision about what
+                the reader needs to understand. A thick, continuous object line
+                identifies an edge that can be seen from the current viewing
+                direction. A dashed hidden line identifies an edge that exists but
+                is blocked by material. A center line does something different: it
+                locates the axis or midpoint of a symmetrical feature rather than
+                describing a physical edge.
               </p>
               <p>
-                Skilled readers constantly compare views. A dashed feature in the
-                front view should connect logically to visible geometry in the top
-                or side view.
+                This means the same physical edge may appear as a visible object
+                line in one view and a hidden line in another. The object has not
+                changed—only your viewing direction has. If a hole is visible as a
+                circle in the front view, its sides may appear as two dashed lines
+                in the top view because you are now looking through solid material
+                toward an edge you cannot see directly.
+              </p>
+              <p>
+                Skilled readers therefore avoid interpreting any view in isolation.
+                They compare the front, top, and side views until each feature has a
+                consistent physical explanation. A dashed feature in one view
+                should connect logically to visible geometry in another. When those
+                relationships agree, the flat drawing begins to describe a complete
+                three-dimensional object.
               </p>
             </div>
           </section>
@@ -547,6 +361,14 @@ export default function BlueprintLesson() {
             </div>
           </section>
 
+          <InlineActivity
+            number="01"
+            title="Identify the hidden lines"
+            description="Work directly on a three-view drawing and select every edge that is hidden from the current viewpoint."
+            time="8–10 minutes"
+            onClick={() => setPanel("activities")}
+          />
+
           <aside className="my-20 grid overflow-hidden rounded-[2rem] bg-[#dca332] sm:grid-cols-[130px_1fr]">
             <div className="grid place-items-center bg-[#c58b1c] py-8 text-[#10283f]">
               <Eye size={52} strokeWidth={1.5} />
@@ -582,31 +404,15 @@ export default function BlueprintLesson() {
             </div>
           </section>
 
-          <section className="my-20 overflow-hidden rounded-[2rem] bg-[#10283f] text-white">
-            <div className="grid md:grid-cols-[1fr_1.15fr]">
-              <div className="p-8 sm:p-10">
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-[#f2c568]">
-                  <Play size={14} fill="currentColor" /> 45-second visual
-                </div>
-                <h2 className="font-serif text-3xl font-semibold">
-                  Watch the viewing direction change
-                </h2>
-                <p className="mt-4 leading-7 text-slate-300">
-                  Use the controls to rotate the viewing direction. Notice when
-                  the bore changes from a visible circle to two hidden edges.
-                </p>
-              </div>
-              <div className="min-h-72 bg-[#183c59] p-4">
-                <iframe
-                  className="aspect-video h-full min-h-64 w-full rounded-2xl border-0 bg-black"
-                  src="https://www.youtube-nocookie.com/embed/WG6H2pISUzQ?start=0&end=60&rel=0"
-                  title="Introduction to orthographic projection"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          </section>
+          <InlineActivity
+            number="02"
+            title="Match features across views"
+            description="Trace five physical features from the front view into the corresponding top and side views."
+            time="About 10 minutes"
+            onClick={() => setPanel("activities")}
+          />
+
+          <NarratedVisualExplainer />
 
           <section className="py-4">
             <p className="text-xs font-black uppercase tracking-[.18em] text-[#a06900]">
@@ -647,6 +453,14 @@ export default function BlueprintLesson() {
             </div>
           </section>
 
+          <InlineActivity
+            number="03"
+            title="Correct the drawing"
+            description="Inspect a fabricator’s marked-up drawing, diagnose the line-reading error, and explain your correction."
+            time="12–15 minutes"
+            onClick={() => setPanel("activities")}
+          />
+
           <details className="group my-16 border-y border-[#17202b]/15 py-6">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold text-[#10283f]">
               What about phantom, cutting-plane, and break lines?
@@ -668,58 +482,42 @@ export default function BlueprintLesson() {
             </div>
           </details>
 
-          <section className="hidden">
+          <section className="mt-20 border-t border-[#17202b]/15 pt-14">
             <div className="flex items-end justify-between gap-6">
               <div>
                 <p className="text-xs font-black uppercase tracking-[.18em] text-[#a06900]">
-                  Apply what you learned
+                  End of section
                 </p>
                 <h2 className="mt-3 font-serif text-4xl font-semibold text-[#10283f]">
-                  Ready to work with the drawing?
+                  Ready to demonstrate mastery?
                 </h2>
+                <p className="mt-4 max-w-2xl text-lg leading-8 text-[#59636d]">
+                  Complete the independent check to finish Lines &amp; Views.
+                  Your coach will step away and no coaching or hints will be available.
+                </p>
               </div>
               <Target className="hidden text-[#d39a2a] sm:block" size={54} strokeWidth={1.4} />
             </div>
 
-            <div className="mt-9 grid gap-5 sm:grid-cols-2">
-              <button
-                onClick={() => setPanel("activities")}
-                className="group rounded-3xl bg-[#10283f] p-7 text-left text-white shadow-xl transition hover:-translate-y-1"
-              >
-                <Layers3 className="text-[#f2c568]" size={30} />
-                <p className="mt-8 text-xs font-black uppercase tracking-[.17em] text-[#a9bfd0]">
-                  Guided practice · 3 activities
-                </p>
-                <h3 className="mt-2 text-2xl font-bold">Start the activities</h3>
-                <p className="mt-3 leading-7 text-slate-300">
-                  Identify hidden lines, match views, and correct a misread drawing.
-                  Mason can coach you.
-                </p>
-                <span className="mt-7 flex items-center gap-2 font-bold text-[#f2c568]">
-                  Begin practice <ArrowRight className="transition-transform group-hover:translate-x-1" />
+            <button
+              onClick={() => setPanel("mastery")}
+              className="group mt-9 flex w-full items-center justify-between gap-6 rounded-3xl bg-[#10283f] p-6 text-left text-white shadow-xl transition hover:-translate-y-1 sm:p-8"
+            >
+              <span className="flex items-center gap-5">
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#f2b744] text-[#10283f]">
+                  <CheckCircle2 size={29} />
                 </span>
-              </button>
-
-              <button
-                onClick={() => setPanel("mastery")}
-                className="group rounded-3xl border-2 border-[#10283f] bg-transparent p-7 text-left transition hover:-translate-y-1 hover:bg-white"
-              >
-                <CheckCircle2 className="text-[#10283f]" size={30} />
-                <p className="mt-8 text-xs font-black uppercase tracking-[.17em] text-[#7b6b4d]">
-                  Independent · no coaching
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-[#10283f]">
-                  Take the mastery check
-                </h3>
-                <p className="mt-3 leading-7 text-[#59636d]">
-                  Demonstrate that you can identify and interpret line types in a
-                  new drawing.
-                </p>
-                <span className="mt-7 flex items-center gap-2 font-bold text-[#10283f]">
-                  Begin assessment <ArrowRight className="transition-transform group-hover:translate-x-1" />
+                <span>
+                  <span className="block text-xs font-black uppercase tracking-[.17em] text-[#a9bfd0]">
+                    Independent · approximately 10 minutes
+                  </span>
+                  <span className="mt-2 block text-2xl font-bold">
+                    Take the section mastery check
+                  </span>
                 </span>
-              </button>
-            </div>
+              </span>
+              <ArrowRight className="shrink-0 text-[#f2c568] transition-transform group-hover:translate-x-1" />
+            </button>
           </section>
 
           <p className="mt-16 text-xs leading-5 text-[#7d858c]">
@@ -733,81 +531,6 @@ export default function BlueprintLesson() {
             .
           </p>
         </article>
-
-        <aside className="hidden xl:block">
-          <div className="sticky top-24 overflow-hidden rounded-[1.75rem] border border-[#10283f]/10 bg-white shadow-[0_18px_50px_rgba(16,40,63,.1)]">
-            <div className="flex items-center gap-3 bg-[#10283f] p-5 text-white">
-              <div className="relative grid h-12 w-12 place-items-center rounded-2xl bg-[#f2b744] text-[#10283f]">
-                <Bot size={27} />
-                <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-[#10283f] bg-emerald-400" />
-              </div>
-              <div>
-                <p className="font-bold">Ask Mason</p>
-                <p className="text-xs text-slate-300">Reading this page with you</p>
-              </div>
-            </div>
-
-            <div className="max-h-[330px] space-y-3 overflow-y-auto p-4">
-              {messages.length === 0 ? (
-                <>
-                  <p className="rounded-2xl rounded-tl-sm bg-[#eef3f4] p-4 text-sm leading-6 text-[#495661]">
-                    I know which section and diagram you’re viewing. Ask me to
-                    simplify something or show another example.
-                  </p>
-                  <div className="space-y-2">
-                    {[
-                      "Explain hidden lines more simply.",
-                      "What’s the difference between hidden and center lines?",
-                      "Show me another example.",
-                    ].map((prompt) => (
-                      <button
-                        key={prompt}
-                        onClick={() => setQuestion(prompt)}
-                        className="w-full rounded-xl border border-[#10283f]/10 px-3 py-2.5 text-left text-xs font-semibold text-[#53616c] hover:border-[#d49a28] hover:bg-[#fff9ec]"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                messages.slice(-5).map((message, index) => (
-                  <p
-                    key={index}
-                    className={`rounded-2xl p-3 text-sm leading-6 ${
-                      message.role === "user"
-                        ? "ml-6 rounded-tr-sm bg-[#f2b744] text-[#17202b]"
-                        : "mr-3 rounded-tl-sm bg-[#eef3f4] text-[#495661]"
-                    }`}
-                  >
-                    {message.content}
-                  </p>
-                ))
-              )}
-              {thinking && (
-                <p className="text-xs font-bold text-[#a06900]">Mason is thinking…</p>
-              )}
-            </div>
-
-            <form onSubmit={askMason} className="border-t border-[#10283f]/10 p-3">
-              <div className="flex items-end gap-2 rounded-xl bg-[#f5f1e8] p-2">
-                <textarea
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  rows={2}
-                  placeholder="Ask about this lesson…"
-                  className="min-h-11 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none"
-                />
-                <button
-                  disabled={!question.trim() || thinking}
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-[#10283f] text-white disabled:opacity-35"
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </form>
-          </div>
-        </aside>
       </div>
 
       {panel && (
@@ -856,7 +579,7 @@ export default function BlueprintLesson() {
                   Independent demonstration
                 </h2>
                 <p className="mt-5 text-lg leading-8 text-[#59636d]">
-                  Mason will leave the screen. You’ll receive a new drawing and
+                  Your coach will leave the screen. You’ll receive a new drawing and
                   complete five line-reading problems without hints or coaching.
                 </p>
                 <div className="mt-7 rounded-2xl bg-white p-5 text-sm leading-7 text-[#4f5b66]">
@@ -874,6 +597,448 @@ export default function BlueprintLesson() {
         </div>
       )}
     </main>
+  );
+}
+
+const explainerFrames = [
+  {
+    eyebrow: "Step 1 · Orient",
+    title: "Start with the complete drawing",
+    caption:
+      "Before reading individual lines, identify the front, top, and right-side views.",
+    narration:
+      "Start with the complete drawing. Locate the front, top, and right-side views before interpreting any individual line. These views describe one object from three different directions.",
+    focus: "overview",
+  },
+  {
+    eyebrow: "Step 2 · Observe",
+    title: "The bore is visible from the front",
+    caption:
+      "Looking directly into the bore reveals its circular opening as a visible object line.",
+    narration:
+      "Now focus on the front view. Because we are looking directly into the bore, its circular opening is visible. The thick continuous circle is an object line.",
+    focus: "front",
+  },
+  {
+    eyebrow: "Step 3 · Translate",
+    title: "The same bore becomes hidden",
+    caption:
+      "From above, material blocks the bore’s edges, so they appear as evenly spaced dashes.",
+    narration:
+      "Move to the top view. The bore has not changed, but solid material now blocks our view of its edges. That is why the two edges are drawn as hidden lines.",
+    focus: "top",
+  },
+  {
+    eyebrow: "Step 4 · Confirm",
+    title: "The side view confirms the feature",
+    caption:
+      "A second pair of hidden lines verifies that the bore passes through the center of the part.",
+    narration:
+      "The right-side view gives us confirmation. Its hidden-line pair aligns with the same bore. Comparing views prevents us from mistaking those dashes for a separate feature.",
+    focus: "side",
+  },
+  {
+    eyebrow: "Step 5 · Connect",
+    title: "Read all three views as one object",
+    caption:
+      "Visible and hidden lines work together to communicate the bore’s location and direction.",
+    narration:
+      "Put the views back together. The visible circle and both hidden-line pairs describe one continuous bore. Strong blueprint readers always verify a feature across every available view.",
+    focus: "together",
+  },
+] as const;
+
+function NarratedVisualExplainer() {
+  const [frameIndex, setFrameIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [voiceError, setVoiceError] = useState("");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef("");
+  const audioFrameRef = useRef(-1);
+  const requestRef = useRef(0);
+
+  function releaseAudio() {
+    requestRef.current += 1;
+    audioRef.current?.pause();
+    audioRef.current = null;
+    audioFrameRef.current = -1;
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = "";
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      requestRef.current += 1;
+      audioRef.current?.pause();
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    };
+  }, []);
+
+  async function playFrame(nextIndex: number, restart = false) {
+    const existing = audioRef.current;
+    if (
+      !restart &&
+      existing &&
+      audioFrameRef.current === nextIndex &&
+      existing.currentTime > 0 &&
+      existing.currentTime < existing.duration
+    ) {
+      await existing.play();
+      setPlaying(true);
+      return;
+    }
+
+    releaseAudio();
+    const requestId = requestRef.current;
+    setFrameIndex(nextIndex);
+    setAudioProgress(0);
+    setVoiceError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/mason/speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: explainerFrames[nextIndex].narration }),
+      });
+      if (!response.ok) throw new Error("voice unavailable");
+      const blob = await response.blob();
+      if (requestId !== requestRef.current) return;
+
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioUrlRef.current = url;
+      audioRef.current = audio;
+      audioFrameRef.current = nextIndex;
+      audio.ontimeupdate = () => {
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          setAudioProgress(audio.currentTime / audio.duration);
+        }
+      };
+      audio.onended = () => {
+        setAudioProgress(1);
+        if (nextIndex < explainerFrames.length - 1) {
+          void playFrame(nextIndex + 1, true);
+        } else {
+          setPlaying(false);
+        }
+      };
+      audio.onerror = () => {
+        setPlaying(false);
+        setVoiceError("The instructor narration could not be played.");
+      };
+      await audio.play();
+      setPlaying(true);
+    } catch {
+      if (requestId === requestRef.current) {
+        setVoiceError(
+          "Natural instructor narration will play here when the voice service is connected.",
+        );
+        setPlaying(false);
+      }
+    } finally {
+      if (requestId === requestRef.current) setLoading(false);
+    }
+  }
+
+  function pause() {
+    audioRef.current?.pause();
+    setPlaying(false);
+  }
+
+  function selectFrame(index: number) {
+    releaseAudio();
+    setFrameIndex(index);
+    setAudioProgress(0);
+    setPlaying(false);
+    setLoading(false);
+    setVoiceError("");
+  }
+
+  const frame = explainerFrames[frameIndex];
+  const totalProgress =
+    ((frameIndex + audioProgress) / explainerFrames.length) * 100;
+
+  return (
+    <section className="my-20 overflow-hidden rounded-[2rem] bg-[#10283f] text-white shadow-[0_30px_80px_rgba(16,40,63,.2)]">
+      <div className="border-b border-white/10 px-6 py-5 sm:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.17em] text-[#f2c568]">
+              <Volume2 size={15} /> Narrated visual explainer
+            </div>
+            <h2 className="mt-2 font-serif text-3xl font-semibold">
+              How one bore changes across three views
+            </h2>
+          </div>
+          <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-slate-200">
+            About 60 seconds
+          </span>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-[1.35fr_.65fr]">
+        <div className="relative min-h-[390px] overflow-hidden bg-[#e9eff0]">
+          <div key={frame.focus} className="explainer-frame absolute inset-0">
+            <ExplainerPicture focus={frame.focus} />
+          </div>
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#07111f]/95 via-[#07111f]/70 to-transparent px-6 pb-6 pt-24 sm:px-8">
+            <p className="text-xs font-black uppercase tracking-[.17em] text-[#f2c568]">
+              {frame.eyebrow}
+            </p>
+            <p className="mt-2 max-w-2xl text-lg font-semibold leading-7">
+              {frame.caption}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-h-[390px] flex-col p-6 sm:p-8">
+          <div className="flex-1">
+            <p className="text-xs font-black uppercase tracking-[.17em] text-[#8ea7ba]">
+              Instructor narration
+            </p>
+            <h3 className="mt-3 text-2xl font-bold leading-8">{frame.title}</h3>
+            <p className="mt-5 text-sm leading-7 text-slate-300">
+              {frame.narration}
+            </p>
+            {voiceError && (
+              <p className="mt-4 rounded-xl bg-amber-300/10 p-3 text-xs leading-5 text-amber-200">
+                {voiceError}
+              </p>
+            )}
+          </div>
+
+          <div className="mt-7">
+            <div className="mb-4 flex gap-1.5">
+              {explainerFrames.map((item, index) => (
+                <button
+                  key={item.title}
+                  onClick={() => selectFrame(index)}
+                  aria-label={`Show visual ${index + 1}: ${item.title}`}
+                  className={`h-1.5 flex-1 rounded-full transition ${
+                    index < frameIndex
+                      ? "bg-[#f2b744]"
+                      : index === frameIndex
+                        ? "bg-white"
+                        : "bg-white/20"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <div className="h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full bg-[#f2b744] transition-[width] duration-200"
+                style={{ width: `${totalProgress}%` }}
+              />
+            </div>
+
+            <div className="mt-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() =>
+                    playing ? pause() : void playFrame(frameIndex)
+                  }
+                  disabled={loading}
+                  className="grid h-12 w-12 place-items-center rounded-full bg-[#f2b744] text-[#10283f] transition hover:scale-105 disabled:opacity-60"
+                  aria-label={playing ? "Pause explainer" : "Play explainer"}
+                >
+                  {loading ? (
+                    <LoaderCircle className="animate-spin" size={21} />
+                  ) : playing ? (
+                    <Pause size={20} fill="currentColor" />
+                  ) : (
+                    <Play className="ml-0.5" size={20} fill="currentColor" />
+                  )}
+                </button>
+                <div>
+                  <p className="text-sm font-bold">
+                    {loading ? "Preparing narration…" : playing ? "Playing" : "Play explainer"}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Visual {frameIndex + 1} of {explainerFrames.length}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  selectFrame(0);
+                  void playFrame(0, true);
+                }}
+                className="grid h-10 w-10 place-items-center rounded-full border border-white/15 text-slate-300 hover:bg-white/10 hover:text-white"
+                aria-label="Replay explainer"
+              >
+                <RotateCcw size={17} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .explainer-frame {
+          animation: explainer-in 550ms ease-out both;
+        }
+        @keyframes explainer-in {
+          from {
+            opacity: 0;
+            transform: scale(1.035);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+function ExplainerPicture({
+  focus,
+}: {
+  focus: (typeof explainerFrames)[number]["focus"];
+}) {
+  if (focus === "overview") {
+    return (
+      <div className="relative h-full w-full bg-white">
+        <Image
+          src="/lesson-assets/engineering-drawing.png"
+          alt="Complete multi-view engineering drawing"
+          fill
+          className="object-contain p-6 sm:p-10"
+        />
+      </div>
+    );
+  }
+
+  const frontActive = focus === "front" || focus === "together";
+  const topActive = focus === "top" || focus === "together";
+  const sideActive = focus === "side" || focus === "together";
+
+  return (
+    <svg
+      viewBox="0 0 760 470"
+      className="h-full w-full"
+      role="img"
+      aria-label="Animated orthographic drawing demonstrating a bore across three views"
+    >
+      <defs>
+        <pattern id={`explainer-grid-${focus}`} width="22" height="22" patternUnits="userSpaceOnUse">
+          <path d="M 22 0 L 0 0 0 22" fill="none" stroke="#dce5e7" strokeWidth="1" />
+        </pattern>
+        <filter id={`explainer-glow-${focus}`}>
+          <feGaussianBlur stdDeviation="5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <rect width="760" height="470" fill="#f7faf9" />
+      <rect width="760" height="470" fill={`url(#explainer-grid-${focus})`} />
+
+      <g opacity={frontActive ? 1 : 0.28} className="transition-opacity duration-500">
+        <rect x="80" y="65" width="235" height="145" rx="3" fill="#fff" stroke="#16334a" strokeWidth="6" />
+        <circle
+          cx="197"
+          cy="137"
+          r="46"
+          fill={frontActive ? "#fff3cd" : "#fff"}
+          stroke={frontActive ? "#d2931c" : "#16334a"}
+          strokeWidth={frontActive ? 9 : 6}
+          filter={frontActive ? `url(#explainer-glow-${focus})` : undefined}
+        />
+        <line x1="197" y1="48" x2="197" y2="226" stroke="#d2931c" strokeWidth="2" strokeDasharray="28 8 8 8" />
+        <line x1="62" y1="137" x2="332" y2="137" stroke="#d2931c" strokeWidth="2" strokeDasharray="28 8 8 8" />
+        <text x="80" y="43" fill="#435560" fontSize="17" fontWeight="800" letterSpacing="2">FRONT VIEW</text>
+      </g>
+
+      <g opacity={topActive ? 1 : 0.28} className="transition-opacity duration-500">
+        <rect x="80" y="300" width="235" height="110" rx="3" fill="#fff" stroke="#16334a" strokeWidth="6" />
+        <line x1="150" y1="300" x2="150" y2="410" stroke="#d2931c" strokeWidth={topActive ? 7 : 4} strokeDasharray="16 10" />
+        <line x1="244" y1="300" x2="244" y2="410" stroke="#d2931c" strokeWidth={topActive ? 7 : 4} strokeDasharray="16 10" />
+        <line x1="197" y1="280" x2="197" y2="430" stroke="#d2931c" strokeWidth="2" strokeDasharray="28 8 8 8" />
+        <text x="80" y="277" fill="#435560" fontSize="17" fontWeight="800" letterSpacing="2">TOP VIEW</text>
+      </g>
+
+      <g opacity={sideActive ? 1 : 0.28} className="transition-opacity duration-500">
+        <rect x="475" y="65" width="170" height="145" rx="3" fill="#fff" stroke="#16334a" strokeWidth="6" />
+        <line x1="513" y1="65" x2="513" y2="210" stroke="#d2931c" strokeWidth={sideActive ? 7 : 4} strokeDasharray="16 10" />
+        <line x1="607" y1="65" x2="607" y2="210" stroke="#d2931c" strokeWidth={sideActive ? 7 : 4} strokeDasharray="16 10" />
+        <line x1="560" y1="45" x2="560" y2="230" stroke="#d2931c" strokeWidth="2" strokeDasharray="28 8 8 8" />
+        <text x="475" y="43" fill="#435560" fontSize="17" fontWeight="800" letterSpacing="2">RIGHT-SIDE VIEW</text>
+      </g>
+
+      {focus === "together" && (
+        <g stroke="#d2931c" strokeWidth="4" fill="none" strokeDasharray="7 7">
+          <path d="M330 137 C385 137 415 137 460 137" />
+          <path d="M197 230 C197 250 197 265 197 282" />
+        </g>
+      )}
+
+      <g transform="translate(430 305)">
+        <rect width="260" height="82" rx="16" fill="#10283f" />
+        <text x="22" y="32" fill="#f2c568" fontSize="14" fontWeight="800" letterSpacing="1.5">
+          {focus === "front" ? "VISIBLE OBJECT LINE" : focus === "top" || focus === "side" ? "HIDDEN-LINE PAIR" : "ONE CONTINUOUS BORE"}
+        </text>
+        <text x="22" y="58" fill="#d8e2e8" fontSize="15">
+          {focus === "front" ? "Looking into the opening" : focus === "top" || focus === "side" ? "Edges behind solid material" : "Verified across all views"}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+function InlineActivity({
+  number,
+  title,
+  description,
+  time,
+  onClick,
+}: {
+  number: string;
+  title: string;
+  description: string;
+  time: string;
+  onClick: () => void;
+}) {
+  return (
+    <aside className="my-12 overflow-hidden rounded-[1.75rem] border border-[#10283f]/10 bg-white shadow-[0_16px_40px_rgba(16,40,63,.08)]">
+      <div className="grid sm:grid-cols-[110px_1fr_auto] sm:items-center">
+        <div className="grid h-full min-h-28 place-items-center bg-[#eef3f4] py-6 text-[#10283f]">
+          <div className="text-center">
+            <Layers3 className="mx-auto text-[#d19829]" size={27} />
+            <span className="mt-2 block font-serif text-2xl font-semibold">{number}</span>
+          </div>
+        </div>
+        <div className="p-6 sm:px-7">
+          <p className="text-[11px] font-black uppercase tracking-[.17em] text-[#9a6b18]">
+            Practice here · {time}
+          </p>
+          <h3 className="mt-2 text-xl font-bold text-[#10283f]">{title}</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#59636d]">
+            {description}
+          </p>
+          <p className="mt-2 text-xs font-semibold text-[#78838b]">
+              Your AI coach is available for guidance and feedback.
+          </p>
+        </div>
+        <div className="px-6 pb-6 sm:p-6 sm:pl-0">
+          <button
+            onClick={onClick}
+            className="group flex w-full items-center justify-center gap-2 rounded-xl bg-[#10283f] px-5 py-3 font-bold text-white transition hover:bg-[#183c59] sm:w-auto"
+          >
+            Start activity
+            <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+          </button>
+        </div>
+      </div>
+    </aside>
   );
 }
 

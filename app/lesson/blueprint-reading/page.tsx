@@ -1,7 +1,7 @@
 import BlueprintLesson from "@/components/BlueprintLesson";
 
 export const metadata = {
-  title: "Reading Lines on a Blueprint | Mason",
+  title: "Reading Lines on a Blueprint | AI Training",
   description: "An example high-fidelity Read & Learn lesson.",
 };
 
