@@ -197,7 +197,7 @@ export default function SlideshowTrainingPage({
   return (
     <main
       data-course-theme={course.theme || "heritage"}
-      className="course-shell min-h-screen bg-[var(--page)] text-slate-800"
+      className="course-shell slideshow-course min-h-screen bg-[var(--page)] text-slate-800"
       style={
         {
           "--ink": palette.ink,

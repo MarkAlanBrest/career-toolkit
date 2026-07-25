@@ -149,3 +149,17 @@ body {
   border-left: 8px solid rgba(189, 113, 55, 0.35);
   padding-left: clamp(1.25rem, 3vw, 2.5rem);
 }
+
+/*
+ * Desktop slideshow mode is intentionally presented at an 80% visual scale.
+ * Expanding the layout dimensions by the inverse amount keeps it flush with
+ * the viewport and reproduces the fit of browser zoom without affecting the
+ * administration area, webpage lessons, or compact mobile layouts.
+ */
+@media (min-width: 900px) and (min-height: 650px) {
+  .slideshow-course {
+    width: 125%;
+    min-height: 125vh;
+    zoom: 0.8;
+  }
+}
