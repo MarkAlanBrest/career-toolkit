@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   ArrowRight,
   BookOpen,
@@ -268,6 +269,10 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
   const [complete, setComplete] = useState<number[]>([]);
   const section = course.sections[sectionIndex];
   const palette = themes[course.theme || "heritage"] || themes.heritage;
+  const accentColor =
+    course.accentColor && /^#[0-9a-f]{6}$/i.test(course.accentColor)
+      ? course.accentColor
+      : palette.accent;
 
   const mastery = useMemo(() => {
     const explicit = section.lessonPlan.moments.filter((moment) => moment.phase === "mastery");
@@ -294,7 +299,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
       style={
         {
           "--ink": palette.ink,
-          "--accent": palette.accent,
+          "--accent": accentColor,
           "--pale": palette.pale,
           "--dark": palette.dark,
         } as React.CSSProperties
@@ -325,8 +330,23 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
             >
               <X size={20} />
             </button>
-            <BookOpen className="mb-5 text-[var(--accent)]" size={25} />
-            <p className="text-xs font-bold uppercase tracking-[.18em] text-white/50">Training program</p>
+            {course.logoData ? (
+              <span className="mb-5 flex h-16 w-full items-center rounded-xl bg-white p-2">
+                <Image
+                  src={course.logoData}
+                  alt={`${course.companyName || course.title} logo`}
+                  width={220}
+                  height={64}
+                  unoptimized
+                  className="max-h-12 w-auto max-w-full object-contain"
+                />
+              </span>
+            ) : (
+              <BookOpen className="mb-5 text-[var(--accent)]" size={25} />
+            )}
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-white/50">
+              {course.companyName || "Training program"}
+            </p>
             <h1 className="mt-2 text-xl font-semibold leading-7">{course.title}</h1>
           </div>
           <nav className="flex-1 overflow-y-auto px-4 py-6">

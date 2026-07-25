@@ -35,6 +35,9 @@ model MasonCourse {
   description      String?
   audience         String?
   theme            String             @default("heritage")
+  companyName      String?
+  logoData         String?            @db.Text
+  accentColor      String?
   intensity        String             @default("standard")
   estimatedMinutes Int                @default(60)
   published        Boolean            @default(false)

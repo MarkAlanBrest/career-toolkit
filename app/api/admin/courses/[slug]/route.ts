@@ -75,10 +75,28 @@ export async function PATCH(
     const title = String(body.title || "").trim();
     const theme = String(body.theme || "heritage");
     const intensity = String(body.intensity || "standard");
+    const accentColor = String(body.accentColor || "").trim();
+    const logoData = String(body.logoData || "").trim();
 
     if (!title || !isCourseTheme(theme) || !isCourseIntensity(intensity)) {
       return Response.json(
         { error: "Title, theme, and intensity are required." },
+        { status: 400 },
+      );
+    }
+    if (accentColor && !/^#[0-9a-f]{6}$/i.test(accentColor)) {
+      return Response.json(
+        { error: "Choose a valid six-digit accent color." },
+        { status: 400 },
+      );
+    }
+    if (
+      logoData &&
+      (!/^data:image\/(?:png|jpeg|webp);base64,/i.test(logoData) ||
+        logoData.length > 1_500_000)
+    ) {
+      return Response.json(
+        { error: "The logo must be a PNG, JPEG, or WebP image under 1 MB." },
         { status: 400 },
       );
     }
@@ -90,6 +108,9 @@ export async function PATCH(
         description: String(body.description || "").trim() || null,
         audience: String(body.audience || "").trim() || null,
         theme,
+        companyName: String(body.companyName || "").trim().slice(0, 120) || null,
+        logoData: logoData || null,
+        accentColor: accentColor || null,
         intensity,
         estimatedMinutes: Math.max(
           10,

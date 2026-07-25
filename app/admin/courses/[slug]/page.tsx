@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -11,11 +12,13 @@ import {
   FilePlus2,
   KeyRound,
   LoaderCircle,
+  ImagePlus,
   Plus,
   RefreshCw,
   Save,
   Settings2,
   Users,
+  X,
 } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import { courseIntensities, courseThemes } from "@/lib/course-options";
@@ -66,9 +69,13 @@ type Course = {
   description: string | null;
   audience: string | null;
   theme: string;
+  companyName: string | null;
+  logoData: string | null;
+  accentColor: string | null;
   intensity: string;
   estimatedMinutes: number;
   published: boolean;
+  updatedAt: string;
   sections: Section[];
   enrollmentCodes: EnrollmentCode[];
   enrollments: Enrollment[];
@@ -86,6 +93,7 @@ export default function CourseEditorPage() {
   const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [logoData, setLogoData] = useState<string | null>(null);
 
   async function load() {
     if (!slug) return;
@@ -93,6 +101,7 @@ export default function CourseEditorPage() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Course could not be loaded.");
     setCourse(data);
+    setLogoData(data.logoData || null);
   }
 
   useEffect(() => {
@@ -129,6 +138,9 @@ export default function CourseEditorPage() {
         audience: form.get("audience"),
         estimatedMinutes: form.get("estimatedMinutes"),
         theme: form.get("theme"),
+        companyName: form.get("companyName"),
+        logoData: form.get("logoData"),
+        accentColor: form.get("accentColor"),
         intensity: form.get("intensity"),
         published: form.get("published") === "on",
       }),
@@ -232,12 +244,14 @@ export default function CourseEditorPage() {
       title={course.title}
       eyebrow={course.published ? "Published program" : "Draft program"}
       actions={
-        <Link
-          href={`/training/${course.slug}`}
+        <a
+          href={`/training/${course.slug}?preview=${encodeURIComponent(course.updatedAt)}`}
+          target="_blank"
+          rel="noreferrer"
           className="rounded-xl border border-[#10283f]/15 bg-white px-4 py-3 text-sm font-bold text-[#10283f]"
         >
           Preview course
-        </Link>
+        </a>
       }
     >
       <div className="mb-7 flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-[#10283f]/10">
@@ -434,6 +448,94 @@ export default function CourseEditorPage() {
           </section>
 
           <aside className="space-y-6">
+            <section className="rounded-3xl border border-[#10283f]/10 bg-white p-6">
+              <p className="text-xs font-black uppercase tracking-[.17em] text-[#9a6812]">
+                Company branding
+              </p>
+              <div className="mt-5 space-y-5">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold">Company name</span>
+                  <input
+                    name="companyName"
+                    defaultValue={course.companyName || ""}
+                    placeholder="Shown above the course title"
+                    maxLength={120}
+                    className="w-full rounded-xl border border-[#10283f]/15 px-4 py-3"
+                  />
+                </label>
+
+                <div>
+                  <span className="mb-2 block text-sm font-bold">Company logo</span>
+                  <input type="hidden" name="logoData" value={logoData || ""} />
+                  {logoData ? (
+                    <div className="flex items-center gap-4 rounded-2xl border border-[#10283f]/10 bg-[#f5f7f7] p-4">
+                      <span className="flex h-20 flex-1 items-center justify-center rounded-xl bg-white p-3">
+                        <Image
+                          src={logoData}
+                          alt="Company logo preview"
+                          width={240}
+                          height={80}
+                          unoptimized
+                          className="max-h-14 w-auto max-w-full object-contain"
+                        />
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLogoData(null)}
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-red-200 bg-white text-red-700"
+                        aria-label="Remove company logo"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-[#10283f]/15 p-5 text-sm font-bold text-[#53616b] hover:border-[#c68b1b]">
+                      <ImagePlus className="text-[#b47a13]" size={22} />
+                      Upload PNG, JPEG, or WebP
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 1_000_000) {
+                            setError("The company logo must be under 1 MB.");
+                            event.target.value = "";
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            setLogoData(String(reader.result));
+                            setError("");
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  )}
+                  <p className="mt-2 text-xs leading-5 text-[#78838a]">
+                    A wide logo with a transparent background works best. Maximum 1 MB.
+                  </p>
+                </div>
+
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold">Accent color</span>
+                  <span className="flex items-center gap-3">
+                    <input
+                      name="accentColor"
+                      type="color"
+                      defaultValue={course.accentColor || "#d9a036"}
+                      className="h-12 w-16 cursor-pointer rounded-xl border border-[#10283f]/15 bg-white p-1"
+                    />
+                    <span className="text-xs leading-5 text-[#78838a]">
+                      Used for highlights, progress, and key actions.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </section>
+
             <section className="rounded-3xl border border-[#10283f]/10 bg-white p-6">
               <p className="text-xs font-black uppercase tracking-[.17em] text-[#9a6812]">Theme</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
