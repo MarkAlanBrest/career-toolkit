@@ -12,6 +12,7 @@ import {
   KeyRound,
   LoaderCircle,
   Plus,
+  RefreshCw,
   Save,
   Settings2,
   Users,
@@ -82,6 +83,7 @@ export default function CourseEditorPage() {
   const [tab, setTab] = useState<Tab>("content");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -184,6 +186,24 @@ export default function CourseEditorPage() {
       setMessage(`${data.codes.length} enrollment code${data.codes.length === 1 ? "" : "s"} generated.`);
     }
     setBusy(false);
+  }
+
+  async function regenerateSection(sectionId: number) {
+    if (!course) return;
+    setRegeneratingId(sectionId);
+    setError("");
+    setMessage("");
+    const response = await fetch(
+      `/api/admin/courses/${course.slug}/sections/${sectionId}/regenerate`,
+      { method: "POST" },
+    );
+    const data = await response.json();
+    if (!response.ok) setError(data.error || "The section could not be regenerated.");
+    else {
+      await load();
+      setMessage("Section rebuilt as a continuous webpage from the source PDF.");
+    }
+    setRegeneratingId(null);
   }
 
   if (loading) {
@@ -307,9 +327,23 @@ export default function CourseEditorPage() {
                         {section.lessonPlan?.moments?.length || 0} generated teaching moments
                       </p>
                     </div>
-                    <span className="flex items-center gap-1.5 text-xs font-bold text-[#6e7981]">
-                      <Clock3 size={14} /> {section.estimatedMinutes} min
-                    </span>
+                    <div className="flex flex-col items-end gap-3">
+                      <span className="flex items-center gap-1.5 text-xs font-bold text-[#6e7981]">
+                        <Clock3 size={14} /> {section.estimatedMinutes} min
+                      </span>
+                      <button
+                        type="button"
+                        disabled={regeneratingId !== null}
+                        onClick={() => regenerateSection(section.id)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#10283f]/15 px-3 py-2 text-xs font-bold text-[#10283f] transition hover:bg-[#edf1f2] disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          size={14}
+                          className={regeneratingId === section.id ? "animate-spin" : ""}
+                        />
+                        {regeneratingId === section.id ? "Rebuilding…" : "Regenerate page"}
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>

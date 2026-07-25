@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   Clock3,
-  FileText,
   Headphones,
   Menu,
   Pause,
@@ -165,6 +164,50 @@ function ListenButton({ text }: { text: string }) {
       {state === "playing" ? <Pause size={15} /> : state === "loading" ? <Headphones size={15} /> : <Play size={15} />}
       {state === "playing" ? "Pause narration" : state === "loading" ? "Preparing audio…" : "Listen"}
     </button>
+  );
+}
+
+function ConceptVisual({ moment }: { moment: LessonMoment }) {
+  const items =
+    moment.visualItems?.filter(Boolean).slice(0, 6) ||
+    moment.narration
+      .split(/[.;]\s+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 12)
+      .slice(0, 5);
+  const isFlow = moment.visualType === "process" || moment.visualType === "sequence";
+
+  return (
+    <div className="overflow-hidden rounded-3xl bg-[var(--dark)] text-white shadow-[0_30px_80px_rgba(15,23,42,.22)]">
+      <div className="border-b border-white/10 px-7 py-5 sm:px-10">
+        <p className="text-xs font-bold uppercase tracking-[.2em] text-white/50">
+          Visual explanation
+        </p>
+      </div>
+      <div
+        className={`grid gap-px bg-white/10 p-px ${
+          isFlow ? "md:grid-cols-3" : "sm:grid-cols-2"
+        }`}
+      >
+        {items.map((item, itemIndex) => (
+          <div
+            key={`${item}-${itemIndex}`}
+            className="relative min-h-40 bg-[var(--dark)] px-7 py-8 sm:px-9"
+          >
+            <span className="text-4xl font-light text-[var(--accent)]">
+              {String(itemIndex + 1).padStart(2, "0")}
+            </span>
+            <p className="mt-5 text-lg font-semibold leading-7 text-white/90">{item}</p>
+            {isFlow && itemIndex < items.length - 1 && (
+              <ArrowRight
+                className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-[var(--accent)] p-1 text-white md:block"
+                size={25}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -432,28 +475,7 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
                         <ListenButton text={`${moment.title}. ${moment.narration}`} />
                       </div>
                     </div>
-                    {section.id > 0 && moment.pageNumber ? (
-                      <div className="overflow-hidden rounded-2xl bg-slate-900 p-2 shadow-2xl">
-                        <iframe
-                          title={`${moment.title} source visual`}
-                          src={`/api/mason/sections/${section.id}/pdf#page=${moment.pageNumber}&toolbar=0&navpanes=0`}
-                          className="h-[520px] w-full rounded-xl bg-white sm:h-[680px]"
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid min-h-[320px] place-items-center rounded-2xl bg-[var(--dark)] px-8 text-center text-white">
-                        <div>
-                          <FileText className="mx-auto mb-5 text-[var(--accent)]" size={42} />
-                          <p className="text-2xl font-semibold">{moment.title}</p>
-                          <p className="mx-auto mt-3 max-w-xl leading-7 text-white/65">{moment.cue}</p>
-                        </div>
-                      </div>
-                    )}
-                    {moment.pageNumber && (
-                      <figcaption className="mt-3 text-sm text-slate-500">
-                        Source document, page {moment.pageNumber}
-                      </figcaption>
-                    )}
+                    <ConceptVisual moment={moment} />
                   </figure>
                 );
               }

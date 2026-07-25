@@ -13,6 +13,8 @@ export type LessonMoment = {
   focusX?: number | null;
   focusY?: number | null;
   focusScale?: number | null;
+  visualType?: "process" | "anatomy" | "comparison" | "formula" | "sequence" | null;
+  visualItems?: string[] | null;
 };
 
 export type LessonPlan = {

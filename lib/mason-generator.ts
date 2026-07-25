@@ -38,6 +38,8 @@ const lessonSchema = {
           "focusX",
           "focusY",
           "focusScale",
+          "visualType",
+          "visualItems",
         ],
         properties: {
           kind: {
@@ -66,6 +68,14 @@ const lessonSchema = {
           focusX: { type: ["number", "null"], minimum: 0, maximum: 100 },
           focusY: { type: ["number", "null"], minimum: 0, maximum: 100 },
           focusScale: { type: ["number", "null"], minimum: 1, maximum: 2.5 },
+          visualType: {
+            type: ["string", "null"],
+            enum: ["process", "anatomy", "comparison", "formula", "sequence", null],
+          },
+          visualItems: {
+            type: ["array", "null"],
+            items: { type: "string" },
+          },
         },
       },
     },
@@ -108,8 +118,9 @@ export async function generateLessonPlan({
         "The result will be rendered as one continuous, vertically scrolling editorial webpage. It is not a slide deck, chatbot conversation, card carousel, or sequence of tiny fragments.",
         "Write substantial teaching prose. Each explain moment should contain two to four coherent paragraphs separated by blank lines, with concrete examples where the source supports them.",
         "Organize the reading in a natural sequence. Use descriptive headings, a strong opening, useful callouts, and a concise summary.",
-        "Use two or three learn-phase PDF visuals only when the original page contains a useful photograph, diagram, chart, or worked example. Ignore logos and decorative art.",
-        "For a visual, make the narration explain what the learner should notice. Add a brief cue, and use zoom or spotlight only when a particular detail matters.",
+        "The PDF is source material only. Never tell the learner to read the PDF, never reproduce a PDF page as the lesson, and never rely on an embedded document viewer.",
+        "Create two or three learn-phase visual explanations from the source: a process, labeled anatomy, comparison, formula, or sequence. Set visualType and provide 3 to 6 concise visualItems containing the exact labels or steps needed to build that webpage graphic.",
+        "For a visual, make the narration teach what the visual means and what the learner should notice. pageNumber may identify provenance for the course editor, but the learner experience will not display the PDF page.",
         "Insert two or three activity-phase questions or realistic scenarios immediately after the related teaching. They should require thought and provide detailed instructional feedback.",
         "Finish with two or three mastery-phase questions using new applications of the material. Mastery questions must be independent checks and must not repeat the activity questions.",
         "Use phase learn for explanations, visuals, and summary; phase activity for coached practice; and phase mastery for the final independent check.",

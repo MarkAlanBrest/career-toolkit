@@ -1,5 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
