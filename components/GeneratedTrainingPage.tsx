@@ -20,6 +20,7 @@ import type {
   PublicMasonCourse,
 } from "@/lib/mason";
 import NarratedExplainer from "@/components/NarratedExplainer";
+import SlideshowTrainingPage from "@/components/SlideshowTrainingPage";
 
 type Answer = { selected: number; submitted: boolean };
 
@@ -289,7 +290,7 @@ function MasteryCheck({
   );
 }
 
-export default function GeneratedTrainingPage({ course }: { course: PublicMasonCourse }) {
+function WebpageTrainingPage({ course }: { course: PublicMasonCourse }) {
   const [sectionIndex, setSectionIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [answers, setAnswers] = useState<Record<number, Answer>>({});
@@ -558,4 +559,16 @@ export default function GeneratedTrainingPage({ course }: { course: PublicMasonC
       </div>
     </main>
   );
+}
+
+export default function GeneratedTrainingPage({
+  course,
+}: {
+  course: PublicMasonCourse;
+}) {
+  if (course.displayMode === "slideshow") {
+    return <SlideshowTrainingPage course={course} />;
+  }
+
+  return <WebpageTrainingPage course={course} />;
 }

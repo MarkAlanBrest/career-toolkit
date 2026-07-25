@@ -33,6 +33,7 @@ export default async function TrainingCoursePage({
 
   const course: PublicMasonCourse = {
     ...record,
+    displayMode: record.displayMode === "slideshow" ? "slideshow" : "webpage",
     sections: record.sections.map((section) => ({
       ...section,
       lessonPlan: section.lessonPlan as unknown as LessonPlan,

@@ -54,6 +54,7 @@ export type PublicMasonCourse = {
   companyName?: string | null;
   logoData?: string | null;
   accentColor?: string | null;
+  displayMode?: "webpage" | "slideshow";
   intensity?: string;
   estimatedMinutes?: number;
   published: boolean;

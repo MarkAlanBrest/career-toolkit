@@ -71,6 +71,7 @@ type Course = {
   companyName: string | null;
   logoData: string | null;
   accentColor: string | null;
+  displayMode: "webpage" | "slideshow";
   intensity: string;
   estimatedMinutes: number;
   published: boolean;
@@ -142,6 +143,7 @@ export default function CourseEditorPage() {
         companyName: form.get("companyName"),
         logoData: form.get("logoData"),
         accentColor: form.get("accentColor"),
+        displayMode: form.get("displayMode"),
         intensity: form.get("intensity"),
         published: form.get("published") === "on",
       }),
@@ -449,6 +451,45 @@ export default function CourseEditorPage() {
           </section>
 
           <aside className="space-y-6">
+            <section className="rounded-3xl border border-[#10283f]/10 bg-white p-6">
+              <p className="text-xs font-black uppercase tracking-[.17em] text-[#9a6812]">
+                Course format
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[#6c7881]">
+                Change how the same course content is presented to learners.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    id: "webpage",
+                    name: "Webpage",
+                    description: "A continuous editorial lesson with activities embedded in the reading.",
+                  },
+                  {
+                    id: "slideshow",
+                    name: "Slideshow",
+                    description: "One topic or activity at a time with Previous and Next controls.",
+                  },
+                ].map((option) => (
+                  <label key={option.id} className="cursor-pointer">
+                    <input
+                      type="radio"
+                      name="displayMode"
+                      value={option.id}
+                      defaultChecked={(course.displayMode || "webpage") === option.id}
+                      className="peer sr-only"
+                    />
+                    <span className="block h-full rounded-2xl border border-[#10283f]/10 p-4 peer-checked:border-[#c68b1b] peer-checked:bg-[#fff9eb] peer-checked:ring-2 peer-checked:ring-[#e8c273]/25">
+                      <span className="font-bold text-[#10283f]">{option.name}</span>
+                      <span className="mt-2 block text-xs leading-5 text-[#6c7881]">
+                        {option.description}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
             <section className="rounded-3xl border border-[#10283f]/10 bg-white p-6">
               <p className="text-xs font-black uppercase tracking-[.17em] text-[#9a6812]">
                 Company branding

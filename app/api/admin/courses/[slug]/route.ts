@@ -77,6 +77,7 @@ export async function PATCH(
     const intensity = String(body.intensity || "standard");
     const accentColor = String(body.accentColor || "").trim();
     const logoData = String(body.logoData || "").trim();
+    const displayMode = String(body.displayMode || "webpage");
 
     if (!title || !isCourseTheme(theme) || !isCourseIntensity(intensity)) {
       return Response.json(
@@ -87,6 +88,12 @@ export async function PATCH(
     if (accentColor && !/^#[0-9a-f]{6}$/i.test(accentColor)) {
       return Response.json(
         { error: "Choose a valid six-digit accent color." },
+        { status: 400 },
+      );
+    }
+    if (!["webpage", "slideshow"].includes(displayMode)) {
+      return Response.json(
+        { error: "Choose a valid course format." },
         { status: 400 },
       );
     }
@@ -111,6 +118,7 @@ export async function PATCH(
         companyName: String(body.companyName || "").trim().slice(0, 120) || null,
         logoData: logoData || null,
         accentColor: accentColor || null,
+        displayMode,
         intensity,
         estimatedMinutes: Math.max(
           10,

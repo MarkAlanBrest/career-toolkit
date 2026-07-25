@@ -38,6 +38,7 @@ model MasonCourse {
   companyName      String?
   logoData         String?            @db.Text
   accentColor      String?
+  displayMode      String             @default("webpage")
   intensity        String             @default("standard")
   estimatedMinutes Int                @default(60)
   published        Boolean            @default(false)
