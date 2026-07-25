@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { broadcastAuthError, isBroadcastAuthorized } from '@/lib/broadcastAuth';
 import { addBroadcast } from '@/lib/broadcastStore';
+import { announcementExpiryDate, scheduleAnnouncementExpiry } from '@/lib/broadcastExpiry';
 import { CAMPUSES, getCanvasTestCourse, sanitizeMessageHtml, sendCanvasAnnouncements, type CampusCode } from '@/lib/canvasBroadcast';
 import { redis } from '@/lib/redis';
 
@@ -36,6 +37,11 @@ export async function POST(request: NextRequest) {
       testSubject,
       testBody,
     );
+    const broadcastId = randomUUID();
+    const expiresAt = result.announcementRefs?.length ? announcementExpiryDate() : undefined;
+    if (result.announcementRefs?.length) {
+      await scheduleAnnouncementExpiry(broadcastId, result.announcementRefs);
+    }
     const record = await addBroadcast({
       campus,
       campusName: CAMPUSES[campus],
@@ -48,7 +54,9 @@ export async function POST(request: NextRequest) {
       sentCount: result.sent,
       failedCount: result.failed,
       errors: result.errors,
-    });
+      announcementRefs: result.announcementRefs,
+      expiresAt,
+    }, broadcastId);
     return NextResponse.json({ result, record, course: testCourse }, { status: result.status === 'Failed' ? 502 : 200 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to post the test announcement.';

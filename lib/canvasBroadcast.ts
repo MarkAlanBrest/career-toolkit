@@ -180,6 +180,12 @@ export type SendResult = {
   sent: number;
   failed: number;
   errors: string[];
+  announcementRefs?: AnnouncementRef[];
+};
+
+export type AnnouncementRef = {
+  courseId: number;
+  topicId: number;
 };
 
 function htmlToPlainText(html: string): string {
@@ -315,18 +321,22 @@ export async function sendCanvasAnnouncements(
     form.set('published', 'true');
     form.set('lock_comment', 'true');
     try {
-      await canvasFetch(`/api/v1/courses/${course.id}/discussion_topics`, {
+      const response = await canvasFetch(`/api/v1/courses/${course.id}/discussion_topics`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form.toString(),
       });
+      const topic = await response.json() as { id?: number };
+      if (!Number.isFinite(topic.id)) throw new Error('Canvas did not return the new announcement ID.');
       return {
         ok: true,
+        ref: { courseId: course.id, topicId: Number(topic.id) },
         error: warnings.length ? `${course.name} (${course.id}) — announcement posted, but ${warnings.join('; ')}` : '',
       };
     } catch (error) {
       return {
         ok: false,
+        ref: null,
         error: `${course.name} (${course.id}) — announcement failed: ${error instanceof Error ? error.message : 'Unknown Canvas error'}${warnings.length ? `; ${warnings.join('; ')}` : ''}`,
       };
     }
@@ -339,5 +349,32 @@ export async function sendCanvasAnnouncements(
     sent,
     failed,
     errors,
+    announcementRefs: outcomes.flatMap(item => item.ref ? [item.ref] : []),
+  };
+}
+
+export async function deleteCanvasAnnouncements(refs: AnnouncementRef[]): Promise<SendResult> {
+  const outcomes = await mapWithConcurrency(refs, 4, async ref => {
+    try {
+      await canvasFetch(`/api/v1/courses/${ref.courseId}/discussion_topics/${ref.topicId}`, {
+        method: 'DELETE',
+      });
+      return { ok: true, ref, error: '' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown Canvas error';
+      if (message.includes('Canvas API 404')) return { ok: true, ref, error: '' };
+      return { ok: false, ref, error: `Course ${ref.courseId}, announcement ${ref.topicId}: ${message}` };
+    }
+  });
+  const succeededRefs = outcomes.filter(item => item.ok).map(item => item.ref);
+  const sent = succeededRefs.length;
+  const errors = outcomes.filter(item => item.error).map(item => item.error);
+  const failed = refs.length - sent;
+  return {
+    status: failed === 0 ? 'Sent' : sent > 0 ? 'Partial failure' : 'Failed',
+    sent,
+    failed,
+    errors,
+    announcementRefs: succeededRefs,
   };
 }

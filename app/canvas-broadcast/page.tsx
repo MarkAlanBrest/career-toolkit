@@ -36,6 +36,7 @@ type Broadcast = {
   sentCount: number;
   failedCount: number;
   errors: string[];
+  expiresAt?: string;
 };
 type AdminAccount = {
   id: string;
@@ -563,6 +564,7 @@ export default function CanvasBroadcastPage() {
               : delivery === 'both'
                 ? 'Each unique student receives a private Canvas Inbox message, and one announcement is posted in every eligible course. Students in multiple courses may see more than one announcement.'
                 : 'One announcement will be posted in every eligible course. Students enrolled in multiple courses may receive it more than once. Email delivery follows each student’s Canvas notification settings.'}
+            {delivery !== 'inbox' && ' Announcements are automatically deleted after seven days.'}
           </div>
           <label className={styles.label} htmlFor="subject">Subject</label>
           <input id="subject" className={styles.subject} value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} placeholder="Enter a clear, specific subject" disabled={!authorized} />
@@ -630,13 +632,13 @@ export default function CanvasBroadcastPage() {
             <div className={styles.warning}>{delivery === 'inbox'
               ? 'The app will create a separate private Canvas Inbox conversation for each unique student. Canvas sends external email according to each student’s notification preferences.'
               : delivery === 'both'
-                ? 'The app will create private Inbox messages and post one announcement per eligible course. Students in multiple courses may see duplicate announcements.'
-                : 'The app will enable the Announcements navigation tab, show up to three recent announcements on each course homepage, and post one announcement per eligible course. Students in multiple courses may receive duplicates.'}</div>
+                ? 'The app will create private Inbox messages and post one announcement per eligible course. Students in multiple courses may see duplicate announcements. Announcements are deleted after seven days.'
+                : 'The app will enable the Announcements navigation tab, show up to three recent announcements on each course homepage, and post one announcement per eligible course. Students in multiple courses may receive duplicates. Announcements are deleted after seven days.'}</div>
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Go back</button><button className={styles.sendConfirm} onClick={send}>Confirm & send</button></div>
           </>}
           {modal === 'details' && selectedBroadcast && <>
             <div className={styles.detailHead}><div><span className={styles.modalKicker}>BROADCAST DETAILS</span><h2>{selectedBroadcast.subject}</h2></div><span className={`${styles.status} ${styles[selectedBroadcast.status.replace(' ', '').toLowerCase()]}`}>{selectedBroadcast.status}</span></div>
-            <div className={styles.detailMeta}><span><b>Sent</b>{formatDate(selectedBroadcast.createdAt)}</span><span><b>Delivery</b>{selectedBroadcast.delivery === 'both' ? 'Email + Announcement' : selectedBroadcast.delivery === 'announcement' ? 'Announcement' : selectedBroadcast.delivery === 'test' ? 'Private test' : 'Canvas Inbox / Email'}</span><span><b>Recipients</b>{selectedBroadcast.recipientCount.toLocaleString()}</span><span><b>Courses</b>{selectedBroadcast.eligibleCourseCount}</span></div>
+            <div className={styles.detailMeta}><span><b>Sent</b>{formatDate(selectedBroadcast.createdAt)}</span><span><b>Delivery</b>{selectedBroadcast.delivery === 'both' ? 'Email + Announcement' : selectedBroadcast.delivery === 'announcement' ? 'Announcement' : selectedBroadcast.delivery === 'test' ? 'Private test' : 'Canvas Inbox / Email'}</span><span><b>Recipients</b>{selectedBroadcast.recipientCount.toLocaleString()}</span><span><b>{selectedBroadcast.expiresAt ? 'Expires' : 'Courses'}</b>{selectedBroadcast.expiresAt ? formatDate(selectedBroadcast.expiresAt) : selectedBroadcast.eligibleCourseCount}</span></div>
             <iframe className={styles.preview} title="Broadcast message" sandbox="" srcDoc={`<!doctype html><style>body{font:15px/1.55 Arial,sans-serif;color:#26313a;padding:16px;margin:0}a{color:#146ca4}</style>${selectedBroadcast.body}`} />
             {selectedBroadcast.errors?.length > 0 && <div className={styles.errorDetails}><strong>Canvas/API details</strong>{selectedBroadcast.errors.map((error, index) => <p key={index}>{error}</p>)}</div>}
             <div className={styles.modalActions}><button className={styles.secondary} onClick={() => setModal(null)}>Close</button><button className={styles.primary} onClick={reuseBroadcast}>Reuse message</button></div>

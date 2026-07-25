@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { broadcastAuthError, isBroadcastAuthorized } from '@/lib/broadcastAuth';
 import { addBroadcast } from '@/lib/broadcastStore';
+import { announcementExpiryDate, scheduleAnnouncementExpiry } from '@/lib/broadcastExpiry';
 import {
   buildRecipientSnapshot,
   CAMPUSES,
@@ -83,7 +84,13 @@ export async function POST(request: NextRequest) {
       sent,
       failed,
       errors,
+      announcementRefs: announcementResult?.announcementRefs || [],
     };
+    const broadcastId = randomUUID();
+    const expiresAt = result.announcementRefs.length ? announcementExpiryDate() : undefined;
+    if (result.announcementRefs.length) {
+      await scheduleAnnouncementExpiry(broadcastId, result.announcementRefs);
+    }
     const record = await addBroadcast({
       campus,
       campusName: snapshot.campusName,
@@ -96,7 +103,9 @@ export async function POST(request: NextRequest) {
       sentCount: result.sent,
       failedCount: result.failed,
       errors: result.errors,
-    });
+      announcementRefs: result.announcementRefs,
+      expiresAt,
+    }, broadcastId);
     await redis.del(`canvas-broadcast:snapshot:created-6-months:${campus}`);
     return NextResponse.json({ result, record }, { status: result.status === 'Failed' ? 502 : 200 });
   } catch (error) {

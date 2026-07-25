@@ -2,6 +2,7 @@ import 'server-only';
 import { randomUUID } from 'crypto';
 import { redis } from '@/lib/redis';
 import type { CampusCode, SendResult } from '@/lib/canvasBroadcast';
+import type { AnnouncementRef } from '@/lib/canvasBroadcast';
 
 const TEMPLATES_KEY = 'canvas-broadcast:templates';
 const HISTORY_KEY = 'canvas-broadcast:history';
@@ -33,6 +34,8 @@ export type BroadcastRecord = {
   sentCount: number;
   failedCount: number;
   errors: string[];
+  announcementRefs?: AnnouncementRef[];
+  expiresAt?: string;
 };
 
 async function readJsonList<T>(key: string): Promise<T[]> {
@@ -200,8 +203,8 @@ export async function listBroadcasts() {
   return (await readJsonList<BroadcastRecord>(HISTORY_KEY)).slice(0, 25);
 }
 
-export async function addBroadcast(input: Omit<BroadcastRecord, 'id' | 'createdAt'>) {
-  const record: BroadcastRecord = { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
+export async function addBroadcast(input: Omit<BroadcastRecord, 'id' | 'createdAt'>, id = randomUUID()) {
+  const record: BroadcastRecord = { id, createdAt: new Date().toISOString(), ...input };
   const history = await listBroadcasts();
   await redis.set(HISTORY_KEY, [record, ...history].slice(0, 25));
   return record;
