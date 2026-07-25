@@ -427,9 +427,16 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
 
 type AdminSettingsData = {
   storage: { configured: boolean };
-  email: { configured: boolean; fromEmail: string | null; fromEmailInvalid: boolean; usingTestSender: boolean };
+  email: { configured: boolean; fromEmail: string | null; provider: string; fromEmailInvalid: boolean; usingTestSender: boolean };
   notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
-  sender: { replyToEmail: string };
+  sender: {
+    email: string;
+    name: string;
+    replyToEmail: string;
+    microsoftTenantId: string;
+    microsoftClientId: string;
+    microsoftClientSecretSet: boolean;
+  };
 };
 
 type AdminListEntry = { email: string; createdAt: string };
@@ -444,7 +451,13 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [adminNotifyEmail, setAdminNotifyEmail] = useState('');
   const [buildingManagerEmail, setBuildingManagerEmail] = useState('');
   const [maintenanceEmail, setMaintenanceEmail] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [senderName, setSenderName] = useState('');
   const [replyToEmail, setReplyToEmail] = useState('');
+  const [microsoftTenantId, setMicrosoftTenantId] = useState('');
+  const [microsoftClientId, setMicrosoftClientId] = useState('');
+  const [microsoftClientSecret, setMicrosoftClientSecret] = useState('');
+  const [microsoftClientSecretSet, setMicrosoftClientSecretSet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -477,7 +490,12 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           setAdminNotifyEmail(data.notify?.adminNotifyEmail || '');
           setBuildingManagerEmail(data.notify?.buildingManagerEmail || '');
           setMaintenanceEmail(data.notify?.maintenanceEmail || '');
+          setSenderEmail(data.sender?.email || '');
+          setSenderName(data.sender?.name || '');
           setReplyToEmail(data.sender?.replyToEmail || '');
+          setMicrosoftTenantId(data.sender?.microsoftTenantId || '');
+          setMicrosoftClientId(data.sender?.microsoftClientId || '');
+          setMicrosoftClientSecretSet(Boolean(data.sender?.microsoftClientSecretSet));
         }
       })
       .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
@@ -517,10 +535,38 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
       const response = await fetch('/api/lga-room/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ adminNotifyEmail, buildingManagerEmail, maintenanceEmail, replyToEmail }),
+        body: JSON.stringify({
+          adminNotifyEmail,
+          buildingManagerEmail,
+          maintenanceEmail,
+          senderEmail,
+          senderName,
+          replyToEmail,
+          microsoftTenantId,
+          microsoftClientId,
+          microsoftClientSecret,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
+      setMicrosoftClientSecretSet(Boolean(data.sender?.microsoftClientSecretSet));
+      setMicrosoftClientSecret('');
+      setSettings(prev => prev ? {
+        ...prev,
+        email: {
+          ...prev.email,
+          configured: Boolean(
+            senderEmail && microsoftTenantId && microsoftClientId &&
+            (microsoftClientSecret || microsoftClientSecretSet)
+          ) || prev.email.configured,
+          provider: senderEmail && microsoftTenantId && microsoftClientId
+            ? 'Microsoft 365'
+            : prev.email.provider,
+          fromEmail: senderEmail
+            ? `${senderName || ROOM_NAME + ' Reservations'} <${senderEmail}>`
+            : prev.email.fromEmail,
+        },
+      } : prev);
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings.');
@@ -611,7 +657,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                       ? 'Email sending address looks incorrect — contact your developer'
                       : settings.email.usingTestSender
                         ? 'Test sender only — emails to other recipients will be rejected'
-                        : 'Email provider is configured — use the test below to verify delivery'
+                        : `${settings.email.provider} is configured — use the test below to verify delivery`
                 }
                 ok={settings.email.configured && !settings.email.fromEmailInvalid && !settings.email.usingTestSender}
               />
@@ -619,13 +665,38 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           </div>
 
           <div style={{ marginBottom: 18 }}>
+            <SectionLabel>School Outlook sender</SectionLabel>
+            <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
+              Send reservation messages from a school Microsoft 365 mailbox. Your school IT
+              administrator must create an Entra app with Microsoft Graph <strong>Mail.Send</strong> application
+              permission, grant admin consent, and scope it to this mailbox. The client secret is saved
+              server-side and is never shown again. Microsoft uses the mailbox&apos;s directory display name on sent mail.
+            </div>
+            <Field label="Sender email">
+              <input value={senderEmail} onChange={e => setSenderEmail(e.target.value)} type="email" style={inputStyle} placeholder="lgaroom@yourschool.edu" />
+            </Field>
+            <Field label="Display name label (optional)">
+              <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} />
+            </Field>
+            <Field label="Microsoft tenant ID">
+              <input value={microsoftTenantId} onChange={e => setMicrosoftTenantId(e.target.value)} type="text" style={inputStyle} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" />
+            </Field>
+            <Field label="Application (client) ID">
+              <input value={microsoftClientId} onChange={e => setMicrosoftClientId(e.target.value)} type="text" style={inputStyle} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" />
+            </Field>
+            <Field label={`Client secret${microsoftClientSecretSet ? ' (saved — leave blank to keep it)' : ''}`}>
+              <input value={microsoftClientSecret} onChange={e => setMicrosoftClientSecret(e.target.value)} type="password" style={inputStyle} placeholder={microsoftClientSecretSet ? '••••••••••••' : 'secret value'} autoComplete="new-password" />
+            </Field>
+            <Field label="Replies go to (optional)">
+              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender mailbox" />
+            </Field>
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
             <SectionLabel>Notification emails</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
               Who gets emailed, and when. Leave any of these blank to turn that email off.
             </div>
-            <Field label="Replies go to (optional)">
-              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sending address" />
-            </Field>
             <Field label="New request alerts (you)">
               <input value={adminNotifyEmail} onChange={e => setAdminNotifyEmail(e.target.value)} type="email" style={inputStyle} placeholder="you@example.com" />
             </Field>

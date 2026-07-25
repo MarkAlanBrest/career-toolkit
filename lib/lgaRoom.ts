@@ -30,6 +30,9 @@ export type LgaRoomSettings = {
   senderAppPassword: string;
   senderName: string;
   replyToEmail: string;
+  microsoftTenantId: string;
+  microsoftClientId: string;
+  microsoftClientSecret: string;
 };
 
 export type AdminAccount = {
@@ -135,6 +138,9 @@ const EMPTY_SETTINGS: LgaRoomSettings = {
   senderAppPassword: '',
   senderName: '',
   replyToEmail: '',
+  microsoftTenantId: '',
+  microsoftClientId: '',
+  microsoftClientSecret: '',
 };
 
 export async function getSettings(): Promise<LgaRoomSettings> {
@@ -149,6 +155,9 @@ export async function getSettings(): Promise<LgaRoomSettings> {
     senderAppPassword: typeof data?.senderAppPassword === 'string' ? data.senderAppPassword : '',
     senderName: typeof data?.senderName === 'string' ? data.senderName : '',
     replyToEmail: typeof data?.replyToEmail === 'string' ? data.replyToEmail : '',
+    microsoftTenantId: typeof data?.microsoftTenantId === 'string' ? data.microsoftTenantId : '',
+    microsoftClientId: typeof data?.microsoftClientId === 'string' ? data.microsoftClientId : '',
+    microsoftClientSecret: typeof data?.microsoftClientSecret === 'string' ? data.microsoftClientSecret : '',
   };
 }
 

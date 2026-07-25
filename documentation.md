@@ -97,7 +97,7 @@ The LGA Room service stores three private JSON objects:
 | Blob path | Contents |
 |---|---|
 | `lga-room/reservations.json` | Reservation dates/times, requester name, organization, email, phone, event name, purpose, number of people, setup requirements, special requests, status, and timestamps. This contains personal information. |
-| `lga-room/settings.json` | Admin notification, building manager, and maintenance email addresses. |
+| `lga-room/settings.json` | Notification addresses and Microsoft 365 sender configuration, including the client secret. Stored as a private Blob and never returned by the settings API. |
 | `lga-room/admins.json` | Lowercased admin email addresses, salted `scrypt` password hashes, and creation timestamps. |
 
 ### Upstash Redis
@@ -126,7 +126,7 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 | Vercel | Application hosting, serverless functions, deployment, and Blob storage. | Application requests, logs, runtime metadata, and stored LGA data. |
 | Anthropic | AI generation for `/api/generate` and BrightPath; some public userscripts also call Anthropic directly. | Prompts, messages, grading/course content, and generated-learning context. Direct-call userscripts send the user's API key to Anthropic, not this server. |
 | Upstash | Redis storage for BrightPath lessons and performance profiles. | Student identifier, lesson content, completion history, and scores. |
-| Resend | Sends LGA Room request, approval/denial, reschedule, building manager, and maintenance emails. | Recipient email addresses and reservation/event details. |
+| Microsoft Graph / Mailjet | Sends LGA Room request, approval/denial, reschedule, building manager, and maintenance emails. Microsoft 365 takes priority when configured in the Admin page; Mailjet remains a fallback. | Recipient email addresses and reservation/event details. |
 | Canvas LMS / Instructure | The grader and Canvas tools call Canvas APIs. The server proxy restricts API hosts to `instructure.com`, `canvas.com`, and `canvaslms.com`. | User-supplied Canvas token and requested Canvas API data pass through `/api/canvas`. |
 | Google Classroom and Google Docs | Host environment for the Classroom userscripts; the grading userscript uses the active browser session. | Classroom/Docs requests occur in the user's browser. |
 | Google OAuth | The static callback page relays an OAuth access token to the Topic Builder popup opener. | OAuth token remains in the browser URL fragment and is posted to the opener window. |
@@ -182,13 +182,13 @@ Never put secret values in this document or commit them to source control.
 | `KV_REST_API_URL` | Treat as sensitive | Alternate Vercel Marketplace name for the Redis endpoint. Not currently listed in `.env.example`. |
 | `KV_REST_API_TOKEN` | Yes | Alternate Vercel Marketplace name for the Redis token. Not currently listed in `.env.example`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob access when token-based configuration is used. Vercel OIDC integration may also supply access. |
-| `MAILJET_API_KEY` | Yes (primary) | Mailjet API key, used as SMTP username. Takes priority over the Outlook fallback below. |
-| `MAILJET_SECRET_KEY` | Yes (primary) | Mailjet secret key, used as SMTP password. |
-| `MAILJET_FROM_EMAIL` | Yes (primary) | Sender address — must be verified in Mailjet (Account > Sender addresses). |
+| `MAILJET_API_KEY` | Yes (fallback) | Mailjet API key, used as SMTP username when Microsoft 365 is not configured in LGA Room Admin settings. |
+| `MAILJET_SECRET_KEY` | Yes (fallback) | Mailjet secret key, used as SMTP password. |
+| `MAILJET_FROM_EMAIL` | Yes (fallback) | Sender address — must be verified in Mailjet (Account > Sender addresses). |
 | `MAILJET_FROM_NAME` | No | Optional display name shown as the sender. |
-| `OUTLOOK_USER` | No, fallback only | Outlook/Microsoft 365 address used to send LGA room emails via SMTP if Mailjet isn't configured. |
-| `OUTLOOK_APP_PASSWORD` | No, fallback only | App password for the Outlook account (requires 2-Step Verification). |
-| `OUTLOOK_FROM_NAME` | No | Optional display name shown as the sender (fallback path). |
+| `OUTLOOK_USER` | No, legacy fallback only | Address used by the legacy password-based SMTP path. School Microsoft 365 accounts should use the Graph settings in the Admin page. |
+| `OUTLOOK_APP_PASSWORD` | No, legacy fallback only | Password for the legacy SMTP path; not recommended for Exchange Online. |
+| `OUTLOOK_FROM_NAME` | No | Optional display name for the legacy fallback path. |
 | `LGA_ROOM_ADMIN_PASSWORD` | Yes | Break-glass LGA master password. |
 | `NEXT_PUBLIC_APP_URL` | No | Public application base URL used in email links. |
 | `NEXT_PUBLIC_EXTENSION_URL` | No | Extension installation URL used by marketing pages. It is referenced in code but missing from `.env.example`. |

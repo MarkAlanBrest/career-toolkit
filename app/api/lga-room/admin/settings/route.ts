@@ -28,7 +28,14 @@ export async function GET(request: NextRequest) {
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,
       },
-      sender: { replyToEmail: settings.replyToEmail },
+      sender: {
+        email: settings.senderEmail,
+        name: settings.senderName,
+        replyToEmail: settings.replyToEmail,
+        microsoftTenantId: settings.microsoftTenantId,
+        microsoftClientId: settings.microsoftClientId,
+        microsoftClientSecretSet: Boolean(settings.microsoftClientSecret),
+      },
     });
   } catch (error) {
     console.error('[lga-room] Could not load settings:', error);
@@ -46,7 +53,10 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail, senderAppPassword, senderName, replyToEmail } = body as Record<string, string>;
+  const {
+    adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail,
+    senderName, replyToEmail, microsoftTenantId, microsoftClientId, microsoftClientSecret,
+  } = body as Record<string, string>;
   if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
     return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
   }
@@ -64,20 +74,31 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    // The admin UI no longer sends senderEmail/senderName/senderAppPassword (Mailjet, set via
-    // Vercel env vars, is the real sender config now) — preserve whatever's already stored
-    // instead of wiping it just because this request omitted those fields.
+    // A blank client-secret field means "keep the saved secret"; it is never returned
+    // to the browser. Preserve the legacy SMTP password for existing deployments.
     const current = await getSettings();
+    const microsoftSetupStarted = Boolean(microsoftTenantId || microsoftClientId || microsoftClientSecret);
+    if (
+      microsoftSetupStarted &&
+      (!senderEmail || !microsoftTenantId || !microsoftClientId || (!microsoftClientSecret && !current.microsoftClientSecret))
+    ) {
+      return NextResponse.json({
+        error: 'Complete the sender email, tenant ID, application ID, and client secret for Microsoft 365.',
+      }, { status: 400 });
+    }
     const settings = {
       adminNotifyEmail: (adminNotifyEmail || '').trim(),
       buildingManagerEmail: (buildingManagerEmail || '').trim(),
       maintenanceEmail: (maintenanceEmail || '').trim(),
-      senderEmail: typeof senderEmail === 'string' ? senderEmail.trim() : current.senderEmail,
-      senderAppPassword: typeof senderAppPassword === 'string' && senderAppPassword.trim()
-        ? senderAppPassword.trim()
-        : current.senderAppPassword,
-      senderName: typeof senderName === 'string' ? senderName.trim() : current.senderName,
+      senderEmail: (senderEmail || '').trim(),
+      senderAppPassword: current.senderAppPassword,
+      senderName: (senderName || '').trim(),
       replyToEmail: (replyToEmail || '').trim(),
+      microsoftTenantId: (microsoftTenantId || '').trim(),
+      microsoftClientId: (microsoftClientId || '').trim(),
+      microsoftClientSecret: typeof microsoftClientSecret === 'string' && microsoftClientSecret.trim()
+        ? microsoftClientSecret.trim()
+        : current.microsoftClientSecret,
     };
     await saveSettings(settings);
     return NextResponse.json({
@@ -86,7 +107,14 @@ export async function PUT(request: NextRequest) {
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,
       },
-      sender: { replyToEmail: settings.replyToEmail },
+      sender: {
+        email: settings.senderEmail,
+        name: settings.senderName,
+        replyToEmail: settings.replyToEmail,
+        microsoftTenantId: settings.microsoftTenantId,
+        microsoftClientId: settings.microsoftClientId,
+        microsoftClientSecretSet: Boolean(settings.microsoftClientSecret),
+      },
     });
   } catch (error) {
     console.error('[lga-room] Could not save settings:', error);
