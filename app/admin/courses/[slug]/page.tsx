@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
@@ -372,6 +373,12 @@ export default function CourseEditorPage() {
                           }}
                         />
                       </label>
+                      <Link
+                        href={`/admin/courses/${course.slug}/sections/${section.id}`}
+                        className="inline-flex items-center gap-2 rounded-lg bg-[#10283f] px-3 py-2 text-xs font-bold text-white"
+                      >
+                        Edit content
+                      </Link>
                     </div>
                   </article>
                 ))}
