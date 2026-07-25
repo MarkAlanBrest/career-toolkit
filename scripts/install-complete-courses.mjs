@@ -901,6 +901,23 @@ const ladderSections = [
   },
 ];
 
+harassmentSections[0].lessonPlan.moments[1].sourceImage =
+  "/course-assets/workplace-harassment/respectful-workplace.png";
+harassmentSections[0].lessonPlan.moments[1].sourceImageAlt =
+  "A diverse team participating in a respectful workplace meeting";
+harassmentSections[2].lessonPlan.moments[1].sourceImage =
+  "/course-assets/workplace-harassment/reporting-support.png";
+harassmentSections[2].lessonPlan.moments[1].sourceImageAlt =
+  "An employee having a private, supportive conversation with a human resources representative";
+ladderSections[0].lessonPlan.moments[1].sourceImage =
+  "/course-assets/ladder-safety/ladder-inspection.png";
+ladderSections[0].lessonPlan.moments[1].sourceImageAlt =
+  "A construction worker inspecting a fiberglass extension ladder before use";
+ladderSections[1].lessonPlan.moments[1].sourceImage =
+  "/course-assets/ladder-safety/four-to-one-setup.png";
+ladderSections[1].lessonPlan.moments[1].sourceImageAlt =
+  "A secured extension ladder correctly positioned for access to an upper landing";
+
 const courses = [
   {
     title: "Workplace Sexual Harassment Prevention",
