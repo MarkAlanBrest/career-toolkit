@@ -144,7 +144,9 @@ const EMPTY_SETTINGS: LgaRoomSettings = {
 };
 
 export async function getSettings(): Promise<LgaRoomSettings> {
-  const result = await get(SETTINGS_PATHNAME, { access: 'private' });
+  // Settings are overwritten in place. Bypass the Blob CDN so a test performed
+  // immediately after saving uses the new credentials instead of a cached secret.
+  const result = await get(SETTINGS_PATHNAME, { access: 'private', useCache: false });
   if (!result) return { ...EMPTY_SETTINGS };
   const data = await new Response(result.stream).json();
   return {
