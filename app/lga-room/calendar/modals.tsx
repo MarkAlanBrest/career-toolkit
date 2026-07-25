@@ -427,7 +427,14 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
 
 type AdminSettingsData = {
   storage: { configured: boolean };
-  email: { configured: boolean; fromEmail: string | null; provider: string; fromEmailInvalid: boolean; usingTestSender: boolean };
+  email: {
+    configured: boolean;
+    fromEmail: string | null;
+    provider: string;
+    configurationError?: string | null;
+    fromEmailInvalid: boolean;
+    usingTestSender: boolean;
+  };
   notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
   sender: {
     email: string;
@@ -580,6 +587,29 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
     setError('');
     setTestEmailResult('');
     try {
+      // Testing always uses server-side settings, so save the values currently visible
+      // in the form first. This prevents an apparently filled form from testing stale data.
+      const saveResponse = await fetch('/api/lga-room/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          adminNotifyEmail,
+          buildingManagerEmail,
+          maintenanceEmail,
+          senderEmail,
+          senderName,
+          replyToEmail,
+          microsoftTenantId,
+          microsoftClientId,
+          microsoftClientSecret,
+        }),
+      });
+      const saveData = await saveResponse.json();
+      if (!saveResponse.ok) throw new Error(saveData?.error || 'Could not save email settings.');
+      setMicrosoftClientSecretSet(Boolean(saveData.sender?.microsoftClientSecretSet));
+      setMicrosoftClientSecret('');
+      setSaved(true);
+
       const response = await fetch('/api/lga-room/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -652,7 +682,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
               <StatusRow
                 label={
                   !settings.email.configured
-                    ? 'Email sending is not set up yet'
+                    ? settings.email.configurationError || 'Email sending is not set up yet'
                     : settings.email.fromEmailInvalid
                       ? 'Email sending address looks incorrect — contact your developer'
                       : settings.email.usingTestSender

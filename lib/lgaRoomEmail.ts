@@ -86,23 +86,37 @@ export type EmailSendResult = {
   error?: string;
 };
 
+function microsoftConfigurationError(config: SenderConfig): string | null {
+  const problems: string[] = [];
+  if (!config.fromEmail) problems.push('sender email is missing');
+  if (!config.microsoftTenantId) {
+    problems.push('tenant ID is missing');
+  } else if (!GUID_RE.test(config.microsoftTenantId)) {
+    problems.push('tenant ID is not a valid GUID');
+  }
+  if (!config.microsoftClientId) {
+    problems.push('application ID is missing');
+  } else if (!GUID_RE.test(config.microsoftClientId)) {
+    problems.push('application ID is not a valid GUID');
+  }
+  if (!config.microsoftClientSecret) problems.push('client secret is missing');
+  return problems.length ? `Microsoft 365 setup problem: ${problems.join('; ')}.` : null;
+}
+
 export async function getEmailStatus() {
   const config = await getSenderConfig();
   const { authUser, authPass, fromEmail, fromName } = config;
   const displayFrom = fromEmail ? `${fromName} <${fromEmail}>` : '';
+  const microsoftError = config.provider === 'microsoft-graph'
+    ? microsoftConfigurationError(config)
+    : null;
   return {
     configured: config.provider === 'microsoft-graph'
-      ? Boolean(
-          config.microsoftTenantId &&
-          GUID_RE.test(config.microsoftTenantId) &&
-          config.microsoftClientId &&
-          GUID_RE.test(config.microsoftClientId) &&
-          config.microsoftClientSecret &&
-          fromEmail
-        )
+      ? !microsoftError
       : Boolean(authUser && authPass && fromEmail),
     fromEmail: displayFrom || null,
     provider: config.provider === 'microsoft-graph' ? 'Microsoft 365' : 'Mailjet / SMTP',
+    configurationError: microsoftError,
     fromEmailInvalid: false,
     usingTestSender: false,
   };
@@ -160,22 +174,18 @@ function emailErrorMessage(error: unknown): string {
 async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
   const config = await getSenderConfig();
   const { host, authUser, authPass, fromEmail, fromName, replyTo: defaultReplyTo } = config;
+  const microsoftError = config.provider === 'microsoft-graph'
+    ? microsoftConfigurationError(config)
+    : null;
   const configured = config.provider === 'microsoft-graph'
-    ? Boolean(
-        config.microsoftTenantId &&
-        GUID_RE.test(config.microsoftTenantId) &&
-        config.microsoftClientId &&
-        GUID_RE.test(config.microsoftClientId) &&
-        config.microsoftClientSecret &&
-        fromEmail
-      )
+    ? !microsoftError
     : Boolean(authUser && authPass && fromEmail);
   if (!configured) {
     return {
       sent: false,
       recipient: to,
       error: config.provider === 'microsoft-graph'
-        ? 'Microsoft 365 settings are incomplete or invalid. Mailjet was not used.'
+        ? `${microsoftError} Mailjet was not used.`
         : 'Email sending is not configured.',
     };
   }
