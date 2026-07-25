@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addAdminAccount, getAdminAccounts, isAdminAuthorized, removeAdminAccount } from '@/lib/lgaRoom';
+import { addAdminAccount, getAdminAccounts, isAdminRequestAuthorized, removeAdminAccount } from '@/lib/lgaRoom';
 
 export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function authorized(request: NextRequest) {
-  return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+  return isAdminRequestAuthorized(request);
 }
 
 export async function GET(request: NextRequest) {

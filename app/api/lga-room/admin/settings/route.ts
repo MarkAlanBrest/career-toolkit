@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSettings, isAdminAuthorized, saveSettings } from '@/lib/lgaRoom';
+import { getSettings, isAdminRequestAuthorized, saveSettings } from '@/lib/lgaRoom';
 import { getEmailStatus, sendTestEmail } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MICROSOFT_SCOPES = 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access openid profile';
 
 async function authorized(request: NextRequest) {
-  return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+  return isAdminRequestAuthorized(request);
 }
 
 export async function GET(request: NextRequest) {
@@ -35,7 +36,8 @@ export async function GET(request: NextRequest) {
         replyToEmail: settings.replyToEmail,
         microsoftTenantId: GUID_RE.test(settings.microsoftTenantId) ? settings.microsoftTenantId : '',
         microsoftClientId: GUID_RE.test(settings.microsoftClientId) ? settings.microsoftClientId : '',
-        microsoftClientSecretSet: Boolean(settings.microsoftClientSecret),
+        microsoftConnected: Boolean(settings.microsoftRefreshToken),
+        microsoftConnectedAt: settings.microsoftConnectedAt || null,
       },
     });
   } catch (error) {
@@ -56,7 +58,7 @@ export async function PUT(request: NextRequest) {
 
   const {
     adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail,
-    senderName, replyToEmail, microsoftTenantId, microsoftClientId, microsoftClientSecret,
+    senderName, replyToEmail, microsoftTenantId, microsoftClientId,
   } = body as Record<string, string>;
   if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
     return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
@@ -85,31 +87,24 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    // A blank client-secret field means "keep the saved secret"; it is never returned
-    // to the browser. Preserve the legacy SMTP password for existing deployments.
     const current = await getSettings();
-    const microsoftSetupStarted = Boolean(microsoftTenantId || microsoftClientId || microsoftClientSecret);
-    if (
-      microsoftSetupStarted &&
-      (!senderEmail || !microsoftTenantId || !microsoftClientId || (!microsoftClientSecret && !current.microsoftClientSecret))
-    ) {
-      return NextResponse.json({
-        error: 'Complete the sender email, tenant ID, application ID, and client secret for Microsoft 365.',
-      }, { status: 400 });
-    }
+    const nextTenantId = (microsoftTenantId || '').trim();
+    const nextClientId = (microsoftClientId || '').trim();
+    const microsoftAppChanged =
+      nextTenantId !== current.microsoftTenantId || nextClientId !== current.microsoftClientId;
     const settings = {
       adminNotifyEmail: (adminNotifyEmail || '').trim(),
       buildingManagerEmail: (buildingManagerEmail || '').trim(),
       maintenanceEmail: (maintenanceEmail || '').trim(),
-      senderEmail: (senderEmail || '').trim(),
+      senderEmail: microsoftAppChanged ? '' : current.senderEmail || (senderEmail || '').trim(),
       senderAppPassword: current.senderAppPassword,
-      senderName: (senderName || '').trim(),
+      senderName: microsoftAppChanged ? '' : current.senderName || (senderName || '').trim(),
       replyToEmail: (replyToEmail || '').trim(),
-      microsoftTenantId: (microsoftTenantId || '').trim(),
-      microsoftClientId: (microsoftClientId || '').trim(),
-      microsoftClientSecret: typeof microsoftClientSecret === 'string' && microsoftClientSecret.trim()
-        ? microsoftClientSecret.trim()
-        : current.microsoftClientSecret,
+      microsoftTenantId: nextTenantId,
+      microsoftClientId: nextClientId,
+      microsoftClientSecret: '',
+      microsoftRefreshToken: microsoftAppChanged ? '' : current.microsoftRefreshToken,
+      microsoftConnectedAt: microsoftAppChanged ? '' : current.microsoftConnectedAt,
     };
     await saveSettings(settings);
     return NextResponse.json({
@@ -124,7 +119,8 @@ export async function PUT(request: NextRequest) {
         replyToEmail: settings.replyToEmail,
         microsoftTenantId: settings.microsoftTenantId,
         microsoftClientId: settings.microsoftClientId,
-        microsoftClientSecretSet: Boolean(settings.microsoftClientSecret),
+        microsoftConnected: Boolean(settings.microsoftRefreshToken),
+        microsoftConnectedAt: settings.microsoftConnectedAt || null,
       },
     });
   } catch (error) {
@@ -139,6 +135,139 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null);
+  const action = typeof body?.action === 'string' ? body.action : '';
+
+  if (action === 'startMicrosoftConnection') {
+    const tenantId = typeof body?.tenantId === 'string' ? body.tenantId.trim() : '';
+    const clientId = typeof body?.clientId === 'string' ? body.clientId.trim() : '';
+    if (!GUID_RE.test(tenantId) || !GUID_RE.test(clientId)) {
+      return NextResponse.json({ error: 'Enter valid Microsoft tenant and application IDs.' }, { status: 400 });
+    }
+    const response = await fetch(
+      `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/devicecode`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: clientId, scope: MICROSOFT_SCOPES }),
+        cache: 'no-store',
+      }
+    );
+    const data = await response.json().catch(() => ({})) as {
+      device_code?: string;
+      user_code?: string;
+      verification_uri?: string;
+      verification_uri_complete?: string;
+      expires_in?: number;
+      interval?: number;
+      error_description?: string;
+    };
+    if (!response.ok || !data.device_code || !data.user_code || !data.verification_uri) {
+      return NextResponse.json({
+        error: data.error_description || 'Microsoft could not start account connection.',
+      }, { status: 502 });
+    }
+    return NextResponse.json({
+      deviceCode: data.device_code,
+      userCode: data.user_code,
+      verificationUri: data.verification_uri,
+      verificationUriComplete: data.verification_uri_complete || data.verification_uri,
+      expiresIn: data.expires_in || 900,
+      interval: data.interval || 5,
+    });
+  }
+
+  if (action === 'pollMicrosoftConnection') {
+    const tenantId = typeof body?.tenantId === 'string' ? body.tenantId.trim() : '';
+    const clientId = typeof body?.clientId === 'string' ? body.clientId.trim() : '';
+    const deviceCode = typeof body?.deviceCode === 'string' ? body.deviceCode : '';
+    if (!GUID_RE.test(tenantId) || !GUID_RE.test(clientId) || !deviceCode) {
+      return NextResponse.json({ error: 'Microsoft connection request is invalid.' }, { status: 400 });
+    }
+    const response = await fetch(
+      `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          client_id: clientId,
+          device_code: deviceCode,
+        }),
+        cache: 'no-store',
+      }
+    );
+    const data = await response.json().catch(() => ({})) as {
+      access_token?: string;
+      refresh_token?: string;
+      error?: string;
+      error_description?: string;
+    };
+    if (!response.ok) {
+      if (data.error === 'authorization_pending' || data.error === 'slow_down') {
+        return NextResponse.json({ pending: true, slowDown: data.error === 'slow_down' }, { status: 202 });
+      }
+      return NextResponse.json({
+        error: data.error_description || 'Microsoft account connection failed.',
+      }, { status: 502 });
+    }
+    if (!data.access_token || !data.refresh_token) {
+      return NextResponse.json({ error: 'Microsoft did not return a reusable sign-in.' }, { status: 502 });
+    }
+
+    const profileResponse = await fetch(
+      'https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName',
+      {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+        cache: 'no-store',
+      }
+    );
+    const profile = await profileResponse.json().catch(() => ({})) as {
+      displayName?: string;
+      mail?: string;
+      userPrincipalName?: string;
+      error?: { message?: string };
+    };
+    if (!profileResponse.ok) {
+      return NextResponse.json({
+        error: profile.error?.message || 'Microsoft connected, but the mailbox profile could not be read.',
+      }, { status: 502 });
+    }
+    const email = (profile.mail || profile.userPrincipalName || '').trim();
+    if (!EMAIL_RE.test(email)) {
+      return NextResponse.json({ error: 'The connected Microsoft account has no usable email address.' }, { status: 502 });
+    }
+
+    const current = await getSettings();
+    await saveSettings({
+      ...current,
+      senderEmail: email,
+      senderName: (profile.displayName || `${email} Reservations`).trim(),
+      microsoftTenantId: tenantId,
+      microsoftClientId: clientId,
+      microsoftClientSecret: '',
+      microsoftRefreshToken: data.refresh_token,
+      microsoftConnectedAt: new Date().toISOString(),
+    });
+    return NextResponse.json({
+      connected: true,
+      email,
+      name: profile.displayName || '',
+    });
+  }
+
+  if (action === 'disconnectMicrosoft') {
+    const current = await getSettings();
+    await saveSettings({
+      ...current,
+      senderEmail: '',
+      senderName: '',
+      microsoftClientSecret: '',
+      microsoftRefreshToken: '',
+      microsoftConnectedAt: '',
+    });
+    return NextResponse.json({ connected: false });
+  }
+
   const email = typeof body?.email === 'string' ? body.email.trim() : '';
   if (!email || !EMAIL_RE.test(email)) {
     return NextResponse.json({ error: 'Enter a valid test email address.' }, { status: 400 });

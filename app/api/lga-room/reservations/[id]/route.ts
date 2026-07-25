@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getAllReservations,
-  isAdminAuthorized,
+  isAdminRequestAuthorized,
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
@@ -21,7 +21,7 @@ const EDITABLE_FIELDS = [
 ] as const;
 
 function authorized(request: NextRequest) {
-  return isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+  return isAdminRequestAuthorized(request);
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

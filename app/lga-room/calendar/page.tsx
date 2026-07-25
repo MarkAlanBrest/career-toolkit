@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Reservation } from '@/lib/lgaRoom';
 import { getFederalHolidays } from '@/lib/lgaRoomHolidays';
 import {
-  ADMIN_STORAGE_KEY,
   Legend,
   LockIcon,
   ROOM_NAME,
@@ -96,32 +95,42 @@ export default function LgaRoomCalendarPage() {
   }, [loadReservations]);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(ADMIN_STORAGE_KEY);
-    if (!stored) return;
-    let session: { email: string; password: string };
-    try {
-      session = JSON.parse(stored);
-    } catch {
-      window.localStorage.removeItem(ADMIN_STORAGE_KEY);
-      return;
-    }
-    fetch('/api/lga-room/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(session),
-    }).then(response => {
-      if (response.ok) {
-        setAdminEmail(session.email);
-        setAdminPassword(session.password);
-        setAdminMode(true);
-      } else {
-        window.localStorage.removeItem(ADMIN_STORAGE_KEY);
-      }
-    });
+    fetch('/api/lga-room/admin', { cache: 'no-store' })
+      .then(async response => {
+        if (response.ok) {
+          const data = await response.json();
+          setAdminEmail(data.email || '');
+          setAdminMode(true);
+          return;
+        }
+
+        // One-time migration from the old browser-stored password to an HttpOnly cookie.
+        const stored = window.localStorage.getItem('lga_room_admin_password');
+        if (!stored) return;
+        let legacy: { email: string; password: string };
+        try {
+          legacy = JSON.parse(stored);
+        } catch {
+          window.localStorage.removeItem('lga_room_admin_password');
+          return;
+        }
+        const migrated = await fetch('/api/lga-room/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(legacy),
+        });
+        window.localStorage.removeItem('lga_room_admin_password');
+        if (migrated.ok) {
+          const data = await migrated.json();
+          setAdminEmail(data.email || legacy.email);
+          setAdminMode(true);
+        }
+      });
   }, []);
 
-  function logout() {
-    window.localStorage.removeItem(ADMIN_STORAGE_KEY);
+  async function logout() {
+    await fetch('/api/lga-room/admin', { method: 'DELETE' }).catch(() => null);
+    window.localStorage.removeItem('lga_room_admin_password');
     setAdminEmail('');
     setAdminPassword('');
     setAdminMode(false);
@@ -437,10 +446,9 @@ export default function LgaRoomCalendarPage() {
       {showAdminLogin && (
         <AdminLoginModal
           onClose={() => setShowAdminLogin(false)}
-          onSuccess={(email, password) => {
-            window.localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify({ email, password }));
+          onSuccess={email => {
             setAdminEmail(email);
-            setAdminPassword(password);
+            setAdminPassword('');
             setAdminMode(true);
             setShowAdminLogin(false);
           }}

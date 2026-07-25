@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllReservations, isAdminAuthorized, ReservationStatus } from '@/lib/lgaRoom';
+import { getAllReservations, isAdminRequestAuthorized, ReservationStatus } from '@/lib/lgaRoom';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,7 @@ function csvField(value: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const authorized = await isAdminAuthorized(request.headers.get('x-admin-email'), request.headers.get('x-admin-password'));
+  const authorized = await isAdminRequestAuthorized(request);
   if (!authorized) {
     return NextResponse.json({ error: 'Admin sign-in required.' }, { status: 401 });
   }

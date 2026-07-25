@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { Reservation, ROOM_NAME, getSettings } from '@/lib/lgaRoom';
+import { Reservation, ROOM_NAME, getSettings, saveSettings } from '@/lib/lgaRoom';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
@@ -15,7 +15,7 @@ type SenderConfig = {
   replyTo?: string;
   microsoftTenantId?: string;
   microsoftClientId?: string;
-  microsoftClientSecret?: string;
+  microsoftRefreshToken?: string;
 };
 
 // Once Microsoft setup has started, never fall back silently: a bad Graph setup must
@@ -26,7 +26,8 @@ async function getSenderConfig(): Promise<SenderConfig> {
   const microsoftSetupExists = Boolean(
     settings.microsoftTenantId ||
     settings.microsoftClientId ||
-    settings.microsoftClientSecret
+    settings.microsoftClientSecret ||
+    settings.microsoftRefreshToken
   );
   if (microsoftSetupExists) {
     return {
@@ -39,7 +40,7 @@ async function getSenderConfig(): Promise<SenderConfig> {
       replyTo: settings.replyToEmail || undefined,
       microsoftTenantId: settings.microsoftTenantId,
       microsoftClientId: settings.microsoftClientId,
-      microsoftClientSecret: settings.microsoftClientSecret,
+      microsoftRefreshToken: settings.microsoftRefreshToken,
     };
   }
   const mailjetApiKey = process.env.MAILJET_API_KEY || '';
@@ -99,7 +100,7 @@ function microsoftConfigurationError(config: SenderConfig): string | null {
   } else if (!GUID_RE.test(config.microsoftClientId)) {
     problems.push('application ID is not a valid GUID');
   }
-  if (!config.microsoftClientSecret) problems.push('client secret is missing');
+  if (!config.microsoftRefreshToken) problems.push('Microsoft account is not connected');
   return problems.length ? `Microsoft 365 setup problem: ${problems.join('; ')}.` : null;
 }
 
@@ -214,6 +215,9 @@ async function sendWithMicrosoftGraph(
   html: string,
   replyTo?: string
 ): Promise<EmailSendResult> {
+  if (!config.microsoftRefreshToken) {
+    throw new Error('Microsoft account is not connected.');
+  }
   const tokenResponse = await fetch(
     `https://login.microsoftonline.com/${encodeURIComponent(config.microsoftTenantId!)}/oauth2/v2.0/token`,
     {
@@ -221,19 +225,27 @@ async function sendWithMicrosoftGraph(
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: config.microsoftClientId!,
-        client_secret: config.microsoftClientSecret!,
-        scope: 'https://graph.microsoft.com/.default',
-        grant_type: 'client_credentials',
+        refresh_token: config.microsoftRefreshToken,
+        scope: 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read offline_access openid profile',
+        grant_type: 'refresh_token',
       }),
       cache: 'no-store',
     }
   );
   const tokenData = await tokenResponse.json().catch(() => ({})) as {
     access_token?: string;
+    refresh_token?: string;
     error_description?: string;
   };
   if (!tokenResponse.ok || !tokenData.access_token) {
-    throw new Error(tokenData.error_description || 'Microsoft could not sign in with these app credentials.');
+    throw new Error(tokenData.error_description || 'Microsoft could not refresh the connected account.');
+  }
+
+  if (tokenData.refresh_token && tokenData.refresh_token !== config.microsoftRefreshToken) {
+    const settings = await getSettings();
+    if (settings.microsoftRefreshToken === config.microsoftRefreshToken) {
+      await saveSettings({ ...settings, microsoftRefreshToken: tokenData.refresh_token });
+    }
   }
 
   const message: Record<string, unknown> = {
@@ -246,7 +258,7 @@ async function sendWithMicrosoftGraph(
   }
 
   const response = await fetch(
-    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.fromEmail)}/sendMail`,
+    'https://graph.microsoft.com/v1.0/me/sendMail',
     {
       method: 'POST',
       headers: {

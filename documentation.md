@@ -97,8 +97,9 @@ The LGA Room service stores three private JSON objects:
 | Blob path | Contents |
 |---|---|
 | `lga-room/reservations.json` | Reservation dates/times, requester name, organization, email, phone, event name, purpose, number of people, setup requirements, special requests, status, and timestamps. This contains personal information. |
-| `lga-room/settings.json` | Notification addresses and Microsoft 365 sender configuration, including the client secret. Stored as a private Blob and never returned by the settings API. |
+| `lga-room/settings.json` | Notification addresses and Microsoft 365 delegated connection data, including its refresh token. Stored as a private Blob; tokens are never returned by the settings API. |
 | `lga-room/admins.json` | Lowercased admin email addresses, salted `scrypt` password hashes, and creation timestamps. |
+| `lga-room/admin-sessions.json` | SHA-256 hashes of random eight-hour admin session tokens, administrator email addresses, and expiration times. |
 
 ### Upstash Redis
 
@@ -116,7 +117,7 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 | Feature | Browser-stored data |
 |---|---|
 | `/grader` | Canvas base URL, Canvas API token, and per-assignment grading criteria in `localStorage`. |
-| LGA Room calendar admin | Admin email and password in `localStorage` under `lga_room_admin_password`. |
+| LGA Room calendar admin | Normal sessions use an eight-hour signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Old `localStorage` credentials are migrated once and deleted. |
 | Userscripts/extensions | Various settings, identifiers, API keys, and preferences in Tampermonkey/extension storage; review each distributed package separately before compliance sign-off. |
 
 ## 7. Active third-party services and external systems
@@ -126,7 +127,7 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 | Vercel | Application hosting, serverless functions, deployment, and Blob storage. | Application requests, logs, runtime metadata, and stored LGA data. |
 | Anthropic | AI generation for `/api/generate` and BrightPath; some public userscripts also call Anthropic directly. | Prompts, messages, grading/course content, and generated-learning context. Direct-call userscripts send the user's API key to Anthropic, not this server. |
 | Upstash | Redis storage for BrightPath lessons and performance profiles. | Student identifier, lesson content, completion history, and scores. |
-| Microsoft Graph / Mailjet | Sends LGA Room request, approval/denial, reschedule, building manager, and maintenance emails. Microsoft 365 takes priority when configured in the Admin page; Mailjet remains a fallback. | Recipient email addresses and reservation/event details. |
+| Microsoft Graph / Mailjet | Sends LGA Room request, approval/denial, reschedule, building manager, and maintenance emails. Microsoft 365 connects through device-code sign-in with delegated `Mail.Send`; Mailjet remains a fallback only before Microsoft setup begins. | Recipient email addresses, reservation/event details, and Microsoft delegated OAuth tokens. |
 | Canvas LMS / Instructure | The grader and Canvas tools call Canvas APIs. The server proxy restricts API hosts to `instructure.com`, `canvas.com`, and `canvaslms.com`. | User-supplied Canvas token and requested Canvas API data pass through `/api/canvas`. |
 | Google Classroom and Google Docs | Host environment for the Classroom userscripts; the grading userscript uses the active browser session. | Classroom/Docs requests occur in the user's browser. |
 | Google OAuth | The static callback page relays an OAuth access token to the Topic Builder popup opener. | OAuth token remains in the browser URL fragment and is posted to the opener window. |
@@ -229,7 +230,6 @@ These findings should be addressed before describing the system as production-ha
 | Critical | `getMasterPassword()` falls back to a known password when `LGA_ROOM_ADMIN_PASSWORD` is absent. | Remove the fallback and fail closed when the variable is missing. Rotate the production password. |
 | Critical | Public `GET /api/lga-room/reservations` returns complete reservation objects, including names, emails, phone numbers, purposes, and special requests. | Return only redacted calendar fields publicly. Add a separate authenticated admin-detail endpoint. |
 | High | `/api/generate` is a public, wildcard-CORS Anthropic proxy with no authentication, rate limiting, quota, or active billing enforcement. | Require signed client authentication and add per-account/IP limits, abuse monitoring, and cost controls. |
-| High | LGA admin email/password are stored in browser `localStorage` and sent in custom headers on each request. | Replace this with a secure, `HttpOnly`, `Secure`, `SameSite` session cookie and expiration/rotation. |
 | High | A default Unsplash API key is hard-coded in `module-builder-extension/module-builder.js` and a related text source. | Rotate/revoke the key, remove it from source/history where practical, and use user-supplied or server-managed credentials. |
 | High | `/api/parse-file` accepts a caller-provided URL and the server fetches it without a general host allowlist. | Add an allowlist or signed-URL policy, block private/link-local IP ranges and redirects, and enforce download/body size limits to reduce SSRF and resource-exhaustion risk. |
 | Medium | `/api/learning` is public and exposes named student profiles by two predictable identifiers. | Add authentication/authorization or replace names with non-identifying IDs and restrict profile access. |

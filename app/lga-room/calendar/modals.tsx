@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Reservation } from '@/lib/lgaRoom';
 import {
   Field,
@@ -369,11 +369,17 @@ export function ReservationDetailsModal({
   );
 }
 
-export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (email: string, password: string) => void }) {
+export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (email: string) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [microsoftCode, setMicrosoftCode] = useState<{ code: string; uri: string } | null>(null);
+  const loginRun = useRef(0);
+
+  useEffect(() => () => {
+    loginRun.current += 1;
+  }, []);
 
   async function submit() {
     setSubmitting(true);
@@ -384,8 +390,9 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!response.ok) throw new Error('Incorrect email or password.');
-      onSuccess(email, password);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Incorrect email or password.');
+      onSuccess(data.email || email);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Incorrect email or password.');
     } finally {
@@ -393,8 +400,73 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
     }
   }
 
+  async function signInWithMicrosoft() {
+    const run = loginRun.current + 1;
+    loginRun.current = run;
+    setSubmitting(true);
+    setError('');
+    setMicrosoftCode(null);
+    const microsoftWindow = window.open('about:blank', 'lga-room-admin-microsoft-login');
+    try {
+      const startResponse = await fetch('/api/lga-room/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'startMicrosoftLogin' }),
+      });
+      const start = await startResponse.json();
+      if (!startResponse.ok) throw new Error(start?.error || 'Could not start Microsoft sign-in.');
+      setMicrosoftCode({ code: start.userCode, uri: start.verificationUri });
+      if (microsoftWindow) microsoftWindow.location.href = start.verificationUriComplete || start.verificationUri;
+
+      const deadline = Date.now() + Number(start.expiresIn || 900) * 1000;
+      let intervalMs = Math.max(5, Number(start.interval || 5)) * 1000;
+      while (loginRun.current === run && Date.now() < deadline) {
+        await new Promise(resolve => window.setTimeout(resolve, intervalMs));
+        if (loginRun.current !== run) return;
+        const pollResponse = await fetch('/api/lga-room/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pollMicrosoftLogin', deviceCode: start.deviceCode }),
+        });
+        const poll = await pollResponse.json();
+        if (pollResponse.status === 202) {
+          if (poll.slowDown) intervalMs += 5000;
+          continue;
+        }
+        if (!pollResponse.ok) throw new Error(poll?.error || 'Microsoft sign-in failed.');
+        onSuccess(poll.email || '');
+        return;
+      }
+      if (loginRun.current === run) throw new Error('Microsoft sign-in expired. Try again.');
+    } catch (err) {
+      if (microsoftWindow && !microsoftWindow.closed) microsoftWindow.close();
+      setError(err instanceof Error ? err.message : 'Microsoft sign-in failed.');
+    } finally {
+      if (loginRun.current === run) setSubmitting(false);
+    }
+  }
+
   return (
     <ModalShell onClose={onClose} title="Admin sign in">
+      <button
+        onClick={signInWithMicrosoft}
+        disabled={submitting}
+        className="lgaroom-btn-primary"
+        style={{ ...primaryButtonStyle, width: '100%', marginBottom: 10 }}
+      >
+        {submitting && microsoftCode ? 'Waiting for Microsoft sign-in…' : 'Sign in with Microsoft'}
+      </button>
+      {microsoftCode && (
+        <div style={{ marginBottom: 12, padding: 10, border: `1px solid ${border}`, borderRadius: 8, fontSize: 13 }}>
+          At <strong>{microsoftCode.uri}</strong>, enter code{' '}
+          <strong style={{ letterSpacing: '0.08em' }}>{microsoftCode.code}</strong>.
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', color: textMuted, fontSize: 11 }}>
+        <span style={{ height: 1, background: border, flex: 1 }} />
+        Emergency password
+        <span style={{ height: 1, background: border, flex: 1 }} />
+      </div>
       <Field label="Email">
         <input
           type="email"
@@ -442,7 +514,8 @@ type AdminSettingsData = {
     replyToEmail: string;
     microsoftTenantId: string;
     microsoftClientId: string;
-    microsoftClientSecretSet: boolean;
+    microsoftConnected: boolean;
+    microsoftConnectedAt: string | null;
   };
 };
 
@@ -463,9 +536,10 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [replyToEmail, setReplyToEmail] = useState('');
   const [microsoftTenantId, setMicrosoftTenantId] = useState('');
   const [microsoftClientId, setMicrosoftClientId] = useState('');
-  const [microsoftClientSecret, setMicrosoftClientSecret] = useState('');
-  const [microsoftClientSecretSet, setMicrosoftClientSecretSet] = useState(false);
-  const [editingMicrosoftSettings, setEditingMicrosoftSettings] = useState(false);
+  const [microsoftConnected, setMicrosoftConnected] = useState(false);
+  const [connectingMicrosoft, setConnectingMicrosoft] = useState(false);
+  const [microsoftConnectInfo, setMicrosoftConnectInfo] = useState<{ userCode: string; verificationUri: string } | null>(null);
+  const microsoftConnectRun = useRef(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
@@ -503,13 +577,16 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           setReplyToEmail(data.sender?.replyToEmail || '');
           setMicrosoftTenantId(data.sender?.microsoftTenantId || '');
           setMicrosoftClientId(data.sender?.microsoftClientId || '');
-          setMicrosoftClientSecretSet(Boolean(data.sender?.microsoftClientSecretSet));
+          setMicrosoftConnected(Boolean(data.sender?.microsoftConnected));
         }
       })
       .catch(err => { if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load settings.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     loadAdmins();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      microsoftConnectRun.current += 1;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adminEmail, adminPassword]);
 
@@ -547,19 +624,14 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           adminNotifyEmail,
           buildingManagerEmail,
           maintenanceEmail,
-          senderEmail,
-          senderName,
           replyToEmail,
           microsoftTenantId,
           microsoftClientId,
-          microsoftClientSecret,
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not save settings.');
-      setMicrosoftClientSecretSet(Boolean(data.sender?.microsoftClientSecretSet));
-      setMicrosoftClientSecret('');
-      setEditingMicrosoftSettings(false);
+      setMicrosoftConnected(Boolean(data.sender?.microsoftConnected));
       setSettings(prev => prev ? {
         ...prev,
         sender: {
@@ -568,15 +640,14 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           replyToEmail,
           microsoftTenantId,
           microsoftClientId,
-          microsoftClientSecretSet: Boolean(data.sender?.microsoftClientSecretSet),
+          microsoftConnected: Boolean(data.sender?.microsoftConnected),
+          microsoftConnectedAt: data.sender?.microsoftConnectedAt || null,
         },
         email: {
           ...prev.email,
-          configured: Boolean(
-            senderEmail && microsoftTenantId && microsoftClientId &&
-            (microsoftClientSecret || microsoftClientSecretSet)
-          ) || prev.email.configured,
-          provider: senderEmail && microsoftTenantId && microsoftClientId
+          configured: Boolean(data.sender?.microsoftConnected) ||
+            (!microsoftTenantId && !microsoftClientId && prev.email.configured),
+          provider: data.sender?.microsoftConnected
             ? 'Microsoft 365'
             : prev.email.provider,
           fromEmail: senderEmail
@@ -606,19 +677,14 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           adminNotifyEmail,
           buildingManagerEmail,
           maintenanceEmail,
-          senderEmail,
-          senderName,
           replyToEmail,
           microsoftTenantId,
           microsoftClientId,
-          microsoftClientSecret,
         }),
       });
       const saveData = await saveResponse.json();
       if (!saveResponse.ok) throw new Error(saveData?.error || 'Could not save email settings.');
-      setMicrosoftClientSecretSet(Boolean(saveData.sender?.microsoftClientSecretSet));
-      setMicrosoftClientSecret('');
-      setEditingMicrosoftSettings(false);
+      setMicrosoftConnected(Boolean(saveData.sender?.microsoftConnected));
       setSaved(true);
 
       const response = await fetch('/api/lga-room/admin/settings', {
@@ -634,6 +700,126 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
     } finally {
       setTestingEmail(false);
     }
+  }
+
+  async function handleConnectMicrosoft() {
+    const run = microsoftConnectRun.current + 1;
+    microsoftConnectRun.current = run;
+    setConnectingMicrosoft(true);
+    setMicrosoftConnectInfo(null);
+    setError('');
+    setTestEmailResult('');
+    const microsoftWindow = window.open('about:blank', 'lga-room-microsoft-connect');
+    try {
+      const startResponse = await fetch('/api/lga-room/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          action: 'startMicrosoftConnection',
+          tenantId: microsoftTenantId,
+          clientId: microsoftClientId,
+        }),
+      });
+      const start = await startResponse.json();
+      if (!startResponse.ok) throw new Error(start?.error || 'Could not start Microsoft sign-in.');
+      setMicrosoftConnectInfo({ userCode: start.userCode, verificationUri: start.verificationUri });
+      if (microsoftWindow) {
+        microsoftWindow.location.href = start.verificationUriComplete || start.verificationUri;
+      }
+
+      const deadline = Date.now() + Number(start.expiresIn || 900) * 1000;
+      let intervalMs = Math.max(5, Number(start.interval || 5)) * 1000;
+      while (microsoftConnectRun.current === run && Date.now() < deadline) {
+        await new Promise(resolve => window.setTimeout(resolve, intervalMs));
+        if (microsoftConnectRun.current !== run) return;
+        const pollResponse = await fetch('/api/lga-room/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({
+            action: 'pollMicrosoftConnection',
+            tenantId: microsoftTenantId,
+            clientId: microsoftClientId,
+            deviceCode: start.deviceCode,
+          }),
+        });
+        const poll = await pollResponse.json();
+        if (pollResponse.status === 202) {
+          if (poll.slowDown) intervalMs += 5000;
+          continue;
+        }
+        if (!pollResponse.ok) throw new Error(poll?.error || 'Microsoft sign-in failed.');
+        setMicrosoftConnected(true);
+        setSenderEmail(poll.email || '');
+        setSenderName(poll.name || '');
+        setMicrosoftConnectInfo(null);
+        setSettings(prev => prev ? {
+          ...prev,
+          sender: {
+            ...prev.sender,
+            email: poll.email || '',
+            name: poll.name || '',
+            microsoftTenantId,
+            microsoftClientId,
+            microsoftConnected: true,
+            microsoftConnectedAt: new Date().toISOString(),
+          },
+          email: {
+            ...prev.email,
+            configured: true,
+            provider: 'Microsoft 365',
+            configurationError: null,
+            fromEmail: poll.email || prev.email.fromEmail,
+          },
+        } : prev);
+        setTestEmailResult(`Microsoft account connected: ${poll.email}.`);
+        return;
+      }
+      if (microsoftConnectRun.current === run) {
+        throw new Error('Microsoft sign-in expired. Select Connect Microsoft account to try again.');
+      }
+    } catch (err) {
+      if (microsoftWindow && !microsoftWindow.closed) microsoftWindow.close();
+      setError(err instanceof Error ? err.message : 'Microsoft sign-in failed.');
+    } finally {
+      if (microsoftConnectRun.current === run) setConnectingMicrosoft(false);
+    }
+  }
+
+  async function handleDisconnectMicrosoft() {
+    microsoftConnectRun.current += 1;
+    setConnectingMicrosoft(false);
+    setMicrosoftConnectInfo(null);
+    setError('');
+    const response = await fetch('/api/lga-room/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ action: 'disconnectMicrosoft' }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data?.error || 'Could not disconnect Microsoft account.');
+      return;
+    }
+    setMicrosoftConnected(false);
+    setSenderEmail('');
+    setSenderName('');
+    setSettings(prev => prev ? {
+      ...prev,
+      sender: {
+        ...prev.sender,
+        email: '',
+        name: '',
+        microsoftConnected: false,
+        microsoftConnectedAt: null,
+      },
+      email: {
+        ...prev.email,
+        configured: false,
+        fromEmail: null,
+        configurationError: 'Microsoft account is not connected.',
+      },
+    } : prev);
+    setTestEmailResult('Microsoft account disconnected.');
   }
 
   async function handleAddAdmin() {
@@ -708,27 +894,9 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           <div style={{ marginBottom: 18 }}>
             <SectionLabel>School Outlook sender</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              Send reservation messages from a school Microsoft 365 mailbox. Your school IT
-              administrator must create an Entra app with Microsoft Graph <strong>Mail.Send</strong> application
-              permission, grant admin consent, and scope it to this mailbox. The client secret is saved
-              server-side and is never shown again. Microsoft uses the mailbox&apos;s directory display name on sent mail.
+              Connect the school mailbox through Microsoft. No client secret is needed. In Entra,
+              enable public client flows and add delegated Microsoft Graph <strong>Mail.Send</strong> and <strong>User.Read</strong> permissions.
             </div>
-            {!editingMicrosoftSettings && (
-              <button
-                type="button"
-                onClick={() => setEditingMicrosoftSettings(true)}
-                className="lgaroom-btn-secondary"
-                style={{ ...secondaryButtonStyle, marginBottom: 12 }}
-              >
-                Edit Microsoft settings
-              </button>
-            )}
-            <Field label="Sender email">
-              <input value={senderEmail} onChange={e => setSenderEmail(e.target.value)} type="email" style={inputStyle} placeholder="lgaroom@yourschool.edu" readOnly={!editingMicrosoftSettings} />
-            </Field>
-            <Field label="Display name label (optional)">
-              <input value={senderName} onChange={e => setSenderName(e.target.value)} type="text" style={inputStyle} placeholder={`${ROOM_NAME} Reservations`} readOnly={!editingMicrosoftSettings} />
-            </Field>
             <Field label="Microsoft tenant ID">
               <input
                 value={microsoftTenantId}
@@ -743,7 +911,6 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                 maxLength={36}
                 data-lpignore="true"
                 data-1p-ignore
-                readOnly={!editingMicrosoftSettings}
               />
             </Field>
             <Field label="Application (client) ID">
@@ -760,50 +927,44 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
                 maxLength={36}
                 data-lpignore="true"
                 data-1p-ignore
-                readOnly={!editingMicrosoftSettings}
-              />
-            </Field>
-            <Field label={`Client secret${microsoftClientSecretSet ? ' (saved — leave blank to keep it)' : ''}`}>
-              <input
-                value={microsoftClientSecret}
-                onChange={e => setMicrosoftClientSecret(e.target.value)}
-                type="password"
-                name="microsoft-application-client-secret-value"
-                style={inputStyle}
-                placeholder={microsoftClientSecretSet ? '••••••••••••' : 'secret value'}
-                autoComplete="off"
-                data-lpignore="true"
-                data-1p-ignore
-                readOnly={!editingMicrosoftSettings}
               />
             </Field>
             <Field label="Replies go to (optional)">
-              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the sender mailbox" readOnly={!editingMicrosoftSettings} />
+              <input value={replyToEmail} onChange={e => setReplyToEmail(e.target.value)} type="email" style={inputStyle} placeholder="leave blank to reply to the connected mailbox" />
             </Field>
-            {editingMicrosoftSettings && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <button onClick={handleSaveNotify} disabled={saving} className="lgaroom-btn-primary" style={primaryButtonStyle}>
-                  {saving ? 'Saving…' : 'Save Microsoft settings'}
-                </button>
+            {microsoftConnected && senderEmail && (
+              <div style={{ marginBottom: 10, fontSize: 13, color: '#1F7A4D' }}>
+                Connected as <strong>{senderEmail}</strong>
+              </div>
+            )}
+            {microsoftConnectInfo && (
+              <div style={{ marginBottom: 10, padding: 10, border: `1px solid ${border}`, borderRadius: 8, fontSize: 13 }}>
+                At <strong>{microsoftConnectInfo.verificationUri}</strong>, enter code{' '}
+                <strong style={{ letterSpacing: '0.08em' }}>{microsoftConnectInfo.userCode}</strong>.
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleConnectMicrosoft}
+                disabled={connectingMicrosoft || !microsoftTenantId || !microsoftClientId}
+                className="lgaroom-btn-primary"
+                style={primaryButtonStyle}
+              >
+                {connectingMicrosoft ? 'Waiting for Microsoft sign-in…' : microsoftConnected ? 'Reconnect Microsoft account' : 'Connect Microsoft account'}
+              </button>
+              {microsoftConnected && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSenderEmail(settings.sender.email || '');
-                    setSenderName(settings.sender.name || '');
-                    setReplyToEmail(settings.sender.replyToEmail || '');
-                    setMicrosoftTenantId(settings.sender.microsoftTenantId || '');
-                    setMicrosoftClientId(settings.sender.microsoftClientId || '');
-                    setMicrosoftClientSecret('');
-                    setEditingMicrosoftSettings(false);
-                  }}
-                  disabled={saving}
+                  onClick={handleDisconnectMicrosoft}
+                  disabled={connectingMicrosoft}
                   className="lgaroom-btn-secondary"
                   style={secondaryButtonStyle}
                 >
-                  Cancel
+                  Disconnect
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div style={{ marginBottom: 18 }}>
