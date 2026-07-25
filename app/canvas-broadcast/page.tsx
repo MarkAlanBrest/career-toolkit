@@ -248,6 +248,15 @@ export default function CanvasBroadcastPage() {
     if (!summaries[code] && authorized) void loadSummary(code);
   }
 
+  function toggleDelivery(channel: 'inbox' | 'announcement') {
+    const emailSelected = delivery === 'inbox' || delivery === 'both';
+    const announcementSelected = delivery === 'announcement' || delivery === 'both';
+    const nextEmail = channel === 'inbox' ? !emailSelected : emailSelected;
+    const nextAnnouncement = channel === 'announcement' ? !announcementSelected : announcementSelected;
+    if (!nextEmail && !nextAnnouncement) return;
+    setDelivery(nextEmail && nextAnnouncement ? 'both' : nextEmail ? 'inbox' : 'announcement');
+  }
+
   function runCommand(command: string, value?: string) {
     editorRef.current?.focus();
     document.execCommand(command, false, value);
@@ -386,15 +395,16 @@ export default function CanvasBroadcastPage() {
       setNotice({ type: 'error', text: 'Enter the Canvas URL for your test course.' });
       return;
     }
-    if (!window.confirm('Post this test announcement only in the selected test course? The server will block it if the course has more than one active student.')) return;
+    if (!window.confirm(`Send this test by ${delivery === 'both' ? 'email and announcement' : delivery === 'inbox' ? 'email' : 'announcement'} using only the selected test course? Email testing requires exactly one active student; announcement testing permits zero or one.`)) return;
     setTesting(true);
     localStorage.setItem('canvas-broadcast-test-course-url', testCourseUrl.trim());
-    setNotice({ type: 'info', text: 'Checking the test course and posting the announcement…' });
+    setNotice({ type: 'info', text: 'Checking the test course and sending the selected test delivery…' });
     try {
       const data = await api('/api/canvas-broadcast/test-send', {
         method: 'POST',
         body: JSON.stringify({
           campus,
+          delivery,
           subject,
           body: currentBody(),
           courseUrl: testCourseUrl,
@@ -402,7 +412,12 @@ export default function CanvasBroadcastPage() {
         }),
       });
       setHistory(items => [data.record, ...items].slice(0, 25));
-      setNotice({ type: 'success', text: `Test announcement posted only in “${data.course.name}” (${data.course.activeStudentCount} active student${data.course.activeStudentCount === 1 ? '' : 's'}).` });
+      setNotice({
+        type: data.result.status === 'Sent' ? 'success' : 'error',
+        text: data.result.status === 'Sent'
+          ? `Test ${delivery === 'both' ? 'email and announcement sent' : delivery === 'inbox' ? 'email sent' : 'announcement posted'} using “${data.course.name}” (${data.course.activeStudentCount} active student${data.course.activeStudentCount === 1 ? '' : 's'}).`
+          : `The test had a partial failure. Open its broadcast details for the Canvas error.`,
+      });
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'The test message failed.' });
       try {
@@ -508,67 +523,41 @@ export default function CanvasBroadcastPage() {
           </div>
         </section>
 
-        <div className={`${styles.twoCol} ${!authorized ? styles.locked : ''}`}>
-          <section className={styles.card}>
-            <div className={styles.sectionHead}>
-              <div><span className={styles.step}>02</span><h2>Saved messages</h2></div>
-            </div>
-            <label className={styles.label} htmlFor="template">Message template</label>
-            <select id="template" value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} disabled={!authorized}>
-              <option value="">Choose a saved message…</option>
-              {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
-            </select>
-            <div className={styles.templateActions}>
-              <button className={styles.secondary} onClick={loadTemplate} disabled={!selectedTemplate}>Load message</button>
-              <button className={styles.textButton} onClick={() => openSave()} disabled={!subject.trim()}>Save current</button>
-              <button className={styles.textButton} onClick={() => openSave(templates.find(item => item.id === selectedTemplate))} disabled={!selectedTemplate}>Rename / update</button>
-              <button className={styles.dangerButton} onClick={removeTemplate} disabled={!selectedTemplate}>Delete</button>
-            </div>
-          </section>
-
-          <section className={styles.tipCard}>
-            <div className={styles.tipIcon}>i</div>
-            <div><strong>One post per course</strong><p>Announcements appear inside every eligible course and follow each student’s Canvas notification preferences.</p></div>
-          </section>
-        </div>
-
         <section className={`${styles.card} ${!authorized ? styles.locked : ''}`}>
           <div className={styles.sectionHead}>
-            <div><span className={styles.step}>03</span><h2>Compose broadcast</h2></div>
+            <div><span className={styles.step}>02</span><h2>Compose broadcast</h2></div>
             <span className={styles.hint}>Send to eligible Canvas students and courses</span>
-          </div>
-          <label className={styles.label}>Delivery method</label>
-          <div className={styles.deliveryGrid} role="radiogroup" aria-label="Delivery method">
-            {([
-              ['inbox', 'Email', 'One private Canvas Inbox message per student'],
-              ['announcement', 'Announcements', 'One post in every eligible course'],
-              ['both', 'Both', 'Send the Inbox message and post announcements'],
-            ] as Array<[Delivery, string, string]>).map(([value, label, description]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={delivery === value}
-                className={delivery === value ? styles.deliveryActive : ''}
-                onClick={() => setDelivery(value)}
-                disabled={!authorized}
-              >
-                <span className={styles.radio} />
-                <span><strong>{label}</strong><small>{description}</small></span>
-              </button>
-            ))}
-          </div>
-          <div className={styles.announcementNote}>
-            {delivery === 'inbox'
-              ? 'Each unique student receives a private Canvas Inbox message. External email delivery follows that student’s Canvas notification preferences.'
-              : delivery === 'both'
-                ? 'Each unique student receives a private Canvas Inbox message, and one announcement is posted in every eligible course. Students in multiple courses may see more than one announcement.'
-                : 'One announcement will be posted in every eligible course. Students enrolled in multiple courses may receive it more than once. Email delivery follows each student’s Canvas notification settings.'}
-            {delivery !== 'inbox' && ' Announcements are automatically deleted after seven days.'}
           </div>
           <label className={styles.label} htmlFor="subject">Subject</label>
           <input id="subject" className={styles.subject} value={subject} onChange={e => setSubject(e.target.value)} maxLength={255} placeholder="Enter a clear, specific subject" disabled={!authorized} />
           <div className={styles.editorLabel}><label className={styles.label}>Message</label><span>{bodyLength.toLocaleString()} characters</span></div>
+          <div className={styles.editorUtility} role="toolbar" aria-label="Templates and delivery">
+            <select aria-label="Saved message template" value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} disabled={!authorized}>
+              <option value="">Saved messages…</option>
+              {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+            </select>
+            <button onClick={loadTemplate} disabled={!selectedTemplate}>Load</button>
+            <button onClick={() => openSave()} disabled={!subject.trim()}>Save</button>
+            <button onClick={() => openSave(templates.find(item => item.id === selectedTemplate))} disabled={!selectedTemplate}>Update</button>
+            <button className={styles.utilityDanger} onClick={removeTemplate} disabled={!selectedTemplate}>Delete</button>
+            <span className={styles.utilitySpacer} />
+            <label className={styles.deliveryCheck}>
+              <input
+                type="checkbox"
+                checked={delivery === 'inbox' || delivery === 'both'}
+                onChange={() => toggleDelivery('inbox')}
+              />
+              Email
+            </label>
+            <label className={styles.deliveryCheck} title="Announcements are automatically deleted after seven days">
+              <input
+                type="checkbox"
+                checked={delivery === 'announcement' || delivery === 'both'}
+                onChange={() => toggleDelivery('announcement')}
+              />
+              Announcement <small>7 days</small>
+            </label>
+          </div>
           <div className={styles.toolbar} role="toolbar" aria-label="Message formatting">
             <button onClick={() => runCommand('bold')} title="Bold"><b>B</b></button>
             <button onClick={() => runCommand('italic')} title="Italic"><i>I</i></button>
@@ -588,7 +577,7 @@ export default function CanvasBroadcastPage() {
           <div className={styles.sendRow}>
             <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
             <div className={styles.sendActions}>
-              <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'POSTING TEST…' : 'POST TEST ANNOUNCEMENT'}</button>
+              <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'SENDING TEST…' : delivery === 'both' ? 'TEST BOTH' : delivery === 'inbox' ? 'TEST EMAIL' : 'TEST ANNOUNCEMENT'}</button>
               <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount || reviewedSnapshot !== summary?.calculatedAt}><Icon name="send" />{sending ? 'SENDING…' : delivery === 'both' ? 'SEND BOTH' : delivery === 'inbox' ? 'SEND EMAIL' : 'POST ANNOUNCEMENTS'}</button>
             </div>
           </div>
@@ -596,7 +585,7 @@ export default function CanvasBroadcastPage() {
 
         <section className={`${styles.card} ${styles.historyCard} ${!authorized ? styles.locked : ''}`}>
           <div className={styles.sectionHead}>
-            <div><span className={styles.step}>04</span><h2>Last 25 broadcasts</h2></div>
+            <div><span className={styles.step}>03</span><h2>Last 25 broadcasts</h2></div>
             <span className={styles.hint}>{history.length} recorded</span>
           </div>
           <div className={styles.tableWrap}>

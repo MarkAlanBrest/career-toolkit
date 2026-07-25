@@ -248,7 +248,7 @@ export async function sendCanvasInboxMessages(
   };
 }
 
-export async function getCanvasTestCourse(courseUrl: string): Promise<{ id: number; name: string; activeStudentCount: number }> {
+export async function getCanvasTestCourse(courseUrl: string): Promise<{ id: number; name: string; activeStudentCount: number; studentIds: number[] }> {
   const { baseUrl } = canvasConfig();
   let supplied: URL;
   try {
@@ -267,10 +267,12 @@ export async function getCanvasTestCourse(courseUrl: string): Promise<{ id: numb
   const enrollments = await getAll<CanvasEnrollment>(
     `/api/v1/courses/${id}/enrollments?per_page=100&type[]=StudentEnrollment&state[]=active`,
   );
+  const studentIds = Array.from(new Set(enrollments.filter(isActiveStudent).map(item => item.user_id)));
   return {
     id,
     name: course.name || course.course_code || `Course ${id}`,
-    activeStudentCount: new Set(enrollments.filter(isActiveStudent).map(item => item.user_id)).size,
+    activeStudentCount: studentIds.length,
+    studentIds,
   };
 }
 
