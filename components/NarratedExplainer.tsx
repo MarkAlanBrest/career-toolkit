@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   Check,
   ChevronLeft,
@@ -263,6 +264,24 @@ export default function NarratedExplainer({ moment }: { moment: LessonMoment }) 
           {style.replace("-", " ")}
         </span>
       </div>
+
+      {moment.sourceImage && (
+        <figure className="border-b border-white/10 bg-black/20 px-4 py-5 sm:px-8 sm:py-7">
+          <Image
+            src={moment.sourceImage}
+            alt={moment.sourceImageAlt || `${moment.title} source visual`}
+            width={1200}
+            height={1600}
+            unoptimized
+            className="mx-auto max-h-[620px] w-auto rounded-xl bg-white object-contain shadow-2xl"
+          />
+          {moment.pageNumber && (
+            <figcaption className="mt-3 text-center text-xs font-semibold uppercase tracking-[.14em] text-white/40">
+              Source material · page {moment.pageNumber}
+            </figcaption>
+          )}
+        </figure>
+      )}
 
       <ExplainerVisual style={style} frames={frames} active={active} />
 

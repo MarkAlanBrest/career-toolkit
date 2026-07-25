@@ -1,4 +1,5 @@
 import type { LessonPlan } from "@/lib/mason";
+import { attachPdfVisuals } from "@/lib/pdf-visuals";
 
 const lessonSchema = {
   type: "object",
@@ -146,7 +147,7 @@ export async function generateLessonPlan({
         "Every visual moment must set explainerStyle to flipbook, guided-focus, compare-reveal, or step-build and provide 3 to 5 explainerFrames.",
         "Each explainer frame needs a short title, one-sentence visible caption, natural spoken narration, and 1 to 4 concise visual labels. The frames must form a coherent mini-lesson rather than repeating the same point.",
         "Also set visualType and provide 3 to 6 concise visualItems as a summary of the entire explainer.",
-        "For a visual, make the narration teach what the visual means and what the learner should notice. pageNumber may identify provenance for the course editor, but the learner experience will not display the PDF page.",
+        "For every visual, set pageNumber to the PDF page containing the most useful supporting picture, diagram, chart, or example. Make the narration teach what that source visual means and what the learner should notice.",
         "Insert two or three activity-phase questions or realistic scenarios immediately after the related teaching. They should require thought and provide detailed instructional feedback.",
         "Finish with two or three mastery-phase questions using new applications of the material. Mastery questions must be independent checks and must not repeat the activity questions.",
         "Use phase learn for explanations, visuals, and summary; phase activity for coached practice; and phase mastery for the final independent check.",
@@ -199,5 +200,6 @@ export async function generateLessonPlan({
     throw new Error("The lesson generator returned no lesson plan.");
   }
 
-  return JSON.parse(outputText) as LessonPlan;
+  const lessonPlan = JSON.parse(outputText) as LessonPlan;
+  return attachPdfVisuals(pdf, lessonPlan);
 }

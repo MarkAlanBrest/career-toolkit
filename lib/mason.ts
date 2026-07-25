@@ -8,6 +8,8 @@ export type LessonMoment = {
   correctAnswer: number | null;
   feedback: string | null;
   pageNumber: number | null;
+  sourceImage?: string | null;
+  sourceImageAlt?: string | null;
   cue?: string | null;
   visualAction?: "none" | "zoom" | "spotlight" | "compare" | null;
   focusX?: number | null;
