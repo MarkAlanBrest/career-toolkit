@@ -15,6 +15,13 @@ export type LessonMoment = {
   focusScale?: number | null;
   visualType?: "process" | "anatomy" | "comparison" | "formula" | "sequence" | null;
   visualItems?: string[] | null;
+  explainerStyle?: "flipbook" | "guided-focus" | "compare-reveal" | "step-build" | null;
+  explainerFrames?: Array<{
+    title: string;
+    caption: string;
+    narration: string;
+    visualItems: string[];
+  }> | null;
 };
 
 export type LessonPlan = {

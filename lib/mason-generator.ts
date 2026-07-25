@@ -40,6 +40,8 @@ const lessonSchema = {
           "focusScale",
           "visualType",
           "visualItems",
+          "explainerStyle",
+          "explainerFrames",
         ],
         properties: {
           kind: {
@@ -75,6 +77,27 @@ const lessonSchema = {
           visualItems: {
             type: ["array", "null"],
             items: { type: "string" },
+          },
+          explainerStyle: {
+            type: ["string", "null"],
+            enum: ["flipbook", "guided-focus", "compare-reveal", "step-build", null],
+          },
+          explainerFrames: {
+            type: ["array", "null"],
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["title", "caption", "narration", "visualItems"],
+              properties: {
+                title: { type: "string" },
+                caption: { type: "string" },
+                narration: { type: "string" },
+                visualItems: {
+                  type: "array",
+                  items: { type: "string" },
+                },
+              },
+            },
           },
         },
       },
@@ -119,7 +142,10 @@ export async function generateLessonPlan({
         "Write substantial teaching prose. Each explain moment should contain two to four coherent paragraphs separated by blank lines, with concrete examples where the source supports them.",
         "Organize the reading in a natural sequence. Use descriptive headings, a strong opening, useful callouts, and a concise summary.",
         "The PDF is source material only. Never tell the learner to read the PDF, never reproduce a PDF page as the lesson, and never rely on an embedded document viewer.",
-        "Create two or three learn-phase visual explanations from the source: a process, labeled anatomy, comparison, formula, or sequence. Set visualType and provide 3 to 6 concise visualItems containing the exact labels or steps needed to build that webpage graphic.",
+        "Create two or three learn-phase narrated visual explainers from the source: a process, labeled anatomy, comparison, formula, or sequence.",
+        "Every visual moment must set explainerStyle to flipbook, guided-focus, compare-reveal, or step-build and provide 3 to 5 explainerFrames.",
+        "Each explainer frame needs a short title, one-sentence visible caption, natural spoken narration, and 1 to 4 concise visual labels. The frames must form a coherent mini-lesson rather than repeating the same point.",
+        "Also set visualType and provide 3 to 6 concise visualItems as a summary of the entire explainer.",
         "For a visual, make the narration teach what the visual means and what the learner should notice. pageNumber may identify provenance for the course editor, but the learner experience will not display the PDF page.",
         "Insert two or three activity-phase questions or realistic scenarios immediately after the related teaching. They should require thought and provide detailed instructional feedback.",
         "Finish with two or three mastery-phase questions using new applications of the material. Mastery questions must be independent checks and must not repeat the activity questions.",
