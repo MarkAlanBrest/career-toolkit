@@ -1,5 +1,6 @@
 export type LessonMoment = {
   kind: "explain" | "visual" | "question" | "scenario" | "summary";
+  phase?: "learn" | "activity" | "mastery";
   title: string;
   narration: string;
   prompt: string | null;
@@ -28,6 +29,7 @@ export type PublicMasonSection = {
   title: string;
   position: number;
   fileName: string;
+  estimatedMinutes?: number;
   lessonPlan: LessonPlan;
 };
 
@@ -36,6 +38,10 @@ export type PublicMasonCourse = {
   title: string;
   slug: string;
   description: string | null;
+  audience?: string | null;
+  theme?: string;
+  intensity?: string;
+  estimatedMinutes?: number;
   published: boolean;
   sections: PublicMasonSection[];
 };

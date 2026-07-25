@@ -47,6 +47,8 @@ export async function POST(
       fileName: file.name,
       courseTitle: course.title,
       sectionTitle: title,
+      intensity: course.intensity,
+      estimatedMinutes,
     });
 
     const section = await prisma.masonSection.create({

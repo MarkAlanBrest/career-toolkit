@@ -25,6 +25,7 @@ const lessonSchema = {
         additionalProperties: false,
         required: [
           "kind",
+          "phase",
           "title",
           "narration",
           "prompt",
@@ -42,6 +43,10 @@ const lessonSchema = {
           kind: {
             type: "string",
             enum: ["explain", "visual", "question", "scenario", "summary"],
+          },
+          phase: {
+            type: "string",
+            enum: ["learn", "activity", "mastery"],
           },
           title: { type: "string" },
           narration: { type: "string" },
@@ -72,11 +77,15 @@ export async function generateLessonPlan({
   fileName,
   courseTitle,
   sectionTitle,
+  intensity = "standard",
+  estimatedMinutes = 15,
 }: {
   pdf: Buffer;
   fileName: string;
   courseTitle: string;
   sectionTitle: string;
+  intensity?: string;
+  estimatedMinutes?: number;
 }): Promise<LessonPlan> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -94,13 +103,17 @@ export async function generateLessonPlan({
     body: JSON.stringify({
       model: process.env.OPENAI_MODEL || "gpt-5.6-sol",
       instructions: [
-        "You are an expert AI teacher and instructional designer.",
-        "Build a lively, accurate lesson using only facts supported by the attached PDF.",
-        "Do not create a slide deck. Create a sequence of short teaching moments that alternate explanation, visual attention, questions, and realistic scenarios.",
-        "Use PDF page numbers for moments where the original page contains a useful photograph, diagram, chart, or visual example. Ignore logos and decorative art.",
-        "Choreograph useful visuals. Add a short natural cue the instructor says before showing one, choose zoom or spotlight when a specific detail matters, and provide percentage focus coordinates plus a restrained zoom scale. Use none and null coordinates when no visual action is needed.",
-        "Make narration conversational and suitable to speak aloud.",
-        "Use 8 to 14 moments. Include at least two questions or scenarios and finish with a summary.",
+        "You are an expert curriculum writer and instructional designer.",
+        "Build an accurate, professional lesson using only facts supported by the attached PDF.",
+        "The result will be rendered as one continuous, vertically scrolling editorial webpage. It is not a slide deck, chatbot conversation, card carousel, or sequence of tiny fragments.",
+        "Write substantial teaching prose. Each explain moment should contain two to four coherent paragraphs separated by blank lines, with concrete examples where the source supports them.",
+        "Organize the reading in a natural sequence. Use descriptive headings, a strong opening, useful callouts, and a concise summary.",
+        "Use two or three learn-phase PDF visuals only when the original page contains a useful photograph, diagram, chart, or worked example. Ignore logos and decorative art.",
+        "For a visual, make the narration explain what the learner should notice. Add a brief cue, and use zoom or spotlight only when a particular detail matters.",
+        "Insert two or three activity-phase questions or realistic scenarios immediately after the related teaching. They should require thought and provide detailed instructional feedback.",
+        "Finish with two or three mastery-phase questions using new applications of the material. Mastery questions must be independent checks and must not repeat the activity questions.",
+        "Use phase learn for explanations, visuals, and summary; phase activity for coached practice; and phase mastery for the final independent check.",
+        "Use 9 to 15 moments total. Balance depth to the requested lesson time and course intensity.",
         "For multiple-choice moments, correctAnswer is the zero-based choice index.",
       ].join(" "),
       input: [
@@ -114,7 +127,7 @@ export async function generateLessonPlan({
             },
             {
               type: "input_text",
-              text: `Course: ${courseTitle}\nSection: ${sectionTitle}\nCreate the lesson plan now.`,
+              text: `Course: ${courseTitle}\nSection: ${sectionTitle}\nCourse intensity: ${intensity}\nTarget section time: ${estimatedMinutes} minutes\nCreate the continuous editorial lesson now.`,
             },
           ],
         },
