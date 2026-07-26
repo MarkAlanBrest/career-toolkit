@@ -117,8 +117,13 @@ export default function ResumeIntake() {
         const account = await currentMicrosoftAccount();
         setMicrosoftAccount(account);
         if (account) {
-          const token = await microsoftAccessToken(account);
-          await loadLibrary(token);
+          const token = await microsoftAccessToken(account, false);
+          if (token) {
+            await loadLibrary(token);
+          } else {
+            setMicrosoftAccount(null);
+            setLoadingLibrary(false);
+          }
         } else {
           setLoadingLibrary(false);
         }

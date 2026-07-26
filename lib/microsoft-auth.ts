@@ -2,6 +2,7 @@
 
 import {
   AccountInfo,
+  AuthenticationResult,
   InteractionRequiredAuthError,
   PublicClientApplication,
 } from "@azure/msal-browser";
@@ -12,6 +13,16 @@ const PRODUCTION_ORIGIN = "https://safety-training-platform-eight.vercel.app";
 const GRAPH_SCOPES = ["https://graph.microsoft.com/Sites.Selected"];
 
 let clientPromise: Promise<PublicClientApplication> | undefined;
+let interactionPromise: Promise<AuthenticationResult> | undefined;
+
+function runInteraction(operation: () => Promise<AuthenticationResult>) {
+  if (!interactionPromise) {
+    interactionPromise = operation().finally(() => {
+      interactionPromise = undefined;
+    });
+  }
+  return interactionPromise;
+}
 
 export function microsoftClient() {
   if (!clientPromise) {
@@ -30,6 +41,7 @@ export function microsoftClient() {
         },
       });
       await client.initialize();
+      await client.handleRedirectPromise();
       return client;
     })();
   }
@@ -43,15 +55,21 @@ export async function currentMicrosoftAccount() {
 
 export async function signInToMicrosoft() {
   const client = await microsoftClient();
-  const result = await client.loginPopup({
-    scopes: GRAPH_SCOPES,
-    prompt: "select_account",
-  });
+  const result = await runInteraction(() =>
+    client.loginPopup({
+      scopes: GRAPH_SCOPES,
+      prompt: "select_account",
+      overrideInteractionInProgress: true,
+    }),
+  );
   client.setActiveAccount(result.account);
   return result.account;
 }
 
-export async function microsoftAccessToken(account: AccountInfo) {
+export async function microsoftAccessToken(
+  account: AccountInfo,
+  allowInteraction = true,
+) {
   const client = await microsoftClient();
   try {
     const result = await client.acquireTokenSilent({
@@ -61,10 +79,14 @@ export async function microsoftAccessToken(account: AccountInfo) {
     return result.accessToken;
   } catch (error) {
     if (!(error instanceof InteractionRequiredAuthError)) throw error;
-    const result = await client.acquireTokenPopup({
-      account,
-      scopes: GRAPH_SCOPES,
-    });
+    if (!allowInteraction) return "";
+    const result = await runInteraction(() =>
+      client.acquireTokenPopup({
+        account,
+        scopes: GRAPH_SCOPES,
+        overrideInteractionInProgress: true,
+      }),
+    );
     return result.accessToken;
   }
 }
