@@ -8,7 +8,7 @@ import {
 
 const TENANT_ID = "0af0069e-980c-4b7d-ae8b-d125a29432c2";
 const CLIENT_ID = "6a63b8e7-5fe1-4ff1-aba0-921e0de3e36b";
-const REDIRECT_URI = "https://safety-training-platform-eight.vercel.app/";
+const PRODUCTION_ORIGIN = "https://safety-training-platform-eight.vercel.app";
 const GRAPH_SCOPES = ["https://graph.microsoft.com/Sites.Selected"];
 
 let clientPromise: Promise<PublicClientApplication> | undefined;
@@ -16,12 +16,14 @@ let clientPromise: Promise<PublicClientApplication> | undefined;
 export function microsoftClient() {
   if (!clientPromise) {
     clientPromise = (async () => {
+      const redirectUri =
+        typeof window === "undefined" ? PRODUCTION_ORIGIN : window.location.origin;
       const client = new PublicClientApplication({
         auth: {
           clientId: CLIENT_ID,
           authority: `https://login.microsoftonline.com/${TENANT_ID}`,
-          redirectUri: REDIRECT_URI,
-          postLogoutRedirectUri: REDIRECT_URI,
+          redirectUri,
+          postLogoutRedirectUri: redirectUri,
         },
         cache: {
           cacheLocation: "localStorage",
