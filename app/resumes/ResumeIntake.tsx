@@ -14,7 +14,6 @@ import {
   Plus,
   RotateCcw,
   ShieldCheck,
-  Sparkles,
   Trash2,
   UploadCloud,
   X,
@@ -35,7 +34,6 @@ type ResumeRecord = ResumeFields & {
   graduationDate: string;
   status: "queued" | "parsing" | "ready" | "error" | "submitted";
   confidence: "high" | "medium" | "low";
-  extractionMethod?: "local" | "ai-assisted";
   error?: string;
 };
 
@@ -43,8 +41,17 @@ const FALLBACK_PROGRAMS = [
   "Automotive Technology",
   "Building Technology",
   "Combination Welding",
-  "Electrical Systems Technology",
-  "HVAC/R Technology",
+  "Electrical Technology",
+  "Industrial Electro-Mechanical Technology",
+  "Machinist & CNC Manufacturing",
+  "Refrigeration & A/C Technology",
+  "Commercial Truck Driving",
+  "Diesel & Heavy Equipment Repair",
+  "Heavy Equipment Operations with CDL Training",
+  "Motorcycle & Power Equipment Technology",
+  "East Liverpool, Combination Welding",
+  "East Liverpool, Electrical & Industrial Maintenance",
+  "East, Liverpool, Refrigeration & Climate Control",
 ];
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -131,6 +138,7 @@ export default function ResumeIntake() {
       if (!response.ok) throw new Error(data.error || "This resume could not be read.");
       updateRecord(record.id, {
         ...data.resume,
+        graduationDate: data.resume.graduationDate || record.graduationDate,
         status: "ready",
       });
     } catch (error) {
@@ -199,7 +207,7 @@ export default function ResumeIntake() {
           ? record
           : {
               ...record,
-              graduationDate: batchGraduationDate || record.graduationDate,
+              graduationDate: record.graduationDate || batchGraduationDate,
             },
       ),
     );
@@ -265,7 +273,7 @@ export default function ResumeIntake() {
           </div>
           <div className={`resume-step ${readyRecords.length ? "active" : ""} ${submittedCount ? "complete" : ""}`}>
             <span>{submittedCount ? <Check size={15} /> : "2"}</span>
-            <div><strong>Review details</strong><small>Verify AI extraction</small></div>
+            <div><strong>Review details</strong><small>Verify file details</small></div>
           </div>
           <div className={`resume-step ${submittedCount ? "complete active" : ""}`}>
             <span>{submittedCount ? <Check size={15} /> : "3"}</span>
@@ -308,13 +316,13 @@ export default function ResumeIntake() {
           <section className="resume-batch-card">
             <div className="resume-section-title">
               <span>01</span>
-              <div><h2>Graduation date</h2><p>The teacher supplies this value for the batch.</p></div>
+              <div><h2>Graduation date</h2><p>Enter it here when it is not already included in the file.</p></div>
             </div>
             <div className="resume-batch-fields resume-date-only">
               <label>
                 Graduation date
                 <input
-                  type="date"
+                  type="month"
                   value={batchGraduationDate}
                   onChange={(event) => setBatchGraduationDate(event.target.value)}
                 />
@@ -328,7 +336,7 @@ export default function ResumeIntake() {
           <section className="resume-upload-section">
             <div className="resume-section-title">
               <span>02</span>
-              <div><h2>Add resumes</h2><p>Name, address, program, skills, and certifications are read from each file.</p></div>
+              <div><h2>Add resumes</h2><p>Files are read locally. A graduation month in the file is used automatically.</p></div>
             </div>
             <div
               className={`resume-dropzone ${dragging ? "dragging" : ""}`}
@@ -383,8 +391,8 @@ export default function ResumeIntake() {
                         {record.status === "queued" && "Queued"}
                         {record.status === "ready" && (
                           <>
-                            <Sparkles size={14} />
-                            {record.extractionMethod === "local" ? "Ready · Local" : "Ready · AI assisted"}
+                            <CheckCircle2 size={14} />
+                            Ready
                           </>
                         )}
                         {record.status === "error" && "Needs attention"}
@@ -452,7 +460,7 @@ export default function ResumeIntake() {
                         <label>
                           Graduation date <span>Required</span>
                           <input
-                            type="date"
+                            type="month"
                             value={record.graduationDate}
                             disabled={record.status === "submitted"}
                             onChange={(event) => updateRecord(record.id, { graduationDate: event.target.value })}

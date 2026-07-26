@@ -5,8 +5,17 @@ const FALLBACK_PROGRAMS = [
   "Automotive Technology",
   "Building Technology",
   "Combination Welding",
-  "Electrical Systems Technology",
-  "HVAC/R Technology",
+  "Electrical Technology",
+  "Industrial Electro-Mechanical Technology",
+  "Machinist & CNC Manufacturing",
+  "Refrigeration & A/C Technology",
+  "Commercial Truck Driving",
+  "Diesel & Heavy Equipment Repair",
+  "Heavy Equipment Operations with CDL Training",
+  "Motorcycle & Power Equipment Technology",
+  "East Liverpool, Combination Welding",
+  "East Liverpool, Electrical & Industrial Maintenance",
+  "East, Liverpool, Refrigeration & Climate Control",
 ];
 
 export async function GET(request: Request) {

@@ -27,9 +27,13 @@ export async function POST(request: NextRequest) {
     }
 
     const metadata = JSON.parse(rawMetadata) as ResumeMetadata;
-    if (!metadata.studentName?.trim() || !metadata.program || !metadata.graduationDate) {
+    if (
+      !metadata.studentName?.trim()
+      || !metadata.program
+      || !/^\d{4}-(0[1-9]|1[0-2])$/.test(metadata.graduationDate)
+    ) {
       return NextResponse.json(
-        { error: "Student name, program, and graduation date are required." },
+        { error: "Student name, program, and a valid graduation month are required." },
         { status: 400 },
       );
     }

@@ -62,6 +62,40 @@ function safeFileName(name: string) {
   return name.replace(/[~"#%&*:<>?/\\{|}]/g, "-").replace(/\s+/g, " ").trim();
 }
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function graduationMonth(value: string) {
+  const match = value.match(/^(20\d{2})-(0[1-9]|1[0-2])(?:-\d{2})?$/);
+  if (!match) throw new Error("Graduation date must include a valid month and year.");
+  return { year: match[1], month: match[2] };
+}
+
+function fileNameWithGraduationDate(name: string, graduationDate: string) {
+  const { year, month } = graduationMonth(graduationDate);
+  const label = `${MONTH_NAMES[Number(month) - 1]} ${year}`;
+  const extensionMatch = name.match(/(\.[^.]+)$/);
+  const extension = extensionMatch?.[1] || "";
+  const stem = extension ? name.slice(0, -extension.length) : name;
+
+  if (stem.replace(/,/g, "").toLowerCase().includes(label.toLowerCase())) {
+    return safeFileName(name);
+  }
+  return safeFileName(`${stem} - ${label}${extension}`);
+}
+
 function graphPath(value: string) {
   return value
     .split("/")
@@ -71,13 +105,11 @@ function graphPath(value: string) {
 }
 
 function sharePointDateOnly(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new Error("Graduation date must be a valid date.");
-  }
+  const { year, month } = graduationMonth(value);
 
   // SharePoint stores date-only columns as date-times internally. Noon UTC
   // prevents the selected calendar date from moving backward in US time zones.
-  return `${value}T12:00:00Z`;
+  return `${year}-${month}-01T12:00:00Z`;
 }
 
 export async function uploadResumeToSharePoint(file: File, metadata: ResumeMetadata) {
@@ -85,7 +117,10 @@ export async function uploadResumeToSharePoint(file: File, metadata: ResumeMetad
   const siteId = required("SHAREPOINT_SITE_ID");
   const driveId = required("SHAREPOINT_DRIVE_ID");
   const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";
-  const destination = [folder, safeFileName(file.name)].filter(Boolean).join("/");
+  const destination = [
+    folder,
+    fileNameWithGraduationDate(file.name, metadata.graduationDate),
+  ].filter(Boolean).join("/");
   const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(siteId)}/drives/${encodeURIComponent(driveId)}/root:/${graphPath(destination)}:/content`;
 
   const driveItem = await graphRequest<{ id: string; webUrl?: string }>(uploadUrl, token, {
