@@ -35,6 +35,29 @@
 .resume-header > div { display: flex; align-items: baseline; gap: 10px; }
 .resume-header span { color: #a9c2bb; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .resume-header h1 { margin: 0; font-family: Georgia, serif; font-size: 23px; font-weight: 500; }
+.microsoft-session { margin-left: auto; }
+.resume-header .microsoft-session > span {
+  color: #d5e2de;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.microsoft-session button {
+  height: 34px;
+  border: 1px solid #52736c;
+  border-radius: 8px;
+  background: #244e47;
+  color: white;
+  padding: 0 11px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.microsoft-session button:disabled { opacity: .55; cursor: default; }
 
 .resume-shell {
   width: min(1180px, calc(100% - 40px));
@@ -211,6 +234,8 @@
   .resume-header { padding: 15px 20px; }
   .resume-header > div { display: block; }
   .resume-header > a { padding-right: 14px; }
+  .microsoft-session > span { display: none; }
+  .microsoft-session button { padding: 0 9px; }
   .resume-shell { width: min(100% - 24px, 1180px); padding-top: 20px; }
   .upload-card, .library-card { padding: 18px; }
   .simple-dropzone { flex-direction: column; text-align: center; }

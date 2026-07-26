@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
     const unauthorized = await requireAdmin(request);
     if (unauthorized) return unauthorized;
 
+    const delegatedToken = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!delegatedToken) {
+      return NextResponse.json(
+        { error: "Sign in with Microsoft before saving resumes." },
+        { status: 401 },
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file");
     const rawMetadata = formData.get("metadata");
@@ -38,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await uploadResumeToSharePoint(file, metadata);
+    const result = await uploadResumeToSharePoint(file, metadata, delegatedToken);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return NextResponse.json(

@@ -29,7 +29,9 @@ function required(name: string) {
   return value;
 }
 
-async function graphToken() {
+async function graphToken(delegatedToken?: string) {
+  if (delegatedToken) return delegatedToken;
+
   const tenantId = required("MS_TENANT_ID");
   const body = new URLSearchParams({
     client_id: required("MS_CLIENT_ID"),
@@ -124,8 +126,12 @@ function sharePointDateOnly(value: string) {
   return `${year}-${month}-01T12:00:00Z`;
 }
 
-export async function uploadResumeToSharePoint(file: File, metadata: ResumeMetadata) {
-  const token = await graphToken();
+export async function uploadResumeToSharePoint(
+  file: File,
+  metadata: ResumeMetadata,
+  delegatedToken?: string,
+) {
+  const token = await graphToken(delegatedToken);
   const siteId = required("SHAREPOINT_SITE_ID");
   const driveId = required("SHAREPOINT_DRIVE_ID");
   const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";
@@ -173,8 +179,10 @@ function locationFromAddress(address: string) {
   return state ? `${parts.at(-2)}, ${state}` : address;
 }
 
-export async function listResumesFromSharePoint(): Promise<StoredResume[]> {
-  const token = await graphToken();
+export async function listResumesFromSharePoint(
+  delegatedToken?: string,
+): Promise<StoredResume[]> {
+  const token = await graphToken(delegatedToken);
   const siteId = required("SHAREPOINT_SITE_ID");
   const driveId = required("SHAREPOINT_DRIVE_ID");
   const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";

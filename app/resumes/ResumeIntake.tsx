@@ -6,11 +6,20 @@ import {
   ExternalLink,
   FileText,
   LoaderCircle,
+  LogIn,
+  LogOut,
   Search,
   Trash2,
   UploadCloud,
 } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  currentMicrosoftAccount,
+  microsoftAccessToken,
+  signInToMicrosoft,
+  signOutOfMicrosoft,
+  type MicrosoftAccount,
+} from "@/lib/microsoft-auth";
 
 type ParsedResume = {
   studentName: string;
@@ -74,16 +83,20 @@ export default function ResumeIntake() {
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loadingLibrary, setLoadingLibrary] = useState(true);
+  const [microsoftAccount, setMicrosoftAccount] = useState<MicrosoftAccount | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
   const [nameFilter, setNameFilter] = useState("");
   const [programFilter, setProgramFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
 
-  async function loadLibrary() {
+  async function loadLibrary(accessToken: string) {
     setLoadingLibrary(true);
     setLoadError("");
     try {
-      const response = await fetch("/api/resumes");
+      const response = await fetch("/api/resumes", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Saved resumes could not be loaded.");
       setResumes(Array.isArray(data.resumes) ? data.resumes : []);
@@ -99,8 +112,39 @@ export default function ResumeIntake() {
       .then((response) => response.json())
       .then((data) => setPrograms(Array.isArray(data.programs) ? data.programs : []))
       .catch(() => undefined);
-    void loadLibrary();
+    void (async () => {
+      try {
+        const account = await currentMicrosoftAccount();
+        setMicrosoftAccount(account);
+        if (account) {
+          const token = await microsoftAccessToken(account);
+          await loadLibrary(token);
+        } else {
+          setLoadingLibrary(false);
+        }
+      } catch (error) {
+        setLoadingLibrary(false);
+        setLoadError(error instanceof Error ? error.message : "Microsoft sign-in could not be restored.");
+      }
+    })();
   }, []);
+
+  async function connectMicrosoft() {
+    setAuthBusy(true);
+    setLoadError("");
+    try {
+      const account = await signInToMicrosoft();
+      setMicrosoftAccount(account);
+      const token = await microsoftAccessToken(account);
+      await loadLibrary(token);
+      return { account, token };
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Microsoft sign-in failed.");
+      return null;
+    } finally {
+      setAuthBusy(false);
+    }
+  }
 
   function updateUpload(id: string, patch: Partial<UploadRecord>) {
     setUploads((current) =>
@@ -186,6 +230,21 @@ export default function ResumeIntake() {
   async function saveResumes() {
     if (!saveable.length) return;
     setMessage("");
+    let account = microsoftAccount;
+    let accessToken = "";
+    if (!account) {
+      const connection = await connectMicrosoft();
+      if (!connection) return;
+      account = connection.account;
+      accessToken = connection.token;
+    } else {
+      try {
+        accessToken = await microsoftAccessToken(account);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Microsoft sign-in failed.");
+        return;
+      }
+    }
     let saved = 0;
 
     for (const record of saveable) {
@@ -202,7 +261,11 @@ export default function ResumeIntake() {
       }));
 
       try {
-        const response = await fetch("/api/resumes/submit", { method: "POST", body });
+        const response = await fetch("/api/resumes/submit", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body,
+        });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "The resume could not be saved.");
         updateUpload(record.id, { status: "saved" });
@@ -217,7 +280,7 @@ export default function ResumeIntake() {
 
     if (saved) {
       setMessage(saved === 1 ? "Resume Saved" : `${saved} Resumes Saved`);
-      await loadLibrary();
+      await loadLibrary(accessToken);
     }
   }
 
@@ -248,6 +311,29 @@ export default function ResumeIntake() {
         <div>
           <span>Career Services</span>
           <h1>Student Resumes</h1>
+        </div>
+        <div className="microsoft-session">
+          {microsoftAccount ? (
+            <>
+              <span>{microsoftAccount.name || microsoftAccount.username}</span>
+              <button
+                type="button"
+                onClick={() => void (async () => {
+                  await signOutOfMicrosoft();
+                  setMicrosoftAccount(null);
+                  setResumes([]);
+                  setLoadingLibrary(false);
+                })()}
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </>
+          ) : (
+            <button type="button" disabled={authBusy} onClick={() => void connectMicrosoft()}>
+              {authBusy ? <LoaderCircle className="spin" size={14} /> : <LogIn size={14} />}
+              Sign in with Microsoft
+            </button>
+          )}
         </div>
       </header>
 
@@ -386,12 +472,15 @@ export default function ResumeIntake() {
             )}
           </div>
 
+          {!microsoftAccount && !loadingLibrary && !loadError && (
+            <div className="library-state">Sign in with Microsoft to view saved resumes.</div>
+          )}
           {loadingLibrary && <div className="library-state"><LoaderCircle className="spin" size={20} /> Loading resumes…</div>}
           {!loadingLibrary && loadError && <div className="library-state error">{loadError}</div>}
-          {!loadingLibrary && !loadError && filteredResumes.length === 0 && (
+          {microsoftAccount && !loadingLibrary && !loadError && filteredResumes.length === 0 && (
             <div className="library-state">No resumes match these filters.</div>
           )}
-          {!loadingLibrary && !loadError && filteredResumes.length > 0 && (
+          {microsoftAccount && !loadingLibrary && !loadError && filteredResumes.length > 0 && (
             <div className="resume-table-wrap">
               <table className="resume-table">
                 <thead>

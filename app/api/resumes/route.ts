@@ -10,7 +10,15 @@ export async function GET(request: NextRequest) {
     const unauthorized = await requireAdmin(request);
     if (unauthorized) return unauthorized;
 
-    const resumes = await listResumesFromSharePoint();
+    const delegatedToken = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (!delegatedToken) {
+      return NextResponse.json(
+        { error: "Sign in with Microsoft to view saved resumes." },
+        { status: 401 },
+      );
+    }
+
+    const resumes = await listResumesFromSharePoint(delegatedToken);
     return NextResponse.json({ resumes });
   } catch (error) {
     return NextResponse.json(
