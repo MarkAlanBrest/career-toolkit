@@ -241,6 +241,18 @@ export function parseResumeFilename(fileName: string, programs: string[]): Filen
 
   const code = codeMatch[1].toUpperCase();
   const remainder = stem.slice(codeMatch[0].length).replace(/^[\s,_-]+/, "");
+  const legacyName = remainder.match(
+    /^([^,]+),\s*(\S+)\s+(.+),\s*([A-Za-z]{2})(?:\s+-\s+.+)?$/,
+  );
+  if (legacyName) {
+    return {
+      studentName: `${legacyName[2]} ${legacyName[1]}`.trim(),
+      address: `${legacyName[3]}, ${legacyName[4].toUpperCase()}`,
+      program: programFromCode(code, programs),
+      graduationDate,
+    };
+  }
+
   let parts = remainder
     .split(/\s*,\s*|\s+[-|]\s+|_+/)
     .map(cleanLine)
