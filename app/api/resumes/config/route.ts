@@ -28,13 +28,7 @@ export async function GET(request: Request) {
     .filter(Boolean);
   const programs = configuredPrograms?.length ? configuredPrograms : FALLBACK_PROGRAMS;
 
-  const sharePointConnected = Boolean(
-    process.env.MS_TENANT_ID &&
-      process.env.MS_CLIENT_ID &&
-      process.env.MS_CLIENT_SECRET &&
-      process.env.SHAREPOINT_SITE_ID &&
-      process.env.SHAREPOINT_DRIVE_ID,
-  );
+  const sharePointConnected = true;
 
   return NextResponse.json({ programs, sharePointConnected });
 }

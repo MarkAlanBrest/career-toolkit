@@ -11,6 +11,9 @@ type GraphError = {
   error?: { message?: string };
 };
 
+const SHAREPOINT_HOSTNAME = "ncstrades.sharepoint.com";
+const SHAREPOINT_SITE_PATH = "/sites/CareerServicesResumeSystem";
+
 export type StoredResume = {
   id: string;
   name: string;
@@ -23,37 +26,9 @@ export type StoredResume = {
   status: string;
 };
 
-function required(name: string) {
-  const value = process.env[name];
-  if (!value) throw new Error(`SharePoint is not configured: ${name} is missing.`);
-  return value;
-}
-
 async function graphToken(delegatedToken?: string) {
-  if (delegatedToken) return delegatedToken;
-
-  const tenantId = required("MS_TENANT_ID");
-  const body = new URLSearchParams({
-    client_id: required("MS_CLIENT_ID"),
-    client_secret: required("MS_CLIENT_SECRET"),
-    scope: "https://graph.microsoft.com/.default",
-    grant_type: "client_credentials",
-  });
-
-  const response = await fetch(
-    `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-      cache: "no-store",
-    },
-  );
-  const data = await response.json();
-  if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || "Microsoft sign-in failed.");
-  }
-  return data.access_token as string;
+  if (!delegatedToken) throw new Error("Sign in with Microsoft to access SharePoint.");
+  return delegatedToken;
 }
 
 async function graphRequest<T>(url: string, token: string, init: RequestInit) {
@@ -118,6 +93,20 @@ function graphPath(value: string) {
     .join("/");
 }
 
+async function sharePointLocation(token: string) {
+  const site = await graphRequest<{ id: string }>(
+    `https://graph.microsoft.com/v1.0/sites/${SHAREPOINT_HOSTNAME}:${SHAREPOINT_SITE_PATH}`,
+    token,
+    { method: "GET" },
+  );
+  const drive = await graphRequest<{ id: string }>(
+    `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(site.id)}/drive`,
+    token,
+    { method: "GET" },
+  );
+  return { siteId: site.id, driveId: drive.id };
+}
+
 function sharePointDateOnly(value: string) {
   const { year, month } = graduationMonth(value);
 
@@ -132,8 +121,7 @@ export async function uploadResumeToSharePoint(
   delegatedToken?: string,
 ) {
   const token = await graphToken(delegatedToken);
-  const siteId = required("SHAREPOINT_SITE_ID");
-  const driveId = required("SHAREPOINT_DRIVE_ID");
+  const { siteId, driveId } = await sharePointLocation(token);
   const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";
   const destination = [
     folder,
@@ -183,8 +171,7 @@ export async function listResumesFromSharePoint(
   delegatedToken?: string,
 ): Promise<StoredResume[]> {
   const token = await graphToken(delegatedToken);
-  const siteId = required("SHAREPOINT_SITE_ID");
-  const driveId = required("SHAREPOINT_DRIVE_ID");
+  const { siteId, driveId } = await sharePointLocation(token);
   const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";
   const rootPath = folder
     ? `/root:/${graphPath(folder)}:/children`
