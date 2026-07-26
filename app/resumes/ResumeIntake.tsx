@@ -2,147 +2,126 @@
 
 import {
   ArrowLeft,
-  ArrowRight,
-  BriefcaseBusiness,
-  Check,
   CheckCircle2,
-  ChevronDown,
+  ExternalLink,
   FileText,
   LoaderCircle,
-  MapPin,
-  PencilLine,
-  Plus,
-  RotateCcw,
-  ShieldCheck,
+  Search,
   Trash2,
   UploadCloud,
-  X,
 } from "lucide-react";
 import { ChangeEvent, DragEvent, useEffect, useMemo, useRef, useState } from "react";
 
-type ResumeFields = {
+type ParsedResume = {
   studentName: string;
   address: string;
+  program: string;
+  graduationDate: string;
+  fileNameValid: boolean;
+  fileNameError: string;
   skills: string[];
   certifications: string[];
 };
 
-type ResumeRecord = ResumeFields & {
+type UploadRecord = ParsedResume & {
   id: string;
   file: File;
-  program: string;
-  graduationDate: string;
-  status: "queued" | "parsing" | "ready" | "error" | "submitted";
-  confidence: "high" | "medium" | "low";
+  needsGraduationDate: boolean;
+  status: "parsing" | "ready" | "error" | "saving" | "saved";
   error?: string;
 };
 
-const FALLBACK_PROGRAMS = [
-  "Automotive Technology",
-  "Building Technology",
-  "Combination Welding",
-  "Electrical Technology",
-  "Industrial Electro-Mechanical Technology",
-  "Machinist & CNC Manufacturing",
-  "Refrigeration & A/C Technology",
-  "Commercial Truck Driving",
-  "Diesel & Heavy Equipment Repair",
-  "Heavy Equipment Operations with CDL Training",
-  "Motorcycle & Power Equipment Technology",
-  "East Liverpool, Combination Welding",
-  "East Liverpool, Electrical & Industrial Maintenance",
-  "East, Liverpool, Refrigeration & Climate Control",
-];
+type StoredResume = {
+  id: string;
+  name: string;
+  webUrl: string;
+  studentName: string;
+  address: string;
+  location: string;
+  program: string;
+  graduationDate: string;
+  status: string;
+};
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const ACCEPTED_EXTENSIONS = [".pdf", ".doc", ".docx"];
 
-function idForFile(file: File) {
-  return `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`;
-}
-
 function acceptedFile(file: File) {
   const lower = file.name.toLowerCase();
-  return ACCEPTED_EXTENSIONS.some((extension) => lower.endsWith(extension));
+  return file.size <= MAX_FILE_BYTES
+    && ACCEPTED_EXTENSIONS.some((extension) => lower.endsWith(extension));
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+function monthLabel(value: string) {
+  if (!/^\d{4}-\d{2}$/.test(value)) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${value}-01T12:00:00Z`));
 }
 
-function listToText(items: string[]) {
-  return items.join(", ");
-}
-
-function textToList(value: string) {
-  return value
-    .split(/,|\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+function unique(items: string[]) {
+  return [...new Set(items.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
 
 export default function ResumeIntake() {
   const fileInput = useRef<HTMLInputElement>(null);
-  const [records, setRecords] = useState<ResumeRecord[]>([]);
-  const [programs, setPrograms] = useState(FALLBACK_PROGRAMS);
-  const [batchGraduationDate, setBatchGraduationDate] = useState("");
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
+  const [resumes, setResumes] = useState<StoredResume[]>([]);
+  const [programs, setPrograms] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [sharePointConnected, setSharePointConnected] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loadingLibrary, setLoadingLibrary] = useState(true);
+  const [nameFilter, setNameFilter] = useState("");
+  const [programFilter, setProgramFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+
+  async function loadLibrary() {
+    setLoadingLibrary(true);
+    setLoadError("");
+    try {
+      const response = await fetch("/api/resumes");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Saved resumes could not be loaded.");
+      setResumes(Array.isArray(data.resumes) ? data.resumes : []);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Saved resumes could not be loaded.");
+    } finally {
+      setLoadingLibrary(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/resumes/config")
       .then((response) => response.json())
-      .then((data) => {
-        if (Array.isArray(data.programs) && data.programs.length) {
-          setPrograms(data.programs);
-        }
-        setSharePointConnected(Boolean(data.sharePointConnected));
-      })
+      .then((data) => setPrograms(Array.isArray(data.programs) ? data.programs : []))
       .catch(() => undefined);
+    void loadLibrary();
   }, []);
 
-  const readyRecords = records.filter((record) => record.status === "ready");
-  const submittedCount = records.filter((record) => record.status === "submitted").length;
-  const parsing = records.some((record) => record.status === "parsing");
-  const canSubmit =
-    readyRecords.length > 0 &&
-    readyRecords.every(
-      (record) => record.studentName && record.program && record.graduationDate,
-    );
-
-  const progress = useMemo(() => {
-    if (!records.length) return 0;
-    const finished = records.filter((record) =>
-      ["ready", "error", "submitted"].includes(record.status),
-    ).length;
-    return Math.round((finished / records.length) * 100);
-  }, [records]);
-
-  function updateRecord(id: string, patch: Partial<ResumeRecord>) {
-    setRecords((current) =>
+  function updateUpload(id: string, patch: Partial<UploadRecord>) {
+    setUploads((current) =>
       current.map((record) => (record.id === id ? { ...record, ...patch } : record)),
     );
   }
 
-  async function parseRecord(record: ResumeRecord) {
-    updateRecord(record.id, { status: "parsing", error: undefined });
+  async function parseUpload(record: UploadRecord) {
     const body = new FormData();
     body.append("file", record.file);
-
     try {
       const response = await fetch("/api/resumes/parse", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "This resume could not be read.");
-      updateRecord(record.id, {
+      updateUpload(record.id, {
         ...data.resume,
-        graduationDate: data.resume.graduationDate || record.graduationDate,
+        needsGraduationDate: !data.resume.graduationDate,
         status: "ready",
       });
     } catch (error) {
-      updateRecord(record.id, {
+      updateUpload(record.id, {
         status: "error",
         error: error instanceof Error ? error.message : "This resume could not be read.",
       });
@@ -150,43 +129,40 @@ export default function ResumeIntake() {
   }
 
   function addFiles(files: File[]) {
-    setNotice("");
-    const existing = new Set(records.map((record) => `${record.file.name}-${record.file.size}`));
-    const valid: ResumeRecord[] = [];
-    let rejected = 0;
+    setMessage("");
+    const existing = new Set(uploads.map((record) => `${record.file.name}-${record.file.size}`));
+    const records: UploadRecord[] = [];
+    let skipped = 0;
 
     for (const file of files) {
-      if (
-        !acceptedFile(file) ||
-        file.size > MAX_FILE_BYTES ||
-        existing.has(`${file.name}-${file.size}`)
-      ) {
-        rejected += 1;
+      const key = `${file.name}-${file.size}`;
+      if (!acceptedFile(file) || existing.has(key)) {
+        skipped += 1;
         continue;
       }
-      existing.add(`${file.name}-${file.size}`);
-      valid.push({
-        id: idForFile(file),
+      existing.add(key);
+      records.push({
+        id: crypto.randomUUID(),
         file,
         studentName: "",
         address: "",
+        program: "",
+        graduationDate: "",
+        fileNameValid: false,
+        fileNameError: "",
         skills: [],
         certifications: [],
-        program: "",
-        graduationDate: batchGraduationDate,
-        status: "queued",
-        confidence: "medium",
+        needsGraduationDate: false,
+        status: "parsing",
       });
     }
 
-    if (rejected) {
-      setNotice(
-        `${rejected} file${rejected === 1 ? " was" : "s were"} skipped. Use unique PDF, DOC, or DOCX files under 15 MB.`,
-      );
+    if (skipped) {
+      setMessage(`${skipped} file${skipped === 1 ? " was" : "s were"} skipped. Use unique PDF, DOC, or DOCX files under 15 MB.`);
     }
-    if (!valid.length) return;
-    setRecords((current) => [...current, ...valid]);
-    valid.forEach((record) => void parseRecord(record));
+    if (!records.length) return;
+    setUploads((current) => [...current, ...records]);
+    records.forEach((record) => void parseUpload(record));
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -200,319 +176,249 @@ export default function ResumeIntake() {
     addFiles(Array.from(event.dataTransfer.files));
   }
 
-  function applyBatchDetails() {
-    setRecords((current) =>
-      current.map((record) =>
-        record.status === "submitted"
-          ? record
-          : {
-              ...record,
-              graduationDate: record.graduationDate || batchGraduationDate,
-            },
-      ),
-    );
-  }
+  const saveable = uploads.filter(
+    (record) =>
+      record.status === "ready"
+      && record.fileNameValid
+      && Boolean(record.graduationDate),
+  );
 
-  async function submitReady() {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    setNotice("");
+  async function saveResumes() {
+    if (!saveable.length) return;
+    setMessage("");
+    let saved = 0;
 
-    for (const record of readyRecords) {
+    for (const record of saveable) {
+      updateUpload(record.id, { status: "saving", error: undefined });
       const body = new FormData();
       body.append("file", record.file);
-      body.append(
-        "metadata",
-        JSON.stringify({
-          studentName: record.studentName,
-          address: record.address,
-          program: record.program,
-          graduationDate: record.graduationDate,
-          skills: record.skills,
-          certifications: record.certifications,
-        }),
-      );
+      body.append("metadata", JSON.stringify({
+        studentName: record.studentName,
+        address: record.address,
+        program: record.program,
+        graduationDate: record.graduationDate,
+        skills: record.skills,
+        certifications: record.certifications,
+      }));
 
       try {
         const response = await fetch("/api/resumes/submit", { method: "POST", body });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "SharePoint upload failed.");
-        updateRecord(record.id, { status: "submitted", error: undefined });
+        if (!response.ok) throw new Error(data.error || "The resume could not be saved.");
+        updateUpload(record.id, { status: "saved" });
+        saved += 1;
       } catch (error) {
-        updateRecord(record.id, {
+        updateUpload(record.id, {
           status: "error",
-          error: error instanceof Error ? error.message : "SharePoint upload failed.",
+          error: error instanceof Error ? error.message : "The resume could not be saved.",
         });
       }
     }
 
-    setSubmitting(false);
+    if (saved) {
+      setMessage(saved === 1 ? "Resume Saved" : `${saved} Resumes Saved`);
+      await loadLibrary();
+    }
   }
 
-  function startNewBatch() {
-    setRecords([]);
-    setBatchGraduationDate("");
-    setNotice("");
-  }
+  const dates = useMemo(
+    () => unique(resumes.map((resume) => resume.graduationDate)),
+    [resumes],
+  );
+  const locations = useMemo(
+    () => unique(resumes.map((resume) => resume.location)),
+    [resumes],
+  );
+  const filteredResumes = useMemo(() => {
+    const name = nameFilter.trim().toLowerCase();
+    return resumes.filter((resume) =>
+      (!name || resume.studentName.toLowerCase().includes(name))
+      && (!programFilter || resume.program === programFilter)
+      && (!dateFilter || resume.graduationDate === dateFilter)
+      && (!locationFilter || resume.location === locationFilter),
+    );
+  }, [resumes, nameFilter, programFilter, dateFilter, locationFilter]);
+
+  const hasActiveFilters = Boolean(nameFilter || programFilter || dateFilter || locationFilter);
 
   return (
-    <main className="resume-app">
-      <aside className="resume-rail">
-        <div className="resume-brand">
-          <div className="resume-brand-mark"><BriefcaseBusiness size={20} /></div>
-          <div>
-            <strong>Career Services</strong>
-            <span>Resume Intake</span>
-          </div>
+    <main className="resume-page">
+      <header className="resume-header">
+        <a href="/admin/dashboard"><ArrowLeft size={16} /> Dashboard</a>
+        <div>
+          <span>Career Services</span>
+          <h1>Student Resumes</h1>
         </div>
+      </header>
 
-        <nav className="resume-steps" aria-label="Submission progress">
-          <div className={`resume-step ${records.length ? "complete" : "active"}`}>
-            <span>{records.length ? <Check size={15} /> : "1"}</span>
-            <div><strong>Add resumes</strong><small>PDF, DOC, or DOCX</small></div>
-          </div>
-          <div className={`resume-step ${readyRecords.length ? "active" : ""} ${submittedCount ? "complete" : ""}`}>
-            <span>{submittedCount ? <Check size={15} /> : "2"}</span>
-            <div><strong>Review details</strong><small>Verify file details</small></div>
-          </div>
-          <div className={`resume-step ${submittedCount ? "complete active" : ""}`}>
-            <span>{submittedCount ? <Check size={15} /> : "3"}</span>
-            <div><strong>File in SharePoint</strong><small>Send for review</small></div>
-          </div>
-        </nav>
-
-        <div className="resume-privacy">
-          <ShieldCheck size={18} />
-          <div>
-            <strong>Handled securely</strong>
-            <p>Files are processed only to extract resume details and are not stored by this app.</p>
-          </div>
-        </div>
-      </aside>
-
-      <section className="resume-workspace">
-        <header className="resume-topbar">
-          <a className="resume-back" href="/admin/dashboard"><ArrowLeft size={16} /> Dashboard</a>
-          <div className={`resume-connection ${sharePointConnected ? "connected" : ""}`}>
-            <span />
-            {sharePointConnected ? "SharePoint connected" : "SharePoint setup needed"}
-          </div>
-        </header>
-
-        <div className="resume-content">
-          <div className="resume-heading">
+      <div className="resume-shell">
+        <section className="upload-card">
+          <div className="card-heading">
             <div>
-              <span className="resume-eyebrow">New submission</span>
-              <h1>Prepare student resumes.</h1>
-              <p>Upload a batch, confirm the details, and send clean records to SharePoint.</p>
+              <span className="eyebrow">Add resumes</span>
+              <h2>Upload and save</h2>
+              <p>Drop files below or browse your computer.</p>
             </div>
-            {records.length > 0 && (
-              <button className="resume-text-button" type="button" onClick={startNewBatch}>
-                <RotateCcw size={15} /> Start over
+          </div>
+
+          <div
+            className={`simple-dropzone ${dragging ? "dragging" : ""}`}
+            onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            onClick={() => fileInput.current?.click()}
+            onKeyDown={(event) => event.key === "Enter" && fileInput.current?.click()}
+            role="button"
+            tabIndex={0}
+          >
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx"
+              onChange={onFileChange}
+              hidden
+            />
+            <UploadCloud size={27} />
+            <div><strong>Drop resumes here</strong><span>or browse files</span></div>
+            <small>PDF, DOC, or DOCX · 15 MB maximum</small>
+          </div>
+
+          {uploads.length > 0 && (
+            <div className="upload-list">
+              {uploads.map((record) => (
+                <article className={`upload-row ${record.status}`} key={record.id}>
+                  <FileText size={20} />
+                  <div className="upload-details">
+                    <strong>{record.file.name}</strong>
+                    {record.status === "parsing" && <span><LoaderCircle className="spin" size={13} /> Checking file…</span>}
+                    {record.status === "saving" && <span><LoaderCircle className="spin" size={13} /> Saving…</span>}
+                    {record.status === "saved" && <span className="success"><CheckCircle2 size={13} /> Resume Saved</span>}
+                    {record.status === "error" && <span className="error">{record.error}</span>}
+                    {record.status === "ready" && !record.fileNameValid && (
+                      <span className="error">{record.fileNameError}. Example: Automotive Technology - Smith, John - Pittsburgh, PA - May 2026.pdf</span>
+                    )}
+                    {record.status === "ready" && record.fileNameValid && !record.needsGraduationDate && (
+                      <span className="success"><CheckCircle2 size={13} /> Ready · {monthLabel(record.graduationDate)}</span>
+                    )}
+                    {record.status === "ready" && record.fileNameValid && record.needsGraduationDate && (
+                      <label className="date-prompt">
+                        Graduation month required
+                        <input
+                          type="month"
+                          value={record.graduationDate}
+                          onChange={(event) => updateUpload(record.id, { graduationDate: event.target.value })}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  {record.status !== "saved" && (
+                    <button
+                      className="remove-upload"
+                      type="button"
+                      aria-label={`Remove ${record.file.name}`}
+                      onClick={() => setUploads((current) => current.filter((item) => item.id !== record.id))}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="save-row">
+            {message && (
+              <div className={message.includes("Saved") ? "save-message success" : "save-message"}>
+                {message.includes("Saved") && <CheckCircle2 size={17} />}
+                {message}
+              </div>
+            )}
+            <button type="button" className="save-button" disabled={!saveable.length} onClick={() => void saveResumes()}>
+              Save {saveable.length > 1 ? `${saveable.length} Resumes` : "Resume"}
+            </button>
+          </div>
+        </section>
+
+        <section className="library-card">
+          <div className="card-heading library-heading">
+            <div>
+              <span className="eyebrow">Saved resumes</span>
+              <h2>Find a student</h2>
+            </div>
+            <span className="result-count">{filteredResumes.length} result{filteredResumes.length === 1 ? "" : "s"}</span>
+          </div>
+
+          <div className="filter-toolbar">
+            <label className="name-search">
+              <Search size={16} />
+              <input
+                value={nameFilter}
+                onChange={(event) => setNameFilter(event.target.value)}
+                placeholder="First or last name"
+              />
+            </label>
+            <select value={programFilter} onChange={(event) => setProgramFilter(event.target.value)} aria-label="Filter by program">
+              <option value="">All programs</option>
+              {programs.map((program) => <option key={program}>{program}</option>)}
+            </select>
+            <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} aria-label="Filter by graduation date">
+              <option value="">All graduation dates</option>
+              {dates.map((date) => <option key={date} value={date}>{monthLabel(date)}</option>)}
+            </select>
+            <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label="Filter by city and state">
+              <option value="">All cities and states</option>
+              {locations.map((location) => <option key={location}>{location}</option>)}
+            </select>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="clear-filters"
+                onClick={() => {
+                  setNameFilter("");
+                  setProgramFilter("");
+                  setDateFilter("");
+                  setLocationFilter("");
+                }}
+              >
+                Clear
               </button>
             )}
           </div>
 
-          <section className="resume-batch-card">
-            <div className="resume-section-title">
-              <span>01</span>
-              <div><h2>Graduation date</h2><p>Enter it here when it is not already included in the file.</p></div>
-            </div>
-            <div className="resume-batch-fields resume-date-only">
-              <label>
-                Graduation date
-                <input
-                  type="month"
-                  value={batchGraduationDate}
-                  onChange={(event) => setBatchGraduationDate(event.target.value)}
-                />
-              </label>
-              <button type="button" className="resume-apply" onClick={applyBatchDetails} disabled={!records.length}>
-                Apply to batch
-              </button>
-            </div>
-          </section>
-
-          <section className="resume-upload-section">
-            <div className="resume-section-title">
-              <span>02</span>
-              <div><h2>Add resumes</h2><p>Files are read locally. A graduation month in the file is used automatically.</p></div>
-            </div>
-            <div
-              className={`resume-dropzone ${dragging ? "dragging" : ""}`}
-              onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-              onClick={() => fileInput.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => event.key === "Enter" && fileInput.current?.click()}
-            >
-              <input
-                ref={fileInput}
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx"
-                onChange={onFileChange}
-                hidden
-              />
-              <div className="resume-upload-icon"><UploadCloud size={25} /></div>
-              <div><strong>Drop resumes here</strong><p>or <span>browse files</span> from your computer</p></div>
-              <small>PDF, DOC, DOCX · 15 MB max per file</small>
-            </div>
-            {notice && <div className="resume-notice"><X size={15} /> {notice}</div>}
-          </section>
-
-          {records.length > 0 && (
-            <section className="resume-review-section">
-              <div className="resume-review-header">
-                <div className="resume-section-title">
-                  <span>03</span>
-                  <div><h2>Review extracted details</h2><p>Correct anything before filing.</p></div>
-                </div>
-                <div className="resume-progress-copy">
-                  <strong>{progress}%</strong>
-                  <span>processed</span>
-                </div>
-              </div>
-              <div className="resume-progress-track"><span style={{ width: `${progress}%` }} /></div>
-
-              <div className="resume-records">
-                {records.map((record, index) => (
-                  <article className={`resume-record ${record.status}`} key={record.id}>
-                    <div className="resume-file-row">
-                      <div className="resume-file-icon"><FileText size={20} /></div>
-                      <div className="resume-file-name">
-                        <strong>{record.file.name}</strong>
-                        <span>{formatFileSize(record.file.size)} · Resume {index + 1} of {records.length}</span>
-                      </div>
-                      <div className={`resume-record-state ${record.status}`}>
-                        {record.status === "parsing" && <><LoaderCircle size={14} className="spin" /> Reading</>}
-                        {record.status === "queued" && "Queued"}
-                        {record.status === "ready" && (
-                          <>
-                            <CheckCircle2 size={14} />
-                            Ready
-                          </>
+          {loadingLibrary && <div className="library-state"><LoaderCircle className="spin" size={20} /> Loading resumes…</div>}
+          {!loadingLibrary && loadError && <div className="library-state error">{loadError}</div>}
+          {!loadingLibrary && !loadError && filteredResumes.length === 0 && (
+            <div className="library-state">No resumes match these filters.</div>
+          )}
+          {!loadingLibrary && !loadError && filteredResumes.length > 0 && (
+            <div className="resume-table-wrap">
+              <table className="resume-table">
+                <thead>
+                  <tr><th>Student</th><th>Program</th><th>Graduation</th><th>City, State</th><th /></tr>
+                </thead>
+                <tbody>
+                  {filteredResumes.map((resume) => (
+                    <tr key={resume.id}>
+                      <td><strong>{resume.studentName || resume.name}</strong><span>{resume.name}</span></td>
+                      <td>{resume.program || "—"}</td>
+                      <td>{monthLabel(resume.graduationDate) || "—"}</td>
+                      <td>{resume.location || "—"}</td>
+                      <td>
+                        {resume.webUrl && (
+                          <a href={resume.webUrl} target="_blank" rel="noreferrer" aria-label={`Open ${resume.name}`}>
+                            <ExternalLink size={16} />
+                          </a>
                         )}
-                        {record.status === "error" && "Needs attention"}
-                        {record.status === "submitted" && <><CheckCircle2 size={14} /> Filed</>}
-                      </div>
-                      {record.status !== "submitted" && (
-                        <button
-                          className="resume-remove"
-                          type="button"
-                          aria-label={`Remove ${record.file.name}`}
-                          onClick={() => setRecords((current) => current.filter((item) => item.id !== record.id))}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-
-                    {record.status === "error" && (
-                      <div className="resume-error">
-                        <p>{record.error}</p>
-                        <button type="button" onClick={() => void parseRecord(record)}>Try again</button>
-                      </div>
-                    )}
-
-                    {["ready", "submitted"].includes(record.status) && (
-                      <div className="resume-record-fields">
-                        <label>
-                          Student name <span>Required</span>
-                          <div className="resume-input-icon">
-                            <PencilLine size={14} />
-                            <input
-                              value={record.studentName}
-                              disabled={record.status === "submitted"}
-                              onChange={(event) => updateRecord(record.id, { studentName: event.target.value })}
-                              placeholder="Not found"
-                            />
-                          </div>
-                        </label>
-                        <label>
-                          Address
-                          <div className="resume-input-icon">
-                            <MapPin size={14} />
-                            <input
-                              value={record.address}
-                              disabled={record.status === "submitted"}
-                              onChange={(event) => updateRecord(record.id, { address: event.target.value })}
-                              placeholder="Not found"
-                            />
-                          </div>
-                        </label>
-                        <label>
-                          Program <span>Required</span>
-                          <div className="resume-select-wrap">
-                            <select
-                              value={record.program}
-                              disabled={record.status === "submitted"}
-                              onChange={(event) => updateRecord(record.id, { program: event.target.value })}
-                            >
-                              <option value="">Select a program</option>
-                              {programs.map((program) => <option key={program}>{program}</option>)}
-                            </select>
-                            <ChevronDown size={16} />
-                          </div>
-                        </label>
-                        <label>
-                          Graduation date <span>Required</span>
-                          <input
-                            type="month"
-                            value={record.graduationDate}
-                            disabled={record.status === "submitted"}
-                            onChange={(event) => updateRecord(record.id, { graduationDate: event.target.value })}
-                          />
-                        </label>
-                        <label className="wide">
-                          Skills
-                          <textarea
-                            value={listToText(record.skills)}
-                            disabled={record.status === "submitted"}
-                            onChange={(event) => updateRecord(record.id, { skills: textToList(event.target.value) })}
-                            placeholder="No skills found"
-                          />
-                        </label>
-                        <label className="wide">
-                          Certifications
-                          <textarea
-                            value={listToText(record.certifications)}
-                            disabled={record.status === "submitted"}
-                            onChange={(event) => updateRecord(record.id, { certifications: textToList(event.target.value) })}
-                            placeholder="No certifications found"
-                          />
-                        </label>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </section>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-
-          {records.length > 0 && (
-            <footer className="resume-submit-bar">
-              <div>
-                <strong>{readyRecords.length} resume{readyRecords.length === 1 ? "" : "s"} ready to file</strong>
-                <span>Status will be set to Pending Review.</span>
-              </div>
-              <button type="button" onClick={() => fileInput.current?.click()} className="resume-add-more">
-                <Plus size={16} /> Add more
-              </button>
-              <button
-                type="button"
-                className="resume-submit"
-                disabled={!canSubmit || parsing || submitting}
-                onClick={() => void submitReady()}
-              >
-                {submitting ? <><LoaderCircle size={17} className="spin" /> Filing resumes…</> : <>File in SharePoint <ArrowRight size={17} /></>}
-              </button>
-            </footer>
-          )}
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

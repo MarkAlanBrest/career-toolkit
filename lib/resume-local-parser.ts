@@ -5,6 +5,8 @@ export type LocalResumeFields = {
   address: string;
   program: string;
   graduationDate: string;
+  fileNameValid: boolean;
+  fileNameError: string;
   skills: string[];
   certifications: string[];
   confidence: "high" | "medium" | "low";
@@ -212,9 +214,26 @@ function programFromCode(code: string, programs: string[]) {
   return "";
 }
 
-function parseResumeFilename(fileName: string, programs: string[]): FilenameFields {
+export function parseResumeFilename(fileName: string, programs: string[]): FilenameFields {
   const stem = fileName.replace(/\.(pdf|docx?|rtf)$/i, "").trim();
   const graduationDate = normalizedMonthYear(stem);
+  const labeledParts = stem.split(/\s+-\s+/).map(cleanLine);
+  if (labeledParts.length >= 3) {
+    const program = programs.find(
+      (candidate) => candidate.toLowerCase() === labeledParts[0].toLowerCase(),
+    );
+    const name = labeledParts[1].match(/^([^,]+),\s*([^,]+)$/);
+    const location = labeledParts[2].match(/^(.+),\s*([A-Za-z]{2})$/);
+    if (program && name && location) {
+      return {
+        studentName: `${name[2]} ${name[1]}`.trim(),
+        address: `${location[1]}, ${location[2].toUpperCase()}`,
+        program,
+        graduationDate,
+      };
+    }
+  }
+
   const codeMatch = stem.match(
     /^(ELPCIM|ELPCW|ELPRT|EIM|HEC|MPE|AT|BT|CW|ET|MT|RT|CT|DT)(?=$|[\s,_-])/i,
   );
@@ -282,6 +301,9 @@ export function parseResumeText(
     .filter(Boolean);
 
   const filenameFields = parseResumeFilename(fileName, programs);
+  const fileNameValid = Boolean(
+    filenameFields.studentName && filenameFields.address && filenameFields.program,
+  );
   const studentName = filenameFields.studentName || findName(lines, programs);
   const extractedAddress = findAddress(lines);
   const address =
@@ -304,6 +326,10 @@ export function parseResumeText(
     address,
     program,
     graduationDate,
+    fileNameValid,
+    fileNameError: fileNameValid
+      ? ""
+      : "Rename the file as: Program - Last, First - City, ST - Month Year",
     skills,
     certifications,
     confidence,

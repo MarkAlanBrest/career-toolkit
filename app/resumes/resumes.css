@@ -1,192 +1,221 @@
-.resume-app {
-  --resume-ink: #142a27;
-  --resume-muted: #64746f;
-  --resume-green: #1f6657;
-  --resume-green-dark: #164d43;
-  --resume-mint: #dcebe5;
-  --resume-coral: #e8795f;
-  --resume-cream: #f5f3ed;
+.resume-page {
+  --ink: #18312c;
+  --muted: #667671;
+  --green: #1f6657;
+  --green-dark: #174e43;
+  --coral: #dd7159;
   min-height: 100vh;
-  background: var(--resume-cream);
-  color: var(--resume-ink);
-  display: grid;
-  grid-template-columns: 275px minmax(0, 1fr);
+  background: #f4f2ec;
+  color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.resume-rail {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+.resume-header {
+  min-height: 74px;
+  padding: 0 max(24px, calc((100vw - 1180px) / 2));
   background: #173f38;
   color: white;
-  padding: 34px 28px;
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  align-items: center;
+  gap: 28px;
 }
 
-.resume-rail::after {
-  content: "";
-  position: absolute;
-  width: 280px;
-  height: 280px;
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 50%;
-  bottom: -140px;
-  left: -85px;
-  box-shadow: 0 0 0 45px rgba(255,255,255,.025), 0 0 0 90px rgba(255,255,255,.018);
-}
-
-.resume-brand { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
-.resume-brand-mark { width: 39px; height: 39px; background: var(--resume-coral); border-radius: 12px; display: grid; place-items: center; }
-.resume-brand strong, .resume-brand span { display: block; }
-.resume-brand strong { font-size: 14px; letter-spacing: .01em; }
-.resume-brand span { color: #a9c6bd; font-size: 12px; margin-top: 3px; }
-
-.resume-steps { margin-top: 76px; display: grid; gap: 30px; position: relative; z-index: 1; }
-.resume-step { display: grid; grid-template-columns: 30px 1fr; gap: 13px; align-items: start; color: #8eaaa2; position: relative; }
-.resume-step:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 35px; height: 25px; border-left: 1px solid #3c625a; }
-.resume-step > span { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #53746d; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
-.resume-step strong, .resume-step small { display: block; }
-.resume-step strong { font-size: 13px; margin: 1px 0 5px; }
-.resume-step small { font-size: 11px; opacity: .75; }
-.resume-step.active { color: white; }
-.resume-step.active > span { border-color: var(--resume-coral); background: var(--resume-coral); }
-.resume-step.complete > span { background: #e4f0eb; border-color: #e4f0eb; color: var(--resume-green); }
-
-.resume-privacy { margin-top: auto; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.09); padding: 16px; border-radius: 14px; display: flex; gap: 10px; position: relative; z-index: 1; }
-.resume-privacy svg { color: #b8d4ca; flex: 0 0 auto; }
-.resume-privacy strong { font-size: 11px; }
-.resume-privacy p { color: #a7c0b8; font-size: 10px; line-height: 1.5; margin: 6px 0 0; }
-
-.resume-workspace { min-width: 0; }
-.resume-topbar { height: 70px; padding: 0 42px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddded8; background: rgba(250,249,245,.82); backdrop-filter: blur(12px); }
-.resume-back, .resume-text-button { border: 0; background: transparent; color: #5b6c67; font: inherit; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 7px; cursor: pointer; text-decoration: none; }
-.resume-connection { display: flex; align-items: center; gap: 7px; color: #866b45; font-size: 11px; font-weight: 700; background: #eee7dc; padding: 7px 10px; border-radius: 999px; }
-.resume-connection span { width: 6px; height: 6px; background: #b78b4c; border-radius: 50%; }
-.resume-connection.connected { color: #276052; background: #deebe6; }
-.resume-connection.connected span { background: #3d8c77; box-shadow: 0 0 0 3px rgba(61,140,119,.14); }
-
-.resume-content { width: min(980px, calc(100% - 64px)); margin: 0 auto; padding: 58px 0 80px; }
-.resume-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 42px; }
-.resume-eyebrow { color: var(--resume-coral); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.resume-heading h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 4vw, 51px); font-weight: 500; letter-spacing: -.035em; margin: 9px 0 10px; }
-.resume-heading p { color: var(--resume-muted); font-size: 14px; margin: 0; }
-.resume-text-button { margin-bottom: 4px; }
-
-.resume-batch-card { background: #e6eee9; border: 1px solid #d6e1db; padding: 24px 26px; border-radius: 18px; margin-bottom: 35px; }
-.resume-section-title { display: flex; align-items: center; gap: 12px; }
-.resume-section-title > span { color: var(--resume-coral); font-family: Georgia, serif; font-size: 12px; font-weight: 700; }
-.resume-section-title h2 { margin: 0; font-size: 15px; }
-.resume-section-title p { margin: 4px 0 0; color: var(--resume-muted); font-size: 11px; }
-.resume-batch-fields { display: grid; grid-template-columns: 1.25fr 1fr auto; gap: 14px; align-items: end; margin-top: 20px; }
-.resume-batch-fields.resume-date-only { grid-template-columns: minmax(220px, 340px) auto; justify-content: start; }
-.resume-batch-fields label, .resume-record-fields label { color: #52615d; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
-.resume-batch-fields input, .resume-batch-fields select, .resume-record-fields input, .resume-record-fields select, .resume-record-fields textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #d1d8d4;
-  background: #fff;
-  color: var(--resume-ink);
-  border-radius: 9px;
-  font: inherit;
+.resume-header > a {
+  color: #bfd2cc;
+  text-decoration: none;
   font-size: 12px;
-  outline: none;
-  margin-top: 7px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-right: 28px;
+  border-right: 1px solid #42635d;
 }
-.resume-batch-fields input, .resume-batch-fields select, .resume-record-fields input, .resume-record-fields select { height: 41px; padding: 0 12px; }
-.resume-batch-fields input:focus, .resume-batch-fields select:focus, .resume-record-fields input:focus, .resume-record-fields select:focus, .resume-record-fields textarea:focus { border-color: #69978b; box-shadow: 0 0 0 3px rgba(64,118,103,.08); }
-.resume-select-wrap { position: relative; }
-.resume-select-wrap select { appearance: none; padding-right: 32px; }
-.resume-select-wrap svg { position: absolute; right: 11px; bottom: 12px; pointer-events: none; color: #71807b; }
-.resume-apply { height: 41px; border: 1px solid #b7cbc4; border-radius: 9px; padding: 0 17px; background: transparent; color: var(--resume-green); font-size: 11px; font-weight: 800; cursor: pointer; }
-.resume-apply:disabled { opacity: .45; cursor: default; }
 
-.resume-upload-section { margin-bottom: 38px; }
-.resume-dropzone { margin-top: 18px; border: 1.5px dashed #aebbb6; border-radius: 17px; min-height: 145px; display: flex; align-items: center; justify-content: center; gap: 17px; padding: 24px; background: rgba(255,255,255,.45); cursor: pointer; transition: .18s ease; }
-.resume-dropzone:hover, .resume-dropzone.dragging { border-color: var(--resume-green); background: #edf3ef; transform: translateY(-1px); }
-.resume-upload-icon { width: 47px; height: 47px; border-radius: 14px; background: #d9e9e3; color: var(--resume-green); display: grid; place-items: center; }
-.resume-dropzone strong { font-family: Georgia, serif; font-size: 16px; font-weight: 600; }
-.resume-dropzone p { margin: 4px 0 0; color: var(--resume-muted); font-size: 11px; }
-.resume-dropzone p span { color: var(--resume-green); font-weight: 800; }
-.resume-dropzone > small { color: #899691; font-size: 9px; align-self: flex-end; margin-bottom: 7px; }
-.resume-notice { margin-top: 10px; border-radius: 9px; background: #f8e8e3; color: #8f493b; padding: 10px 12px; font-size: 11px; display: flex; gap: 7px; align-items: center; }
+.resume-header > div { display: flex; align-items: baseline; gap: 10px; }
+.resume-header span { color: #a9c2bb; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.resume-header h1 { margin: 0; font-family: Georgia, serif; font-size: 23px; font-weight: 500; }
 
-.resume-review-section { margin-top: 8px; }
-.resume-review-header { display: flex; align-items: center; justify-content: space-between; }
-.resume-progress-copy { text-align: right; display: flex; align-items: baseline; gap: 5px; }
-.resume-progress-copy strong { font-family: Georgia, serif; font-size: 18px; }
-.resume-progress-copy span { color: var(--resume-muted); font-size: 10px; }
-.resume-progress-track { height: 3px; background: #dcded9; margin: 16px 0 18px; overflow: hidden; border-radius: 99px; }
-.resume-progress-track span { display: block; height: 100%; background: var(--resume-coral); transition: width .3s ease; }
-.resume-records { display: grid; gap: 14px; }
-.resume-record { background: #fff; border: 1px solid #ddded9; border-radius: 15px; overflow: hidden; box-shadow: 0 8px 30px rgba(28,56,49,.035); }
-.resume-record.submitted { border-color: #a9c9bd; }
-.resume-file-row { min-height: 70px; padding: 0 17px; display: grid; grid-template-columns: 38px minmax(0,1fr) auto 30px; align-items: center; gap: 12px; }
-.resume-file-icon { width: 38px; height: 38px; border-radius: 10px; background: #edf0ed; color: var(--resume-green); display: grid; place-items: center; }
-.resume-file-name { min-width: 0; }
-.resume-file-name strong, .resume-file-name span { display: block; }
-.resume-file-name strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.resume-file-name span { color: #89928f; font-size: 9px; margin-top: 5px; }
-.resume-record-state { border-radius: 999px; padding: 6px 9px; font-size: 9px; font-weight: 800; background: #eee; color: #6d7773; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-.resume-record-state.ready { background: #e6efe9; color: #2b6959; }
-.resume-record-state.error { background: #fae8e3; color: #98503f; }
-.resume-record-state.submitted { background: #dcece6; color: #1f6657; }
-.resume-remove { border: 0; background: none; color: #9ba4a0; cursor: pointer; padding: 6px; }
-.resume-remove:hover { color: #b95340; }
+.resume-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 38px 0 70px;
+  display: grid;
+  gap: 28px;
+}
+
+.upload-card,
+.library-card {
+  background: #fff;
+  border: 1px solid #deded8;
+  border-radius: 17px;
+  padding: 26px;
+  box-shadow: 0 10px 35px rgba(27, 53, 47, .045);
+}
+
+.card-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.card-heading .eyebrow { color: var(--coral); font-size: 9px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.card-heading h2 { margin: 5px 0 3px; font-family: Georgia, serif; font-size: 25px; font-weight: 500; }
+.card-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+
+.simple-dropzone {
+  margin-top: 20px;
+  min-height: 112px;
+  border: 1.5px dashed #a8b7b2;
+  border-radius: 13px;
+  background: #f8faf8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  padding: 20px;
+  cursor: pointer;
+  transition: .15s ease;
+}
+
+.simple-dropzone:hover,
+.simple-dropzone.dragging { border-color: var(--green); background: #edf4f0; }
+.simple-dropzone > svg { color: var(--green); }
+.simple-dropzone strong,
+.simple-dropzone span { display: block; }
+.simple-dropzone strong { font-family: Georgia, serif; font-size: 16px; }
+.simple-dropzone span { color: var(--green); font-size: 11px; font-weight: 800; margin-top: 4px; }
+.simple-dropzone small { color: #84918d; font-size: 9px; margin-left: 12px; }
+
+.upload-list { margin-top: 16px; display: grid; gap: 9px; }
+.upload-row {
+  border: 1px solid #e1e3df;
+  background: #fbfbf9;
+  border-radius: 11px;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 10px;
+}
+.upload-row.saved { border-color: #acd0c3; background: #f2f8f5; }
+.upload-row > svg { color: var(--green); }
+.upload-details { min-width: 0; }
+.upload-details > strong { display: block; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-details > span { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.upload-details .error,
+.library-state.error { color: #9a493c; }
+.upload-details .success,
+.save-message.success { color: #246754; }
+
+.date-prompt {
+  margin-top: 10px;
+  color: #7e503f;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.date-prompt input {
+  height: 34px;
+  border: 1px solid #d6c5be;
+  border-radius: 8px;
+  padding: 0 9px;
+  color: var(--ink);
+  background: white;
+}
+.remove-upload { border: 0; background: transparent; color: #8e9a96; padding: 6px; cursor: pointer; }
+.remove-upload:hover { color: #a54d3d; }
+
+.save-row { margin-top: 18px; min-height: 42px; display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+.save-message { margin-right: auto; color: #8f493d; font-size: 12px; display: flex; align-items: center; gap: 7px; font-weight: 700; }
+.save-button {
+  height: 42px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--coral);
+  color: white;
+  padding: 0 22px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.save-button:hover:not(:disabled) { background: #cb624d; }
+.save-button:disabled { opacity: .4; cursor: default; }
+
+.library-heading { margin-bottom: 19px; }
+.result-count { color: var(--muted); font-size: 10px; font-weight: 800; }
+.filter-toolbar {
+  padding: 12px;
+  border-radius: 12px;
+  background: #edf2ef;
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 9px;
+}
+.filter-toolbar input,
+.filter-toolbar select {
+  width: 100%;
+  height: 39px;
+  box-sizing: border-box;
+  border: 1px solid #d3dbd7;
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  font-size: 10px;
+  padding: 0 10px;
+  outline: none;
+}
+.filter-toolbar input:focus,
+.filter-toolbar select:focus { border-color: #6b9a8d; box-shadow: 0 0 0 3px rgba(58, 119, 101, .08); }
+.name-search { position: relative; }
+.name-search svg { position: absolute; left: 11px; top: 12px; color: #71817c; z-index: 1; }
+.name-search input { padding-left: 35px; }
+.clear-filters { border: 0; background: transparent; color: var(--green); font-size: 10px; font-weight: 800; cursor: pointer; padding: 0 8px; }
+
+.library-state {
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.resume-table-wrap { margin-top: 14px; overflow-x: auto; }
+.resume-table { width: 100%; border-collapse: collapse; text-align: left; }
+.resume-table th {
+  padding: 10px 12px;
+  border-bottom: 1px solid #dde1de;
+  color: #7a8783;
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.resume-table td { padding: 14px 12px; border-bottom: 1px solid #eeeeea; color: #4f5f5a; font-size: 11px; }
+.resume-table td:first-child { min-width: 180px; }
+.resume-table td strong,
+.resume-table td span { display: block; }
+.resume-table td strong { color: var(--ink); font-size: 12px; }
+.resume-table td span { color: #8a9591; font-size: 9px; margin-top: 4px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resume-table td:last-child { width: 26px; text-align: right; }
+.resume-table td a { color: var(--green); }
+
 .spin { animation: resume-spin .8s linear infinite; }
 @keyframes resume-spin { to { transform: rotate(360deg); } }
 
-.resume-record-fields { border-top: 1px solid #ecece8; background: #fbfbf9; padding: 20px 22px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.resume-record-fields label > span { color: #ad6c5e; float: right; font-size: 8px; text-transform: uppercase; }
-.resume-record-fields textarea { min-height: 62px; resize: vertical; padding: 10px 12px; line-height: 1.5; }
-.resume-record-fields .wide { grid-column: span 1; }
-.resume-input-icon { position: relative; }
-.resume-input-icon svg { position: absolute; left: 11px; top: 21px; color: #8b9792; }
-.resume-input-icon input { padding-left: 33px; }
-.resume-record-fields input:disabled, .resume-record-fields select:disabled, .resume-record-fields textarea:disabled { background: #f0f2ef; color: #58645f; opacity: 1; }
-.resume-error { margin: 0 17px 17px 67px; background: #fbebe7; border-radius: 9px; padding: 11px 13px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
-.resume-error p { font-size: 10px; color: #88483b; margin: 0; }
-.resume-error button { border: 0; background: none; color: #88483b; font-weight: 800; font-size: 10px; cursor: pointer; white-space: nowrap; }
-
-.resume-submit-bar { position: sticky; bottom: 16px; margin-top: 28px; background: #173f38; color: white; border-radius: 14px; padding: 15px 16px 15px 20px; display: flex; align-items: center; gap: 13px; box-shadow: 0 14px 40px rgba(19,48,42,.2); z-index: 3; }
-.resume-submit-bar > div { margin-right: auto; }
-.resume-submit-bar strong, .resume-submit-bar span { display: block; }
-.resume-submit-bar strong { font-size: 11px; }
-.resume-submit-bar span { color: #a9c4bc; font-size: 9px; margin-top: 4px; }
-.resume-add-more, .resume-submit { height: 38px; border-radius: 9px; padding: 0 14px; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 7px; }
-.resume-add-more { background: transparent; border: 1px solid #5b7972; color: white; }
-.resume-submit { background: var(--resume-coral); border: 1px solid var(--resume-coral); color: white; }
-.resume-submit:hover:not(:disabled) { background: #d96851; }
-.resume-submit:disabled { opacity: .5; cursor: default; }
-
-@media (max-width: 850px) {
-  .resume-app { grid-template-columns: 1fr; }
-  .resume-rail { position: relative; height: auto; padding: 20px 24px; }
-  .resume-steps, .resume-privacy { display: none; }
-  .resume-content { width: min(100% - 36px, 680px); padding-top: 34px; }
-  .resume-topbar { padding: 0 20px; }
-  .resume-batch-fields { grid-template-columns: 1fr 1fr; }
-  .resume-batch-fields.resume-date-only { grid-template-columns: 1fr auto; }
-  .resume-apply { grid-column: span 2; }
-  .resume-date-only .resume-apply { grid-column: auto; }
+@media (max-width: 920px) {
+  .filter-toolbar { grid-template-columns: 1fr 1fr; }
+  .clear-filters { height: 34px; text-align: left; }
 }
 
-@media (max-width: 580px) {
-  .resume-heading { align-items: start; }
-  .resume-heading .resume-text-button { display: none; }
-  .resume-heading h1 { font-size: 36px; }
-  .resume-batch-card { padding: 21px 18px; }
-  .resume-batch-fields, .resume-record-fields { grid-template-columns: 1fr; }
-  .resume-batch-fields.resume-date-only { grid-template-columns: 1fr; }
-  .resume-apply, .resume-record-fields .wide { grid-column: auto; }
-  .resume-dropzone { text-align: center; flex-direction: column; }
-  .resume-dropzone > small { align-self: auto; }
-  .resume-file-row { grid-template-columns: 38px minmax(0,1fr) 30px; }
-  .resume-record-state { grid-column: 2; width: fit-content; }
-  .resume-remove { grid-column: 3; grid-row: 1; }
-  .resume-submit-bar { flex-wrap: wrap; }
-  .resume-submit-bar > div { width: 100%; }
-  .resume-add-more, .resume-submit { flex: 1; justify-content: center; }
+@media (max-width: 600px) {
+  .resume-header { padding: 15px 20px; }
+  .resume-header > div { display: block; }
+  .resume-header > a { padding-right: 14px; }
+  .resume-shell { width: min(100% - 24px, 1180px); padding-top: 20px; }
+  .upload-card, .library-card { padding: 18px; }
+  .simple-dropzone { flex-direction: column; text-align: center; }
+  .simple-dropzone small { margin-left: 0; }
+  .filter-toolbar { grid-template-columns: 1fr; }
+  .save-row { align-items: stretch; flex-direction: column; }
+  .save-button { width: 100%; }
 }

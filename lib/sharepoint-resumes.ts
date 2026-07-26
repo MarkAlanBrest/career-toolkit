@@ -11,6 +11,18 @@ type GraphError = {
   error?: { message?: string };
 };
 
+export type StoredResume = {
+  id: string;
+  name: string;
+  webUrl: string;
+  studentName: string;
+  address: string;
+  location: string;
+  program: string;
+  graduationDate: string;
+  status: string;
+};
+
 function required(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`SharePoint is not configured: ${name} is missing.`);
@@ -152,4 +164,61 @@ export async function uploadResumeToSharePoint(file: File, metadata: ResumeMetad
   );
 
   return { id: driveItem.id, webUrl: driveItem.webUrl };
+}
+
+function locationFromAddress(address: string) {
+  const parts = address.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return address;
+  const state = parts.at(-1)?.match(/^([A-Za-z]{2})\b/)?.[1]?.toUpperCase();
+  return state ? `${parts.at(-2)}, ${state}` : address;
+}
+
+export async function listResumesFromSharePoint(): Promise<StoredResume[]> {
+  const token = await graphToken();
+  const siteId = required("SHAREPOINT_SITE_ID");
+  const driveId = required("SHAREPOINT_DRIVE_ID");
+  const folder = process.env.SHAREPOINT_RESUME_FOLDER || "";
+  const rootPath = folder
+    ? `/root:/${graphPath(folder)}:/children`
+    : "/root/children";
+  const url =
+    `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(siteId)}` +
+    `/drives/${encodeURIComponent(driveId)}${rootPath}` +
+    "?$expand=listItem($expand=fields)&$top=999";
+
+  const data = await graphRequest<{
+    value?: Array<{
+      id: string;
+      name: string;
+      webUrl?: string;
+      file?: unknown;
+      listItem?: { fields?: Record<string, unknown> };
+    }>;
+  }>(url, token, { method: "GET" });
+
+  const studentField = process.env.SP_FIELD_STUDENT_NAME || "Student_x0020_Name";
+  const addressField = process.env.SP_FIELD_ADDRESS || "Address";
+  const programField = process.env.SP_FIELD_PROGRAM || "Program";
+  const graduationField =
+    process.env.SP_FIELD_GRADUATION_DATE || "Graduation_x0020_Date";
+  const statusField = process.env.SP_FIELD_STATUS || "Status";
+
+  return (data.value || [])
+    .filter((item) => item.file)
+    .map((item) => {
+      const fields = item.listItem?.fields || {};
+      const address = String(fields[addressField] || "");
+      return {
+        id: item.id,
+        name: item.name,
+        webUrl: item.webUrl || "",
+        studentName: String(fields[studentField] || ""),
+        address,
+        location: locationFromAddress(address),
+        program: String(fields[programField] || ""),
+        graduationDate: String(fields[graduationField] || "").slice(0, 7),
+        status: String(fields[statusField] || ""),
+      };
+    })
+    .sort((a, b) => a.studentName.localeCompare(b.studentName));
 }
