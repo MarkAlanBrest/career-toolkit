@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Reservation } from '@/lib/lgaRoom';
 import {
+  estimateRentalCost,
+  formatRentalCost,
+  formatReservationReference,
+  pendingOverlapWarning,
+  RENTAL_BASE_HOURS,
+  RENTAL_BASE_PRICE,
+  RENTAL_HOURLY_RATE,
+} from '@/lib/lgaRoomBooking';
+import {
   Field,
   ModalShell,
   ROOM_NAME,
@@ -13,6 +22,7 @@ import {
   WEEKDAY_LABELS,
   accentStrong,
   accentTint,
+  archivo,
   border,
   buildCalendarWeeks,
   durationHours,
@@ -50,11 +60,22 @@ export function RequestModal({
   const [numberOfPeople, setNumberOfPeople] = useState('1');
   const [setupRequirements, setSetupRequirements] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [confirmation, setConfirmation] = useState<{
+    reservation: Reservation;
+    reference: string;
+    emailSent: boolean;
+  } | null>(null);
 
   const dateLabel = formatDateLabel(date);
   const approvedForDay = existing.filter(r => r.status === 'approved');
+  const estimatedCost = useMemo(() => estimateRentalCost(startTime, endTime), [startTime, endTime]);
+  const overlapWarning = useMemo(
+    () => pendingOverlapWarning(existing, date, startTime, endTime),
+    [existing, date, startTime, endTime],
+  );
 
   async function submit() {
     setError('');
@@ -71,14 +92,16 @@ export function RequestModal({
       const response = await fetch('/api/lga-room/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, startTime, endTime, name, organization, email, phone, eventName, purpose, numberOfPeople: people, setupRequirements, specialRequests }),
+        body: JSON.stringify({
+          date, startTime, endTime, name, organization, email, phone, eventName, purpose,
+          numberOfPeople: people, setupRequirements, specialRequests, companyWebsite,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not submit request.');
-      const emailWarning = data.email && !data.email.sent
-        ? 'Your reservation was saved, but one or more notification emails could not be sent.'
-        : undefined;
-      onCreated(data.reservation as Reservation, emailWarning);
+      const reference = data.reference || formatReservationReference(data.reservation.id);
+      const emailSent = Boolean(data.email?.sent);
+      setConfirmation({ reservation: data.reservation as Reservation, reference, emailSent });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit request.');
     } finally {
@@ -86,9 +109,64 @@ export function RequestModal({
     }
   }
 
+  if (confirmation) {
+    return (
+      <ModalShell onClose={onClose} title="Request submitted">
+        <div style={{ fontSize: 14, lineHeight: 1.7 }}>
+          <p style={{ margin: '0 0 12px' }}>
+            Your reservation request for <strong>{confirmation.reservation.eventName}</strong> on {formatDateLabel(confirmation.reservation.date)} was received and is pending review.
+          </p>
+          <div style={{ marginBottom: 14, padding: '12px 14px', background: accentTint, border: `1px solid ${border}`, borderRadius: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: textMuted, marginBottom: 4 }}>
+              Reference number
+            </div>
+            <div className={archivo.className} style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.08em' }}>
+              {confirmation.reference}
+            </div>
+          </div>
+          <p style={{ margin: '0 0 12px', color: textMuted, fontSize: 13 }}>
+            Save this reference number. You can share it with NCST staff if you need to follow up.
+          </p>
+          {!confirmation.emailSent && (
+            <div style={{ marginBottom: 12, padding: '10px 12px', background: '#FCF3DE', border: '1px solid #EED9A6', borderRadius: 8, color: '#8A5A0B', fontSize: 13 }}>
+              Your request is on file even though the confirmation email could not be sent. Please keep reference <strong>{confirmation.reference}</strong>.
+            </div>
+          )}
+          {confirmation.emailSent && (
+            <p style={{ margin: '0 0 12px', color: textMuted, fontSize: 13 }}>
+              A confirmation email was sent to {confirmation.reservation.email}.
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <button
+            onClick={() => {
+              const emailWarning = confirmation.emailSent
+                ? undefined
+                : `Your request was saved. Reference ${confirmation.reference}. The confirmation email could not be sent — please save this number.`;
+              onCreated(confirmation.reservation, emailWarning);
+            }}
+            className="lgaroom-btn-primary"
+            style={primaryButtonStyle}
+          >
+            Done
+          </button>
+        </div>
+      </ModalShell>
+    );
+  }
+
   return (
     <ModalShell onClose={onClose} title={`Request ${ROOM_NAME}`}>
       <div style={{ fontSize: 13, color: textMuted, marginBottom: 14 }}>{dateLabel}</div>
+
+      <div style={{ background: accentTint, border: `1px solid ${border}`, borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 13 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>Estimated rental: {formatRentalCost(estimatedCost)}</div>
+        <div style={{ color: textMuted, lineHeight: 1.5 }}>
+          {formatRentalCost(RENTAL_BASE_PRICE)} for up to {RENTAL_BASE_HOURS} hours, then {formatRentalCost(RENTAL_HOURLY_RATE)} per additional hour.
+          NCST Corporate Sponsors may reserve at no cost.
+        </div>
+      </div>
 
       {approvedForDay.length > 0 && (
         <div style={{ background: '#F6F5F1', border: `1px solid ${border}`, borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 12 }}>
@@ -98,6 +176,19 @@ export function RequestModal({
           ))}
         </div>
       )}
+
+      {overlapWarning && (
+        <div style={{ background: '#FCF3DE', border: '1px solid #EED9A6', borderRadius: 8, padding: 10, marginBottom: 14, fontSize: 12, color: '#8A5A0B' }}>
+          {overlapWarning}
+        </div>
+      )}
+
+      <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+        <label>
+          Company website
+          <input value={companyWebsite} onChange={e => setCompanyWebsite(e.target.value)} tabIndex={-1} autoComplete="off" />
+        </label>
+      </div>
 
       <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Your name" /></Field>
       <Field label="Organization"><input value={organization} onChange={e => setOrganization(e.target.value)} style={inputStyle} placeholder="Optional" /></Field>
@@ -163,6 +254,7 @@ export function EditReservationModal({
   const [numberOfPeople, setNumberOfPeople] = useState(String(reservation.numberOfPeople));
   const [setupRequirements, setSetupRequirements] = useState(reservation.setupRequirements);
   const [specialRequests, setSpecialRequests] = useState(reservation.specialRequests);
+  const [adminNotes, setAdminNotes] = useState(reservation.adminNotes || '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -180,7 +272,10 @@ export function EditReservationModal({
       const response = await fetch(`/api/lga-room/reservations/${reservation.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-admin-email': adminEmail, 'x-admin-password': adminPassword },
-        body: JSON.stringify({ name, organization, email, phone, eventName, purpose, numberOfPeople: people, setupRequirements, specialRequests }),
+        body: JSON.stringify({
+          name, organization, email, phone, eventName, purpose, numberOfPeople: people,
+          setupRequirements, specialRequests, adminNotes,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not save changes.');
@@ -203,6 +298,14 @@ export function EditReservationModal({
       <Field label="Number of People"><input value={numberOfPeople} onChange={e => setNumberOfPeople(e.target.value)} type="number" min={1} style={inputStyle} /></Field>
       <Field label="Setup Requirements"><textarea value={setupRequirements} onChange={e => setSetupRequirements(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} /></Field>
       <Field label="Special Requests"><textarea value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} style={{ ...inputStyle, minHeight: 50, resize: 'vertical' }} /></Field>
+      <Field label="Admin notes (internal)">
+        <textarea
+          value={adminNotes}
+          onChange={e => setAdminNotes(e.target.value)}
+          style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }}
+          placeholder="Visible to administrators only"
+        />
+      </Field>
 
       {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
 
@@ -316,6 +419,7 @@ export function ReservationDetailsModal({
 
         <div style={{ fontSize: 14, lineHeight: 1.8 }}>
           <div><strong>{reservation.eventName}</strong></div>
+          <div>Reference: {formatReservationReference(reservation.id)}</div>
           <div>{formatDateLabel(reservation.date)}</div>
           <div style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTimeLabel(reservation.startTime)} – {formatTimeLabel(reservation.endTime)}</div>
           <div>Requested by: {reservation.name}{reservation.organization ? ` (${reservation.organization})` : ''}</div>
@@ -325,6 +429,17 @@ export function ReservationDetailsModal({
           <div>Purpose: {reservation.purpose}</div>
           {reservation.setupRequirements && <div>Setup requirements: {reservation.setupRequirements}</div>}
           {reservation.specialRequests && <div>Special requests: {reservation.specialRequests}</div>}
+          {adminMode && reservation.adminNotes && <div>Admin notes: {reservation.adminNotes}</div>}
+          {adminMode && reservation.approvedBy && reservation.approvedAt && (
+            <div style={{ marginTop: 8, fontSize: 13, color: textMuted }}>
+              Approved by {reservation.approvedBy} on {new Date(reservation.approvedAt).toLocaleString()}
+            </div>
+          )}
+          {adminMode && reservation.deniedBy && reservation.deniedAt && (
+            <div style={{ marginTop: 8, fontSize: 13, color: textMuted }}>
+              Not approved by {reservation.deniedBy} on {new Date(reservation.deniedAt).toLocaleString()}
+            </div>
+          )}
         </div>
 
         {adminMode && (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Reservation } from '@/lib/lgaRoom';
 import { getFederalHolidays } from '@/lib/lgaRoomHolidays';
+import { isFederalHoliday, isPastDate } from '@/lib/lgaRoomBooking';
 import {
   Legend,
   LockIcon,
@@ -155,6 +156,10 @@ export default function LgaRoomCalendarPage() {
     map.forEach(list => list.sort((a, b) => a.startTime.localeCompare(b.startTime)));
     return map;
   }, [reservations]);
+
+  function canRequestDate(dateStr: string) {
+    return !isPastDate(dateStr) && !isFederalHoliday(dateStr);
+  }
 
   function visibleReservationsFor(dateStr: string) {
     const list = reservationsByDate.get(dateStr) || [];
@@ -348,6 +353,7 @@ export default function LgaRoomCalendarPage() {
                 const isToday = isSameDate(date, today);
                 const dayReservations = visibleReservationsFor(dateStr);
                 const holidayName = holidays.get(dateStr);
+                const requestable = canRequestDate(dateStr);
 
                 return (
                   <div
@@ -384,15 +390,16 @@ export default function LgaRoomCalendarPage() {
                         {date.getDate()}
                       </span>
                       <button
-                        onClick={() => setRequestDate(dateStr)}
+                        onClick={() => requestable && setRequestDate(dateStr)}
                         className="lgaroom-addbtn"
-                        aria-label={`Request the room on ${dateStr}`}
-                        title="Request this room"
+                        aria-label={requestable ? `Request the room on ${dateStr}` : `Reservations unavailable on ${dateStr}`}
+                        title={requestable ? 'Request this room' : (holidayName ? `Closed — ${holidayName}` : 'Past dates cannot be requested')}
+                        disabled={!requestable}
                         style={{
                           border: 'none',
                           background: 'transparent',
-                          color: textMuted,
-                          cursor: 'pointer',
+                          color: requestable ? textMuted : '#C5CAD1',
+                          cursor: requestable ? 'pointer' : 'not-allowed',
                           fontSize: 14,
                           fontWeight: 700,
                           lineHeight: 1,
@@ -402,6 +409,7 @@ export default function LgaRoomCalendarPage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
+                          opacity: requestable ? 1 : 0.45,
                         }}
                       >
                         +

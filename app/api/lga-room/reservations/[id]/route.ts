@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  getAdminSessionEmail,
   getAllReservations,
   isAdminRequestAuthorized,
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
+import { validateBookingDate } from '@/lib/lgaRoomBooking';
 import {
   EmailSendResult,
   sendInternalCancellationEmail,
@@ -19,11 +21,18 @@ export const dynamic = 'force-dynamic';
 
 const EDITABLE_FIELDS = [
   'status', 'date', 'startTime', 'endTime', 'name', 'organization', 'email', 'phone',
-  'eventName', 'purpose', 'numberOfPeople', 'setupRequirements', 'specialRequests',
+  'eventName', 'purpose', 'numberOfPeople', 'setupRequirements', 'specialRequests', 'adminNotes',
 ] as const;
 
-function authorized(request: NextRequest) {
+async function authorized(request: NextRequest) {
   return isAdminRequestAuthorized(request);
+}
+
+async function adminActor(request: NextRequest): Promise<string> {
+  const sessionEmail = await getAdminSessionEmail(request);
+  if (sessionEmail) return sessionEmail;
+  const headerEmail = request.headers.get('x-admin-email');
+  return headerEmail?.trim().toLowerCase() || 'admin';
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +58,31 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     for (const field of EDITABLE_FIELDS) {
       if (field in body) patch[field] = body[field];
     }
+
+    if (typeof patch.date === 'string') {
+      const dateCheck = validateBookingDate(patch.date);
+      if (dateCheck.ok === false) {
+        return NextResponse.json({ error: dateCheck.error }, { status: 400 });
+      }
+    }
+
     const updated = { ...current, ...patch, updatedAt: new Date().toISOString() };
+    const actor = await adminActor(request);
+    const now = new Date().toISOString();
+
+    if (updated.status !== current.status) {
+      if (updated.status === 'approved') {
+        updated.approvedBy = actor;
+        updated.approvedAt = now;
+        updated.deniedBy = undefined;
+        updated.deniedAt = undefined;
+      } else if (updated.status === 'denied') {
+        updated.deniedBy = actor;
+        updated.deniedAt = now;
+        updated.approvedBy = undefined;
+        updated.approvedAt = undefined;
+      }
+    }
 
     if (updated.status === 'approved') {
       const hasConflict = reservations.some(
