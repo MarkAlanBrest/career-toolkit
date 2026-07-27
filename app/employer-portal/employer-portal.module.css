@@ -232,40 +232,33 @@
 }
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 340px) 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 20px;
   min-height: 88px;
   padding: 18px 22px 8px;
 }
-.searchBox {
-  display: flex;
+.toolbarWelcome { display: grid; gap: 3px; }
+.toolbarWelcome span { color: #7b8796; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.toolbarWelcome strong { color: var(--navy); font-size: 18px; line-height: 1.1; }
+.loginButton {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 42px;
-  padding: 0 15px;
-  border-radius: 5px;
-  background: #fff;
-  color: #a0a9b5;
-  font-size: 11px;
-}
-.searchBox svg { width: 17px; height: 17px; fill: none; stroke: #718096; stroke-linecap: round; stroke-width: 1.8; }
-.toolbar time { color: #586a80; font-size: 11px; }
-.toolbar > a {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+  justify-content: center;
   min-height: 40px;
-  padding: 0 14px;
+  padding: 0 22px;
+  border: 0;
   border-radius: 20px;
   background: var(--navy);
   color: #fff;
+  cursor: pointer;
+  font-family: inherit;
   font-size: 10px;
   font-weight: 800;
-  text-decoration: none;
   text-transform: uppercase;
 }
-.toolbar > a svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.loginButton:hover { background: var(--navy-deep); }
+.loginButton:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
 .dashboardContent {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -415,7 +408,6 @@
   .sideNav nav .navSectionLabel { display: none; }
   .sideNav nav .serviceNavLink { min-height: 44px; }
   .toolbar { grid-template-columns: minmax(200px, 1fr) auto; }
-  .toolbar time { display: none; }
   .dashboardContent { grid-template-columns: minmax(0, 1fr) 280px; }
   .featuredGrid, .directoryGrid { grid-template-columns: repeat(2,1fr); }
   .footerInner { grid-template-columns: 1fr 1fr; padding: 28px 0; }
@@ -426,7 +418,9 @@
   .headerLink { font-size: 10px; }
   .dashboard { width: calc(100% - 24px); margin: 18px auto 30px; }
   .toolbar { min-height: 70px; padding: 12px 13px 5px; }
-  .toolbar > a { width: 40px; padding: 0; justify-content: center; font-size: 0; }
+  .toolbarWelcome span { display: none; }
+  .toolbarWelcome strong { font-size: 15px; }
+  .loginButton { min-height: 38px; padding: 0 17px; }
   .dashboardContent { grid-template-columns: 1fr; padding: 13px; }
   .welcomePanel { grid-template-columns: 1fr 120px; min-height: 210px; padding: 28px; }
   .welcomeMark { width: 108px; height: 108px; }

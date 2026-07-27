@@ -106,12 +106,11 @@ export default function EmployerPortalPage() {
 
         <div className={styles.workspace}>
           <div className={styles.toolbar}>
-            <div className={styles.searchBox}>
-              <span>Search employer resources...</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
+            <div className={styles.toolbarWelcome}>
+              <span>Employer workspace</span>
+              <strong>Welcome ABC Company</strong>
             </div>
-            <time dateTime="2026-07-26">Sunday, July 26, 2026</time>
-            <a href={emailLink('NCST Employer Portal — General Question')}><ServiceIcon name="message" />Career Services</a>
+            <button className={styles.loginButton} type="button">Log in</button>
           </div>
 
           <div className={styles.dashboardContent}>
