@@ -23,6 +23,10 @@ function emailLink(subject: string) {
   return `mailto:${CAREER_SERVICES_EMAIL}?subject=${encodeURIComponent(subject)}`;
 }
 
+function serviceId(title: string) {
+  return `service-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+}
+
 const SERVICES: Service[] = [
   { title: 'Request Applicants', description: 'Request qualified students or graduates for your open positions.', category: 'Hire', icon: 'people', featured: true },
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
@@ -66,7 +70,7 @@ function ServiceIcon({ name }: { name: IconName }) {
 
 function ServiceCard({ service, compact = false }: { service: Service; compact?: boolean }) {
   return (
-    <article className={`${styles.serviceCard} ${compact ? styles.compactCard : ''}`}>
+    <article className={`${styles.serviceCard} ${compact ? styles.compactCard : ''}`} id={serviceId(service.title)}>
       <div className={styles.cardTop}>
         <span className={styles.iconBox}><ServiceIcon name={service.icon} /></span>
         <span className={styles.category}>{service.category}</span>
@@ -78,8 +82,13 @@ function ServiceCard({ service, compact = false }: { service: Service; compact?:
 }
 
 export default function EmployerPortalPage() {
-  const featured = SERVICES.filter(service => service.featured);
-  const directory = SERVICES.filter(service => !service.featured);
+  const calendarDays = [
+    28, 29, 30, 1, 2, 3, 4,
+    5, 6, 7, 8, 9, 10, 11,
+    12, 13, 14, 15, 16, 17, 18,
+    19, 20, 21, 22, 23, 24, 25,
+    26, 27, 28, 29, 30, 31, 1,
+  ];
 
   return (
     <main className={`${publicSans.className} ${styles.page}`}>
@@ -98,38 +107,117 @@ export default function EmployerPortalPage() {
         </a>
       </header>
 
-      <section className={styles.hero}>
-        <div className={styles.heroInner}>
-          <div className={styles.heroCopy}>
-            <div className={styles.eyebrow}><span />Your connection to NCST talent</div>
-            <h1 className={archivo.className}>Build your team.<br /><em>Strengthen our region.</em></h1>
-            <p>Find skilled applicants, share opportunities, connect with students, and manage your NCST partnership—all in one place.</p>
-            <div className={styles.heroActions}>
-              <a className={styles.primaryButton} href="#services">Explore employer services <ArrowIcon /></a>
-              <a className={styles.textLink} href={emailLink('NCST Employer Portal — Message Career Services')}>Ask a question</a>
-            </div>
+      <section className={styles.dashboard} id="services">
+        <aside className={styles.sideNav}>
+          <div className={styles.sideNavTitle}>Employer dashboard</div>
+          <nav aria-label="Employer portal sections">
+            <a className={styles.activeNav} href="#overview"><ServiceIcon name="building" />Overview</a>
+            <a href="#partnerships"><ServiceIcon name="committee" />Partnerships</a>
+            <a href="#important-dates"><ServiceIcon name="events" />Important dates</a>
+            <span className={styles.navSectionLabel}>Employer services</span>
+            {SERVICES.map(service => (
+              <a className={styles.serviceNavLink} href={`#${serviceId(service.title)}`} key={service.title}>
+                <ServiceIcon name={service.icon} />
+                {service.title}
+              </a>
+            ))}
+          </nav>
+          <div className={styles.sideHelp}>
+            <span>Career Services</span>
+            <strong>Questions? We’re here.</strong>
+            <a href={emailLink('NCST Employer Portal — General Question')}>Send us a message <ArrowIcon /></a>
+          </div>
+        </aside>
+
+        <div className={styles.dashboardContent}>
+          <div className={styles.centerColumn}>
+            <section className={styles.welcomePanel} id="overview">
+              <div>
+                <span className={styles.kicker}>NCST employer network</span>
+                <h1 className={archivo.className}>Welcome, community partners.</h1>
+                <p>Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.</p>
+              </div>
+              <div className={styles.welcomeMark} aria-hidden="true">
+                <ServiceIcon name="people" />
+                <span>Employer<br />Partnerships</span>
+              </div>
+            </section>
+
+            <section className={styles.partnershipSection} id="partnerships">
+              <div className={styles.panelHeading}>
+                <div><span className={styles.kicker}>Get involved</span><h2 className={archivo.className}>Partnership opportunities</h2></div>
+                <p>Three meaningful ways to connect with our students and campus.</p>
+              </div>
+
+              <div className={styles.spotlightGrid}>
+                <article className={styles.spotlightCard}>
+                  <span className={styles.spotlightNumber}>01</span>
+                  <span className={styles.spotlightIcon}><ServiceIcon name="committee" /></span>
+                  <h3 className={archivo.className}>Become a PAC member</h3>
+                  <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
+                  <span className={styles.infoTag}>Shape future talent</span>
+                </article>
+                <article className={`${styles.spotlightCard} ${styles.goldCard}`}>
+                  <span className={styles.spotlightNumber}>02</span>
+                  <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
+                  <h3 className={archivo.className}>Meet in the LGA Room</h3>
+                  <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
+                  <span className={styles.infoTag}>Professional event space</span>
+                </article>
+                <article className={styles.spotlightCard}>
+                  <span className={styles.spotlightNumber}>03</span>
+                  <span className={styles.spotlightIcon}><ServiceIcon name="hire" /></span>
+                  <h3 className={archivo.className}>Build your talent pipeline</h3>
+                  <p>Meet students, share job openings, visit campus, and connect with graduates prepared for skilled careers.</p>
+                  <span className={styles.infoTag}>Hire NCST graduates</span>
+                </article>
+              </div>
+            </section>
+
+            <section className={styles.serviceDirectory} id="service-directory">
+              <div className={styles.panelHeading}>
+                <div><span className={styles.kicker}>At a glance</span><h2 className={archivo.className}>Employer services</h2></div>
+                <span className={styles.serviceCount}>{SERVICES.length} services</span>
+              </div>
+              <div className={styles.directoryGrid}>
+                {SERVICES.map(service => <ServiceCard compact key={service.title} service={service} />)}
+              </div>
+            </section>
           </div>
 
-        </div>
-      </section>
+          <aside className={styles.dateColumn} id="important-dates">
+            <section className={styles.calendarPanel}>
+              <div className={styles.calendarHeading}>
+                <div><span>Planning calendar</span><strong>July 2026</strong></div>
+                <div className={styles.calendarControls}><span>‹</span><span>›</span></div>
+              </div>
+              <div className={styles.weekdays}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => <span key={day}>{day}</span>)}</div>
+              <div className={styles.calendarDays}>
+                {calendarDays.map((day, index) => (
+                  <span className={`${index < 3 || index > 33 ? styles.otherMonth : ''} ${day === 26 && index === 28 ? styles.today : ''}`} key={`${day}-${index}`}>{day}</span>
+                ))}
+              </div>
+              <div className={styles.calendarNote}><span /><p>Important employer dates will be highlighted here as they are announced.</p></div>
+            </section>
 
-      <section className={styles.servicesSection} id="services">
-        <div className={styles.sectionHeading}>
-          <div><span className={styles.kicker}>Most requested</span><h2 className={archivo.className}>What can we help you do?</h2></div>
-          <p>Explore the ways NCST Career Services can help your organization hire, connect, and grow.</p>
-        </div>
-        <div className={styles.featuredGrid}>{featured.map(service => <ServiceCard key={service.title} service={service} />)}</div>
+            <section className={styles.datesPanel}>
+              <span className={styles.kicker}>Important dates</span>
+              <h2 className={archivo.className}>Coming up at NCST</h2>
+              <div className={styles.dateList}>
+                <div><span className={styles.dateBadge}><ServiceIcon name="calendar" /></span><p><strong>Career Fair</strong><small>Date to be announced</small></p></div>
+                <div><span className={styles.dateBadge}><ServiceIcon name="committee" /></span><p><strong>PAC Meetings</strong><small>Dates to be announced</small></p></div>
+                <div><span className={styles.dateBadge}><ServiceIcon name="visit" /></span><p><strong>Recruiting Events</strong><small>Dates to be announced</small></p></div>
+              </div>
+            </section>
 
-        <div className={styles.directoryHeading}>
-          <div><span className={styles.kicker}>All employer services</span><h2 className={archivo.className}>Employer resource directory</h2></div>
-          <span className={styles.serviceCount}>{SERVICES.length} services</span>
+            <section className={styles.contactPanel}>
+              <span>Have a date in mind?</span>
+              <h2 className={archivo.className}>Plan a campus visit.</h2>
+              <p>Career Services can help coordinate recruiting, tours, interviews, and employer meetings.</p>
+              <a href={emailLink('NCST Employer Portal — Plan a Campus Visit')}>Contact Career Services <ArrowIcon /></a>
+            </section>
+          </aside>
         </div>
-        <div className={styles.directoryGrid}>{directory.map(service => <ServiceCard compact key={service.title} service={service} />)}</div>
-      </section>
-
-      <section className={styles.eventsSection} id="upcoming-events">
-        <div><span className={styles.eventsKicker}>Upcoming events</span><h2 className={archivo.className}>Stay connected to NCST.</h2><p>Career Fairs, PAC meetings, recruiting opportunities, and employer events will appear here.</p></div>
-        <a className={styles.eventsButton} href={emailLink('NCST Employer Portal — Upcoming Events')}>Ask about upcoming dates <ArrowIcon /></a>
       </section>
 
       <footer className={styles.footer}>
