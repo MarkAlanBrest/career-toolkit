@@ -1,6 +1,9 @@
 (function () {
     'use strict';
 
+    if (window.__NCST_CAREER_SERVICES__) return;
+    window.__NCST_CAREER_SERVICES__ = true;
+
     const DB_NAME = 'NCSTCareerServices';
     const STORE_NAME = 'settings';
     const HANDLE_KEY = 'resumeFolder';
