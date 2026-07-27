@@ -21,7 +21,7 @@ This is a source-code audit. It does **not** prove which environment variables, 
 | React 18 | User-interface framework. |
 | TypeScript | Primary application and API language. |
 | Node.js runtime | Runs server-side route handlers and document parsing. |
-| Vercel Blob | Durable private JSON storage for LGA Room reservations, settings, and admin accounts. |
+| Vercel Blob | Durable private JSON storage for LG Room reservations, settings, and admin accounts. |
 | Upstash Redis | Stores BrightPath learning profiles and generated lessons when configured. |
 
 `vercel.json` gives `/api/generate` a 60-second maximum duration and `/api/parse-file` a 30-second maximum duration.
@@ -41,7 +41,7 @@ These routes are under `app/` and are included in the current production build.
 | `/drive-profile` | Behavioral/work-style questionnaire and client-side PDF report generator. |
 | `/learning` | BrightPath adaptive elementary lessons for two hard-coded student identifiers. |
 | `/ppt-narrator` | Installation/instruction page for the PowerPoint Narrator userscript. |
-| `/lga-room` | NCST-branded LGA Room information and reservation landing page. |
+| `/lga-room` | NCST-branded LG Room information and reservation landing page. |
 | `/lga-room/calendar` | Public reservation calendar, request form, and admin controls. |
 
 ## 4. Active server API routes
@@ -54,11 +54,11 @@ These routes are under `app/` and are included in the current production build.
 | `/api/learning` | `GET`, `POST` | Public | Generates or retrieves a daily BrightPath lesson and records results in Redis. Only the identifiers `jenna` and `sophia` are accepted. Uses Claude Sonnet 4.6 when configured and a built-in fallback lesson otherwise. |
 | `/api/parse-file` | `POST`, `OPTIONS` | Public; CORS `*` | Downloads or accepts a submitted file and extracts text from PDF, Word, RTF, HTML/text, and Excel formats. Used by grading/document workflows. |
 | `/api/lga-room/reservations` | `GET`, `POST` | Public | Lists reservations, optionally by month, and accepts new requests. Data is stored in Vercel Blob. New requests can trigger Resend email. |
-| `/api/lga-room/reservations/[id]` | `PATCH`, `DELETE` | LGA admin credentials in request headers | Updates status/details, deletes reservations, checks conflicts, and sends decision/time-change/building/maintenance emails. |
-| `/api/lga-room/admin` | `POST` | Public login check | Validates the LGA master password or an email/password admin account. |
-| `/api/lga-room/admin/accounts` | `GET`, `POST`, `DELETE` | LGA admin credentials in request headers | Lists, creates, and removes LGA admin accounts. Passwords are salted and hashed with Node `scrypt`. |
-| `/api/lga-room/admin/settings` | `GET`, `PUT` | LGA admin credentials in request headers | Reads service status and manages notification email addresses. |
-| `/api/lga-room/admin/export` | `GET` | LGA admin credentials in request headers | Exports reservation data as CSV. |
+| `/api/lga-room/reservations/[id]` | `PATCH`, `DELETE` | LG admin credentials in request headers | Updates status/details, deletes reservations, checks conflicts, and sends decision/time-change/building/maintenance emails. |
+| `/api/lga-room/admin` | `POST` | Public login check | Validates the LG master password or an email/password admin account. |
+| `/api/lga-room/admin/accounts` | `GET`, `POST`, `DELETE` | LG admin credentials in request headers | Lists, creates, and removes LG admin accounts. Passwords are salted and hashed with Node `scrypt`. |
+| `/api/lga-room/admin/settings` | `GET`, `PUT` | LG admin credentials in request headers | Reads service status and manages notification email addresses. |
+| `/api/lga-room/admin/export` | `GET` | LG admin credentials in request headers | Exports reservation data as CSV. |
 
 ## 5. Publicly served static files
 
@@ -83,7 +83,7 @@ Everything under `public/` can be requested directly from the production domain.
 | `/libraryhub.html` | Static NCST digital-learning resource directory with links to third-party research, standards, safety, and education sites. |
 | `/pa.html` | PA/Ohio Building Code Assistant interface. It currently calls `/api/code-chat`, but that API route is not present in the active repository. |
 | `/google-oauth-callback.html` | OAuth popup callback that relays a Google access token from the URL fragment to the Google Classroom Topic Builder opener window. |
-| `/ncst-logo.png` and `/ncst-campus.jpg` | NCST branding assets used by the LGA Room page. Originally obtained from the official NCST website. |
+| `/ncst-logo.png` and `/ncst-campus.jpg` | NCST branding assets used by the LG Room page. Originally obtained from the official NCST website. |
 | `/screenshots/*` | Canvas Enhancer marketing screenshots. |
 
 The repository also contains multiple extension source/build directories outside `public/`. They are source and packaging material, but Next.js does not automatically serve them as URL paths: `ai-grader-extension/`, `extension/`, `extension-class-management-install/`, `extension-email/`, and `module-builder-extension/`.
@@ -92,7 +92,7 @@ The repository also contains multiple extension source/build directories outside
 
 ### Vercel Blob
 
-The LGA Room service stores three private JSON objects:
+The LG Room service stores three private JSON objects:
 
 | Blob path | Contents |
 |---|---|
@@ -117,17 +117,17 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 | Feature | Browser-stored data |
 |---|---|
 | `/grader` | Canvas base URL, Canvas API token, and per-assignment grading criteria in `localStorage`. |
-| LGA Room calendar admin | Normal sessions use an eight-hour signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Old `localStorage` credentials are migrated once and deleted. |
+| LG Room calendar admin | Normal sessions use an eight-hour signed `HttpOnly`, `Secure`, `SameSite=Lax` cookie. Old `localStorage` credentials are migrated once and deleted. |
 | Userscripts/extensions | Various settings, identifiers, API keys, and preferences in Tampermonkey/extension storage; review each distributed package separately before compliance sign-off. |
 
 ## 7. Active third-party services and external systems
 
 | Provider/system | How it is used | Data sent |
 |---|---|---|
-| Vercel | Application hosting, serverless functions, deployment, and Blob storage. | Application requests, logs, runtime metadata, and stored LGA data. |
+| Vercel | Application hosting, serverless functions, deployment, and Blob storage. | Application requests, logs, runtime metadata, and stored LG Room data. |
 | Anthropic | AI generation for `/api/generate` and BrightPath; some public userscripts also call Anthropic directly. | Prompts, messages, grading/course content, and generated-learning context. Direct-call userscripts send the user's API key to Anthropic, not this server. |
 | Upstash | Redis storage for BrightPath lessons and performance profiles. | Student identifier, lesson content, completion history, and scores. |
-| Microsoft Graph / Mailjet | Sends LGA Room request, approval/denial, reschedule, building manager, and maintenance emails. Microsoft 365 connects through device-code sign-in with delegated `Mail.Send`; Mailjet remains a fallback only before Microsoft setup begins. | Recipient email addresses, reservation/event details, and Microsoft delegated OAuth tokens. |
+| Microsoft Graph / Mailjet | Sends LG Room request, approval/denial, reschedule, building manager, and maintenance emails. Microsoft 365 connects through device-code sign-in with delegated `Mail.Send`; Mailjet remains a fallback only before Microsoft setup begins. | Recipient email addresses, reservation/event details, and Microsoft delegated OAuth tokens. |
 | Canvas LMS / Instructure | The grader and Canvas tools call Canvas APIs. The server proxy restricts API hosts to `instructure.com`, `canvas.com`, and `canvaslms.com`. | User-supplied Canvas token and requested Canvas API data pass through `/api/canvas`. |
 | Google Classroom and Google Docs | Host environment for the Classroom userscripts; the grading userscript uses the active browser session. | Classroom/Docs requests occur in the user's browser. |
 | Google OAuth | The static callback page relays an OAuth access token to the Topic Builder popup opener. | OAuth token remains in the browser URL fragment and is posted to the opener window. |
@@ -136,7 +136,7 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 | QR Server (`api.qrserver.com`) | Generates QR-code images for Canvas Student App Store and Google Play URLs. | The app-store URL to encode, plus standard request metadata. |
 | Apple App Store / Google Play | External destination links for the Canvas Student mobile app. | Standard link-navigation metadata. |
 | Tampermonkey | Runs the distributed `.user.js` tools in supported browsers. | Depends on the installed userscript and its granted connections. |
-| NCST official website | Source of the LGA page logo/campus image and an outbound main-site link. | Standard link-navigation metadata. |
+| NCST official website | Source of the LG Room page logo/campus image and an outbound main-site link. | Standard link-navigation metadata. |
 
 `libraryhub.html` contains outbound links to many research and standards resources (for example Google Scholar, CORE, DOAJ, OpenStax, OSHA, NIOSH/CDC, SAE, EPA, NHTSA, FMCSA, NFPA, and IEEE). These are links, not server-side API integrations.
 
@@ -148,7 +148,7 @@ If Redis environment variables are absent, `lib/redis.ts` falls back to `.next/c
 |---|---|
 | `next`, `react`, `react-dom` | Web application framework and UI. |
 | `@upstash/redis` | Redis client. |
-| `@vercel/blob` | LGA Room Blob storage. |
+| `@vercel/blob` | LG Room Blob storage. |
 | `resend` | Transactional email. |
 | `pdfjs-dist` | Primary server-side PDF text extraction. |
 | `pdf-parse` | Fallback PDF text extraction. |
@@ -183,14 +183,14 @@ Never put secret values in this document or commit them to source control.
 | `KV_REST_API_URL` | Treat as sensitive | Alternate Vercel Marketplace name for the Redis endpoint. Not currently listed in `.env.example`. |
 | `KV_REST_API_TOKEN` | Yes | Alternate Vercel Marketplace name for the Redis token. Not currently listed in `.env.example`. |
 | `BLOB_READ_WRITE_TOKEN` | Yes | Vercel Blob access when token-based configuration is used. Vercel OIDC integration may also supply access. |
-| `MAILJET_API_KEY` | Yes (fallback) | Mailjet API key, used as SMTP username when Microsoft 365 is not configured in LGA Room Admin settings. |
+| `MAILJET_API_KEY` | Yes (fallback) | Mailjet API key, used as SMTP username when Microsoft 365 is not configured in LG Room Admin settings. |
 | `MAILJET_SECRET_KEY` | Yes (fallback) | Mailjet secret key, used as SMTP password. |
 | `MAILJET_FROM_EMAIL` | Yes (fallback) | Sender address — must be verified in Mailjet (Account > Sender addresses). |
 | `MAILJET_FROM_NAME` | No | Optional display name shown as the sender. |
 | `OUTLOOK_USER` | No, legacy fallback only | Address used by the legacy password-based SMTP path. School Microsoft 365 accounts should use the Graph settings in the Admin page. |
 | `OUTLOOK_APP_PASSWORD` | No, legacy fallback only | Password for the legacy SMTP path; not recommended for Exchange Online. |
 | `OUTLOOK_FROM_NAME` | No | Optional display name for the legacy fallback path. |
-| `LGA_ROOM_ADMIN_PASSWORD` | Yes | Break-glass LGA master password. |
+| `LGA_ROOM_ADMIN_PASSWORD` | Yes | Break-glass LG Room master password. |
 | `NEXT_PUBLIC_APP_URL` | No | Public application base URL used in email links. |
 | `NEXT_PUBLIC_EXTENSION_URL` | No | Extension installation URL used by marketing pages. It is referenced in code but missing from `.env.example`. |
 

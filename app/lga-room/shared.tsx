@@ -6,7 +6,7 @@ import type { ReservationStatus } from '@/lib/lgaRoom';
 export const archivo = Oswald({ subsets: ['latin'], weight: ['600', '700'] });
 export const publicSans = Roboto_Condensed({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
-export const ROOM_NAME = 'LGA Room';
+export const ROOM_NAME = 'LG Room';
 export const ROOM_LOCATION = 'New Castle School of Trades — Main Campus';
 export const ROOM_OPEN_TIME = '07:00';
 export const ROOM_CLOSE_TIME = '21:00';

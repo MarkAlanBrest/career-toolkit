@@ -43,7 +43,7 @@ export type AdminAccount = {
   createdAt: string;
 };
 
-export const ROOM_NAME = 'LGA Room';
+export const ROOM_NAME = 'LG Room';
 export const ROOM_OPEN_TIME = '07:00';
 export const ROOM_CLOSE_TIME = '21:00';
 export const ADMIN_SESSION_COOKIE = 'lga_room_admin_session';

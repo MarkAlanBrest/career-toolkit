@@ -136,7 +136,7 @@ export default function LgaRoomLandingPage() {
         <a href="https://www.ncstrades.edu/" target="_blank" rel="noreferrer">Visit the NCST main site</a>
       </div>
       <header className={styles.siteHeader}>
-        <Link className={styles.brand} href="/lga-room" aria-label="LGA Room home">
+        <Link className={styles.brand} href="/lga-room" aria-label="LG Room home">
           <Image src="/ncst-logo.png" width={160} height={41} alt="New Castle School of Trades" priority />
           <span className={styles.roomBrand}>
             <strong>{ROOM_NAME}</strong>
@@ -190,7 +190,7 @@ export default function LgaRoomLandingPage() {
                   <CalendarIcon />
                 </div>
                 <div>
-                  <span>Reserve the LGA Room</span>
+                  <span>Reserve the LG Room</span>
                   <strong>Choose a date that works</strong>
                 </div>
               </div>

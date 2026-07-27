@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
     if (!(await isMicrosoftAdminAllowed(email))) {
       return NextResponse.json({
-        error: `${email} is not on the LGA Room administrator list.`,
+        error: `${email} is not on the LG Room administrator list.`,
       }, { status: 403 });
     }
     const needsSenderConnection = !settings.microsoftRefreshToken || !settings.senderEmail;
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       await saveSettings({
         ...settings,
         senderEmail: email,
-        senderName: profile.displayName?.trim() || settings.senderName || 'LGA Room Reservations',
+        senderName: profile.displayName?.trim() || settings.senderName || 'LG Room Reservations',
         microsoftClientSecret: '',
         microsoftRefreshToken: data.refresh_token,
         microsoftConnectedAt: new Date().toISOString(),

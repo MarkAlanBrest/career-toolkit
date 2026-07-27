@@ -27,7 +27,7 @@ function emailLink(subject: string) {
 
 function serviceLink(service: Service) {
   if (service.title === 'Request Applicants') return '#request-applicants';
-  if (service.title === 'LGA Room Reservation') return '/lga-room';
+  if (service.title === 'LG Room Reservation') return '/lga-room';
   if (service.title === 'Upcoming Events') return '#important-dates';
   return emailLink(`NCST Employer Portal — ${service.title}`);
 }
@@ -37,7 +37,7 @@ const SERVICES: Service[] = [
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
   { title: 'PAC Meeting Registration', description: 'Register for an upcoming Program Advisory Committee meeting.', category: 'Partner', icon: 'committee', featured: true },
   { title: 'Career Fair Registration', description: 'Register your company and representatives for the Career Fair.', category: 'Connect', icon: 'calendar', featured: true },
-  { title: 'LGA Room Reservation', description: 'Check availability and request the LGA meeting room.', category: 'Connect', icon: 'building' },
+  { title: 'LG Room Reservation', description: 'Check availability and request the LG meeting room.', category: 'Connect', icon: 'building' },
   { title: 'Submit Student Work Log', description: 'Submit a required work log for a student participating in work release.', category: 'Manage', icon: 'clipboard' },
   { title: 'Request Custom Training', description: 'Ask about workforce or employee training tailored to your organization.', category: 'Partner', icon: 'training' },
   { title: 'Schedule a Recruiting Visit', description: 'Visit campus, speak with students, conduct interviews, or recruit.', category: 'Hire', icon: 'visit' },
@@ -213,9 +213,9 @@ export default function EmployerPortalPage() {
                 <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/lga-room" id="lga-room">
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
-                  <h3 className={archivo.className}>Meet in the LGA Room</h3>
+                  <h3 className={archivo.className}>Meet in the LG Room</h3>
                   <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
-                  <span className={styles.infoTag}>Explore the LGA Room <ArrowIcon /></span>
+                  <span className={styles.infoTag}>Explore the LG Room <ArrowIcon /></span>
                 </Link>
                 <Link className={styles.spotlightCard} href="/hire-ncst" id="hiring">
                   <span className={styles.spotlightNumber}>03</span>

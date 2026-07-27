@@ -29,11 +29,11 @@ export default function RoomPhoto() {
         type="button"
         className={styles.roomThumbnail}
         onClick={() => setExpanded(true)}
-        aria-label="See a larger photo of the LGA Room"
+        aria-label="See a larger photo of the LG Room"
       >
         <Image
           src="/lga-room-interior.jpg"
-          alt="The LGA Room with presentation screens, tables, and seating"
+          alt="The LG Room with presentation screens, tables, and seating"
           fill
           sizes="(max-width: 760px) calc(100vw - 80px), 520px"
         />
@@ -48,7 +48,7 @@ export default function RoomPhoto() {
           className={styles.roomLightbox}
           role="dialog"
           aria-modal="true"
-          aria-label="LGA Room photo"
+          aria-label="LG Room photo"
           onClick={() => setExpanded(false)}
         >
           <button type="button" className={styles.lightboxClose} onClick={() => setExpanded(false)} aria-label="Close room photo">
@@ -57,7 +57,7 @@ export default function RoomPhoto() {
           <div className={styles.lightboxImage} onClick={event => event.stopPropagation()}>
             <Image
               src="/lga-room-interior.jpg"
-              alt="The LGA Room with presentation screens, tables, and seating"
+              alt="The LG Room with presentation screens, tables, and seating"
               fill
               priority
               sizes="96vw"
