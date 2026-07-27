@@ -334,11 +334,6 @@ export default function CanvasBroadcastPage() {
       setNotice({ type: 'error', text: 'There are no eligible active students for this campus.' });
       return;
     }
-    if (reviewedSnapshot !== summary.calculatedAt) {
-      setNotice({ type: 'error', text: 'Review and approve the eligible course list before posting.' });
-      setModal('courses');
-      return;
-    }
     if (!subject.trim() || !stripHtml(currentBody())) {
       setNotice({ type: 'error', text: 'Add a subject and message before sending.' });
       return;
@@ -578,7 +573,7 @@ export default function CanvasBroadcastPage() {
             <div><Icon name="shield" /><span><strong>Confirmation required</strong><small>You’ll review the recipient count before anything is sent.</small></span></div>
             <div className={styles.sendActions}>
               <button className={styles.testButton} onClick={() => void sendTest()} disabled={!authorized || sending || testing || !subject.trim() || bodyLength === 0 || !testCourseUrl.trim()}>{testing ? 'SENDING TEST…' : delivery === 'both' ? 'TEST BOTH' : delivery === 'inbox' ? 'TEST EMAIL' : 'TEST ANNOUNCEMENT'}</button>
-              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount || reviewedSnapshot !== summary?.calculatedAt}><Icon name="send" />{sending ? 'SENDING…' : delivery === 'both' ? 'SEND BOTH' : delivery === 'inbox' ? 'SEND EMAIL' : 'POST ANNOUNCEMENTS'}</button>
+              <button className={styles.sendButton} onClick={requestSend} disabled={!authorized || sending || testing || summaryLoading || !summary?.studentCount}><Icon name="send" />{sending ? 'SENDING…' : delivery === 'both' ? 'SEND BOTH' : delivery === 'inbox' ? 'SEND EMAIL' : 'POST ANNOUNCEMENTS'}</button>
             </div>
           </div>
         </section>
