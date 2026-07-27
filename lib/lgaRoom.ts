@@ -26,6 +26,11 @@ export type Reservation = {
   setupRequirements: string;
   specialRequests: string;
   status: ReservationStatus;
+  adminNotes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  deniedBy?: string;
+  deniedAt?: string;
   createdAt: string;
   updatedAt: string;
 };

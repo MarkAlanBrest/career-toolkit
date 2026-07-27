@@ -6,6 +6,7 @@ import {
   getSettings,
   saveSettings,
 } from '@/lib/lgaRoom';
+import { formatReservationReference } from '@/lib/lgaRoomBooking';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
@@ -156,6 +157,7 @@ function escapeHtml(value: string | number) {
 
 function detailsTable(reservation: Reservation) {
   const rows: [string, string][] = [
+    ['Reference', formatReservationReference(reservation.id)],
     ['Event', reservation.eventName],
     ['Date', formatDateLabel(reservation.date)],
     ['Time', `${formatTimeLabel(reservation.startTime)} – ${formatTimeLabel(reservation.endTime)}`],
@@ -336,12 +338,15 @@ export async function sendReservationRequestEmail(reservation: Reservation): Pro
 }
 
 export async function sendReservationRequestReceived(reservation: Reservation): Promise<EmailSendResult> {
+  const reference = formatReservationReference(reservation.id);
   return send(
     reservation.email,
-    `Reservation Request Received — ${ROOM_NAME}`,
+    `Reservation Request Received — ${ROOM_NAME} — Ref ${reference}`,
     `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
       <h2 style="margin:0 0 8px;">Reservation Request Received</h2>
       <p style="margin:0 0 8px;">We received your request for the ${ROOM_NAME}. It is pending review, and you will receive another email when a decision is made.</p>
+      <p style="margin:0 0 12px;padding:12px 14px;background:#f4f6f8;border-radius:8px;font-weight:700;">Your reference number: <span style="letter-spacing:0.06em;">${escapeHtml(reference)}</span></p>
+      <p style="margin:0 0 12px;font-size:14px;color:#6b7780;">Please save this reference number. If you do not receive email updates, you can share it with NCST staff when following up.</p>
       ${detailsTable(reservation)}
       ${buttonLink('View calendar')}
     </div>`

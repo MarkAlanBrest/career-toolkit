@@ -29,6 +29,16 @@ function lastWeekday(year: number, month: number, weekday: number): Date {
   return new Date(year, month, lastOfMonth.getDate() - offset);
 }
 
+export function getFederalHolidayName(dateStr: string): string | undefined {
+  const year = Number(dateStr.slice(0, 4));
+  if (!Number.isFinite(year)) return undefined;
+  return getFederalHolidays(year).get(dateStr);
+}
+
+export function isFederalHoliday(dateStr: string): boolean {
+  return Boolean(getFederalHolidayName(dateStr));
+}
+
 export function getFederalHolidays(year: number): Map<string, string> {
   const holidays: [string, Date][] = [
     ["New Year's Day", observed(new Date(year, 0, 1))],

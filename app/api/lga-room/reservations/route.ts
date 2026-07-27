@@ -7,6 +7,8 @@ import {
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
+import { validateBookingDate } from '@/lib/lgaRoomBooking';
+import { checkReservationRateLimit } from '@/lib/lgaRoomRateLimit';
 import {
   sendReservationRequestEmail,
   sendReservationRequestReceived,
@@ -17,6 +19,12 @@ export const dynamic = 'force-dynamic';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^\d{2}:\d{2}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getClientKey(request: NextRequest): string {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || request.headers.get('x-real-ip')
+    || 'unknown';
+}
 
 export async function GET(request: NextRequest) {
   const month = request.nextUrl.searchParams.get('month'); // YYYY-MM
@@ -36,12 +44,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
+  if (typeof body.companyWebsite === 'string' && body.companyWebsite.trim()) {
+    return NextResponse.json({ error: 'Could not submit your request. Please try again.' }, { status: 400 });
+  }
+
+  const rateLimit = await checkReservationRateLimit(getClientKey(request));
+  if (!rateLimit.allowed) {
+    return NextResponse.json({
+      error: 'Too many reservation requests from this connection. Please wait about an hour and try again.',
+    }, { status: 429 });
+  }
+
   const {
     date, startTime, endTime, name, organization, email, phone, eventName, purpose, numberOfPeople, setupRequirements, specialRequests,
   } = body as Record<string, string>;
 
   if (!date || !DATE_RE.test(date)) {
     return NextResponse.json({ error: 'A valid date is required.' }, { status: 400 });
+  }
+  const dateCheck = validateBookingDate(date);
+  if (dateCheck.ok === false) {
+    return NextResponse.json({ error: dateCheck.error }, { status: 400 });
   }
   if (!startTime || !TIME_RE.test(startTime) || !endTime || !TIME_RE.test(endTime)) {
     return NextResponse.json({ error: 'A valid start and end time are required.' }, { status: 400 });
@@ -108,6 +131,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       reservation,
+      reference: reservation.id.replace(/-/g, '').slice(0, 8).toUpperCase(),
       emails,
       email: { sent: emails.every(result => result.sent) },
     }, { status: 201 });
