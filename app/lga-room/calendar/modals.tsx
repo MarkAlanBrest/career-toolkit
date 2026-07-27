@@ -76,7 +76,7 @@ export function RequestModal({
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'Could not submit request.');
       const emailWarning = data.email && !data.email.sent
-        ? 'Your reservation was saved, but the administrator notification email could not be sent.'
+        ? 'Your reservation was saved, but one or more notification emails could not be sent.'
         : undefined;
       onCreated(data.reservation as Reservation, emailWarning);
     } catch (err) {
@@ -258,7 +258,7 @@ export function MoveTimeModal({
   return (
     <ModalShell onClose={onClose} title="Move reservation time">
       <div style={{ fontSize: 13, color: textMuted, marginBottom: 14 }}>
-        {reservation.eventName} — the requester will be emailed about this change.
+        {reservation.eventName} — the requester and internal notification list will be emailed about this change.
       </div>
       <Field label="Date"><input value={date} onChange={e => setDate(e.target.value)} type="date" style={inputStyle} /></Field>
       <div style={{ display: 'flex', gap: 10 }}>
@@ -497,6 +497,34 @@ export function AdminLoginModal({ onClose, onSuccess }: { onClose: () => void; o
   );
 }
 
+type NotificationRecipients = {
+  request: string[];
+  approved: string[];
+  declined: string[];
+  updated: string[];
+  cancelled: string[];
+};
+
+const EMPTY_NOTIFICATION_RECIPIENTS: NotificationRecipients = {
+  request: [],
+  approved: [],
+  declined: [],
+  updated: [],
+  cancelled: [],
+};
+
+const NOTIFICATION_TYPES: Array<{
+  key: keyof NotificationRecipients;
+  title: string;
+  description: string;
+}> = [
+  { key: 'request', title: 'Reservation Request Email', description: 'Sent internally when a new request is submitted.' },
+  { key: 'approved', title: 'Confirmation Email', description: 'Sent internally when an administrator approves a reservation.' },
+  { key: 'declined', title: 'Declined Reservation Email', description: 'Sent internally when an administrator declines a request.' },
+  { key: 'updated', title: 'Reservation Update Email', description: 'Sent internally when reservation details, dates, or times change.' },
+  { key: 'cancelled', title: 'Cancellation Email', description: 'Sent internally when an administrator deletes a reservation.' },
+];
+
 type AdminSettingsData = {
   storage: { configured: boolean };
   email: {
@@ -507,7 +535,7 @@ type AdminSettingsData = {
     fromEmailInvalid: boolean;
     usingTestSender: boolean;
   };
-  notify: { adminNotifyEmail: string; buildingManagerEmail: string; maintenanceEmail: string };
+  notify: { recipients: NotificationRecipients };
   sender: {
     email: string;
     name: string;
@@ -528,9 +556,15 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloading, setDownloading] = useState(false);
-  const [adminNotifyEmail, setAdminNotifyEmail] = useState('');
-  const [buildingManagerEmail, setBuildingManagerEmail] = useState('');
-  const [maintenanceEmail, setMaintenanceEmail] = useState('');
+  const [notificationRecipients, setNotificationRecipients] = useState<NotificationRecipients>(EMPTY_NOTIFICATION_RECIPIENTS);
+  const [recipientDrafts, setRecipientDrafts] = useState<Record<keyof NotificationRecipients, string>>({
+    request: '',
+    approved: '',
+    declined: '',
+    updated: '',
+    cancelled: '',
+  });
+  const [testEmail, setTestEmail] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
   const [senderName, setSenderName] = useState('');
   const [replyToEmail, setReplyToEmail] = useState('');
@@ -569,9 +603,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
         if (!response.ok) throw new Error(data?.error || 'Could not load settings.');
         if (!cancelled) {
           setSettings(data);
-          setAdminNotifyEmail(data.notify?.adminNotifyEmail || '');
-          setBuildingManagerEmail(data.notify?.buildingManagerEmail || '');
-          setMaintenanceEmail(data.notify?.maintenanceEmail || '');
+          setNotificationRecipients(data.notify?.recipients || EMPTY_NOTIFICATION_RECIPIENTS);
           setSenderEmail(data.sender?.email || '');
           setSenderName(data.sender?.name || '');
           setReplyToEmail(data.sender?.replyToEmail || '');
@@ -612,6 +644,29 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
     }
   }
 
+  function addNotificationRecipient(type: keyof NotificationRecipients) {
+    const email = recipientDrafts[type].trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Enter a valid email address before adding it.');
+      return;
+    }
+    setNotificationRecipients(current => ({
+      ...current,
+      [type]: current[type].includes(email) ? current[type] : [...current[type], email],
+    }));
+    setRecipientDrafts(current => ({ ...current, [type]: '' }));
+    setError('');
+    setSaved(false);
+  }
+
+  function removeNotificationRecipient(type: keyof NotificationRecipients, email: string) {
+    setNotificationRecipients(current => ({
+      ...current,
+      [type]: current[type].filter(recipient => recipient !== email),
+    }));
+    setSaved(false);
+  }
+
   async function handleSaveNotify() {
     setSaving(true);
     setError('');
@@ -621,9 +676,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
-          adminNotifyEmail,
-          buildingManagerEmail,
-          maintenanceEmail,
+          notificationRecipients,
           replyToEmail,
           microsoftTenantId,
           microsoftClientId,
@@ -674,9 +727,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
-          adminNotifyEmail,
-          buildingManagerEmail,
-          maintenanceEmail,
+          notificationRecipients,
           replyToEmail,
           microsoftTenantId,
           microsoftClientId,
@@ -690,11 +741,11 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
       const response = await fetch('/api/lga-room/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ email: adminNotifyEmail }),
+        body: JSON.stringify({ email: testEmail }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || 'The test email failed.');
-      setTestEmailResult(`Test email sent to ${adminNotifyEmail}.`);
+      setTestEmailResult(`Test email sent to ${testEmail}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The test email failed.');
     } finally {
@@ -859,7 +910,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
   }
 
   return (
-    <ModalShell onClose={onClose} title="Admin settings">
+    <ModalShell onClose={onClose} title="Admin settings" wide>
       <div style={{ marginBottom: 18 }}>
         <SectionLabel>Reservation data</SectionLabel>
         <button onClick={handleDownload} disabled={downloading} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
@@ -970,25 +1021,75 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           <div style={{ marginBottom: 18 }}>
             <SectionLabel>Notification emails</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              Who gets emailed, and when. Leave any of these blank to turn that email off.
+              Add any number of recipients to each email type. The requester-facing emails are sent automatically to the address on the reservation.
             </div>
-            <Field label="New request alerts (you)">
-              <input value={adminNotifyEmail} onChange={e => setAdminNotifyEmail(e.target.value)} type="email" style={inputStyle} placeholder="you@example.com" />
-            </Field>
-            <Field label="Building Manager (on approval)">
-              <input value={buildingManagerEmail} onChange={e => setBuildingManagerEmail(e.target.value)} type="email" style={inputStyle} placeholder="manager@example.com" />
-            </Field>
-            <Field label="Maintenance (on approval)">
-              <input value={maintenanceEmail} onChange={e => setMaintenanceEmail(e.target.value)} type="email" style={inputStyle} placeholder="maintenance@example.com" />
-            </Field>
+
+            <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
+              {NOTIFICATION_TYPES.map(type => (
+                <div key={type.key} style={{ padding: 13, border: `1px solid ${border}`, borderRadius: 9, background: '#FAFBFC' }}>
+                  <div style={{ marginBottom: 9 }}>
+                    <strong style={{ display: 'block', color: accentStrong, fontSize: 13.5 }}>{type.title}</strong>
+                    <span style={{ color: textMuted, fontSize: 12 }}>{type.description}</span>
+                  </div>
+                  {notificationRecipients[type.key].length > 0 && (
+                    <div style={{ display: 'grid', gap: 5, marginBottom: 9 }}>
+                      {notificationRecipients[type.key].map(email => (
+                        <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '6px 8px', borderRadius: 6, background: surface, fontSize: 12.5 }}>
+                          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeNotificationRecipient(type.key, email)}
+                            className="lgaroom-btn-secondary"
+                            style={{ ...secondaryButtonStyle, flex: '0 0 auto', padding: '3px 8px', color: '#9A2E36', fontSize: 11.5 }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <input
+                      aria-label={`Add recipient for ${type.title}`}
+                      value={recipientDrafts[type.key]}
+                      onChange={event => setRecipientDrafts(current => ({ ...current, [type.key]: event.target.value }))}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          addNotificationRecipient(type.key);
+                        }
+                      }}
+                      type="email"
+                      style={{ ...inputStyle, margin: 0 }}
+                      placeholder="name@example.com"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addNotificationRecipient(type.key)}
+                      className="lgaroom-btn-secondary"
+                      style={{ ...secondaryButtonStyle, flex: '0 0 auto' }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button onClick={handleSaveNotify} disabled={saving} className="lgaroom-btn-primary" style={primaryButtonStyle}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
-              <button onClick={handleTestEmail} disabled={testingEmail || !adminNotifyEmail} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>
+              {saved && <span style={{ fontSize: 12.5, color: '#1F7A4D' }}>Saved</span>}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginTop: 14 }}>
+              <Field label="Test email address">
+                <input value={testEmail} onChange={event => setTestEmail(event.target.value)} type="email" style={inputStyle} placeholder="name@example.com" />
+              </Field>
+              <button onClick={handleTestEmail} disabled={testingEmail || !testEmail} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, marginBottom: 12 }}>
                 {testingEmail ? 'Sending test…' : 'Send test email'}
               </button>
-              {saved && <span style={{ fontSize: 12.5, color: '#1F7A4D' }}>Saved</span>}
             </div>
             {testEmailResult && <div style={{ marginTop: 8, fontSize: 12.5, color: '#1F7A4D' }}>{testEmailResult}</div>}
           </div>
@@ -996,7 +1097,7 @@ export function AdminSettingsModal({ adminEmail, adminPassword, onClose }: { adm
           <div>
             <SectionLabel>Admins</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              Anyone listed here can sign in and manage reservations.
+              Anyone listed here can sign in and manage reservations. Add them to an email list above if they should also receive notifications.
             </div>
 
             {adminsError && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{adminsError}</div>}

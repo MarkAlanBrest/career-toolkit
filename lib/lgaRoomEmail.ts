@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
-import { Reservation, ROOM_NAME, getSettings, saveSettings } from '@/lib/lgaRoom';
+import {
+  Reservation,
+  ROOM_NAME,
+  ReservationNotificationRecipients,
+  getSettings,
+  saveSettings,
+} from '@/lib/lgaRoom';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
@@ -139,6 +145,15 @@ function formatDateLabel(dateStr: string) {
   });
 }
 
+function escapeHtml(value: string | number) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function detailsTable(reservation: Reservation) {
   const rows: [string, string][] = [
     ['Event', reservation.eventName],
@@ -156,7 +171,7 @@ function detailsTable(reservation: Reservation) {
   return `
     <table style="border-collapse:collapse;margin:16px 0;">
       ${rows.map(([label, value]) => `
-        <tr><td style="padding:4px 12px 4px 0;color:#6b7780;vertical-align:top;">${label}</td><td style="padding:4px 0;font-weight:700;">${value}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0;color:#6b7780;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:4px 0;font-weight:700;">${escapeHtml(value)}</td></tr>
       `).join('')}
     </table>`;
 }
@@ -276,92 +291,135 @@ async function sendWithMicrosoftGraph(
   return { sent: true, recipient: to };
 }
 
-export async function sendAdminNotification(reservation: Reservation): Promise<EmailSendResult | null> {
+async function getInternalRecipients(event: keyof ReservationNotificationRecipients): Promise<string[]> {
+  const settings = await getSettings();
+  return settings.notificationRecipients[event];
+}
+
+async function sendInternalEmail(
+  reservation: Reservation,
+  event: keyof ReservationNotificationRecipients,
+  subject: string,
+  heading: string,
+  message: string,
+  buttonLabel = 'View reservation'
+): Promise<EmailSendResult[]> {
   try {
-    const settings = await getSettings();
-    if (!settings.adminNotifyEmail) return null;
-    return await send(
-      settings.adminNotifyEmail,
-      `New ${ROOM_NAME} request — ${formatDateLabel(reservation.date)}`,
-      `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-        <h2 style="margin:0 0 8px;">New reservation request</h2>
-        <p style="margin:0 0 8px;">A new ${ROOM_NAME} request is pending your approval.</p>
+    const recipients = await getInternalRecipients(event);
+    if (!recipients.length) return [];
+    return await Promise.all(recipients.map(recipient => send(
+      recipient,
+      subject,
+      `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
+        <h2 style="margin:0 0 8px;">${heading}</h2>
+        <p style="margin:0 0 8px;">${message}</p>
         ${detailsTable(reservation)}
-        ${buttonLink('Review request')}
+        ${buttonLink(buttonLabel)}
       </div>`,
       reservation.email
-    );
+    )));
   } catch (error) {
-    console.error('[lga-room] Admin notification failed:', error);
-    return { sent: false, recipient: 'configured administrator', error: emailErrorMessage(error) };
+    console.error('[lga-room] Internal notification failed:', error);
+    return [{ sent: false, recipient: 'admin recipient list', error: emailErrorMessage(error) }];
   }
+}
+
+export async function sendReservationRequestEmail(reservation: Reservation): Promise<EmailSendResult[]> {
+  return sendInternalEmail(
+    reservation,
+    'request',
+    `Reservation Request Email — ${ROOM_NAME} — ${formatDateLabel(reservation.date)}`,
+    'Reservation Request Email',
+    `A new ${ROOM_NAME} request is pending review.`,
+    'Review request'
+  );
+}
+
+export async function sendReservationRequestReceived(reservation: Reservation): Promise<EmailSendResult> {
+  return send(
+    reservation.email,
+    `Reservation Request Received — ${ROOM_NAME}`,
+    `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
+      <h2 style="margin:0 0 8px;">Reservation Request Received</h2>
+      <p style="margin:0 0 8px;">We received your request for the ${ROOM_NAME}. It is pending review, and you will receive another email when a decision is made.</p>
+      ${detailsTable(reservation)}
+      ${buttonLink('View calendar')}
+    </div>`
+  );
+}
+
+export async function sendInternalDecisionEmail(reservation: Reservation): Promise<EmailSendResult[]> {
+  const approved = reservation.status === 'approved';
+  return sendInternalEmail(
+    reservation,
+    approved ? 'approved' : 'declined',
+    approved
+      ? `Confirmation Email — ${ROOM_NAME} approved — ${formatDateLabel(reservation.date)}`
+      : `${ROOM_NAME} reservation declined — ${formatDateLabel(reservation.date)}`,
+    approved ? 'Confirmation Email' : 'Reservation declined',
+    approved
+      ? `The following ${ROOM_NAME} reservation has been approved.`
+      : `The following ${ROOM_NAME} reservation request has been declined.`
+  );
 }
 
 export async function sendRequesterDecision(reservation: Reservation): Promise<EmailSendResult> {
   const approved = reservation.status === 'approved';
   return send(
     reservation.email,
-    `Your ${ROOM_NAME} request was ${approved ? 'approved' : 'not approved'}`,
-    `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-      <h2 style="margin:0 0 8px;">Reservation ${approved ? 'approved' : 'not approved'}</h2>
-      <p style="margin:0 0 8px;">Your request for the ${ROOM_NAME} has been <strong>${approved ? 'approved' : 'not approved'}</strong>.</p>
+    approved ? `Your ${ROOM_NAME} reservation is confirmed` : `Your ${ROOM_NAME} reservation request was declined`,
+    `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
+      <h2 style="margin:0 0 8px;">${approved ? 'Reservation confirmed' : 'Reservation declined'}</h2>
+      <p style="margin:0 0 8px;">Your request for the ${ROOM_NAME} has been <strong>${approved ? 'approved' : 'declined'}</strong>.</p>
       ${detailsTable(reservation)}
       ${buttonLink('View calendar')}
     </div>`
   );
 }
 
-export async function sendRequesterTimeChanged(reservation: Reservation): Promise<EmailSendResult> {
+export async function sendInternalUpdateEmail(reservation: Reservation): Promise<EmailSendResult[]> {
+  return sendInternalEmail(
+    reservation,
+    'updated',
+    `${ROOM_NAME} reservation updated — ${formatDateLabel(reservation.date)}`,
+    'Reservation updated',
+    `An administrator changed the following ${ROOM_NAME} reservation. The current details are below.`
+  );
+}
+
+export async function sendRequesterUpdateEmail(reservation: Reservation): Promise<EmailSendResult> {
   return send(
     reservation.email,
-    `Your ${ROOM_NAME} reservation was rescheduled`,
-    `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-      <h2 style="margin:0 0 8px;">Reservation rescheduled</h2>
-      <p style="margin:0 0 8px;">The date or time of your ${ROOM_NAME} reservation was changed by an admin. The new details:</p>
+    `Your ${ROOM_NAME} reservation was updated`,
+    `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
+      <h2 style="margin:0 0 8px;">Reservation updated</h2>
+      <p style="margin:0 0 8px;">Details for your ${ROOM_NAME} reservation have changed. The current information is below.</p>
       ${detailsTable(reservation)}
       ${buttonLink('View calendar')}
     </div>`
   );
 }
 
-export async function sendBuildingManagerNotification(reservation: Reservation): Promise<EmailSendResult | null> {
-  try {
-    const settings = await getSettings();
-    if (!settings.buildingManagerEmail) return null;
-    return await send(
-      settings.buildingManagerEmail,
-      `${ROOM_NAME} approved — ${formatDateLabel(reservation.date)}`,
-      `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-        <h2 style="margin:0 0 8px;">Reservation approved</h2>
-        <p style="margin:0 0 8px;">The following ${ROOM_NAME} reservation has been approved.</p>
-        ${detailsTable(reservation)}
-        ${buttonLink('View calendar')}
-      </div>`
-    );
-  } catch (error) {
-    console.error('[lga-room] Building Manager notification failed:', error);
-    return { sent: false, recipient: 'configured building manager', error: emailErrorMessage(error) };
-  }
+export async function sendInternalCancellationEmail(reservation: Reservation): Promise<EmailSendResult[]> {
+  return sendInternalEmail(
+    reservation,
+    'cancelled',
+    `${ROOM_NAME} reservation cancelled — ${formatDateLabel(reservation.date)}`,
+    'Reservation cancelled',
+    `An administrator cancelled and removed the following ${ROOM_NAME} reservation.`
+  );
 }
 
-export async function sendMaintenanceNotification(reservation: Reservation): Promise<EmailSendResult | null> {
-  try {
-    const settings = await getSettings();
-    if (!settings.maintenanceEmail) return null;
-    return await send(
-      settings.maintenanceEmail,
-      `${ROOM_NAME} approved — ${formatDateLabel(reservation.date)}`,
-      `<div style="font-family:sans-serif;color:#2d3b45;max-width:480px;">
-        <h2 style="margin:0 0 8px;">Reservation approved</h2>
-        <p style="margin:0 0 8px;">The following ${ROOM_NAME} reservation has been approved. Setup and special requests are included below if any were requested.</p>
-        ${detailsTable(reservation)}
-        ${buttonLink('View calendar')}
-      </div>`
-    );
-  } catch (error) {
-    console.error('[lga-room] Maintenance notification failed:', error);
-    return { sent: false, recipient: 'configured maintenance address', error: emailErrorMessage(error) };
-  }
+export async function sendRequesterCancellationEmail(reservation: Reservation): Promise<EmailSendResult> {
+  return send(
+    reservation.email,
+    `Your ${ROOM_NAME} reservation was cancelled`,
+    `<div style="font-family:sans-serif;color:#2d3b45;max-width:520px;">
+      <h2 style="margin:0 0 8px;">Reservation cancelled</h2>
+      <p style="margin:0 0 8px;">Your ${ROOM_NAME} reservation has been cancelled. The cancelled reservation details are below.</p>
+      ${detailsTable(reservation)}
+    </div>`
+  );
 }
 
 export async function sendTestEmail(to: string): Promise<EmailSendResult> {

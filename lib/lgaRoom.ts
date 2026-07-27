@@ -3,6 +3,14 @@ import { get, put } from '@vercel/blob';
 
 export type ReservationStatus = 'pending' | 'approved' | 'denied';
 
+export type ReservationNotificationRecipients = {
+  request: string[];
+  approved: string[];
+  declined: string[];
+  updated: string[];
+  cancelled: string[];
+};
+
 export type Reservation = {
   id: string;
   date: string; // YYYY-MM-DD
@@ -23,6 +31,7 @@ export type Reservation = {
 };
 
 export type LgaRoomSettings = {
+  notificationRecipients: ReservationNotificationRecipients;
   adminNotifyEmail: string;
   buildingManagerEmail: string;
   maintenanceEmail: string;
@@ -199,6 +208,13 @@ export async function saveAllReservations(reservations: Reservation[]): Promise<
 }
 
 const EMPTY_SETTINGS: LgaRoomSettings = {
+  notificationRecipients: {
+    request: [],
+    approved: [],
+    declined: [],
+    updated: [],
+    cancelled: [],
+  },
   adminNotifyEmail: '',
   buildingManagerEmail: '',
   maintenanceEmail: '',
@@ -219,7 +235,25 @@ export async function getSettings(): Promise<LgaRoomSettings> {
   const result = await get(SETTINGS_PATHNAME, { access: 'private', useCache: false });
   if (!result) return { ...EMPTY_SETTINGS };
   const data = await new Response(result.stream).json();
+  const cleanRecipientList = (value: unknown) => Array.isArray(value)
+    ? Array.from(new Set(value.filter((email): email is string => typeof email === 'string').map(email => email.trim().toLowerCase()).filter(Boolean)))
+    : [];
+  const legacyAdmin = typeof data?.adminNotifyEmail === 'string' && data.adminNotifyEmail.trim()
+    ? [data.adminNotifyEmail.trim().toLowerCase()]
+    : [];
+  const legacyApproval = [
+    typeof data?.buildingManagerEmail === 'string' ? data.buildingManagerEmail : '',
+    typeof data?.maintenanceEmail === 'string' ? data.maintenanceEmail : '',
+  ].map(email => email.trim().toLowerCase()).filter(Boolean);
+  const hasRecipientLists = data?.notificationRecipients && typeof data.notificationRecipients === 'object';
   return {
+    notificationRecipients: {
+      request: hasRecipientLists ? cleanRecipientList(data.notificationRecipients.request) : legacyAdmin,
+      approved: hasRecipientLists ? cleanRecipientList(data.notificationRecipients.approved) : legacyApproval,
+      declined: hasRecipientLists ? cleanRecipientList(data.notificationRecipients.declined) : legacyAdmin,
+      updated: hasRecipientLists ? cleanRecipientList(data.notificationRecipients.updated) : Array.from(new Set([...legacyAdmin, ...legacyApproval])),
+      cancelled: hasRecipientLists ? cleanRecipientList(data.notificationRecipients.cancelled) : Array.from(new Set([...legacyAdmin, ...legacyApproval])),
+    },
     adminNotifyEmail: typeof data?.adminNotifyEmail === 'string' ? data.adminNotifyEmail : '',
     buildingManagerEmail: typeof data?.buildingManagerEmail === 'string' ? data.buildingManagerEmail : '',
     maintenanceEmail: typeof data?.maintenanceEmail === 'string' ? data.maintenanceEmail : '',

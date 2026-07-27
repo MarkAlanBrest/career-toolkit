@@ -7,7 +7,10 @@ import {
   saveAllReservations,
   timesOverlap,
 } from '@/lib/lgaRoom';
-import { sendAdminNotification } from '@/lib/lgaRoomEmail';
+import {
+  sendReservationRequestEmail,
+  sendReservationRequestReceived,
+} from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,11 +100,16 @@ export async function POST(request: NextRequest) {
 
     reservations.push(reservation);
     await saveAllReservations(reservations);
-    const emailResult = await sendAdminNotification(reservation);
+    const [internalEmails, requesterEmail] = await Promise.all([
+      sendReservationRequestEmail(reservation),
+      sendReservationRequestReceived(reservation),
+    ]);
+    const emails = [...internalEmails, requesterEmail];
 
     return NextResponse.json({
       reservation,
-      email: emailResult ? { sent: emailResult.sent } : null,
+      emails,
+      email: { sent: emails.every(result => result.sent) },
     }, { status: 201 });
   } catch (error) {
     console.error('[lga-room] Could not submit reservation:', error);

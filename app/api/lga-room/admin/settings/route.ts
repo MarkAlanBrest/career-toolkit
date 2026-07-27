@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSettings, isAdminRequestAuthorized, saveSettings } from '@/lib/lgaRoom';
+import {
+  ReservationNotificationRecipients,
+  getSettings,
+  isAdminRequestAuthorized,
+  saveSettings,
+} from '@/lib/lgaRoom';
 import { getEmailStatus, sendTestEmail } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +31,7 @@ export async function GET(request: NextRequest) {
       storage: { configured: true },
       email: await getEmailStatus(),
       notify: {
+        recipients: settings.notificationRecipients,
         adminNotifyEmail: settings.adminNotifyEmail,
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,
@@ -56,19 +62,13 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const {
-    adminNotifyEmail, buildingManagerEmail, maintenanceEmail, senderEmail,
-    senderName, replyToEmail, microsoftTenantId, microsoftClientId,
-  } = body as Record<string, string>;
-  if (adminNotifyEmail && !EMAIL_RE.test(adminNotifyEmail)) {
-    return NextResponse.json({ error: 'That new-request notification email looks invalid.' }, { status: 400 });
-  }
-  if (buildingManagerEmail && !EMAIL_RE.test(buildingManagerEmail)) {
-    return NextResponse.json({ error: 'Building Manager email looks invalid.' }, { status: 400 });
-  }
-  if (maintenanceEmail && !EMAIL_RE.test(maintenanceEmail)) {
-    return NextResponse.json({ error: 'Maintenance email looks invalid.' }, { status: 400 });
-  }
+  const payload = body as Record<string, unknown>;
+  const stringValue = (key: string) => typeof payload[key] === 'string' ? String(payload[key]) : '';
+  const senderEmail = stringValue('senderEmail');
+  const senderName = stringValue('senderName');
+  const replyToEmail = stringValue('replyToEmail');
+  const microsoftTenantId = stringValue('microsoftTenantId');
+  const microsoftClientId = stringValue('microsoftClientId');
   if (senderEmail && !EMAIL_RE.test(senderEmail)) {
     return NextResponse.json({ error: 'Sender email looks invalid.' }, { status: 400 });
   }
@@ -88,14 +88,35 @@ export async function PUT(request: NextRequest) {
 
   try {
     const current = await getSettings();
+    let notificationRecipients = current.notificationRecipients;
+    if (payload.notificationRecipients !== undefined) {
+      if (!payload.notificationRecipients || typeof payload.notificationRecipients !== 'object' || Array.isArray(payload.notificationRecipients)) {
+        return NextResponse.json({ error: 'Notification recipient lists are invalid.' }, { status: 400 });
+      }
+      const raw = payload.notificationRecipients as Record<string, unknown>;
+      const keys: Array<keyof ReservationNotificationRecipients> = ['request', 'approved', 'declined', 'updated', 'cancelled'];
+      const next = {} as ReservationNotificationRecipients;
+      for (const key of keys) {
+        if (!Array.isArray(raw[key])) {
+          return NextResponse.json({ error: `The ${key} recipient list is invalid.` }, { status: 400 });
+        }
+        const recipients = raw[key] as unknown[];
+        if (recipients.some(email => typeof email !== 'string' || !EMAIL_RE.test(email.trim()))) {
+          return NextResponse.json({ error: `The ${key} recipient list contains an invalid email address.` }, { status: 400 });
+        }
+        next[key] = Array.from(new Set(recipients.map(email => String(email).trim().toLowerCase())));
+      }
+      notificationRecipients = next;
+    }
     const nextTenantId = (microsoftTenantId || '').trim();
     const nextClientId = (microsoftClientId || '').trim();
     const microsoftAppChanged =
       nextTenantId !== current.microsoftTenantId || nextClientId !== current.microsoftClientId;
     const settings = {
-      adminNotifyEmail: (adminNotifyEmail || '').trim(),
-      buildingManagerEmail: (buildingManagerEmail || '').trim(),
-      maintenanceEmail: (maintenanceEmail || '').trim(),
+      notificationRecipients,
+      adminNotifyEmail: current.adminNotifyEmail,
+      buildingManagerEmail: current.buildingManagerEmail,
+      maintenanceEmail: current.maintenanceEmail,
       senderEmail: microsoftAppChanged ? '' : current.senderEmail || (senderEmail || '').trim(),
       senderAppPassword: current.senderAppPassword,
       senderName: microsoftAppChanged ? '' : current.senderName || (senderName || '').trim(),
@@ -109,6 +130,7 @@ export async function PUT(request: NextRequest) {
     await saveSettings(settings);
     return NextResponse.json({
       notify: {
+        recipients: settings.notificationRecipients,
         adminNotifyEmail: settings.adminNotifyEmail,
         buildingManagerEmail: settings.buildingManagerEmail,
         maintenanceEmail: settings.maintenanceEmail,

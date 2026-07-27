@@ -7,10 +7,12 @@ import {
 } from '@/lib/lgaRoom';
 import {
   EmailSendResult,
-  sendBuildingManagerNotification,
-  sendMaintenanceNotification,
+  sendInternalCancellationEmail,
+  sendInternalDecisionEmail,
+  sendInternalUpdateEmail,
+  sendRequesterCancellationEmail,
   sendRequesterDecision,
-  sendRequesterTimeChanged,
+  sendRequesterUpdateEmail,
 } from '@/lib/lgaRoomEmail';
 
 export const dynamic = 'force-dynamic';
@@ -66,20 +68,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const justApproved = updated.status !== current.status && updated.status === 'approved';
     const justDenied = updated.status !== current.status && updated.status === 'denied';
     if (justApproved || justDenied) {
-      emails.push(await sendRequesterDecision(updated));
-    }
-    if (justApproved) {
-      const results = await Promise.all([
-        sendBuildingManagerNotification(updated),
-        sendMaintenanceNotification(updated),
+      const [internalEmails, requesterEmail] = await Promise.all([
+        sendInternalDecisionEmail(updated),
+        sendRequesterDecision(updated),
       ]);
-      emails.push(...results.filter((result): result is EmailSendResult => result !== null));
-    }
-
-    const timeChanged = body.notifyTimeChange === true &&
-      (updated.date !== current.date || updated.startTime !== current.startTime || updated.endTime !== current.endTime);
-    if (timeChanged) {
-      emails.push(await sendRequesterTimeChanged(updated));
+      emails.push(...internalEmails, requesterEmail);
+    } else {
+      const changed = EDITABLE_FIELDS.some(field => field !== 'status' && field in body && updated[field] !== current[field]);
+      if (changed) {
+        const [internalEmails, requesterEmail] = await Promise.all([
+          sendInternalUpdateEmail(updated),
+          sendRequesterUpdateEmail(updated),
+        ]);
+        emails.push(...internalEmails, requesterEmail);
+      }
     }
 
     return NextResponse.json({ reservation: updated, emails });
@@ -97,13 +99,18 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { id } = await params;
   try {
     const reservations = await getAllReservations();
-    const next = reservations.filter(r => r.id !== id);
-    if (next.length === reservations.length) {
+    const reservation = reservations.find(r => r.id === id);
+    if (!reservation) {
       return NextResponse.json({ error: 'Reservation not found.' }, { status: 404 });
     }
 
+    const next = reservations.filter(r => r.id !== id);
     await saveAllReservations(next);
-    return NextResponse.json({ ok: true });
+    const [internalEmails, requesterEmail] = await Promise.all([
+      sendInternalCancellationEmail(reservation),
+      sendRequesterCancellationEmail(reservation),
+    ]);
+    return NextResponse.json({ ok: true, emails: [...internalEmails, requesterEmail] });
   } catch (error) {
     console.error('[lga-room] Could not delete reservation:', error);
     return NextResponse.json({ error: 'Could not delete this reservation. Please try again.' }, { status: 500 });
