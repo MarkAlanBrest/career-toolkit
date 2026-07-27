@@ -190,14 +190,29 @@ export default function LgaRoomCalendarPage() {
   }
 
   return (
-    <main className={publicSans.className} style={{ minHeight: '100vh', background: bg, color: text, paddingBottom: 64 }}>
+    <main
+      className={publicSans.className}
+      style={{
+        minHeight: '100vh',
+        background: adminMode ? '#FFF6DF' : bg,
+        color: text,
+        paddingBottom: 64,
+      }}
+    >
       <style>{lgaRoomStyles}</style>
 
-      <header style={{ background: accent, color: '#fff', padding: '20px 24px' }}>
+      <header
+        style={{
+          background: adminMode ? '#694500' : accent,
+          color: '#fff',
+          padding: '20px 24px',
+          boxShadow: adminMode ? 'inset 0 -4px 0 #F5A800' : 'none',
+        }}
+      >
         <div style={{ maxWidth: 840, margin: '0 auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.72, marginBottom: 4 }}>
-              Room booking
+              {adminMode ? 'Administrator workspace' : 'Room booking'}
             </div>
             <h1 className={archivo.className} style={{ fontSize: 24, fontWeight: 700, margin: 0, textWrap: 'balance' }}>
               {ROOM_NAME}
@@ -214,7 +229,7 @@ export default function LgaRoomCalendarPage() {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            Reservations are on an approval basis
+            {adminMode ? 'Admin mode active' : 'Reservations are on an approval basis'}
           </div>
         </div>
       </header>
@@ -496,14 +511,14 @@ export default function LgaRoomCalendarPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              background: surface,
-              border: `1px solid ${border}`,
+              background: '#FFF1C7',
+              border: '1px solid #E0B753',
               borderRadius: 999,
               padding: '6px 6px 6px 14px',
               boxShadow: '0 4px 16px rgba(32,36,31,0.16)',
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 600, color: accent }}>Admin mode</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#694500' }}>Admin mode</span>
             <button onClick={() => setShowReports(true)} className="lgaroom-btn-secondary" style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}>
               Reports
             </button>
