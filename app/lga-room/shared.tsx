@@ -112,8 +112,22 @@ export function LockIcon() {
 
 export function Legend({ color, label }: { color: { bg: string; fg: string; border: string }; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: color.fg, display: 'inline-block' }} />
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '7px 11px',
+        border: `1px solid ${color.border}`,
+        borderRadius: 999,
+        background: color.bg,
+        color: color.fg,
+        fontSize: 13.5,
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+    >
+      <span style={{ width: 10, height: 10, borderRadius: '50%', background: color.fg, display: 'inline-block' }} />
       {label}
     </div>
   );

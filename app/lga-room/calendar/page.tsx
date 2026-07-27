@@ -221,19 +221,45 @@ export default function LgaRoomCalendarPage() {
 
       <section style={{ maxWidth: 840, margin: '0 auto', padding: '18px 16px 24px' }}>
         <div
+          role="note"
           style={{
-            marginBottom: 14,
-            padding: '10px 14px',
-            background: accentTint,
-            border: `1px solid ${border}`,
-            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            marginBottom: 18,
+            padding: '15px 18px',
+            background: '#FFF8E8',
+            border: '1px solid #E9CB83',
+            borderLeft: '5px solid #F5A800',
+            borderRadius: 10,
             color: accentStrong,
-            fontSize: 13,
-            fontWeight: 600,
-            textAlign: 'center',
+            boxShadow: '0 4px 14px rgba(0,45,116,0.06)',
           }}
         >
-          Click the &quot;+&quot; at the date you want to request and input your details
+          <span
+            aria-hidden="true"
+            style={{
+              display: 'grid',
+              width: 38,
+              height: 38,
+              flex: '0 0 auto',
+              placeItems: 'center',
+              borderRadius: '50%',
+              background: accent,
+              color: '#fff',
+              fontSize: 25,
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </span>
+          <span style={{ display: 'grid', gap: 3 }}>
+            <strong style={{ fontSize: 16, lineHeight: 1.2 }}>Request a reservation</strong>
+            <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.4 }}>
+              Find your date, click the &quot;+&quot; button, then enter your details.
+            </span>
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -275,7 +301,7 @@ export default function LgaRoomCalendarPage() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: 14, fontSize: 12.5, color: textMuted }}>
+          <div aria-label="Reservation status legend" style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
             <Legend color={STATUS_STYLES.pending} label="Pending" />
             <Legend color={STATUS_STYLES.approved} label="Approved" />
             {adminMode && <Legend color={STATUS_STYLES.denied} label="Not approved" />}
