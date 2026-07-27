@@ -129,20 +129,8 @@ export default function EmployerPortalPage() {
         <div className={styles.workspace}>
           <div className={styles.toolbar}>
             <div className={styles.toolbarWelcome}>
-              <span>Employer workspace</span>
-              <strong>Welcome ABC Company</strong>
-            </div>
-            <div className={styles.loginControls} aria-label="Employer account login">
-              <label>
-                <span>Username</span>
-                <input type="text" name="employer-username" placeholder="Username" autoComplete="username" />
-              </label>
-              <label>
-                <span>Password</span>
-                <input type="password" name="employer-password" placeholder="Password" autoComplete="current-password" />
-              </label>
-              <button className={styles.loginButton} type="button">Log in</button>
-              <a className={styles.signUpLink} href={emailLink('NCST Employer Portal — Account Request')}>Sign Up</a>
+              <span>New Castle School of Trades</span>
+              <strong>Welcome to the Employer Portal</strong>
             </div>
           </div>
 

@@ -232,7 +232,7 @@
 }
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 20px;
   min-height: 88px;
@@ -241,57 +241,6 @@
 .toolbarWelcome { display: grid; gap: 3px; }
 .toolbarWelcome span { color: #7b8796; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .toolbarWelcome strong { color: var(--navy); font-size: 18px; line-height: 1.1; }
-.loginControls { display: flex; align-items: center; gap: 8px; }
-.loginControls label { display: block; }
-.loginControls label > span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-.loginControls input {
-  width: 128px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid #d6dde7;
-  border-radius: 5px;
-  background: #fff;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 11px;
-}
-.loginControls input::placeholder { color: #929dac; }
-.loginControls input:focus-visible { border-color: var(--navy); outline: 2px solid rgba(0,45,116,.18); outline-offset: 1px; }
-.loginButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 20px;
-  background: var(--navy);
-  color: #fff;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-.loginButton:hover { background: var(--navy-deep); }
-.loginButton:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
-.signUpLink {
-  padding: 7px 2px;
-  color: var(--navy);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
-  text-underline-offset: 3px;
-  text-transform: uppercase;
-}
 .dashboardContent {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -506,8 +455,7 @@
   .sideNav nav a { flex: 0 0 auto; justify-content: center; padding: 0 12px; font-size: 11px; white-space: nowrap; }
   .sideNav nav .navSectionLabel { display: none; }
   .sideNav nav .serviceNavLink { min-height: 44px; }
-  .toolbar { grid-template-columns: minmax(200px, 1fr) auto; }
-  .loginControls input { width: 112px; }
+  .toolbar { grid-template-columns: 1fr; }
   .dashboardContent { grid-template-columns: minmax(0, 1fr) 280px; }
   .featuredGrid, .directoryGrid { grid-template-columns: repeat(2,1fr); }
   .footerInner { grid-template-columns: 1fr 1fr; padding: 28px 0; }
@@ -520,9 +468,6 @@
   .toolbar { grid-template-columns: 1fr; min-height: 70px; padding: 14px 13px 8px; }
   .toolbarWelcome span { display: none; }
   .toolbarWelcome strong { font-size: 15px; }
-  .loginControls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; }
-  .loginControls label, .loginControls input { width: 100%; min-width: 0; }
-  .loginButton { min-height: 38px; padding: 0 17px; }
   .dashboardContent { grid-template-columns: 1fr; padding: 13px; }
   .welcomePanel { grid-template-columns: 1fr 120px; min-height: 210px; padding: 28px; }
   .welcomeMark { width: 108px; height: 108px; }
@@ -555,9 +500,6 @@
   .primaryButton { justify-content: center; width: 100%; }
   .textLink { align-self: center; }
   .featuredGrid { grid-template-columns: 1fr; }
-  .loginControls { grid-template-columns: 1fr 1fr; }
-  .loginButton { width: 100%; }
-  .signUpLink { text-align: center; }
   .welcomePanel { display: block; min-height: 0; padding: 27px 23px; }
   .welcomeMark { display: none; }
   .requestPanel { padding: 27px 23px; }
