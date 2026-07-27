@@ -16,9 +16,7 @@ type Service = {
   description: string;
   category: 'Hire' | 'Connect' | 'Partner' | 'Manage';
   icon: IconName;
-  href?: string;
   featured?: boolean;
-  label?: string;
 };
 
 function emailLink(subject: string) {
@@ -30,7 +28,7 @@ const SERVICES: Service[] = [
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
   { title: 'PAC Meeting Registration', description: 'Register for an upcoming Program Advisory Committee meeting.', category: 'Partner', icon: 'committee', featured: true },
   { title: 'Career Fair Registration', description: 'Register your company and representatives for the Career Fair.', category: 'Connect', icon: 'calendar', featured: true },
-  { title: 'LGA Room Reservation', description: 'Check availability and request the LGA meeting room.', category: 'Connect', icon: 'building', href: '/lga-room', label: 'Reserve online' },
+  { title: 'LGA Room Reservation', description: 'Check availability and request the LGA meeting room.', category: 'Connect', icon: 'building' },
   { title: 'Submit Student Work Log', description: 'Submit a required work log for a student participating in work release.', category: 'Manage', icon: 'clipboard' },
   { title: 'Request Custom Training', description: 'Ask about workforce or employee training tailored to your organization.', category: 'Partner', icon: 'training' },
   { title: 'Schedule a Recruiting Visit', description: 'Visit campus, speak with students, conduct interviews, or recruit.', category: 'Hire', icon: 'visit' },
@@ -39,15 +37,11 @@ const SERVICES: Service[] = [
   { title: 'Update Contact Information', description: 'Keep your company and employer contact information current.', category: 'Manage', icon: 'contact' },
   { title: 'Request a School Tour', description: 'Arrange a guided tour of NCST programs and facilities.', category: 'Connect', icon: 'tour' },
   { title: 'Message Career Services', description: 'Send a general question or request to the Career Services team.', category: 'Connect', icon: 'message' },
-  { title: 'Upcoming Events', description: 'View Career Fairs, PAC meetings, recruiting events, and key dates.', category: 'Connect', icon: 'events', href: '#upcoming-events', label: 'View events' },
+  { title: 'Upcoming Events', description: 'View Career Fairs, PAC meetings, recruiting events, and key dates.', category: 'Connect', icon: 'events' },
 ];
 
 function ArrowIcon() {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h13M11 5l5 5-5 5" /></svg>;
-}
-
-function CheckIcon() {
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 10 4 4 8-9" /></svg>;
 }
 
 function ServiceIcon({ name }: { name: IconName }) {
@@ -71,20 +65,15 @@ function ServiceIcon({ name }: { name: IconName }) {
 }
 
 function ServiceCard({ service, compact = false }: { service: Service; compact?: boolean }) {
-  const href = service.href ?? emailLink(`NCST Employer Portal — ${service.title}`);
   return (
-    <a className={`${styles.serviceCard} ${compact ? styles.compactCard : ''}`} href={href}>
+    <article className={`${styles.serviceCard} ${compact ? styles.compactCard : ''}`}>
       <div className={styles.cardTop}>
         <span className={styles.iconBox}><ServiceIcon name={service.icon} /></span>
         <span className={styles.category}>{service.category}</span>
       </div>
       <h3 className={archivo.className}>{service.title}</h3>
       <p>{service.description}</p>
-      <span className={styles.cardAction}>
-        {service.label ?? 'Start request'}
-        <ArrowIcon />
-      </span>
-    </a>
+    </article>
   );
 }
 
@@ -121,23 +110,13 @@ export default function EmployerPortalPage() {
             </div>
           </div>
 
-          <aside className={styles.heroPanel}>
-            <span className={styles.panelKicker}>Designed for local employers</span>
-            <h2 className={archivo.className}>A direct line to Career Services.</h2>
-            <ul>
-              <li><CheckIcon /><span>No login or account required</span></li>
-              <li><CheckIcon /><span>Professional confirmation for every request</span></li>
-              <li><CheckIcon /><span>One place for hiring, events, and partnership needs</span></li>
-            </ul>
-            <div className={styles.panelContact}><span>Need help choosing a service?</span><a href="tel:+17246548590">(724) 654-8590</a></div>
-          </aside>
         </div>
       </section>
 
       <section className={styles.servicesSection} id="services">
         <div className={styles.sectionHeading}>
           <div><span className={styles.kicker}>Most requested</span><h2 className={archivo.className}>What can we help you do?</h2></div>
-          <p>Choose a service to start your request. Career Services will follow up with you directly.</p>
+          <p>Explore the ways NCST Career Services can help your organization hire, connect, and grow.</p>
         </div>
         <div className={styles.featuredGrid}>{featured.map(service => <ServiceCard key={service.title} service={service} />)}</div>
 
