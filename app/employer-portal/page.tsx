@@ -1,6 +1,8 @@
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { archivo, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
 
@@ -24,6 +26,7 @@ function emailLink(subject: string) {
 }
 
 function serviceLink(service: Service) {
+  if (service.title === 'Request Applicants') return '#request-applicants';
   if (service.title === 'LGA Room Reservation') return '/lga-room';
   if (service.title === 'Upcoming Events') return '#important-dates';
   return emailLink(`NCST Employer Portal — ${service.title}`);
@@ -71,6 +74,7 @@ function ServiceIcon({ name }: { name: IconName }) {
 }
 
 export default function EmployerPortalPage() {
+  const [activePanel, setActivePanel] = useState<'overview' | 'request-applicants'>('overview');
   const calendarDays = [
     28, 29, 30, 1, 2, 3, 4,
     5, 6, 7, 8, 9, 10, 11,
@@ -88,10 +92,28 @@ export default function EmployerPortalPage() {
             <span>Employer Portal</span>
           </div>
           <nav aria-label="Employer portal sections">
-            <a className={styles.activeNav} href="#overview"><ServiceIcon name="building" />Overview</a>
+            <a
+              className={activePanel === 'overview' ? styles.activeNav : undefined}
+              href="#overview"
+              onClick={event => {
+                event.preventDefault();
+                setActivePanel('overview');
+              }}
+            >
+              <ServiceIcon name="building" />Overview
+            </a>
             <span className={styles.navSectionLabel}>Employer services</span>
             {SERVICES.map(service => (
-              <a className={styles.serviceNavLink} href={serviceLink(service)} key={service.title}>
+              <a
+                aria-current={service.title === 'Request Applicants' && activePanel === 'request-applicants' ? 'page' : undefined}
+                className={`${styles.serviceNavLink} ${service.title === 'Request Applicants' && activePanel === 'request-applicants' ? styles.activeNav : ''}`}
+                href={serviceLink(service)}
+                key={service.title}
+                onClick={service.title === 'Request Applicants' ? event => {
+                  event.preventDefault();
+                  setActivePanel('request-applicants');
+                } : undefined}
+              >
                 <ServiceIcon name={service.icon} />
                 {service.title}
               </a>
@@ -126,17 +148,65 @@ export default function EmployerPortalPage() {
 
           <div className={styles.dashboardContent}>
           <div className={styles.centerColumn}>
-            <section className={styles.welcomePanel} id="overview">
-              <div>
-                <span className={styles.kicker}>NCST employer network</span>
-                <h1 className={archivo.className}>Welcome, community partners.</h1>
-                <p>Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.</p>
-              </div>
-              <div className={styles.welcomeMark} aria-hidden="true">
-                <ServiceIcon name="people" />
-                <span>Employer<br />Partnerships</span>
-              </div>
-            </section>
+            <div aria-live="polite">
+              {activePanel === 'overview' ? (
+                <section className={styles.welcomePanel} id="overview">
+                  <div>
+                    <span className={styles.kicker}>NCST employer network</span>
+                    <h1 className={archivo.className}>Welcome, community partners.</h1>
+                    <p>Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.</p>
+                  </div>
+                  <div className={styles.welcomeMark} aria-hidden="true">
+                    <ServiceIcon name="people" />
+                    <span>Employer<br />Partnerships</span>
+                  </div>
+                </section>
+              ) : (
+                <section className={styles.requestPanel} id="request-applicants">
+                  <div className={styles.requestHeading}>
+                    <div>
+                      <span className={styles.kicker}>Employer service</span>
+                      <h1 className={archivo.className}>Request applicants</h1>
+                      <p>Tell Career Services what your team needs. This preview form will be connected to your employer account later.</p>
+                    </div>
+                    <span className={styles.requestIcon}><ServiceIcon name="people" /></span>
+                  </div>
+
+                  <form className={styles.requestForm} onSubmit={event => event.preventDefault()}>
+                    <label>
+                      <span>Position or job title</span>
+                      <input type="text" placeholder="e.g. Entry-Level HVAC Technician" />
+                    </label>
+                    <label>
+                      <span>Number of applicants needed</span>
+                      <input type="number" min="1" placeholder="1" />
+                    </label>
+                    <label>
+                      <span>Work location</span>
+                      <input type="text" placeholder="City, State" />
+                    </label>
+                    <label>
+                      <span>Employment type</span>
+                      <select defaultValue="">
+                        <option value="" disabled>Select an option</option>
+                        <option>Full-time</option>
+                        <option>Part-time</option>
+                        <option>Temporary or seasonal</option>
+                        <option>Apprenticeship</option>
+                      </select>
+                    </label>
+                    <label className={styles.fullField}>
+                      <span>Skills, qualifications, or additional details</span>
+                      <textarea rows={4} placeholder="Describe the work, required skills, schedule, and anything candidates should know." />
+                    </label>
+                    <div className={styles.requestActions}>
+                      <button type="button" onClick={() => setActivePanel('overview')}>Cancel</button>
+                      <button className={styles.requestSubmit} type="submit">Send request <ArrowIcon /></button>
+                    </div>
+                  </form>
+                </section>
+              )}
+            </div>
 
             <section className={styles.partnershipSection} id="partnerships">
               <div className={styles.panelHeading}>
