@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { archivo, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -134,27 +135,27 @@ export default function EmployerPortalPage() {
               </div>
 
               <div className={styles.spotlightGrid}>
-                <article className={styles.spotlightCard} id="pac-membership">
+                <Link className={styles.spotlightCard} href="/pac-membership" id="pac-membership">
                   <span className={styles.spotlightNumber}>01</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="committee" /></span>
                   <h3 className={archivo.className}>Become a PAC member</h3>
                   <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
-                  <span className={styles.infoTag}>Shape future talent</span>
-                </article>
-                <article className={`${styles.spotlightCard} ${styles.goldCard}`} id="lga-room">
+                  <span className={styles.infoTag}>Explore PAC membership <ArrowIcon /></span>
+                </Link>
+                <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/lga-room" id="lga-room">
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
                   <h3 className={archivo.className}>Meet in the LGA Room</h3>
                   <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
-                  <span className={styles.infoTag}>Professional event space</span>
-                </article>
-                <article className={styles.spotlightCard} id="hiring">
+                  <span className={styles.infoTag}>Explore the LGA Room <ArrowIcon /></span>
+                </Link>
+                <Link className={styles.spotlightCard} href="/hire-ncst" id="hiring">
                   <span className={styles.spotlightNumber}>03</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="hire" /></span>
                   <h3 className={archivo.className}>Build your talent pipeline</h3>
                   <p>Meet students, share job openings, visit campus, and connect with graduates prepared for skilled careers.</p>
-                  <span className={styles.infoTag}>Hire NCST graduates</span>
-                </article>
+                  <span className={styles.infoTag}>Explore employer recruiting <ArrowIcon /></span>
+                </Link>
               </div>
             </section>
 

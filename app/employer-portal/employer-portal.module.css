@@ -329,7 +329,12 @@
   border: 1px solid #dbe2ec;
   border-top: 3px solid var(--navy);
   background: #f7f9fc;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
+.spotlightCard:hover { transform: translateY(-3px); border-color: #b9c6d8; box-shadow: 0 12px 22px rgba(0,31,82,.1); }
+.spotlightCard:focus-visible { outline: 3px solid var(--gold) !important; outline-offset: 3px; }
 .spotlightCard, .serviceCard { scroll-margin-top: 22px; }
 .spotlightCard.goldCard { border-top-color: var(--gold); background: #fff9ec; }
 .spotlightNumber { position: absolute; top: 11px; right: 13px; color: #d9e0e9; font-size: 26px; font-weight: 800; }
@@ -339,7 +344,9 @@
 .spotlightIcon svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.65; }
 .spotlightCard h3 { margin: 0 0 10px; color: var(--navy); font-size: 19px; line-height: 1.08; text-transform: uppercase; }
 .spotlightCard p { flex: 1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.52; }
-.infoTag { margin-top: 18px; padding-top: 12px; border-top: 1px solid #dfe5ec; color: var(--navy); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.infoTag { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; padding-top: 12px; border-top: 1px solid #dfe5ec; color: var(--navy); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.infoTag svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; transition: transform .18s ease; }
+.spotlightCard:hover .infoTag svg { transform: translateX(3px); }
 .serviceDirectory .directoryGrid { grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: 0; }
 .serviceDirectory .serviceCard {
   min-height: 158px;
@@ -464,5 +471,6 @@
   .serviceCard, .compactCard { min-height: 235px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .primaryButton { transition: none; }
+  .primaryButton, .spotlightCard, .infoTag svg { transition: none; }
+  .spotlightCard:hover, .spotlightCard:hover .infoTag svg { transform: none; }
 }
