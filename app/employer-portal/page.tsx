@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { archivo, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -23,8 +22,10 @@ function emailLink(subject: string) {
   return `mailto:${CAREER_SERVICES_EMAIL}?subject=${encodeURIComponent(subject)}`;
 }
 
-function serviceId(title: string) {
-  return `service-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`;
+function serviceLink(service: Service) {
+  if (service.title === 'LGA Room Reservation') return '/lga-room';
+  if (service.title === 'Upcoming Events') return '#important-dates';
+  return emailLink(`NCST Employer Portal — ${service.title}`);
 }
 
 const SERVICES: Service[] = [
@@ -68,19 +69,6 @@ function ServiceIcon({ name }: { name: IconName }) {
   return <svg viewBox="0 0 24 24" aria-hidden="true">{icons[name]}</svg>;
 }
 
-function ServiceCard({ service, compact = false }: { service: Service; compact?: boolean }) {
-  return (
-    <article className={`${styles.serviceCard} ${compact ? styles.compactCard : ''}`} id={serviceId(service.title)}>
-      <div className={styles.cardTop}>
-        <span className={styles.iconBox}><ServiceIcon name={service.icon} /></span>
-        <span className={styles.category}>{service.category}</span>
-      </div>
-      <h3 className={archivo.className}>{service.title}</h3>
-      <p>{service.description}</p>
-    </article>
-  );
-}
-
 export default function EmployerPortalPage() {
   const calendarDays = [
     28, 29, 30, 1, 2, 3, 4,
@@ -92,31 +80,17 @@ export default function EmployerPortalPage() {
 
   return (
     <main className={`${publicSans.className} ${styles.page}`}>
-      <div className={styles.topBar}>
-        <span>Employer & workforce partnerships</span>
-        <a href="https://www.ncstrades.edu/" target="_blank" rel="noreferrer">Visit the NCST main site</a>
-      </div>
-
-      <header className={styles.siteHeader}>
-        <Link className={styles.brand} href="/employer-portal" aria-label="NCST Employer Portal home">
-          <Image src="/ncst-logo.png" width={160} height={41} alt="New Castle School of Trades" priority />
-          <span className={styles.portalBrand}><strong>Employer Portal</strong><small>Career Services</small></span>
-        </Link>
-        <a className={styles.headerLink} href={emailLink('NCST Employer Portal — General Question')}>
-          Contact Career Services <ArrowIcon />
-        </a>
-      </header>
-
       <section className={styles.dashboard} id="services">
         <aside className={styles.sideNav}>
-          <div className={styles.sideNavTitle}>Employer dashboard</div>
+          <div className={styles.sidebarBrand}>
+            <Image src="/ncst-logo.png" width={154} height={40} alt="New Castle School of Trades" priority />
+            <span>Employer Portal</span>
+          </div>
           <nav aria-label="Employer portal sections">
             <a className={styles.activeNav} href="#overview"><ServiceIcon name="building" />Overview</a>
-            <a href="#partnerships"><ServiceIcon name="committee" />Partnerships</a>
-            <a href="#important-dates"><ServiceIcon name="events" />Important dates</a>
             <span className={styles.navSectionLabel}>Employer services</span>
             {SERVICES.map(service => (
-              <a className={styles.serviceNavLink} href={`#${serviceId(service.title)}`} key={service.title}>
+              <a className={styles.serviceNavLink} href={serviceLink(service)} key={service.title}>
                 <ServiceIcon name={service.icon} />
                 {service.title}
               </a>
@@ -129,7 +103,17 @@ export default function EmployerPortalPage() {
           </div>
         </aside>
 
-        <div className={styles.dashboardContent}>
+        <div className={styles.workspace}>
+          <div className={styles.toolbar}>
+            <div className={styles.searchBox}>
+              <span>Search employer resources...</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>
+            </div>
+            <time dateTime="2026-07-26">Sunday, July 26, 2026</time>
+            <a href={emailLink('NCST Employer Portal — General Question')}><ServiceIcon name="message" />Career Services</a>
+          </div>
+
+          <div className={styles.dashboardContent}>
           <div className={styles.centerColumn}>
             <section className={styles.welcomePanel} id="overview">
               <div>
@@ -150,21 +134,21 @@ export default function EmployerPortalPage() {
               </div>
 
               <div className={styles.spotlightGrid}>
-                <article className={styles.spotlightCard}>
+                <article className={styles.spotlightCard} id="pac-membership">
                   <span className={styles.spotlightNumber}>01</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="committee" /></span>
                   <h3 className={archivo.className}>Become a PAC member</h3>
                   <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
                   <span className={styles.infoTag}>Shape future talent</span>
                 </article>
-                <article className={`${styles.spotlightCard} ${styles.goldCard}`}>
+                <article className={`${styles.spotlightCard} ${styles.goldCard}`} id="lga-room">
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
                   <h3 className={archivo.className}>Meet in the LGA Room</h3>
                   <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
                   <span className={styles.infoTag}>Professional event space</span>
                 </article>
-                <article className={styles.spotlightCard}>
+                <article className={styles.spotlightCard} id="hiring">
                   <span className={styles.spotlightNumber}>03</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="hire" /></span>
                   <h3 className={archivo.className}>Build your talent pipeline</h3>
@@ -174,15 +158,6 @@ export default function EmployerPortalPage() {
               </div>
             </section>
 
-            <section className={styles.serviceDirectory} id="service-directory">
-              <div className={styles.panelHeading}>
-                <div><span className={styles.kicker}>At a glance</span><h2 className={archivo.className}>Employer services</h2></div>
-                <span className={styles.serviceCount}>{SERVICES.length} services</span>
-              </div>
-              <div className={styles.directoryGrid}>
-                {SERVICES.map(service => <ServiceCard compact key={service.title} service={service} />)}
-              </div>
-            </section>
           </div>
 
           <aside className={styles.dateColumn} id="important-dates">
@@ -217,16 +192,14 @@ export default function EmployerPortalPage() {
               <a href={emailLink('NCST Employer Portal — Plan a Campus Visit')}>Contact Career Services <ArrowIcon /></a>
             </section>
           </aside>
+          </div>
+
+          <div className={styles.workspaceFooter}>
+            <span>NCST Employer Portal</span>
+            <span>© 2026 New Castle School of Trades</span>
+          </div>
         </div>
       </section>
-
-      <footer className={styles.footer}>
-        <div className={styles.footerInner}>
-          <div className={styles.footerBrand}><Image src="/ncst-logo.png" width={132} height={34} alt="New Castle School of Trades" /><span>Building futures. Together.</span></div>
-          <div className={styles.footerContact}><strong>Career Services</strong><a href="tel:+17246548590">(724) 654-8590</a><a href={`mailto:${CAREER_SERVICES_EMAIL}`}>{CAREER_SERVICES_EMAIL}</a></div>
-          <div className={styles.footerMeta}><a href="https://www.ncstrades.edu/" target="_blank" rel="noreferrer">NCST main site</a><span>© 2026 New Castle School of Trades</span></div>
-        </div>
-      </footer>
     </main>
   );
 }

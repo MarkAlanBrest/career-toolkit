@@ -130,9 +130,10 @@
 /* Employer dashboard */
 .dashboard {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 245px minmax(0, 1fr);
   width: min(1320px, calc(100% - 48px));
-  margin: 34px auto 48px;
+  min-height: calc(100vh - 68px);
+  margin: 34px auto;
   overflow: hidden;
   border: 1px solid var(--line);
   border-top: 5px solid var(--gold);
@@ -145,19 +146,41 @@
   display: flex;
   min-height: 100%;
   flex-direction: column;
-  padding: 31px 18px 24px;
+  padding: 30px 20px 24px;
   border-right: 1px solid #e2e6ec;
   background: #fff;
 }
-.sideNavTitle {
-  margin: 0 11px 24px;
-  color: var(--navy);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .1em;
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 104px;
+  margin-bottom: 12px;
+  padding: 5px 10px 22px;
+  border-bottom: 1px solid #edf0f4;
+}
+.sidebarBrand img {
+  width: 154px;
+  height: auto;
+  filter: brightness(0) saturate(100%) invert(16%) sepia(82%) saturate(2562%) hue-rotate(204deg) brightness(83%) contrast(104%);
+}
+.sidebarBrand span {
+  color: #8c96a4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
   text-transform: uppercase;
 }
-.sideNav nav { display: grid; gap: 7px; }
+.sideNav nav {
+  display: grid;
+  max-height: 670px;
+  gap: 5px;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-color: #ccd4df transparent;
+  scrollbar-width: thin;
+}
 .sideNav nav a {
   display: flex;
   align-items: center;
@@ -174,7 +197,7 @@
 .sideNav nav .activeNav { background: var(--navy); box-shadow: 0 8px 18px rgba(0,45,116,.2); color: #fff; }
 .sideNav nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .sideNav nav .navSectionLabel {
-  margin: 18px 12px 3px;
+  margin: 14px 12px 5px;
   color: #8a95a5;
   font-size: 9px;
   font-weight: 800;
@@ -182,9 +205,9 @@
   text-transform: uppercase;
 }
 .sideNav nav .serviceNavLink {
-  min-height: 38px;
-  padding: 7px 10px;
-  font-size: 11px;
+  min-height: 35px;
+  padding: 6px 9px;
+  font-size: 10.5px;
   line-height: 1.2;
 }
 .sideNav nav .serviceNavLink svg { width: 16px; height: 16px; flex: 0 0 auto; }
@@ -201,11 +224,53 @@
 .sideHelp strong { color: var(--ink); font-size: 14px; line-height: 1.25; }
 .sideHelp a { display: flex; align-items: center; gap: 7px; margin-top: 5px; color: var(--navy); font-size: 10px; font-weight: 800; text-decoration: none; text-transform: uppercase; }
 .sideHelp svg { width: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.workspace {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  background: #eef1f6;
+}
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr auto;
+  align-items: center;
+  gap: 20px;
+  min-height: 88px;
+  padding: 18px 22px 8px;
+}
+.searchBox {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 5px;
+  background: #fff;
+  color: #a0a9b5;
+  font-size: 11px;
+}
+.searchBox svg { width: 17px; height: 17px; fill: none; stroke: #718096; stroke-linecap: round; stroke-width: 1.8; }
+.toolbar time { color: #586a80; font-size: 11px; }
+.toolbar > a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+.toolbar > a svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .dashboardContent {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 20px;
-  padding: 22px;
+  padding: 14px 22px 22px;
 }
 .centerColumn { min-width: 0; }
 .welcomePanel {
@@ -265,6 +330,7 @@
   border-top: 3px solid var(--navy);
   background: #f7f9fc;
 }
+.spotlightCard, .serviceCard { scroll-margin-top: 22px; }
 .spotlightCard.goldCard { border-top-color: var(--gold); background: #fff9ec; }
 .spotlightNumber { position: absolute; top: 11px; right: 13px; color: #d9e0e9; font-size: 26px; font-weight: 800; }
 .goldCard .spotlightNumber { color: #f1d89b; }
@@ -319,15 +385,30 @@
 .contactPanel p { margin: 0; color: rgba(255,255,255,.72); font-size: 12px; line-height: 1.5; }
 .contactPanel a { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.2); color: #fff; font-size: 10px; font-weight: 800; text-decoration: none; text-transform: uppercase; }
 .contactPanel svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.workspaceFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 8px 25px;
+  color: #9aa3af;
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
 
 @media (max-width: 980px) {
   .dashboard { grid-template-columns: 1fr; }
   .sideNav { min-height: auto; padding: 16px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .sideNavTitle, .sideHelp { display: none; }
+  .sidebarBrand { min-height: 0; margin-bottom: 12px; padding: 4px 0 14px; }
+  .sidebarBrand img { width: 135px; }
+  .sideHelp { display: none; }
   .sideNav nav { display: flex; overflow-x: auto; gap: 6px; padding-bottom: 5px; }
   .sideNav nav a { flex: 0 0 auto; justify-content: center; padding: 0 12px; font-size: 11px; white-space: nowrap; }
   .sideNav nav .navSectionLabel { display: none; }
   .sideNav nav .serviceNavLink { min-height: 44px; }
+  .toolbar { grid-template-columns: minmax(200px, 1fr) auto; }
+  .toolbar time { display: none; }
   .dashboardContent { grid-template-columns: minmax(0, 1fr) 280px; }
   .featuredGrid, .directoryGrid { grid-template-columns: repeat(2,1fr); }
   .footerInner { grid-template-columns: 1fr 1fr; padding: 28px 0; }
@@ -337,6 +418,8 @@
   .siteHeader { height: 74px; padding: 0 16px; }
   .headerLink { font-size: 10px; }
   .dashboard { width: calc(100% - 24px); margin: 18px auto 30px; }
+  .toolbar { min-height: 70px; padding: 12px 13px 5px; }
+  .toolbar > a { width: 40px; padding: 0; justify-content: center; font-size: 0; }
   .dashboardContent { grid-template-columns: 1fr; padding: 13px; }
   .welcomePanel { grid-template-columns: 1fr 120px; min-height: 210px; padding: 28px; }
   .welcomeMark { width: 108px; height: 108px; }
