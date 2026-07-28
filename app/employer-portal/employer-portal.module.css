@@ -682,6 +682,74 @@
   line-height: 1.02;
   text-transform: uppercase;
 }
+.authModalForgotRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+.authModalTextButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--navy);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.authModalError {
+  margin: 10px 0 0;
+  color: #9b2c2c;
+  font-size: 12px;
+}
+.authModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.authModalDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.authModalDivider::before,
+.authModalDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #dbe2ec;
+}
+.authModalSecondaryAction {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--navy);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.authModalSecondaryAction:hover {
+  background: #f7f9fc;
+}
+.authModalHelper {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }

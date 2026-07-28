@@ -1,33 +1,8 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { ModalShell, Field, primaryButtonStyle, secondaryButtonStyle } from '../lga-room/shared';
-
-const linkStyle: CSSProperties = {
-  border: 'none',
-  background: 'none',
-  padding: 0,
-  color: '#001f52',
-  cursor: 'pointer',
-  font: 'inherit',
-  fontSize: 12,
-  fontWeight: 700,
-  textDecoration: 'underline',
-};
-
-const helperTextStyle: CSSProperties = {
-  margin: '14px 0 0',
-  fontSize: 12,
-  color: '#606b78',
-  lineHeight: 1.5,
-};
-
-const footerLinksStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '6px 16px',
-  marginTop: 14,
-};
+import styles from './employer-portal.module.css';
 
 export function EmployerLoginModal({
   onClose,
@@ -97,7 +72,7 @@ export function EmployerLoginModal({
         {error && <p style={{ margin: '10px 0 0', color: '#9b2c2c', fontSize: 12 }}>{error}</p>}
         {notice && <p style={{ margin: '10px 0 0', color: '#1f5f3f', fontSize: 12 }}>{notice}</p>}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 16 }}>
-          <button type="button" onClick={() => { setView('sign-in'); setError(''); setNotice(''); }} style={linkStyle}>
+          <button type="button" className={styles.authModalTextButton} onClick={() => { setView('sign-in'); setError(''); setNotice(''); }}>
             Back to sign in
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -123,24 +98,31 @@ export function EmployerLoginModal({
       <Field label="Password">
         <input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="current-password" />
       </Field>
-      <div style={footerLinksStyle}>
-        <button type="button" onClick={() => { setView('forgot-password'); setError(''); setNotice(''); }} style={linkStyle}>
-          Forgot password?
-        </button>
-        <button type="button" onClick={() => { onClose(); onCreateAccount(); }} style={linkStyle}>
-          Create a new account
+      <div className={styles.authModalForgotRow}>
+        <button type="button" className={styles.authModalTextButton} onClick={() => { setView('forgot-password'); setError(''); setNotice(''); }}>
+          Forgot your password?
         </button>
       </div>
-      {error && <p style={{ margin: '10px 0 0', color: '#9b2c2c', fontSize: 12 }}>{error}</p>}
-      <p style={helperTextStyle}>
-        New employers can register using the <strong>Register as an Employer</strong> service and optionally create a login there.
-      </p>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+      {error && <p className={styles.authModalError}>{error}</p>}
+      <div className={styles.authModalActions}>
         <button type="button" onClick={onClose} style={secondaryButtonStyle}>Cancel</button>
         <button type="button" onClick={submitSignIn} disabled={submitting} style={primaryButtonStyle}>
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
       </div>
+      <div className={styles.authModalDivider}>
+        <span>New employer?</span>
+      </div>
+      <button
+        type="button"
+        className={styles.authModalSecondaryAction}
+        onClick={() => { onClose(); onCreateAccount(); }}
+      >
+        Create employer account
+      </button>
+      <p className={styles.authModalHelper}>
+        Register with Career Services and optionally create a login on the registration form.
+      </p>
     </ModalShell>
   );
 }
