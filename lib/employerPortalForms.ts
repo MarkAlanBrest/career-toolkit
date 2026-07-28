@@ -330,7 +330,7 @@ export const SERVICE_FORMS: Record<Exclude<ServicePanelId, 'lga-room'>, ServiceF
     id: 'employer-registration',
     title: 'Register as an Employer',
     heading: 'Register as an employer',
-    description: 'Join the NCST employer network by sharing your company and contact information with Career Services.',
+    description: 'Share your contact information with Career Services. Creating a login is completely optional.',
     submitLabel: 'Submit registration',
     recipientKey: 'general',
     fields: [

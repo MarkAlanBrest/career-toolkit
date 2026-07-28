@@ -37,7 +37,8 @@ export function EmployerLoginModal({
   return (
     <ModalShell onClose={onClose} title="Employer sign in">
       <p style={{ margin: '0 0 14px', fontSize: 13, color: '#606b78', lineHeight: 1.5 }}>
-        Sign in to see your company name, prepopulated forms, and submission history.
+        Sign in if you created an employer login. Your company information will be ready and forms will be easier to complete.
+        You can still use the portal without an account anytime.
       </p>
       <Field label="Email">
         <input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" />
