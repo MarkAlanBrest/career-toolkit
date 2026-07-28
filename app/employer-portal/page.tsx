@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
+import { SERVICE_FORMS, SERVICE_PANEL_BY_TITLE, ServiceFormPanel, type ServicePanelId } from './service-forms';
 import { LgaRoomCalendar } from '../lga-room/calendar/lga-room-calendar';
 import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -28,12 +29,11 @@ function emailLink(subject: string) {
 }
 
 function serviceLink(service: Service) {
-  if (service.title === 'Request Applicants') return '#request-applicants';
-  if (service.title === 'LG Room Reservation') return '#lga-room';
-  return emailLink(`NCST Employer Portal — ${service.title}`);
+  const panelId = SERVICE_PANEL_BY_TITLE[service.title];
+  return panelId ? `#${panelId}` : emailLink(`NCST Employer Portal — ${service.title}`);
 }
 
-type ActivePanel = 'overview' | 'request-applicants' | 'lga-room';
+type ActivePanel = 'overview' | ServicePanelId;
 
 const GRADUATE_STRENGTHS = [
   {
@@ -117,6 +117,9 @@ export default function EmployerPortalPage() {
     setAdminMode(false);
   }
 
+  const activeService = SERVICES.find(service => SERVICE_PANEL_BY_TITLE[service.title] === activePanel);
+  const activeServiceForm = activePanel !== 'overview' && activePanel !== 'lga-room' ? SERVICE_FORMS[activePanel] : null;
+
   return (
     <main className={`${publicSans.className} ${styles.page}`}>
       <style>{lgaRoomStyles}</style>
@@ -139,23 +142,18 @@ export default function EmployerPortalPage() {
             </a>
             <span className={styles.navSectionLabel}>Employer services</span>
             {SERVICES.map(service => {
-              const panelId = service.title === 'Request Applicants'
-                ? 'request-applicants'
-                : service.title === 'LG Room Reservation'
-                  ? 'lga-room'
-                  : null;
-              const isPanelLink = panelId !== null;
+              const panelId = SERVICE_PANEL_BY_TITLE[service.title];
 
               return (
               <a
-                aria-current={panelId && activePanel === panelId ? 'page' : undefined}
-                className={`${styles.serviceNavLink} ${panelId && activePanel === panelId ? styles.activeNav : ''}`}
+                aria-current={activePanel === panelId ? 'page' : undefined}
+                className={`${styles.serviceNavLink} ${activePanel === panelId ? styles.activeNav : ''}`}
                 href={serviceLink(service)}
                 key={service.title}
-                onClick={isPanelLink ? event => {
+                onClick={event => {
                   event.preventDefault();
                   setActivePanel(panelId);
-                } : undefined}
+                }}
               >
                 <ServiceIcon name={service.icon} />
                 {service.title}
@@ -193,51 +191,7 @@ export default function EmployerPortalPage() {
                     <span>Employer<br />Partnerships</span>
                   </div>
                 </section>
-              ) : activePanel === 'request-applicants' ? (
-                <section className={styles.requestPanel} id="request-applicants">
-                  <div className={styles.requestHeading}>
-                    <div>
-                      <span className={styles.kicker}>Employer service</span>
-                      <h1 className={archivo.className}>Request applicants</h1>
-                      <p>Tell Career Services what your team needs. This preview form will be connected to your employer account later.</p>
-                    </div>
-                    <span className={styles.requestIcon}><ServiceIcon name="people" /></span>
-                  </div>
-
-                  <form className={styles.requestForm} onSubmit={event => event.preventDefault()}>
-                    <label>
-                      <span>Position or job title</span>
-                      <input type="text" placeholder="e.g. Entry-Level HVAC Technician" />
-                    </label>
-                    <label>
-                      <span>Number of applicants needed</span>
-                      <input type="number" min="1" placeholder="1" />
-                    </label>
-                    <label>
-                      <span>Work location</span>
-                      <input type="text" placeholder="City, State" />
-                    </label>
-                    <label>
-                      <span>Employment type</span>
-                      <select defaultValue="">
-                        <option value="" disabled>Select an option</option>
-                        <option>Full-time</option>
-                        <option>Part-time</option>
-                        <option>Temporary or seasonal</option>
-                        <option>Apprenticeship</option>
-                      </select>
-                    </label>
-                    <label className={styles.fullField}>
-                      <span>Skills, qualifications, or additional details</span>
-                      <textarea rows={4} placeholder="Describe the work, required skills, schedule, and anything candidates should know." />
-                    </label>
-                    <div className={styles.requestActions}>
-                      <button type="button" onClick={() => setActivePanel('overview')}>Cancel</button>
-                      <button className={styles.requestSubmit} type="submit">Send request <ArrowIcon /></button>
-                    </div>
-                  </form>
-                </section>
-              ) : (
+              ) : activePanel === 'lga-room' ? (
                 <section className={styles.lgaRoomPanel} id="lga-room">
                   <div className={styles.requestHeading}>
                     <div>
@@ -249,7 +203,13 @@ export default function EmployerPortalPage() {
                   </div>
                   <LgaRoomCalendar embedded />
                 </section>
-              )}
+              ) : activeServiceForm ? (
+                <ServiceFormPanel
+                  config={activeServiceForm}
+                  icon={<ServiceIcon name={activeService?.icon ?? 'message'} />}
+                  onCancel={() => setActivePanel('overview')}
+                />
+              ) : null}
             </div>
 
             {activePanel !== 'lga-room' && (
