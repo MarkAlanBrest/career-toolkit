@@ -54,6 +54,7 @@ const GRADUATE_STRENGTHS = [
 ];
 
 const SERVICES: Service[] = [
+  { title: 'Register as an Employer', description: 'Share your company and contact information to join the NCST employer network.', category: 'Connect', icon: 'contact', featured: true },
   { title: 'Request Applicants', description: 'Request qualified students or graduates for your open positions.', category: 'Hire', icon: 'people', featured: true },
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
   { title: 'PAC Meeting Registration', description: 'Register for an upcoming Program Advisory Committee meeting.', category: 'Partner', icon: 'committee', featured: true },

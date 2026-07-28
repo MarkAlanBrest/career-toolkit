@@ -44,11 +44,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const emails = await sendServiceFormEmails({
+      formId: config.id,
       recipientKey: config.recipientKey,
       formTitle: config.title,
       contactEmail,
       contactName,
       rows,
+      values,
     });
 
     const allResults = [...emails.internal, emails.confirmation];

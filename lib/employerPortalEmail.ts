@@ -271,6 +271,21 @@ function detailsTable(rows: Array<{ label: string; value: string }>): string {
   return `<table style="border-collapse:collapse;width:100%;margin-top:12px;font-size:14px;">${body}</table>`;
 }
 
+function buildMachineReadableBlock(formId: string, values: Record<string, string>): string {
+  const lines = [
+    `NCST-EP-FORM: ${formId}`,
+    ...Object.entries(values)
+      .filter(([, value]) => value.trim())
+      .map(([key, value]) => `${key}: ${value}`),
+  ];
+  return lines.join('\n');
+}
+
+function machineReadableHtml(formId: string, values: Record<string, string>): string {
+  const block = buildMachineReadableBlock(formId, values);
+  return `<pre style="margin:0 0 16px;padding:12px 14px;border:1px solid #dbe2ec;border-radius:6px;background:#f4f5f7;color:#25303d;font:12px/1.5 Consolas,Monaco,monospace;white-space:pre-wrap;">${escapeHtml(block)}</pre>`;
+}
+
 async function getNotificationRecipients(key: 'applicantRequest' | 'jobPosting' | 'general'): Promise<string[]> {
   const settings = await getEmployerPortalSettings();
   const recipients = settings.notificationRecipients[key];
@@ -278,23 +293,30 @@ async function getNotificationRecipients(key: 'applicantRequest' | 'jobPosting' 
 }
 
 export async function sendServiceFormEmails({
+  formId,
   recipientKey,
   formTitle,
   contactEmail,
   contactName,
   rows,
+  values,
 }: {
+  formId: string;
   recipientKey: 'applicantRequest' | 'jobPosting' | 'general';
   formTitle: string;
   contactEmail: string;
   contactName: string;
   rows: Array<{ label: string; value: string }>;
+  values: Record<string, string>;
 }): Promise<{ internal: EmailSendResult[]; confirmation: EmailSendResult }> {
   const recipients = await getNotificationRecipients(recipientKey);
-  const subject = `NCST Employer Portal — ${formTitle}`;
+  const internalSubject = `[NCST-EP:${formId}] ${formTitle}`;
   const table = detailsTable(rows);
+  const machineBlock = machineReadableHtml(formId, values);
   const internalHtml = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
     <h2 style="margin:0 0 8px;">New employer portal submission</h2>
+    <p style="margin:0 0 8px;">Form type: <strong>${escapeHtml(formId)}</strong></p>
+    ${machineBlock}
     <p style="margin:0 0 8px;">A new <strong>${escapeHtml(formTitle)}</strong> request was submitted through the NCST Employer Portal.</p>
     ${table}
   </div>`;
@@ -305,7 +327,7 @@ export async function sendServiceFormEmails({
   </div>`;
 
   const [internal, confirmation] = await Promise.all([
-    Promise.all(recipients.map(recipient => send(recipient, subject, internalHtml, contactEmail))),
+    Promise.all(recipients.map(recipient => send(recipient, internalSubject, internalHtml, contactEmail))),
     send(contactEmail, `We received your ${formTitle} request`, confirmationHtml),
   ]);
 
