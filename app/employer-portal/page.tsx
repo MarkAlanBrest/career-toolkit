@@ -4,7 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
+import { EmployerLoginModal } from './employer-auth-modals';
+import { EmployerDashboard, EmployerRecentActivity } from './employer-dashboard';
 import { SERVICE_FORMS, SERVICE_PANEL_BY_TITLE, ServiceFormPanel, type ServicePanelId } from './service-forms';
+import type { EmployerDashboard as EmployerDashboardData, EmployerProfile } from '@/lib/employerPortalUsers';
 import { LgaRoomCalendar } from '../lga-room/calendar/lga-room-calendar';
 import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -98,6 +101,26 @@ export default function EmployerPortalPage() {
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [showAdminSettings, setShowAdminSettings] = useState(false);
+  const [employerSession, setEmployerSession] = useState<{
+    email: string;
+    profile: EmployerProfile;
+    dashboard: EmployerDashboardData;
+  } | null>(null);
+  const [showEmployerLogin, setShowEmployerLogin] = useState(false);
+
+  async function loadEmployerSession() {
+    const response = await fetch('/api/employer-portal/auth', { cache: 'no-store' });
+    if (!response.ok) {
+      setEmployerSession(null);
+      return;
+    }
+    const data = await response.json();
+    setEmployerSession({
+      email: data.email,
+      profile: data.profile,
+      dashboard: data.dashboard,
+    });
+  }
 
   useEffect(() => {
     fetch('/api/employer-portal/admin', { cache: 'no-store' })
@@ -109,6 +132,7 @@ export default function EmployerPortalPage() {
         }
       })
       .catch(() => null);
+    void loadEmployerSession();
   }, []);
 
   async function logout() {
@@ -116,6 +140,11 @@ export default function EmployerPortalPage() {
     setAdminEmail('');
     setAdminPassword('');
     setAdminMode(false);
+  }
+
+  async function employerLogout() {
+    await fetch('/api/employer-portal/auth', { method: 'DELETE' }).catch(() => null);
+    setEmployerSession(null);
   }
 
   const activeService = SERVICES.find(service => SERVICE_PANEL_BY_TITLE[service.title] === activePanel);
@@ -173,7 +202,21 @@ export default function EmployerPortalPage() {
           <div className={styles.toolbar}>
             <div className={styles.toolbarWelcome}>
               <span>New Castle School of Trades</span>
-              <strong>Welcome to the Employer Portal</strong>
+              <strong>
+                {employerSession?.profile.employerName
+                  ? `Welcome, ${employerSession.profile.employerName}`
+                  : 'Welcome to the Employer Portal'}
+              </strong>
+            </div>
+            <div className={styles.toolbarActions}>
+              {employerSession ? (
+                <>
+                  <span className={styles.toolbarSignedIn}>Signed in as {employerSession.profile.contactName}</span>
+                  <button type="button" onClick={employerLogout}>Sign out</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setShowEmployerLogin(true)}>Employer sign in</button>
+              )}
             </div>
           </div>
 
@@ -181,17 +224,34 @@ export default function EmployerPortalPage() {
           <div className={styles.centerColumn}>
             <div aria-live="polite">
               {activePanel === 'overview' ? (
+                <>
                 <section className={styles.welcomePanel} id="overview">
                   <div>
                     <span className={styles.kicker}>NCST employer network</span>
-                    <h1 className={archivo.className}>Welcome, community partners.</h1>
-                    <p>Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.</p>
+                    <h1 className={archivo.className}>
+                      {employerSession ? <>Good to see you again.</> : <>Welcome, community partners.</>}
+                    </h1>
+                    <p>
+                      {employerSession
+                        ? 'Your forms are ready with your saved contact information. Explore services or review your recent activity.'
+                        : 'Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.'}
+                    </p>
                   </div>
                   <div className={styles.welcomeMark} aria-hidden="true">
                     <ServiceIcon name="people" />
                     <span>Employer<br />Partnerships</span>
                   </div>
                 </section>
+                {employerSession && (
+                  <EmployerDashboard
+                    employerName={employerSession.profile.employerName}
+                    contactName={employerSession.profile.contactName}
+                    totalSubmissions={employerSession.dashboard.totalSubmissions}
+                    insights={employerSession.dashboard.insights}
+                    onOpenForm={formId => setActivePanel(formId as ServicePanelId)}
+                  />
+                )}
+                </>
               ) : activePanel === 'lga-room' ? (
                 <section className={styles.lgaRoomPanel} id="lga-room">
                   <div className={styles.requestHeading}>
@@ -208,7 +268,9 @@ export default function EmployerPortalPage() {
                 <ServiceFormPanel
                   config={activeServiceForm}
                   icon={<ServiceIcon name={activeService?.icon ?? 'message'} />}
+                  profile={employerSession?.profile}
                   onCancel={() => setActivePanel('overview')}
+                  onSubmitted={() => void loadEmployerSession()}
                 />
               ) : null}
             </div>
@@ -250,6 +312,9 @@ export default function EmployerPortalPage() {
 
           {activePanel !== 'lga-room' && (
           <aside className={styles.dateColumn} id="employer-insights">
+            {employerSession && activePanel === 'overview' && (
+              <EmployerRecentActivity items={employerSession.dashboard.recentSubmissions} />
+            )}
             <section className={styles.valuePanel}>
               <span className={styles.kicker}>Why hire from NCST</span>
               <h2 className={archivo.className}>What our graduates bring</h2>
@@ -302,6 +367,16 @@ export default function EmployerPortalPage() {
           </div>
         </div>
       </section>
+
+      {showEmployerLogin && (
+        <EmployerLoginModal
+          onClose={() => setShowEmployerLogin(false)}
+          onSuccess={() => {
+            setShowEmployerLogin(false);
+            void loadEmployerSession();
+          }}
+        />
+      )}
 
       {showAdminLogin && (
         <EmployerAdminLoginModal
