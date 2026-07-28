@@ -32,7 +32,12 @@ export function EmployerDashboard({
       <div className={styles.dashboardIntro}>
         <span className={styles.kicker}>Your employer account</span>
         <h2 className={archivo.className}>{employerName}</h2>
-        <p>Signed in as {contactName}. You have submitted {totalSubmissions} request{totalSubmissions === 1 ? '' : 's'} through the portal.</p>
+        <p>
+          Signed in as {contactName}.
+          {totalSubmissions > 0
+            ? ` You have submitted ${totalSubmissions} request${totalSubmissions === 1 ? '' : 's'} through the portal.`
+            : ' Explore services to connect with NCST students and graduates.'}
+        </p>
       </div>
 
       {insights.length > 0 ? (
@@ -50,7 +55,7 @@ export function EmployerDashboard({
         </div>
       ) : (
         <div className={styles.dashboardEmpty}>
-          <p>Your submission history will appear here after you send your first request.</p>
+          <p>Ready to get started? Choose a service from the sidebar or request applicants below.</p>
           <button type="button" onClick={() => onOpenForm('request-applicants')}>Request applicants</button>
         </div>
       )}

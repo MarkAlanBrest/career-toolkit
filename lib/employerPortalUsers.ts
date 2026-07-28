@@ -327,14 +327,15 @@ function insightMessage(formId: string, formTitle: string, count: number): strin
 
 export async function getEmployerDashboard(email: string): Promise<EmployerDashboard> {
   const submissions = await getEmployerSubmissions(email);
+  const serviceSubmissions = submissions.filter(item => item.formId !== 'employer-registration');
   const byFormId: Record<string, number> = {};
-  submissions.forEach(item => {
+  serviceSubmissions.forEach(item => {
     byFormId[item.formId] = (byFormId[item.formId] || 0) + 1;
   });
 
   const insights = Object.entries(byFormId)
     .map(([formId, count]) => {
-      const latest = submissions.find(item => item.formId === formId);
+      const latest = serviceSubmissions.find(item => item.formId === formId);
       return {
         formId,
         formTitle: latest?.formTitle || formId,
@@ -346,9 +347,9 @@ export async function getEmployerDashboard(email: string): Promise<EmployerDashb
     .slice(0, 4);
 
   return {
-    totalSubmissions: submissions.length,
+    totalSubmissions: serviceSubmissions.length,
     byFormId,
-    recentSubmissions: submissions.slice(0, 5).map(item => ({
+    recentSubmissions: serviceSubmissions.slice(0, 5).map(item => ({
       id: item.id,
       formId: item.formId,
       formTitle: item.formTitle,
