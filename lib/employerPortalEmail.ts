@@ -166,9 +166,15 @@ async function sendWithMicrosoftGraph(
   const message: Record<string, unknown> = {
     subject,
     body: { contentType: 'HTML', content: html },
+    from: {
+      emailAddress: {
+        name: config.fromName,
+        address: config.fromEmail,
+      },
+    },
     toRecipients: [{ emailAddress: { address: to } }],
   };
-  if (replyTo) {
+  if (replyTo && replyTo.toLowerCase() !== config.fromEmail.toLowerCase()) {
     message.replyTo = [{ emailAddress: { address: replyTo } }];
   }
 
@@ -193,7 +199,7 @@ async function sendWithMicrosoftGraph(
 
 async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
   const config = await getSenderConfig();
-  const { host, authUser, authPass, fromEmail, fromName, replyTo: defaultReplyTo } = config;
+  const { host, authUser, authPass, fromEmail, fromName } = config;
   const microsoftError = config.provider === 'microsoft-graph'
     ? microsoftConfigurationError(config)
     : null;
@@ -211,7 +217,7 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
   }
   try {
     if (config.provider === 'microsoft-graph') {
-      return await sendWithMicrosoftGraph(config, to, subject, html, replyTo || defaultReplyTo);
+      return await sendWithMicrosoftGraph(config, to, subject, html, replyTo);
     }
     const transporter = nodemailer.createTransport({
       host,
@@ -219,13 +225,16 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
       secure: false,
       auth: { user: authUser, pass: authPass },
     });
-    const info = await transporter.sendMail({
+    const mail: { from: string; to: string; subject: string; html: string; replyTo?: string } = {
       from: `${fromName} <${fromEmail}>`,
       to,
-      replyTo: replyTo || defaultReplyTo,
       subject,
       html,
-    });
+    };
+    if (replyTo && replyTo.toLowerCase() !== fromEmail.toLowerCase()) {
+      mail.replyTo = replyTo;
+    }
+    const info = await transporter.sendMail(mail);
     return { sent: true, recipient: to, id: info.messageId };
   } catch (error) {
     console.error(`[employer-portal] Email to ${to} failed:`, error);
