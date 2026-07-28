@@ -28,7 +28,7 @@ const EMPLOYER_CONTACT_FIELDS: FormField[] = [
   { name: 'employerName', label: 'Employer name', type: 'text', placeholder: 'Your company or organization' },
   { name: 'contactName', label: 'Contact name', type: 'text', placeholder: 'First and last name' },
   { name: 'contactEmail', label: 'Contact email', type: 'email', placeholder: 'you@company.com' },
-  { name: 'contactPhone', label: 'Contact phone', type: 'tel', placeholder: '(555) 555-5555' },
+  { name: 'contactPhone', label: 'Contact phone (optional)', type: 'tel', placeholder: '(555) 555-5555' },
 ];
 
 export type ServiceFormConfig = {
