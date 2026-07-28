@@ -97,6 +97,19 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
     const password = String(formData.get('password') || '');
     const confirmPassword = String(formData.get('confirmPassword') || '');
 
+    if (isRegistration && createAccount) {
+      if (!password || password.length < 8) {
+        setError('Choose a password with at least 8 characters to create an account.');
+        setSubmitting(false);
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        setSubmitting(false);
+        return;
+      }
+    }
+
     try {
       const response = await fetch('/api/employer-portal/service-requests', {
         method: 'POST',
@@ -106,6 +119,7 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
           values,
           createAccount: isRegistration && createAccount,
           password: isRegistration && createAccount ? password : undefined,
+          confirmPassword: isRegistration && createAccount ? confirmPassword : undefined,
         }),
       });
       const data = await response.json().catch(() => ({}));

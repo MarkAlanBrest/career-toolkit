@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     : null;
   const createAccount = Boolean(body.createAccount);
   const password = typeof body.password === 'string' ? body.password : '';
+  const confirmPassword = typeof body.confirmPassword === 'string' ? body.confirmPassword : '';
 
   const config = getServiceFormById(formId);
   if (!config || !rawValues) {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     if (!password || password.length < 8) {
       return NextResponse.json({ error: 'Choose a password with at least 8 characters to create an account.' }, { status: 400 });
     }
-    if (password !== rawValues.confirmPassword) {
+    if (password !== confirmPassword) {
       return NextResponse.json({ error: 'Passwords do not match.' }, { status: 400 });
     }
     const existing = await getEmployerByEmail(contactEmail);
