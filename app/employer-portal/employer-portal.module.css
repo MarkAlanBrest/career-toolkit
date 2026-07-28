@@ -247,7 +247,26 @@
   gap: 20px;
   padding: 14px 22px 22px;
 }
+.dashboardContentWide { grid-template-columns: minmax(0, 1fr); }
 .centerColumn { min-width: 0; }
+.lgaRoomPanel {
+  position: relative;
+  overflow: hidden;
+  padding: 30px 32px 32px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,31,82,.055);
+  animation: panelIn .2s ease;
+}
+.lgaRoomPanel::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--navy), var(--gold));
+  content: '';
+}
 .welcomePanel {
   position: relative;
   display: grid;
@@ -373,6 +392,12 @@
   color: inherit;
   text-decoration: none;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+button.spotlightCard {
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 .spotlightCard:hover { transform: translateY(-3px); border-color: #b9c6d8; box-shadow: 0 12px 22px rgba(0,31,82,.1); }
 .spotlightCard:focus-visible { outline: 3px solid var(--gold) !important; outline-offset: 3px; }

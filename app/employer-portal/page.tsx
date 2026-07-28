@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
+import { LgaRoomCalendar } from '../lga-room/calendar/lga-room-calendar';
 import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
 
@@ -28,9 +29,11 @@ function emailLink(subject: string) {
 
 function serviceLink(service: Service) {
   if (service.title === 'Request Applicants') return '#request-applicants';
-  if (service.title === 'LG Room Reservation') return '/lga-room';
+  if (service.title === 'LG Room Reservation') return '#lga-room';
   return emailLink(`NCST Employer Portal — ${service.title}`);
 }
+
+type ActivePanel = 'overview' | 'request-applicants' | 'lga-room';
 
 const GRADUATE_STRENGTHS = [
   {
@@ -88,7 +91,7 @@ function ServiceIcon({ name }: { name: IconName }) {
 }
 
 export default function EmployerPortalPage() {
-  const [activePanel, setActivePanel] = useState<'overview' | 'request-applicants'>('overview');
+  const [activePanel, setActivePanel] = useState<ActivePanel>('overview');
   const [adminMode, setAdminMode] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -135,21 +138,30 @@ export default function EmployerPortalPage() {
               <ServiceIcon name="building" />Overview
             </a>
             <span className={styles.navSectionLabel}>Employer services</span>
-            {SERVICES.map(service => (
+            {SERVICES.map(service => {
+              const panelId = service.title === 'Request Applicants'
+                ? 'request-applicants'
+                : service.title === 'LG Room Reservation'
+                  ? 'lga-room'
+                  : null;
+              const isPanelLink = panelId !== null;
+
+              return (
               <a
-                aria-current={service.title === 'Request Applicants' && activePanel === 'request-applicants' ? 'page' : undefined}
-                className={`${styles.serviceNavLink} ${service.title === 'Request Applicants' && activePanel === 'request-applicants' ? styles.activeNav : ''}`}
+                aria-current={panelId && activePanel === panelId ? 'page' : undefined}
+                className={`${styles.serviceNavLink} ${panelId && activePanel === panelId ? styles.activeNav : ''}`}
                 href={serviceLink(service)}
                 key={service.title}
-                onClick={service.title === 'Request Applicants' ? event => {
+                onClick={isPanelLink ? event => {
                   event.preventDefault();
-                  setActivePanel('request-applicants');
+                  setActivePanel(panelId);
                 } : undefined}
               >
                 <ServiceIcon name={service.icon} />
                 {service.title}
               </a>
-            ))}
+              );
+            })}
           </nav>
           <div className={styles.sideHelp}>
             <span>Career Services</span>
@@ -166,7 +178,7 @@ export default function EmployerPortalPage() {
             </div>
           </div>
 
-          <div className={styles.dashboardContent}>
+          <div className={`${styles.dashboardContent} ${activePanel === 'lga-room' ? styles.dashboardContentWide : ''}`}>
           <div className={styles.centerColumn}>
             <div aria-live="polite">
               {activePanel === 'overview' ? (
@@ -181,7 +193,7 @@ export default function EmployerPortalPage() {
                     <span>Employer<br />Partnerships</span>
                   </div>
                 </section>
-              ) : (
+              ) : activePanel === 'request-applicants' ? (
                 <section className={styles.requestPanel} id="request-applicants">
                   <div className={styles.requestHeading}>
                     <div>
@@ -225,9 +237,22 @@ export default function EmployerPortalPage() {
                     </div>
                   </form>
                 </section>
+              ) : (
+                <section className={styles.lgaRoomPanel} id="lga-room">
+                  <div className={styles.requestHeading}>
+                    <div>
+                      <span className={styles.kicker}>Employer service</span>
+                      <h1 className={archivo.className}>LG Room reservation</h1>
+                      <p>Check availability and request the LG meeting room without leaving the employer portal.</p>
+                    </div>
+                    <span className={styles.requestIcon}><ServiceIcon name="building" /></span>
+                  </div>
+                  <LgaRoomCalendar embedded />
+                </section>
               )}
             </div>
 
+            {activePanel !== 'lga-room' && (
             <section className={styles.partnershipSection} id="partnerships">
               <div className={styles.panelHeading}>
                 <div><span className={styles.kicker}>Get involved</span><h2 className={archivo.className}>Partnership opportunities</h2></div>
@@ -242,13 +267,18 @@ export default function EmployerPortalPage() {
                   <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
                   <span className={styles.infoTag}>Explore PAC membership <ArrowIcon /></span>
                 </Link>
-                <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/lga-room" id="lga-room">
+                <button
+                  type="button"
+                  className={`${styles.spotlightCard} ${styles.goldCard}`}
+                  id="lga-room"
+                  onClick={() => setActivePanel('lga-room')}
+                >
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
                   <h3 className={archivo.className}>Meet in the LG Room</h3>
                   <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
-                  <span className={styles.infoTag}>Explore the LG Room <ArrowIcon /></span>
-                </Link>
+                  <span className={styles.infoTag}>Reserve the LG Room <ArrowIcon /></span>
+                </button>
                 <Link className={styles.spotlightCard} href="/hire-ncst" id="hiring">
                   <span className={styles.spotlightNumber}>03</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="hire" /></span>
@@ -258,9 +288,11 @@ export default function EmployerPortalPage() {
                 </Link>
               </div>
             </section>
+            )}
 
           </div>
 
+          {activePanel !== 'lga-room' && (
           <aside className={styles.dateColumn} id="employer-insights">
             <section className={styles.valuePanel}>
               <span className={styles.kicker}>Why hire from NCST</span>
@@ -294,6 +326,7 @@ export default function EmployerPortalPage() {
               <a href={emailLink('NCST Employer Portal — Plan a Campus Visit')}>Contact Career Services <ArrowIcon /></a>
             </section>
           </aside>
+          )}
           </div>
 
           <div className={styles.workspaceFooter}>
