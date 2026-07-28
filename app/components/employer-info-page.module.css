@@ -32,7 +32,11 @@
   background: #fff;
 }
 .brand { display: flex; align-items: center; gap: 18px; color: var(--navy); text-decoration: none; }
-.brand img { width: 150px; height: auto; }
+.brand img {
+  width: 150px;
+  height: auto;
+  filter: brightness(0) saturate(100%) invert(16%) sepia(82%) saturate(2562%) hue-rotate(204deg) brightness(83%) contrast(104%);
+}
 .brand > span { display: grid; gap: 3px; padding-left: 18px; border-left: 1px solid var(--line); }
 .brand strong { font-size: 15px; text-transform: uppercase; }
 .brand small { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
