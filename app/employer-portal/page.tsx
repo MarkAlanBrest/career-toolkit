@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
-import { LockIcon, archivo, lgaRoomStyles, publicSans, secondaryButtonStyle } from '../lga-room/shared';
+import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
 
 const CAREER_SERVICES_EMAIL = 'careerservices@ncstrades.edu';
@@ -298,6 +298,17 @@ export default function EmployerPortalPage() {
 
           <div className={styles.workspaceFooter}>
             <span>NCST Employer Portal</span>
+            <div className={styles.footerAdmin}>
+              {adminMode ? (
+                <>
+                  <button type="button" onClick={() => setShowAdminSettings(true)}>Email settings</button>
+                  <span aria-hidden="true">·</span>
+                  <button type="button" onClick={logout}>Log out</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setShowAdminLogin(true)}>Admin</button>
+              )}
+            </div>
             <span>© 2026 New Castle School of Trades</span>
           </div>
         </div>
@@ -322,60 +333,6 @@ export default function EmployerPortalPage() {
           onClose={() => setShowAdminSettings(false)}
         />
       )}
-
-      <div className="lgaroom-no-print" style={{ position: 'fixed', right: 20, bottom: 20, display: 'flex', alignItems: 'center', gap: 8, zIndex: 40 }}>
-        {adminMode ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: '#FFF1C7',
-              border: '1px solid #E0B753',
-              borderRadius: 999,
-              padding: '6px 6px 6px 14px',
-              boxShadow: '0 4px 16px rgba(32,36,31,0.16)',
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#694500' }}>Admin mode</span>
-            <button
-              onClick={() => setShowAdminSettings(true)}
-              className="lgaroom-btn-secondary"
-              style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}
-            >
-              Email settings
-            </button>
-            <button
-              onClick={logout}
-              className="lgaroom-btn-secondary"
-              style={{ ...secondaryButtonStyle, padding: '6px 14px', fontSize: 12, borderRadius: 999 }}
-            >
-              Log out
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowAdminLogin(true)}
-            aria-label="Admin sign in"
-            title="Admin"
-            className="lgaroom-fab"
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              border: 'none',
-              background: '#002D74',
-              color: '#fff',
-              display: 'grid',
-              placeItems: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 4px 16px rgba(0,45,116,0.28)',
-            }}
-          >
-            <LockIcon />
-          </button>
-        )}
-      </div>
     </main>
   );
 }
