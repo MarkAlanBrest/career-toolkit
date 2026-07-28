@@ -526,6 +526,78 @@
   font: 400 13px/1.4 inherit;
   text-transform: none;
 }
+.accountBenefitsPanel {
+  margin-top: 18px;
+  padding: 24px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,31,82,.055);
+}
+.accountBenefitsPanel h2 {
+  margin: 6px 0 8px;
+  color: var(--navy);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.accountBenefitsPanel > div > p {
+  margin: 0;
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.accountBenefitsPanel ul {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.accountBenefitsPanel li {
+  padding: 14px 16px;
+  border: 1px solid #dbe2ec;
+  border-left: 4px solid var(--gold);
+  background: #f7f9fc;
+  color: var(--navy);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.accountBenefitsPanel li strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.accountBenefitsPanel li small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.accountBenefitsPanel button {
+  margin-top: 18px;
+  border: 1px solid var(--navy);
+  border-radius: 5px;
+  background: var(--navy);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  padding: 12px 18px;
+  text-transform: uppercase;
+}
+.savedProfileNote {
+  margin-top: 10px !important;
+  padding: 10px 12px;
+  border-left: 3px solid var(--gold);
+  background: #f7f9fc;
+  color: var(--navy) !important;
+  font-size: 12px !important;
+}
 .employerDashboard {
   margin-top: 18px;
   padding: 24px;

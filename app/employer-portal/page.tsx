@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
 import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
 import { EmployerLoginModal } from './employer-auth-modals';
-import { EmployerDashboard, EmployerRecentActivity } from './employer-dashboard';
+import { EmployerDashboard, EmployerRecentActivity, AccountBenefitsPanel } from './employer-dashboard';
 import { SERVICE_FORMS, SERVICE_PANEL_BY_TITLE, ServiceFormPanel, type ServicePanelId } from './service-forms';
 import type { EmployerDashboard as EmployerDashboardData, EmployerProfile } from '@/lib/employerPortalUsers';
 import { LgaRoomCalendar } from '../lga-room/calendar/lga-room-calendar';
@@ -57,7 +57,7 @@ const GRADUATE_STRENGTHS = [
 ];
 
 const SERVICES: Service[] = [
-  { title: 'Register as an Employer', description: 'Share your company and contact information to join the NCST employer network.', category: 'Connect', icon: 'contact', featured: true },
+  { title: 'Register as an Employer', description: 'Share your contact information with Career Services. An employer login is optional.', category: 'Connect', icon: 'contact', featured: true },
   { title: 'Request Applicants', description: 'Request qualified students or graduates for your open positions.', category: 'Hire', icon: 'people', featured: true },
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
   { title: 'PAC Meeting Registration', description: 'Register for an upcoming Program Advisory Committee meeting.', category: 'Partner', icon: 'committee', featured: true },
@@ -233,8 +233,8 @@ export default function EmployerPortalPage() {
                     </h1>
                     <p>
                       {employerSession
-                        ? 'Your forms are ready with your saved contact information. Explore services or review your recent activity.'
-                        : 'Discover ways to hire skilled talent, shape technical education, and connect your organization with NCST.'}
+                        ? 'Your saved information is ready to use. Forms are easier to complete, and the portal keeps track of your requests.'
+                        : 'Use every service without creating an account — or sign in to save your information, speed up forms, and stay connected with NCST.'}
                     </p>
                   </div>
                   <div className={styles.welcomeMark} aria-hidden="true">
@@ -242,7 +242,7 @@ export default function EmployerPortalPage() {
                     <span>Employer<br />Partnerships</span>
                   </div>
                 </section>
-                {employerSession && (
+                {employerSession ? (
                   <EmployerDashboard
                     employerName={employerSession.profile.employerName}
                     contactName={employerSession.profile.contactName}
@@ -250,6 +250,8 @@ export default function EmployerPortalPage() {
                     insights={employerSession.dashboard.insights}
                     onOpenForm={formId => setActivePanel(formId as ServicePanelId)}
                   />
+                ) : (
+                  <AccountBenefitsPanel onSignIn={() => setShowEmployerLogin(true)} />
                 )}
                 </>
               ) : activePanel === 'lga-room' ? (

@@ -129,6 +129,9 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
           <span className={styles.kicker}>Employer service</span>
           <h1 className={archivo.className}>{config.heading}</h1>
           <p>{config.description}</p>
+          {profile && (
+            <p className={styles.savedProfileNote}>Your saved contact information is ready below. Update anything that has changed.</p>
+          )}
         </div>
         <span className={styles.requestIcon}>{icon}</span>
       </div>
@@ -172,7 +175,11 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
                 />
                 <span>Create an employer login (optional)</span>
               </label>
-              <p>Save your information for next time and see your submission history in the portal.</p>
+              <p>
+                Skip this if you prefer — you can use every service without an account. If you create a login,
+                your information is saved, forms are easier to complete, and NCST can recognize you for follow-ups
+                and invitations later.
+              </p>
               {createAccount && (
                 <div className={styles.accountFields}>
                   <label htmlFor="password">
