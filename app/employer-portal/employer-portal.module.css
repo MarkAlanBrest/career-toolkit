@@ -526,6 +526,47 @@
   font: 400 13px/1.4 inherit;
   text-transform: none;
 }
+.attachmentField > label {
+  display: grid;
+  gap: 7px;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.attachmentField input[type='file'] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  font: 400 12px/1.4 inherit;
+  text-transform: none;
+}
+.attachmentField > p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-transform: none;
+}
+.attachmentList {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.attachmentList li {
+  padding: 8px 10px;
+  border: 1px solid #dbe2ec;
+  border-radius: 5px;
+  background: #f7f9fc;
+  color: var(--navy);
+  font-size: 12px;
+}
 .employerDashboard {
   margin-top: 18px;
   padding: 24px;

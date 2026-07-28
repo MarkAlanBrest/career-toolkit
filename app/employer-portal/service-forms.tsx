@@ -6,6 +6,12 @@ import {
   type EmployerPortalFormField,
   type ServiceFormConfig,
 } from '@/lib/employerPortalForms';
+import {
+  MAX_ATTACHMENTS,
+  MAX_ATTACHMENT_BYTES,
+  MAX_TOTAL_ATTACHMENT_BYTES,
+  validateAttachmentFiles,
+} from '@/lib/employerPortalAttachments';
 import type { EmployerProfile } from '@/lib/employerPortalUsers';
 import { archivo } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -69,6 +75,7 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
   const [accountCreated, setAccountCreated] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const [createAccount, setCreateAccount] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const isRegistration = config.id === 'employer-registration';
 
   function profileDefault(fieldName: string): string {
@@ -110,17 +117,27 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
       }
     }
 
+    const attachmentError = validateAttachmentFiles(selectedFiles);
+    if (attachmentError) {
+      setError(attachmentError);
+      setSubmitting(false);
+      return;
+    }
+
     try {
+      const payload = new FormData();
+      payload.append('formId', config.id);
+      payload.append('values', JSON.stringify(values));
+      payload.append('createAccount', String(isRegistration && createAccount));
+      if (isRegistration && createAccount) {
+        payload.append('password', password);
+        payload.append('confirmPassword', confirmPassword);
+      }
+      selectedFiles.forEach(file => payload.append('attachments', file));
+
       const response = await fetch('/api/employer-portal/service-requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          formId: config.id,
-          values,
-          createAccount: isRegistration && createAccount,
-          password: isRegistration && createAccount ? password : undefined,
-          confirmPassword: isRegistration && createAccount ? confirmPassword : undefined,
-        }),
+        body: payload,
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -161,6 +178,7 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
             <button type="button" className={styles.requestSubmit} onClick={() => {
               setSubmitted(false);
               setAccountCreated(false);
+              setSelectedFiles([]);
               setFormKey(key => key + 1);
             }}>
               Submit another request
@@ -201,6 +219,31 @@ export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted 
               )}
             </div>
           )}
+
+          <div className={`${styles.fullField} ${styles.attachmentField}`}>
+            <label htmlFor={`${config.id}-attachments`}>
+              <span>Attach documents (optional)</span>
+              <input
+                id={`${config.id}-attachments`}
+                name="attachments"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.csv,.jpg,.jpeg,.png,.gif,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={event => setSelectedFiles(Array.from(event.target.files || []))}
+              />
+            </label>
+            <p>
+              Add up to {MAX_ATTACHMENTS} files (PDF, Word, Excel, text, or images). Each file up to {Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024))} MB,
+              {` `}{Math.round(MAX_TOTAL_ATTACHMENT_BYTES / (1024 * 1024))} MB total. Attachments are included in the email to Career Services.
+            </p>
+            {selectedFiles.length > 0 && (
+              <ul className={styles.attachmentList}>
+                {selectedFiles.map(file => (
+                  <li key={`${file.name}-${file.size}-${file.lastModified}`}>{file.name}</li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {error && <p className={`${styles.fullField} ${styles.requestError}`}>{error}</p>}
           <div className={styles.requestActions}>

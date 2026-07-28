@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { parseAttachmentFormData } from '@/lib/employerPortalAttachments';
 import { sendServiceFormEmails } from '@/lib/employerPortalEmail';
 import { buildLabeledFieldValues, getServiceFormById } from '@/lib/employerPortalForms';
 import {
@@ -31,7 +32,58 @@ async function setSessionCookie(response: NextResponse, email: string) {
   });
 }
 
-export async function POST(request: NextRequest) {
+type ParsedSubmission = {
+  formId: string;
+  rawValues: Record<string, string>;
+  createAccount: boolean;
+  password: string;
+  confirmPassword: string;
+  attachments: Awaited<ReturnType<typeof parseAttachmentFormData>>;
+};
+
+async function parseSubmissionRequest(request: NextRequest): Promise<ParsedSubmission | NextResponse> {
+  const contentType = request.headers.get('content-type') || '';
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData();
+    const formId = typeof formData.get('formId') === 'string' ? String(formData.get('formId')) : '';
+    const valuesRaw = formData.get('values');
+    let rawValues: Record<string, string> | null = null;
+
+    if (typeof valuesRaw === 'string') {
+      try {
+        const parsed = JSON.parse(valuesRaw) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          rawValues = Object.fromEntries(
+            Object.entries(parsed as Record<string, unknown>)
+              .filter(([, value]) => typeof value === 'string')
+              .map(([key, value]) => [key, (value as string).trim()]),
+          );
+        }
+      } catch {
+        return NextResponse.json({ error: 'Invalid form data.' }, { status: 400 });
+      }
+    }
+
+    let attachments: ParsedSubmission['attachments'] = [];
+    try {
+      attachments = await parseAttachmentFormData(formData);
+    } catch (error) {
+      return NextResponse.json({
+        error: error instanceof Error ? error.message : 'Could not process attached files.',
+      }, { status: 400 });
+    }
+
+    return {
+      formId,
+      rawValues,
+      createAccount: formData.get('createAccount') === 'true',
+      password: typeof formData.get('password') === 'string' ? String(formData.get('password')) : '',
+      confirmPassword: typeof formData.get('confirmPassword') === 'string' ? String(formData.get('confirmPassword')) : '',
+      attachments,
+    };
+  }
+
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
@@ -45,9 +97,22 @@ export async function POST(request: NextRequest) {
         .map(([key, value]) => [key, (value as string).trim()]),
     )
     : null;
-  const createAccount = Boolean(body.createAccount);
-  const password = typeof body.password === 'string' ? body.password : '';
-  const confirmPassword = typeof body.confirmPassword === 'string' ? body.confirmPassword : '';
+
+  return {
+    formId,
+    rawValues,
+    createAccount: Boolean(body.createAccount),
+    password: typeof body.password === 'string' ? body.password : '',
+    confirmPassword: typeof body.confirmPassword === 'string' ? body.confirmPassword : '',
+    attachments: [],
+  };
+}
+
+export async function POST(request: NextRequest) {
+  const parsed = await parseSubmissionRequest(request);
+  if (parsed instanceof NextResponse) return parsed;
+
+  const { formId, rawValues, createAccount, password, confirmPassword, attachments } = parsed;
 
   const config = getServiceFormById(formId);
   if (!config || !rawValues) {
@@ -82,7 +147,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const rows = buildLabeledFieldValues(config, values);
+  const submissionValues = attachments.length
+    ? { ...values, attachedFiles: attachments.map(file => file.filename).join(', ') }
+    : values;
+  const rows = buildLabeledFieldValues(config, submissionValues);
   const sessionEmail = await getEmployerSessionEmail(request);
   const employerEmail = sessionEmail || contactEmail.toLowerCase();
 
@@ -94,7 +162,8 @@ export async function POST(request: NextRequest) {
       contactEmail,
       contactName,
       rows,
-      values,
+      values: submissionValues,
+      attachments,
     });
 
     const allResults = [...emails.internal, emails.confirmation];
@@ -109,7 +178,7 @@ export async function POST(request: NextRequest) {
       employerEmail,
       formId: config.id,
       formTitle: config.title,
-      values,
+      values: submissionValues,
       emailSent: failed.length === 0,
     });
 
@@ -123,6 +192,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       email: { sent: failed.length === 0, failedCount: failed.length },
       accountCreated: createAccount && !sessionEmail,
+      attachmentCount: attachments.length,
     });
 
     if (createAccount && !sessionEmail) {

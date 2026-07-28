@@ -25,6 +25,12 @@ export type EmailSendResult = {
   error?: string;
 };
 
+export type EmailAttachment = {
+  filename: string;
+  contentType: string;
+  content: Buffer;
+};
+
 function resolveSmtpHost(email: string): string {
   const domain = email.split('@')[1]?.toLowerCase() || '';
   if (domain === 'gmail.com') return 'smtp.gmail.com';
@@ -130,6 +136,7 @@ async function sendWithMicrosoftGraph(
   subject: string,
   html: string,
   replyTo?: string,
+  attachments: EmailAttachment[] = [],
 ): Promise<EmailSendResult> {
   if (!config.microsoftRefreshToken) {
     throw new Error('Microsoft account is not connected.');
@@ -178,6 +185,14 @@ async function sendWithMicrosoftGraph(
   if (replyTo && replyTo.toLowerCase() !== config.fromEmail.toLowerCase()) {
     message.replyTo = [{ emailAddress: { address: replyTo } }];
   }
+  if (attachments.length > 0) {
+    message.attachments = attachments.map(attachment => ({
+      '@odata.type': '#microsoft.graph.fileAttachment',
+      name: attachment.filename,
+      contentType: attachment.contentType,
+      contentBytes: attachment.content.toString('base64'),
+    }));
+  }
 
   const response = await fetch(
     'https://graph.microsoft.com/v1.0/me/sendMail',
@@ -198,7 +213,13 @@ async function sendWithMicrosoftGraph(
   return { sent: true, recipient: to };
 }
 
-async function send(to: string, subject: string, html: string, replyTo?: string): Promise<EmailSendResult> {
+async function send(
+  to: string,
+  subject: string,
+  html: string,
+  replyTo?: string,
+  attachments: EmailAttachment[] = [],
+): Promise<EmailSendResult> {
   const config = await getSenderConfig();
   const { host, authUser, authPass, fromEmail, fromName } = config;
   const microsoftError = config.provider === 'microsoft-graph'
@@ -218,7 +239,7 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
   }
   try {
     if (config.provider === 'microsoft-graph') {
-      return await sendWithMicrosoftGraph(config, to, subject, html, replyTo);
+      return await sendWithMicrosoftGraph(config, to, subject, html, replyTo, attachments);
     }
     const transporter = nodemailer.createTransport({
       host,
@@ -226,7 +247,14 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
       secure: false,
       auth: { user: authUser, pass: authPass },
     });
-    const mail: { from: string; to: string; subject: string; html: string; replyTo?: string } = {
+    const mail: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      replyTo?: string;
+      attachments?: Array<{ filename: string; content: Buffer; contentType: string }>;
+    } = {
       from: `${fromName} <${fromEmail}>`,
       to,
       subject,
@@ -234,6 +262,13 @@ async function send(to: string, subject: string, html: string, replyTo?: string)
     };
     if (replyTo && replyTo.toLowerCase() !== fromEmail.toLowerCase()) {
       mail.replyTo = replyTo;
+    }
+    if (attachments.length > 0) {
+      mail.attachments = attachments.map(attachment => ({
+        filename: attachment.filename,
+        content: attachment.content,
+        contentType: attachment.contentType,
+      }));
     }
     const info = await transporter.sendMail(mail);
     return { sent: true, recipient: to, id: info.messageId };
@@ -293,6 +328,12 @@ async function getNotificationRecipients(key: 'applicantRequest' | 'jobPosting' 
   return recipients.length > 0 ? recipients : ['careerservices@ncstrades.edu'];
 }
 
+function attachmentSummaryHtml(filenames: string[]): string {
+  if (!filenames.length) return '';
+  const items = filenames.map(name => `<li>${escapeHtml(name)}</li>`).join('');
+  return `<p style="margin:12px 0 0;"><strong>Attached files</strong></p><ul style="margin:6px 0 0;padding-left:20px;">${items}</ul>`;
+}
+
 export async function sendServiceFormEmails({
   formId,
   recipientKey,
@@ -301,6 +342,7 @@ export async function sendServiceFormEmails({
   contactName,
   rows,
   values,
+  attachments = [],
 }: {
   formId: string;
   recipientKey: 'applicantRequest' | 'jobPosting' | 'general';
@@ -309,26 +351,31 @@ export async function sendServiceFormEmails({
   contactName: string;
   rows: Array<{ label: string; value: string }>;
   values: Record<string, string>;
+  attachments?: EmailAttachment[];
 }): Promise<{ internal: EmailSendResult[]; confirmation: EmailSendResult }> {
   const recipients = await getNotificationRecipients(recipientKey);
   const internalSubject = `[NCST-EP:${formId}] ${formTitle}`;
   const table = detailsTable(rows);
   const machineBlock = machineReadableHtml(formId, values);
+  const attachmentNames = attachments.map(file => file.filename);
+  const attachmentNote = attachmentSummaryHtml(attachmentNames);
   const internalHtml = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
     <h2 style="margin:0 0 8px;">New employer portal submission</h2>
     <p style="margin:0 0 8px;">Form type: <strong>${escapeHtml(formId)}</strong></p>
     ${machineBlock}
     <p style="margin:0 0 8px;">A new <strong>${escapeHtml(formTitle)}</strong> request was submitted through the NCST Employer Portal.</p>
     ${table}
+    ${attachmentNote}
   </div>`;
   const confirmationHtml = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
     <h2 style="margin:0 0 8px;">We received your request</h2>
     <p style="margin:0 0 8px;">Thank you, ${escapeHtml(contactName)}. Career Services received your <strong>${escapeHtml(formTitle)}</strong> submission and someone will be reaching out to you soon.</p>
     ${table}
+    ${attachmentNames.length ? `<p style="margin:12px 0 0;">Attached files: <strong>${escapeHtml(attachmentNames.join(', '))}</strong></p>` : ''}
   </div>`;
 
   const [internal, confirmation] = await Promise.all([
-    Promise.all(recipients.map(recipient => send(recipient, internalSubject, internalHtml, contactEmail))),
+    Promise.all(recipients.map(recipient => send(recipient, internalSubject, internalHtml, contactEmail, attachments))),
     send(contactEmail, `We received your ${formTitle} request`, confirmationHtml),
   ]);
 
