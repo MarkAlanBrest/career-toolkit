@@ -402,31 +402,23 @@
 .serviceDirectory .serviceCard h3 { margin-bottom: 6px; font-size: 15px; }
 .serviceDirectory .serviceCard p { font-size: 12px; line-height: 1.4; }
 .dateColumn { display: flex; min-width: 0; flex-direction: column; gap: 20px; }
-.calendarPanel, .datesPanel, .contactPanel { padding: 22px; border-radius: 8px; background: #fff; box-shadow: 0 6px 18px rgba(0,31,82,.055); }
-.calendarHeading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 21px; }
-.calendarHeading span, .calendarHeading strong { display: block; }
-.calendarHeading > div:first-child span { margin-bottom: 4px; color: #8b95a3; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.calendarHeading strong { color: var(--navy); font-size: 17px; }
-.calendarControls { display: flex; gap: 7px; }
-.calendarControls span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #eef1f6; color: #8692a2; font-size: 18px; }
-.weekdays, .calendarDays { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
-.weekdays { margin-bottom: 10px; color: #6d7785; font-size: 8px; font-weight: 800; text-transform: uppercase; }
-.calendarDays { row-gap: 7px; }
-.calendarDays > span { display: grid; place-items: center; height: 27px; color: #58677b; font-size: 10px; }
-.calendarDays .otherMonth { color: #c4cbd4; }
-.calendarDays .today { width: 27px; margin: auto; border-radius: 50%; background: var(--navy); box-shadow: 0 5px 10px rgba(0,45,116,.22); color: #fff; font-weight: 800; }
-.calendarNote { display: grid; grid-template-columns: 8px 1fr; gap: 8px; margin-top: 18px; padding-top: 15px; border-top: 1px solid #e5e8ed; }
-.calendarNote > span { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: var(--gold); }
-.calendarNote p { margin: 0; color: #7b8694; font-size: 10px; line-height: 1.4; }
-.datesPanel .kicker { color: var(--navy); }
-.datesPanel h2 { margin: 6px 0 18px; color: var(--navy); font-size: 22px; line-height: 1; text-transform: uppercase; }
-.dateList { display: grid; gap: 3px; }
-.dateList > div { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 11px; padding: 11px 0; border-top: 1px solid #e5e8ed; }
-.dateBadge { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e9eef7; color: var(--navy); }
-.dateBadge svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
-.dateList p, .dateList strong, .dateList small { display: block; margin: 0; }
-.dateList strong { color: var(--ink); font-size: 12px; }
-.dateList small { margin-top: 3px; color: #8a94a1; font-size: 10px; }
+.valuePanel, .sponsorshipPanel, .contactPanel { padding: 22px; border-radius: 8px; background: #fff; box-shadow: 0 6px 18px rgba(0,31,82,.055); }
+.valuePanel .kicker, .sponsorshipPanel .kicker { color: var(--navy); }
+.valuePanel h2, .sponsorshipPanel h2 { margin: 6px 0 18px; color: var(--navy); font-size: 22px; line-height: 1.1; text-transform: uppercase; }
+.valueList { display: grid; gap: 3px; }
+.valueList > div { display: grid; grid-template-columns: 38px 1fr; align-items: start; gap: 11px; padding: 11px 0; border-top: 1px solid #e5e8ed; }
+.valueBadge { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e9eef7; color: var(--navy); }
+.valueBadge svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.valueList p, .valueList strong, .valueList small { display: block; margin: 0; }
+.valueList strong { color: var(--ink); font-size: 12px; }
+.valueList small { margin-top: 3px; color: #8a94a1; font-size: 10px; line-height: 1.45; }
+.sponsorshipPanel { border-top: 4px solid var(--gold); }
+.sponsorshipPanel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.sponsorshipPanel a {
+  display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid #e5e8ed; color: var(--navy); font-size: 10px; font-weight: 800; text-decoration: none; text-transform: uppercase;
+}
+.sponsorshipPanel svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 .contactPanel { margin-top: auto; border-top: 4px solid var(--gold); background: var(--navy); color: #fff; }
 .contactPanel > span { color: var(--gold); font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .contactPanel h2 { margin: 7px 0 8px; font-size: 24px; line-height: 1; text-transform: uppercase; }

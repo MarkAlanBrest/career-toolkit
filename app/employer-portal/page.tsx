@@ -31,6 +31,24 @@ function serviceLink(service: Service) {
   return emailLink(`NCST Employer Portal — ${service.title}`);
 }
 
+const GRADUATE_STRENGTHS = [
+  {
+    title: 'Hands-on training',
+    description: 'Students learn by doing in shop and lab environments built around real trade work.',
+    icon: 'training' as const,
+  },
+  {
+    title: 'Industry-ready skills',
+    description: 'Programs emphasize the tools, safety practices, and workplace expectations employers need.',
+    icon: 'briefcase' as const,
+  },
+  {
+    title: 'Employer-informed programs',
+    description: 'Industry partners help keep curriculum, equipment, and training aligned with workforce needs.',
+    icon: 'committee' as const,
+  },
+];
+
 const SERVICES: Service[] = [
   { title: 'Request Applicants', description: 'Request qualified students or graduates for your open positions.', category: 'Hire', icon: 'people', featured: true },
   { title: 'Submit a Job Opening', description: 'Send Career Services a job posting to share with our talent network.', category: 'Hire', icon: 'briefcase', featured: true },
@@ -70,13 +88,6 @@ function ServiceIcon({ name }: { name: IconName }) {
 
 export default function EmployerPortalPage() {
   const [activePanel, setActivePanel] = useState<'overview' | 'request-applicants'>('overview');
-  const calendarDays = [
-    28, 29, 30, 1, 2, 3, 4,
-    5, 6, 7, 8, 9, 10, 11,
-    12, 13, 14, 15, 16, 17, 18,
-    19, 20, 21, 22, 23, 24, 25,
-    26, 27, 28, 29, 30, 31, 1,
-  ];
 
   return (
     <main className={`${publicSans.className} ${styles.page}`}>
@@ -224,29 +235,30 @@ export default function EmployerPortalPage() {
 
           </div>
 
-          <aside className={styles.dateColumn} id="important-dates">
-            <section className={styles.calendarPanel}>
-              <div className={styles.calendarHeading}>
-                <div><span>Planning calendar</span><strong>July 2026</strong></div>
-                <div className={styles.calendarControls}><span>‹</span><span>›</span></div>
-              </div>
-              <div className={styles.weekdays}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => <span key={day}>{day}</span>)}</div>
-              <div className={styles.calendarDays}>
-                {calendarDays.map((day, index) => (
-                  <span className={`${index < 3 || index > 33 ? styles.otherMonth : ''} ${day === 26 && index === 28 ? styles.today : ''}`} key={`${day}-${index}`}>{day}</span>
+          <aside className={styles.dateColumn} id="employer-insights">
+            <section className={styles.valuePanel}>
+              <span className={styles.kicker}>Why hire from NCST</span>
+              <h2 className={archivo.className}>What our graduates bring</h2>
+              <div className={styles.valueList}>
+                {GRADUATE_STRENGTHS.map(item => (
+                  <div key={item.title}>
+                    <span className={styles.valueBadge}><ServiceIcon name={item.icon} /></span>
+                    <p><strong>{item.title}</strong><small>{item.description}</small></p>
+                  </div>
                 ))}
               </div>
-              <div className={styles.calendarNote}><span /><p>Important employer dates will be highlighted here as they are announced.</p></div>
             </section>
 
-            <section className={styles.datesPanel}>
-              <span className={styles.kicker}>Important dates</span>
-              <h2 className={archivo.className}>Coming up at NCST</h2>
-              <div className={styles.dateList}>
-                <div><span className={styles.dateBadge}><ServiceIcon name="calendar" /></span><p><strong>Career Fair</strong><small>Date to be announced</small></p></div>
-                <div><span className={styles.dateBadge}><ServiceIcon name="committee" /></span><p><strong>PAC Meetings</strong><small>Dates to be announced</small></p></div>
-                <div><span className={styles.dateBadge}><ServiceIcon name="visit" /></span><p><strong>Recruiting Events</strong><small>Dates to be announced</small></p></div>
-              </div>
+            <section className={styles.sponsorshipPanel}>
+              <span className={styles.kicker}>Community partnerships</span>
+              <h2 className={archivo.className}>Corporate sponsorship</h2>
+              <p>
+                NCST corporate sponsors build stronger relationships with our school, support industry-specific
+                tools and equipment, and help students connect with employers who hire our graduates.
+              </p>
+              <a href="https://www.ncstrades.edu/corporate-sponsors/" target="_blank" rel="noreferrer">
+                Explore corporate sponsorship <ArrowIcon />
+              </a>
             </section>
 
             <section className={styles.contactPanel}>
