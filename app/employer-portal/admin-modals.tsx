@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AdminLoginModal } from '../lga-room/calendar/modals';
 import {
   Field,
   ModalShell,
@@ -16,7 +15,133 @@ import {
   accentStrong,
 } from '../lga-room/shared';
 
-export { AdminLoginModal };
+export function EmployerAdminLoginModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (email: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [microsoftCode, setMicrosoftCode] = useState<{ code: string; uri: string } | null>(null);
+  const loginRun = useRef(0);
+
+  useEffect(() => () => {
+    loginRun.current += 1;
+  }, []);
+
+  async function submit() {
+    setSubmitting(true);
+    setError('');
+    try {
+      const response = await fetch('/api/employer-portal/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || 'Incorrect email or password.');
+      onSuccess(data.email || email);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Incorrect email or password.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function signInWithMicrosoft() {
+    const run = loginRun.current + 1;
+    loginRun.current = run;
+    setSubmitting(true);
+    setError('');
+    setMicrosoftCode(null);
+    const microsoftWindow = window.open('about:blank', 'employer-portal-admin-microsoft-login');
+    try {
+      const startResponse = await fetch('/api/employer-portal/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'startMicrosoftLogin' }),
+      });
+      const start = await startResponse.json();
+      if (!startResponse.ok) throw new Error(start?.error || 'Could not start Microsoft sign-in.');
+      setMicrosoftCode({ code: start.userCode, uri: start.verificationUri });
+      if (microsoftWindow) microsoftWindow.location.href = start.verificationUriComplete || start.verificationUri;
+
+      const deadline = Date.now() + Number(start.expiresIn || 900) * 1000;
+      let intervalMs = Math.max(5, Number(start.interval || 5)) * 1000;
+      while (loginRun.current === run && Date.now() < deadline) {
+        await new Promise(resolve => window.setTimeout(resolve, intervalMs));
+        if (loginRun.current !== run) return;
+        const pollResponse = await fetch('/api/employer-portal/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pollMicrosoftLogin', deviceCode: start.deviceCode }),
+        });
+        const poll = await pollResponse.json();
+        if (pollResponse.status === 202) {
+          if (poll.slowDown) intervalMs += 5000;
+          continue;
+        }
+        if (!pollResponse.ok) throw new Error(poll?.error || 'Microsoft sign-in failed.');
+        onSuccess(poll.email || '');
+        return;
+      }
+      if (loginRun.current === run) throw new Error('Microsoft sign-in expired. Try again.');
+    } catch (err) {
+      if (microsoftWindow && !microsoftWindow.closed) microsoftWindow.close();
+      setError(err instanceof Error ? err.message : 'Microsoft sign-in failed.');
+    } finally {
+      if (loginRun.current === run) setSubmitting(false);
+    }
+  }
+
+  return (
+    <ModalShell onClose={onClose} title="Admin sign in">
+      <button
+        onClick={signInWithMicrosoft}
+        disabled={submitting}
+        className="lgaroom-btn-primary"
+        style={{ ...primaryButtonStyle, width: '100%', marginBottom: 10 }}
+      >
+        {submitting && microsoftCode ? 'Waiting for Microsoft sign-in…' : 'Sign in with Microsoft'}
+      </button>
+      {microsoftCode && (
+        <div style={{ marginBottom: 12, padding: 10, border: `1px solid ${border}`, borderRadius: 8, fontSize: 13 }}>
+          At <strong>{microsoftCode.uri}</strong>, enter code{' '}
+          <strong style={{ letterSpacing: '0.08em' }}>{microsoftCode.code}</strong>.
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 12px', color: textMuted, fontSize: 11 }}>
+        <span style={{ height: 1, background: border, flex: 1 }} />
+        Emergency password
+        <span style={{ height: 1, background: border, flex: 1 }} />
+      </div>
+      <Field label="Email">
+        <input
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={inputStyle}
+          autoFocus
+        />
+      </Field>
+      <Field label="Password">
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          style={inputStyle}
+        />
+      </Field>
+      {error && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{error}</div>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+        <button onClick={onClose} className="lgaroom-btn-secondary" style={secondaryButtonStyle}>Cancel</button>
+        <button onClick={submit} disabled={submitting} className="lgaroom-btn-primary" style={primaryButtonStyle}>
+          {submitting ? 'Checking…' : 'Sign in'}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
 
 type NotificationRecipients = {
   applicantRequest: string[];
@@ -119,7 +244,7 @@ export function EmployerAdminSettingsModal({
   const [adminsError, setAdminsError] = useState('');
 
   function loadAdmins() {
-    fetch('/api/lga-room/admin/accounts', { headers: authHeaders })
+    fetch('/api/employer-portal/admin/accounts', { headers: authHeaders })
       .then(async response => {
         const data = await response.json();
         if (!response.ok) throw new Error(data?.error || 'Could not load admins.');
@@ -349,7 +474,7 @@ export function EmployerAdminSettingsModal({
     setAddingAdmin(true);
     setAdminsError('');
     try {
-      const response = await fetch('/api/lga-room/admin/accounts', {
+      const response = await fetch('/api/employer-portal/admin/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ email: newAdminEmail, password: newAdminPassword }),
@@ -369,7 +494,7 @@ export function EmployerAdminSettingsModal({
   async function handleRemoveAdmin(email: string) {
     setAdminsError('');
     try {
-      const response = await fetch(`/api/lga-room/admin/accounts?email=${encodeURIComponent(email)}`, {
+      const response = await fetch(`/api/employer-portal/admin/accounts?email=${encodeURIComponent(email)}`, {
         method: 'DELETE',
         headers: authHeaders,
       });
@@ -384,7 +509,7 @@ export function EmployerAdminSettingsModal({
   return (
     <ModalShell onClose={onClose} title="Email settings" wide>
       <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 16 }}>
-        Email settings here are separate from the LG Room site. Connecting or disconnecting a mailbox on one site does not affect the other.
+        Manage email and administrator settings for the Employer Portal only.
       </div>
 
       {loading && <div style={{ fontSize: 13, color: textMuted }}>Loading settings…</div>}
@@ -558,7 +683,7 @@ export function EmployerAdminSettingsModal({
           <div>
             <SectionLabel>Admins</SectionLabel>
             <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 10 }}>
-              Admin accounts are shared with the LG Room site.
+              Anyone listed here can sign in and manage Employer Portal settings.
             </div>
 
             {adminsError && <div style={{ color: '#9A2E36', fontSize: 13, marginBottom: 10 }}>{adminsError}</div>}

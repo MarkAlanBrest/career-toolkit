@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, type ReactNode } from 'react';
-import { AdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
+import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
 import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
 
@@ -96,7 +96,7 @@ export default function EmployerPortalPage() {
   const [showAdminSettings, setShowAdminSettings] = useState(false);
 
   useEffect(() => {
-    fetch('/api/lga-room/admin', { cache: 'no-store' })
+    fetch('/api/employer-portal/admin', { cache: 'no-store' })
       .then(async response => {
         if (response.ok) {
           const data = await response.json();
@@ -108,7 +108,7 @@ export default function EmployerPortalPage() {
   }, []);
 
   async function logout() {
-    await fetch('/api/lga-room/admin', { method: 'DELETE' }).catch(() => null);
+    await fetch('/api/employer-portal/admin', { method: 'DELETE' }).catch(() => null);
     setAdminEmail('');
     setAdminPassword('');
     setAdminMode(false);
@@ -315,7 +315,7 @@ export default function EmployerPortalPage() {
       </section>
 
       {showAdminLogin && (
-        <AdminLoginModal
+        <EmployerAdminLoginModal
           onClose={() => setShowAdminLogin(false)}
           onSuccess={email => {
             setAdminEmail(email);

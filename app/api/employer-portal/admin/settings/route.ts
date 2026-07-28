@@ -5,7 +5,7 @@ import {
   saveEmployerPortalSettings,
 } from '@/lib/employerPortal';
 import { getEmailStatus, sendTestEmail } from '@/lib/employerPortalEmail';
-import { isAdminRequestAuthorized } from '@/lib/lgaRoom';
+import { isAdminRequestAuthorized } from '@/lib/employerPortal';
 
 export const dynamic = 'force-dynamic';
 
