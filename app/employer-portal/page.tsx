@@ -375,6 +375,10 @@ export default function EmployerPortalPage() {
             setShowEmployerLogin(false);
             void loadEmployerSession();
           }}
+          onCreateAccount={() => {
+            setShowEmployerLogin(false);
+            setActivePanel('employer-registration');
+          }}
         />
       )}
 

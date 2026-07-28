@@ -2,6 +2,7 @@ import { getEmployerPortalSettings, saveEmployerPortalSettings } from '@/lib/emp
 import nodemailer from 'nodemailer';
 
 const SENDER_NAME = 'NCST Employer Portal';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type SenderConfig = {
@@ -332,4 +333,15 @@ export async function sendServiceFormEmails({
   ]);
 
   return { internal, confirmation };
+}
+
+export async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<EmailSendResult> {
+  const html = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
+    <h2 style="margin:0 0 8px;">Reset your employer portal password</h2>
+    <p style="margin:0 0 12px;">We received a request to reset the password for your NCST Employer Portal account.</p>
+    <p style="margin:0 0 12px;"><a href="${escapeHtml(resetUrl)}" style="color:#001f52;font-weight:700;">Choose a new password</a></p>
+    <p style="margin:0 0 12px;font-size:13px;color:#606b78;">This link expires in one hour. If you did not request a password reset, you can ignore this email.</p>
+    <p style="margin:0;font-size:12px;color:#8a94a0;word-break:break-all;">${escapeHtml(resetUrl)}</p>
+  </div>`;
+  return send(email, 'Reset your NCST Employer Portal password', html);
 }

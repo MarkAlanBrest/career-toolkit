@@ -6,6 +6,7 @@ export const EMPLOYER_SESSION_COOKIE = 'employer_portal_user_session';
 
 const EMPLOYERS_PATHNAME = 'employer-portal/employers.json';
 const EMPLOYER_SESSIONS_PATHNAME = 'employer-portal/employer-sessions.json';
+const EMPLOYER_PASSWORD_RESETS_PATHNAME = 'employer-portal/employer-password-resets.json';
 const SUBMISSIONS_PATHNAME = 'employer-portal/submissions.json';
 
 export type EmployerProfile = {
@@ -168,6 +169,79 @@ export async function authenticateEmployer(email: string, password: string): Pro
   const account = await getEmployerByEmail(email);
   if (!account) return null;
   return verifyPassword(password, account.passwordHash) ? account : null;
+}
+
+export async function updateEmployerPassword(email: string, password: string): Promise<void> {
+  const normalized = normalizeEmail(email);
+  const accounts = await getEmployerAccounts();
+  const index = accounts.findIndex(account => account.email === normalized);
+  if (index === -1) {
+    throw new Error('Account not found.');
+  }
+  accounts[index] = {
+    ...accounts[index],
+    passwordHash: hashPassword(password),
+  };
+  await saveEmployerAccounts(accounts);
+}
+
+type PasswordResetRecord = { tokenHash: string; email: string; expiresAt: number };
+
+async function getPasswordResetRecords(): Promise<PasswordResetRecord[]> {
+  const result = await get(EMPLOYER_PASSWORD_RESETS_PATHNAME, { access: 'private', useCache: false });
+  if (!result) return [];
+  const data = await new Response(result.stream).json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function savePasswordResetRecords(records: PasswordResetRecord[]): Promise<void> {
+  await put(EMPLOYER_PASSWORD_RESETS_PATHNAME, JSON.stringify(records), {
+    access: 'private',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+}
+
+function resetTokenHash(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+
+export async function createPasswordResetToken(email: string): Promise<string | null> {
+  const account = await getEmployerByEmail(email);
+  if (!account) return null;
+
+  const token = randomBytes(32).toString('base64url');
+  const now = Date.now();
+  const normalized = normalizeEmail(email);
+  const records = (await getPasswordResetRecords())
+    .filter(record => record.expiresAt > now && record.email !== normalized);
+  records.push({
+    tokenHash: resetTokenHash(token),
+    email: normalized,
+    expiresAt: now + PASSWORD_RESET_TTL_MS,
+  });
+  await savePasswordResetRecords(records);
+  return token;
+}
+
+export async function getPasswordResetEmail(token: string): Promise<string | null> {
+  const hash = resetTokenHash(token);
+  const record = (await getPasswordResetRecords())
+    .find(item => item.tokenHash === hash && item.expiresAt > Date.now());
+  return record?.email || null;
+}
+
+export async function consumePasswordResetToken(token: string): Promise<string | null> {
+  const hash = resetTokenHash(token);
+  const records = await getPasswordResetRecords();
+  const now = Date.now();
+  const record = records.find(item => item.tokenHash === hash && item.expiresAt > now);
+  if (!record) return null;
+  await savePasswordResetRecords(records.filter(item => item.tokenHash !== hash));
+  return record.email;
 }
 
 export async function updateEmployerProfile(email: string, profile: EmployerProfile): Promise<void> {
