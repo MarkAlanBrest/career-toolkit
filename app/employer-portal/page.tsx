@@ -28,7 +28,6 @@ function emailLink(subject: string) {
 function serviceLink(service: Service) {
   if (service.title === 'Request Applicants') return '#request-applicants';
   if (service.title === 'LG Room Reservation') return '/lga-room';
-  if (service.title === 'Upcoming Events') return '#important-dates';
   return emailLink(`NCST Employer Portal — ${service.title}`);
 }
 
@@ -40,13 +39,9 @@ const SERVICES: Service[] = [
   { title: 'LG Room Reservation', description: 'Check availability and request the LG meeting room.', category: 'Connect', icon: 'building' },
   { title: 'Submit Student Work Log', description: 'Submit a required work log for a student participating in work release.', category: 'Manage', icon: 'clipboard' },
   { title: 'Request Custom Training', description: 'Ask about workforce or employee training tailored to your organization.', category: 'Partner', icon: 'training' },
-  { title: 'Schedule a Recruiting Visit', description: 'Visit campus, speak with students, conduct interviews, or recruit.', category: 'Hire', icon: 'visit' },
   { title: 'Report a Hire', description: 'Tell Career Services when an NCST student or graduate is hired.', category: 'Hire', icon: 'hire' },
-  { title: 'Employer Feedback', description: 'Share feedback about student skills, graduates, or program needs.', category: 'Partner', icon: 'feedback' },
   { title: 'Update Contact Information', description: 'Keep your company and employer contact information current.', category: 'Manage', icon: 'contact' },
-  { title: 'Request a School Tour', description: 'Arrange a guided tour of NCST programs and facilities.', category: 'Connect', icon: 'tour' },
   { title: 'Message Career Services', description: 'Send a general question or request to the Career Services team.', category: 'Connect', icon: 'message' },
-  { title: 'Upcoming Events', description: 'View Career Fairs, PAC meetings, recruiting events, and key dates.', category: 'Connect', icon: 'events' },
 ];
 
 function ArrowIcon() {
