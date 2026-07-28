@@ -232,7 +232,7 @@
 }
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 20px;
   min-height: 88px;
@@ -241,6 +241,32 @@
 .toolbarWelcome { display: grid; gap: 3px; }
 .toolbarWelcome span { color: #7b8796; font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .toolbarWelcome strong { color: var(--navy); font-size: 18px; line-height: 1.1; }
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.toolbarSignedIn {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.toolbarActions button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--navy);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.toolbarActions button:hover { background: #f7f9fc; }
 .dashboardContent {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
@@ -452,6 +478,175 @@
   background: var(--navy);
   color: #fff;
 }
+.accountOptionPanel {
+  padding: 18px;
+  border: 1px solid #dbe2ec;
+  border-radius: 6px;
+  background: #f7f9fc;
+}
+.accountOptionToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--navy);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.accountOptionPanel > p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-transform: none;
+}
+.accountFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.accountFields label {
+  display: grid;
+  gap: 7px;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.accountFields input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  font: 400 13px/1.4 inherit;
+  text-transform: none;
+}
+.employerDashboard {
+  margin-top: 18px;
+  padding: 24px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,31,82,.055);
+}
+.dashboardIntro h2 {
+  margin: 6px 0 8px;
+  color: var(--navy);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.dashboardIntro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dashboardInsights {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.dashboardInsightCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 16px 18px;
+  border: 1px solid #dbe2ec;
+  border-left: 4px solid var(--gold);
+  background: #f7f9fc;
+}
+.dashboardInsightCount {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+.dashboardInsightCard strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--navy);
+  font-size: 14px;
+}
+.dashboardInsightCard p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.dashboardInsightCard button,
+.dashboardEmpty button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--navy);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-transform: uppercase;
+}
+.dashboardEmpty {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px dashed #cfd8e3;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+.dashboardEmpty p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.recentActivityPanel {
+  margin-bottom: 16px;
+  padding: 20px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,31,82,.055);
+}
+.recentActivityPanel h3 {
+  margin: 6px 0 12px;
+  color: var(--navy);
+  font-size: 18px;
+  text-transform: uppercase;
+}
+.recentActivityPanel ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recentActivityPanel li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e7ebf0;
+  font-size: 12px;
+}
+.recentActivityPanel li strong {
+  color: var(--navy);
+  font-size: 12px;
+}
+.recentActivityPanel li span {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
@@ -573,6 +768,7 @@
   .sideNav nav a { flex: 0 0 auto; justify-content: center; padding: 0 12px; font-size: 13px; white-space: nowrap; }
   .sideNav nav .navSectionLabel { display: none; }
   .sideNav nav .serviceNavLink { min-height: 44px; font-size: 13px; }
+  .accountFields { grid-template-columns: 1fr; }
   .toolbar { grid-template-columns: 1fr; }
   .dashboardContent { grid-template-columns: minmax(0, 1fr) 280px; }
   .featuredGrid, .directoryGrid { grid-template-columns: repeat(2,1fr); }

@@ -6,6 +6,7 @@ import {
   type EmployerPortalFormField,
   type ServiceFormConfig,
 } from '@/lib/employerPortalForms';
+import type { EmployerProfile } from '@/lib/employerPortalUsers';
 import { archivo } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
 
@@ -21,12 +22,13 @@ function CheckIcon() {
   );
 }
 
-function renderField(field: EmployerPortalFormField) {
+function renderField(field: EmployerPortalFormField, defaultValue = '') {
   const inputProps = {
     id: field.name,
     name: field.name,
     placeholder: field.placeholder,
     required: field.required,
+    defaultValue,
   };
 
   if (field.type === 'textarea') {
@@ -35,9 +37,9 @@ function renderField(field: EmployerPortalFormField) {
 
   if (field.type === 'select') {
     return (
-      <select {...inputProps} defaultValue="">
+      <select {...inputProps} defaultValue={defaultValue || ''}>
         <option value="" disabled>Select an option</option>
-        {field.options?.map(option => <option key={option}>{option}</option>)}
+        {field.options?.map(option => <option key={option} value={option}>{option}</option>)}
       </select>
     );
   }
@@ -54,15 +56,33 @@ function renderField(field: EmployerPortalFormField) {
 type ServiceFormPanelProps = {
   config: ServiceFormConfig;
   icon: ReactNode;
+  profile?: EmployerProfile | null;
   onCancel: () => void;
+  onSubmitted?: () => void;
 };
 
-export function ServiceFormPanel({ config, icon, onCancel }: ServiceFormPanelProps) {
+export function ServiceFormPanel({ config, icon, profile, onCancel, onSubmitted }: ServiceFormPanelProps) {
   const fields = getServiceFormFields(config);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [accountCreated, setAccountCreated] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const [createAccount, setCreateAccount] = useState(false);
+  const isRegistration = config.id === 'employer-registration';
+
+  function profileDefault(fieldName: string): string {
+    if (!profile) return '';
+    const map: Record<string, string> = {
+      employerName: profile.employerName,
+      contactName: profile.contactName,
+      contactEmail: profile.contactEmail,
+      contactPhone: profile.contactPhone,
+      mailingAddress: profile.mailingAddress,
+      notes: profile.notes,
+    };
+    return map[fieldName] || '';
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,17 +94,27 @@ export function ServiceFormPanel({ config, icon, onCancel }: ServiceFormPanelPro
       fields.map(field => [field.name, String(formData.get(field.name) || '').trim()]),
     ) as Record<string, string>;
 
+    const password = String(formData.get('password') || '');
+    const confirmPassword = String(formData.get('confirmPassword') || '');
+
     try {
       const response = await fetch('/api/employer-portal/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formId: config.id, values }),
+        body: JSON.stringify({
+          formId: config.id,
+          values,
+          createAccount: isRegistration && createAccount,
+          password: isRegistration && createAccount ? password : undefined,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data?.error || 'Could not submit your request.');
       }
+      setAccountCreated(Boolean(data.accountCreated));
       setSubmitted(true);
+      onSubmitted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit your request.');
     } finally {
@@ -108,11 +138,15 @@ export function ServiceFormPanel({ config, icon, onCancel }: ServiceFormPanelPro
           <span className={styles.requestSuccessIcon}><CheckIcon /></span>
           <h2 className={archivo.className}>Request submitted</h2>
           <p>Thank you. Your request has been sent to Career Services.</p>
+          {accountCreated && (
+            <p className={styles.requestSuccessFollowUp}>Your employer account is ready. You are now signed in.</p>
+          )}
           <p className={styles.requestSuccessFollowUp}>Someone from our team will be reaching out to you soon.</p>
           <div className={styles.requestSuccessActions}>
             <button type="button" onClick={onCancel}>Back to overview</button>
             <button type="button" className={styles.requestSubmit} onClick={() => {
               setSubmitted(false);
+              setAccountCreated(false);
               setFormKey(key => key + 1);
             }}>
               Submit another request
@@ -124,9 +158,36 @@ export function ServiceFormPanel({ config, icon, onCancel }: ServiceFormPanelPro
           {fields.map(field => (
             <label className={field.fullWidth ? styles.fullField : undefined} htmlFor={field.name} key={field.name}>
               <span>{field.label}</span>
-              {renderField(field)}
+              {renderField(field, profileDefault(field.name))}
             </label>
           ))}
+
+          {isRegistration && !profile && (
+            <div className={`${styles.fullField} ${styles.accountOptionPanel}`}>
+              <label className={styles.accountOptionToggle}>
+                <input
+                  type="checkbox"
+                  checked={createAccount}
+                  onChange={event => setCreateAccount(event.target.checked)}
+                />
+                <span>Create an employer login (optional)</span>
+              </label>
+              <p>Save your information for next time and see your submission history in the portal.</p>
+              {createAccount && (
+                <div className={styles.accountFields}>
+                  <label htmlFor="password">
+                    <span>Password</span>
+                    <input id="password" name="password" type="password" minLength={8} required={createAccount} autoComplete="new-password" />
+                  </label>
+                  <label htmlFor="confirmPassword">
+                    <span>Confirm password</span>
+                    <input id="confirmPassword" name="confirmPassword" type="password" minLength={8} required={createAccount} autoComplete="new-password" />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
           {error && <p className={`${styles.fullField} ${styles.requestError}`}>{error}</p>}
           <div className={styles.requestActions}>
             <button type="button" onClick={onCancel} disabled={submitting}>Cancel</button>
