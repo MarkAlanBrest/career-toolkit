@@ -1,5 +1,4 @@
-import { get } from '@vercel/blob';
-import { put } from '@vercel/blob';
+import { get, put } from '@vercel/blob';
 
 export type EmployerNotificationRecipients = {
   applicantRequest: string[];
@@ -9,6 +8,14 @@ export type EmployerNotificationRecipients = {
 
 export type EmployerPortalSettings = {
   notificationRecipients: EmployerNotificationRecipients;
+  senderEmail: string;
+  senderAppPassword: string;
+  senderName: string;
+  replyToEmail: string;
+  microsoftTenantId: string;
+  microsoftClientId: string;
+  microsoftRefreshToken: string;
+  microsoftConnectedAt: string;
 };
 
 const SETTINGS_PATHNAME = 'employer-portal/settings.json';
@@ -19,6 +26,14 @@ const EMPTY_SETTINGS: EmployerPortalSettings = {
     jobPosting: [],
     general: [],
   },
+  senderEmail: '',
+  senderAppPassword: '',
+  senderName: '',
+  replyToEmail: '',
+  microsoftTenantId: '',
+  microsoftClientId: '',
+  microsoftRefreshToken: '',
+  microsoftConnectedAt: '',
 };
 
 function cleanRecipientList(value: unknown): string[] {
@@ -42,6 +57,14 @@ export async function getEmployerPortalSettings(): Promise<EmployerPortalSetting
       jobPosting: cleanRecipientList(recipients?.jobPosting),
       general: cleanRecipientList(recipients?.general),
     },
+    senderEmail: typeof data?.senderEmail === 'string' ? data.senderEmail : '',
+    senderAppPassword: typeof data?.senderAppPassword === 'string' ? data.senderAppPassword : '',
+    senderName: typeof data?.senderName === 'string' ? data.senderName : '',
+    replyToEmail: typeof data?.replyToEmail === 'string' ? data.replyToEmail : '',
+    microsoftTenantId: typeof data?.microsoftTenantId === 'string' ? data.microsoftTenantId : '',
+    microsoftClientId: typeof data?.microsoftClientId === 'string' ? data.microsoftClientId : '',
+    microsoftRefreshToken: typeof data?.microsoftRefreshToken === 'string' ? data.microsoftRefreshToken : '',
+    microsoftConnectedAt: typeof data?.microsoftConnectedAt === 'string' ? data.microsoftConnectedAt : '',
   };
 }
 

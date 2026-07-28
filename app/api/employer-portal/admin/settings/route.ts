@@ -4,12 +4,8 @@ import {
   getEmployerPortalSettings,
   saveEmployerPortalSettings,
 } from '@/lib/employerPortal';
-import {
-  getSettings,
-  isAdminRequestAuthorized,
-  saveSettings,
-} from '@/lib/lgaRoom';
-import { getEmailStatus, sendTestEmail } from '@/lib/lgaRoomEmail';
+import { getEmailStatus, sendTestEmail } from '@/lib/employerPortalEmail';
+import { isAdminRequestAuthorized } from '@/lib/lgaRoom';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,13 +23,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const settings = await getSettings();
-    const employerSettings = await getEmployerPortalSettings();
+    const settings = await getEmployerPortalSettings();
     return NextResponse.json({
       storage: { configured: true },
       email: await getEmailStatus(),
       notify: {
-        recipients: employerSettings.notificationRecipients,
+        recipients: settings.notificationRecipients,
       },
       sender: {
         email: settings.senderEmail,
@@ -82,10 +77,9 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const current = await getSettings();
-    const employerSettings = await getEmployerPortalSettings();
+    const current = await getEmployerPortalSettings();
 
-    let notificationRecipients = employerSettings.notificationRecipients;
+    let notificationRecipients = current.notificationRecipients;
     if (payload.notificationRecipients !== undefined) {
       if (!payload.notificationRecipients || typeof payload.notificationRecipients !== 'object' || Array.isArray(payload.notificationRecipients)) {
         return NextResponse.json({ error: 'Notification recipient lists are invalid.' }, { status: 400 });
@@ -111,37 +105,30 @@ export async function PUT(request: NextRequest) {
     const microsoftAppChanged =
       nextTenantId !== current.microsoftTenantId || nextClientId !== current.microsoftClientId;
 
-    const sharedSettings = {
-      notificationRecipients: current.notificationRecipients,
-      adminNotifyEmail: current.adminNotifyEmail,
-      buildingManagerEmail: current.buildingManagerEmail,
-      maintenanceEmail: current.maintenanceEmail,
+    const settings = {
+      notificationRecipients,
       senderEmail: microsoftAppChanged ? '' : current.senderEmail,
       senderAppPassword: current.senderAppPassword,
       senderName: microsoftAppChanged ? '' : current.senderName,
       replyToEmail: replyToEmail.trim(),
       microsoftTenantId: nextTenantId,
       microsoftClientId: nextClientId,
-      microsoftClientSecret: '',
       microsoftRefreshToken: microsoftAppChanged ? '' : current.microsoftRefreshToken,
       microsoftConnectedAt: microsoftAppChanged ? '' : current.microsoftConnectedAt,
     };
 
-    await Promise.all([
-      saveSettings(sharedSettings),
-      saveEmployerPortalSettings({ notificationRecipients }),
-    ]);
+    await saveEmployerPortalSettings(settings);
 
     return NextResponse.json({
-      notify: { recipients: notificationRecipients },
+      notify: { recipients: settings.notificationRecipients },
       sender: {
-        email: sharedSettings.senderEmail,
-        name: sharedSettings.senderName,
-        replyToEmail: sharedSettings.replyToEmail,
-        microsoftTenantId: sharedSettings.microsoftTenantId,
-        microsoftClientId: sharedSettings.microsoftClientId,
-        microsoftConnected: Boolean(sharedSettings.microsoftRefreshToken),
-        microsoftConnectedAt: sharedSettings.microsoftConnectedAt || null,
+        email: settings.senderEmail,
+        name: settings.senderName,
+        replyToEmail: settings.replyToEmail,
+        microsoftTenantId: settings.microsoftTenantId,
+        microsoftClientId: settings.microsoftClientId,
+        microsoftConnected: Boolean(settings.microsoftRefreshToken),
+        microsoftConnectedAt: settings.microsoftConnectedAt || null,
       },
     });
   } catch (error) {
@@ -258,14 +245,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'The connected Microsoft account has no usable email address.' }, { status: 502 });
     }
 
-    const current = await getSettings();
-    await saveSettings({
+    const current = await getEmployerPortalSettings();
+    await saveEmployerPortalSettings({
       ...current,
       senderEmail: email,
       senderName: (profile.displayName || 'NCST Career Services').trim(),
       microsoftTenantId: tenantId,
       microsoftClientId: clientId,
-      microsoftClientSecret: '',
       microsoftRefreshToken: data.refresh_token,
       microsoftConnectedAt: new Date().toISOString(),
     });
@@ -277,12 +263,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === 'disconnectMicrosoft') {
-    const current = await getSettings();
-    await saveSettings({
+    const current = await getEmployerPortalSettings();
+    await saveEmployerPortalSettings({
       ...current,
       senderEmail: '',
       senderName: '',
-      microsoftClientSecret: '',
       microsoftRefreshToken: '',
       microsoftConnectedAt: '',
     });

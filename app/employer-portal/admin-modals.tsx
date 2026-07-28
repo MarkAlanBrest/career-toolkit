@@ -384,7 +384,7 @@ export function EmployerAdminSettingsModal({
   return (
     <ModalShell onClose={onClose} title="Email settings" wide>
       <div style={{ fontSize: 12.5, color: textMuted, marginBottom: 16 }}>
-        Uses the same school Outlook mailbox and admin accounts as the LG Room site.
+        Email settings here are separate from the LG Room site. Connecting or disconnecting a mailbox on one site does not affect the other.
       </div>
 
       {loading && <div style={{ fontSize: 13, color: textMuted }}>Loading settings…</div>}
