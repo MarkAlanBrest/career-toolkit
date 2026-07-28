@@ -267,18 +267,13 @@ export default function EmployerPortalPage() {
                   <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
                   <span className={styles.infoTag}>Explore PAC membership <ArrowIcon /></span>
                 </Link>
-                <button
-                  type="button"
-                  className={`${styles.spotlightCard} ${styles.goldCard}`}
-                  id="lga-room"
-                  onClick={() => setActivePanel('lga-room')}
-                >
+                <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/lga-room" id="lga-room-landing">
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
                   <h3 className={archivo.className}>Meet in the LG Room</h3>
                   <p>Host a meeting, training, seminar, or community event in NCST’s polished, presentation-ready space.</p>
                   <span className={styles.infoTag}>Reserve the LG Room <ArrowIcon /></span>
-                </button>
+                </Link>
                 <Link className={styles.spotlightCard} href="/hire-ncst" id="hiring">
                   <span className={styles.spotlightNumber}>03</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="hire" /></span>

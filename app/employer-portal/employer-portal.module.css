@@ -393,12 +393,6 @@
   text-decoration: none;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
-button.spotlightCard {
-  width: 100%;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
 .spotlightCard:hover { transform: translateY(-3px); border-color: #b9c6d8; box-shadow: 0 12px 22px rgba(0,31,82,.1); }
 .spotlightCard:focus-visible { outline: 3px solid var(--gold) !important; outline-offset: 3px; }
 .spotlightCard, .serviceCard { scroll-margin-top: 22px; }
