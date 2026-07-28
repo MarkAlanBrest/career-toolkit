@@ -370,6 +370,88 @@
 .requestSubmit svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .requestActions button:hover { border-color: var(--navy); }
 .requestActions .requestSubmit:hover { background: var(--navy-deep); }
+.requestError {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid #f0c2c2;
+  border-radius: 5px;
+  background: #fff5f5;
+  color: #9b2c2c;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-transform: none;
+}
+.requestSuccess {
+  display: grid;
+  gap: 10px;
+  padding-top: 28px;
+  text-align: center;
+}
+.requestSuccessIcon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 6px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f5ea;
+  color: #1f7a35;
+}
+.requestSuccessIcon svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+.requestSuccess h2 {
+  margin: 0;
+  color: var(--navy);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.requestSuccess p {
+  max-width: 520px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.requestSuccessFollowUp {
+  color: var(--navy) !important;
+  font-weight: 700;
+}
+.requestSuccessActions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.requestSuccessActions button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 1px solid #d5dce6;
+  border-radius: 5px;
+  background: #fff;
+  color: var(--navy);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.requestSuccessActions .requestSubmit {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
 @keyframes panelIn {
   from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }

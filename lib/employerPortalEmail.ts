@@ -252,3 +252,62 @@ export async function sendTestEmail(to: string): Promise<EmailSendResult> {
     </div>`,
   );
 }
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function detailsTable(rows: Array<{ label: string; value: string }>): string {
+  if (!rows.length) return '';
+  const body = rows.map(row => `
+    <tr>
+      <td style="padding:8px 12px;border:1px solid #dbe2ec;background:#f7f9fc;font-weight:600;width:38%;vertical-align:top;">${escapeHtml(row.label)}</td>
+      <td style="padding:8px 12px;border:1px solid #dbe2ec;vertical-align:top;white-space:pre-wrap;">${escapeHtml(row.value)}</td>
+    </tr>`).join('');
+  return `<table style="border-collapse:collapse;width:100%;margin-top:12px;font-size:14px;">${body}</table>`;
+}
+
+async function getNotificationRecipients(key: 'applicantRequest' | 'jobPosting' | 'general'): Promise<string[]> {
+  const settings = await getEmployerPortalSettings();
+  const recipients = settings.notificationRecipients[key];
+  return recipients.length > 0 ? recipients : ['careerservices@ncstrades.edu'];
+}
+
+export async function sendServiceFormEmails({
+  recipientKey,
+  formTitle,
+  contactEmail,
+  contactName,
+  rows,
+}: {
+  recipientKey: 'applicantRequest' | 'jobPosting' | 'general';
+  formTitle: string;
+  contactEmail: string;
+  contactName: string;
+  rows: Array<{ label: string; value: string }>;
+}): Promise<{ internal: EmailSendResult[]; confirmation: EmailSendResult }> {
+  const recipients = await getNotificationRecipients(recipientKey);
+  const subject = `NCST Employer Portal — ${formTitle}`;
+  const table = detailsTable(rows);
+  const internalHtml = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
+    <h2 style="margin:0 0 8px;">New employer portal submission</h2>
+    <p style="margin:0 0 8px;">A new <strong>${escapeHtml(formTitle)}</strong> request was submitted through the NCST Employer Portal.</p>
+    ${table}
+  </div>`;
+  const confirmationHtml = `<div style="font-family:sans-serif;color:#2d3b45;max-width:560px;">
+    <h2 style="margin:0 0 8px;">We received your request</h2>
+    <p style="margin:0 0 8px;">Thank you, ${escapeHtml(contactName)}. Career Services received your <strong>${escapeHtml(formTitle)}</strong> submission and someone will be reaching out to you soon.</p>
+    ${table}
+  </div>`;
+
+  const [internal, confirmation] = await Promise.all([
+    Promise.all(recipients.map(recipient => send(recipient, subject, internalHtml, contactEmail))),
+    send(contactEmail, `We received your ${formTitle} request`, confirmationHtml),
+  ]);
+
+  return { internal, confirmation };
+}
