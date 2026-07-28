@@ -8,7 +8,8 @@ export type ServicePanelId =
   | 'request-custom-training'
   | 'report-a-hire'
   | 'update-contact-information'
-  | 'message-career-services';
+  | 'message-career-services'
+  | 'employer-registration';
 
 export type ServiceRecipientKey = 'applicantRequest' | 'jobPosting' | 'general';
 
@@ -53,6 +54,7 @@ export const SERVICE_PANEL_BY_TITLE: Record<string, ServicePanelId> = {
   'Report a Hire': 'report-a-hire',
   'Update Contact Information': 'update-contact-information',
   'Message Career Services': 'message-career-services',
+  'Register as an Employer': 'employer-registration',
 };
 
 export const SERVICE_FORMS: Record<Exclude<ServicePanelId, 'lga-room'>, ServiceFormConfig> = {
@@ -320,6 +322,30 @@ export const SERVICE_FORMS: Record<Exclude<ServicePanelId, 'lga-room'>, ServiceF
         label: 'Message',
         type: 'textarea',
         placeholder: 'How can Career Services help?',
+        fullWidth: true,
+      },
+    ],
+  },
+  'employer-registration': {
+    id: 'employer-registration',
+    title: 'Register as an Employer',
+    heading: 'Register as an employer',
+    description: 'Join the NCST employer network by sharing your company and contact information with Career Services.',
+    submitLabel: 'Submit registration',
+    recipientKey: 'general',
+    fields: [
+      {
+        name: 'mailingAddress',
+        label: 'Mailing address (optional)',
+        type: 'text',
+        placeholder: 'Street, city, state, ZIP',
+        fullWidth: true,
+      },
+      {
+        name: 'notes',
+        label: 'Additional information (optional)',
+        type: 'textarea',
+        placeholder: 'Tell us about your organization or how you would like to partner with NCST.',
         fullWidth: true,
       },
     ],
