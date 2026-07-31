@@ -147,6 +147,57 @@
   color: var(--navy-deep);
 }
 
+.toolbarQuickLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.toolbarQuickLinksCompact {
+  gap: 3px;
+}
+
+.toolbarQuickBtn {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e8ecf4;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.toolbarQuickBtn:hover {
+  background: rgba(250, 162, 0, 0.18);
+  border-color: var(--gold);
+  color: #fff;
+}
+
+.toolbarQuickBtnActive {
+  background: rgba(250, 162, 0, 0.22);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.toolbarQuickLinksCompact .toolbarQuickBtn {
+  padding: 7px 4px;
+  text-align: center;
+}
+
+.toolbarQuickIcon {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 .sidebarBrand {
   padding: 10px 10px 8px;
 }
