@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         NCST Career Services
 // @namespace    ncstrades.edu
-// @version      0.22
+// @version      0.23
 // @description  Loads NCST Career Services tools from career-toolkit
 // @match        https://outlook.office.com/*
 // @match        https://outlook.office365.com/*
@@ -11,7 +11,7 @@
 // @homepageURL  https://career-toolkit-ruby.vercel.app/employer-portal
 // @updateURL    https://career-toolkit-ruby.vercel.app/ncst-career-services.user.js
 // @downloadURL  https://career-toolkit-ruby.vercel.app/ncst-career-services.user.js
-// @require      https://career-toolkit-ruby.vercel.app/ncst-career-services.app.js?v=0.22
+// @require      https://career-toolkit-ruby.vercel.app/ncst-career-services.app.js?v=0.23
 // @grant        GM_xmlhttpRequest
 // @connect      career-toolkit-ruby.vercel.app
 // @connect      api.anthropic.com

@@ -58,6 +58,14 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     category: 'Student tools',
   },
   {
+    id: 'resume-search',
+    title: 'Resume search',
+    description:
+      'Search local resume folders, filter by distance, run AI deep scans, and build employer outreach emails.',
+    href: '/resume-search.html',
+    category: 'Employer tools',
+  },
+  {
     id: 'employer-portal',
     title: 'Employer portal',
     description:

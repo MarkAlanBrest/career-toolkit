@@ -10,6 +10,11 @@
         }
         window.__NCST_CAREER_SERVICES__ = true;
 
+    const EMBEDDED = window.NCST_CAREER_SERVICES_EMBEDDED === true;
+    const USE_SERVER_API =
+        EMBEDDED || typeof GM_xmlhttpRequest !== 'function';
+    const API_BASE = window.NCST_CAREER_SERVICES_API_BASE || '';
+
     const DB_NAME = 'NCSTCareerServices';
     const STORE_NAME = 'settings';
     const HANDLE_KEY = 'resumeFolder';
@@ -35,53 +40,43 @@
     let lastLiveGeocodeAt = 0;
 
     // =========================================================
-    // FLOATING BUTTON
-    // ONLY CHANGE: RESUMES BUTTON -> ICON
+    // FLOATING BUTTON (Outlook Tampermonkey only)
     // =========================================================
 
-    const button = document.createElement('button');
+    let button = null;
 
-    button.textContent = '📄';
-    button.title = 'Resume Search';
+    if (!EMBEDDED) {
+        button = document.createElement('button');
 
-    Object.assign(button.style, {
-        position: 'fixed',
+        button.textContent = '📄';
+        button.title = 'Resume Search';
 
-        // Messages icon is at right:18px / bottom:18px.
-        // Resume icon sits immediately to its left.
-        right: '62px',
-        bottom: '18px',
+        Object.assign(button.style, {
+            position: 'fixed',
+            right: '62px',
+            bottom: '18px',
+            zIndex: '2147483646',
+            width: '38px',
+            height: '38px',
+            padding: '0',
+            margin: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent',
+            color: '#1f2937',
+            border: 'none',
+            borderRadius: '0',
+            fontSize: '26px',
+            fontWeight: '400',
+            lineHeight: '1',
+            cursor: 'pointer',
+            boxShadow: 'none',
+            fontFamily: 'Segoe UI, Arial, sans-serif'
+        });
 
-        zIndex: '2147483646',
-
-        width: '38px',
-        height: '38px',
-
-        padding: '0',
-        margin: '0',
-
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-
-        background: 'transparent',
-        color: '#1f2937',
-
-        border: 'none',
-        borderRadius: '0',
-
-        fontSize: '26px',
-        fontWeight: '400',
-        lineHeight: '1',
-
-        cursor: 'pointer',
-
-        boxShadow: 'none',
-
-        fontFamily: 'Segoe UI, Arial, sans-serif'
-    });
-
-    document.body.appendChild(button);
+        document.body.appendChild(button);
+    }
 
     // =========================================================
     // PANEL
@@ -89,41 +84,72 @@
 
     const panel = document.createElement('div');
 
-    Object.assign(panel.style, {
-        display: 'none',
-        position: 'fixed',
-        right: '20px',
-        bottom: '70px',
-        width: '470px',
-        maxWidth: 'calc(100vw - 40px)',
-        maxHeight: '70vh',
-        overflowY: 'auto',
-        background: '#fff',
-        border: '1px solid #d1d5db',
-        borderRadius: '10px',
-        zIndex: '999999',
-        padding: '16px',
-        boxSizing: 'border-box',
-        boxShadow: '0 8px 30px rgba(0,0,0,.25)',
-        fontFamily: 'Segoe UI, Arial, sans-serif',
-        color: '#111827'
-    });
+    Object.assign(
+        panel.style,
+        EMBEDDED
+            ? {
+                display: 'block',
+                position: 'relative',
+                width: '100%',
+                minHeight: '100vh',
+                maxHeight: 'none',
+                overflowY: 'auto',
+                background: '#f9fafb',
+                border: 'none',
+                borderRadius: '0',
+                zIndex: '1',
+                padding: '16px',
+                boxSizing: 'border-box',
+                boxShadow: 'none',
+                fontFamily: 'Segoe UI, Arial, sans-serif',
+                color: '#111827'
+            }
+            : {
+                display: 'none',
+                position: 'fixed',
+                right: '20px',
+                bottom: '70px',
+                width: '470px',
+                maxWidth: 'calc(100vw - 40px)',
+                maxHeight: '70vh',
+                overflowY: 'auto',
+                background: '#fff',
+                border: '1px solid #d1d5db',
+                borderRadius: '10px',
+                zIndex: '999999',
+                padding: '16px',
+                boxSizing: 'border-box',
+                boxShadow: '0 8px 30px rgba(0,0,0,.25)',
+                fontFamily: 'Segoe UI, Arial, sans-serif',
+                color: '#111827'
+            }
+    );
 
     document.body.appendChild(panel);
 
-    button.addEventListener('click', async () => {
-        panel.style.display =
-            panel.style.display === 'none'
-                ? 'block'
-                : 'none';
+    if (button) {
+        button.addEventListener('click', async () => {
+            panel.style.display =
+                panel.style.display === 'none'
+                    ? 'block'
+                    : 'none';
 
-        if (panel.style.display === 'block') {
-            await initialize();
-        }
-    });
+            if (panel.style.display === 'block') {
+                await initialize();
+            }
+        });
+    }
 
     function closePanel() {
+        if (EMBEDDED) {
+            return;
+        }
+
         panel.style.display = 'none';
+    }
+
+    if (EMBEDDED) {
+        initialize();
     }
 
     // =========================================================
@@ -1044,7 +1070,7 @@
                         id="resume-attach"
                         style="${primaryButton()}"
                     >
-                        Attach Selected
+                        ${EMBEDDED ? 'Download Selected' : 'Attach Selected'}
                     </button>
 
                 </div>
@@ -1069,7 +1095,9 @@
         document.getElementById(
             'resume-attach'
         ).onclick =
-            attachSelectedResumes;
+            EMBEDDED
+                ? downloadSelectedResumes
+                : attachSelectedResumes;
     }
 
     // =========================================================
@@ -1084,7 +1112,7 @@
 
         let apiKey = localStorage.getItem(CLAUDE_KEY_STORAGE) || '';
 
-        if (!apiKey) {
+        if (!apiKey && !USE_SERVER_API) {
             apiKey = prompt(
                 'Enter the Claude API key for this browser.\n\n' +
                 'It will be stored locally in this browser so you do not have to enter it each time.'
@@ -1278,6 +1306,33 @@
     // from Tampermonkey's own privileged context instead, which is not
     // subject to the page's CSP.
     function callClaudeApi(apiKey, content, resumeName) {
+        if (USE_SERVER_API) {
+            return fetch(API_BASE + '/api/resume-search/deep-scan', {
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json'
+                },
+                body: JSON.stringify({
+                    content,
+                    resumeName
+                })
+            }).then(async response => {
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error ||
+                        `Deep scan failed (${response.status}) for ${resumeName}`
+                    );
+                }
+
+                return {
+                    status: data.status ?? response.status,
+                    responseText: data.responseText ?? ''
+                };
+            });
+        }
+
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'POST',
@@ -1408,6 +1463,49 @@
         }
 
         return new Promise((resolve, reject) => {
+            if (USE_SERVER_API) {
+                fetch(
+                    API_BASE +
+                    '/api/resume-search/geocode?query=' +
+                    encodeURIComponent(query),
+                    {
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    }
+                )
+                    .then(async response => {
+                        if (!response.ok) {
+                            const data = await response.json().catch(() => ({}));
+                            throw new Error(
+                                data.error ||
+                                'Location lookup failed for "' + query + '".'
+                            );
+                        }
+
+                        return response.json();
+                    })
+                    .then(data => {
+                        let coords = null;
+
+                        if (Array.isArray(data) && data.length) {
+                            coords = {
+                                lat: parseFloat(data[0].lat),
+                                lon: parseFloat(data[0].lon)
+                            };
+                        }
+
+                        const updatedCache = loadGeocodeCache();
+                        updatedCache[key] = coords;
+                        saveGeocodeCache(updatedCache);
+
+                        resolve(coords);
+                    })
+                    .catch(error => reject(error));
+
+                return;
+            }
+
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: buildGeocodeUrl(query),
@@ -2376,7 +2474,9 @@ Writing guidance:
                 Claude analyzed
                 <strong>${candidateSummaries.length}</strong>
                 selected resume${candidateSummaries.length === 1 ? '' : 's'}.
-                Review the summary before inserting it into Outlook.
+                ${EMBEDDED
+                    ? 'Copy the employer email HTML below, or paste it into Outlook manually.'
+                    : 'Review the summary before inserting it into Outlook.'}
             </div>
 
             <div
@@ -2409,14 +2509,14 @@ Writing guidance:
                     id="resume-ai-key"
                     style="${secondaryButton()} flex:1;"
                 >
-                    Change API Key
+                    ${USE_SERVER_API ? 'About AI' : 'Change API Key'}
                 </button>
 
                 <button
                     id="resume-ai-insert"
                     style="${primaryButton()} flex:1;"
                 >
-                    Insert into Email
+                    ${EMBEDDED ? 'Copy Email HTML' : 'Insert into Email'}
                 </button>
             </div>
         `;
@@ -2434,12 +2534,21 @@ Writing guidance:
         document.getElementById(
             'resume-ai-key'
         ).onclick =
-            changeClaudeApiKey;
+            USE_SERVER_API
+                ? () => showMessage(
+                    'AI Deep Scan',
+                    'Deep Scan uses NCST Career Services AI on this dashboard.\n\n' +
+                    'In Outlook, install the Tampermonkey script to insert summaries and attach resumes directly.',
+                    showDeepScanPreview
+                )
+                : changeClaudeApiKey;
 
         document.getElementById(
             'resume-ai-insert'
         ).onclick =
-            insertSummaryIntoOutlook;
+            EMBEDDED
+                ? copyDeepScanHtml
+                : insertSummaryIntoOutlook;
     }
 
     function changeClaudeApiKey() {
@@ -2484,6 +2593,82 @@ Writing guidance:
             'Claude API key updated.',
             showDeepScanPreview
         );
+    }
+
+    function copyDeepScanHtml() {
+        if (!lastDeepScanHtml) {
+            showMessage(
+                'Nothing to Copy',
+                'There is no AI summary to copy.',
+                showDeepScanPreview
+            );
+            return;
+        }
+
+        const blob = new Blob([lastDeepScanHtml], { type: 'text/html' });
+
+        const copyPlain = async () => {
+            const temp = document.createElement('div');
+            temp.innerHTML = lastDeepScanHtml;
+            const text = temp.textContent || temp.innerText || '';
+            await navigator.clipboard.writeText(text);
+        };
+
+        if (navigator.clipboard && window.ClipboardItem) {
+            navigator.clipboard.write([
+                new ClipboardItem({
+                    'text/html': blob,
+                    'text/plain': new Blob(
+                        [
+                            (() => {
+                                const temp = document.createElement('div');
+                                temp.innerHTML = lastDeepScanHtml;
+                                return temp.textContent || temp.innerText || '';
+                            })()
+                        ],
+                        { type: 'text/plain' }
+                    )
+                })
+            ]).then(() => {
+                showMessage(
+                    'Copied',
+                    'Employer email HTML copied to clipboard.\n\nPaste into Outlook or your email draft.',
+                    showDeepScanPreview
+                );
+            }).catch(() => {
+                copyPlain().then(() => {
+                    showMessage(
+                        'Copied',
+                        'Summary text copied to clipboard.',
+                        showDeepScanPreview
+                    );
+                }).catch(error => {
+                    showMessage(
+                        'Copy Error',
+                        error && error.message
+                            ? error.message
+                            : String(error),
+                        showDeepScanPreview
+                    );
+                });
+            });
+        } else {
+            copyPlain().then(() => {
+                showMessage(
+                    'Copied',
+                    'Summary text copied to clipboard.',
+                    showDeepScanPreview
+                );
+            }).catch(error => {
+                showMessage(
+                    'Copy Error',
+                    error && error.message
+                        ? error.message
+                        : String(error),
+                    showDeepScanPreview
+                );
+            });
+        }
     }
 
     function insertSummaryIntoOutlook() {
@@ -2632,6 +2817,60 @@ Writing guidance:
     // =========================================================
     // ATTACH SELECTED
     // =========================================================
+
+    async function downloadSelectedResumes() {
+        if (!selectedResumes.size) {
+            showMessage(
+                'Selection Required',
+                'Select at least one resume.',
+                renderSearch
+            );
+            return;
+        }
+
+        const selected =
+            allResumes.filter(
+                resume =>
+                    selectedResumes.has(resume.id)
+            );
+
+        const attachButton =
+            document.getElementById('resume-attach');
+
+        if (attachButton) {
+            attachButton.disabled = true;
+            attachButton.textContent = 'Downloading...';
+        }
+
+        try {
+            for (const resume of selected) {
+                const file = await resume.handle.getFile();
+                const url = URL.createObjectURL(file);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = file.name;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }
+        } catch (error) {
+            console.error('NCST Download Error:', error);
+
+            showMessage(
+                'Download Error',
+                'Unable to download selected resumes.\n\n' +
+                (error && error.message ? error.message : String(error)),
+                renderSearch
+            );
+        } finally {
+            if (attachButton) {
+                attachButton.disabled = false;
+                attachButton.textContent = 'Download Selected';
+            }
+        }
+    }
 
     async function attachSelectedResumes() {
 
@@ -3134,6 +3373,7 @@ Writing guidance:
                         background:none;
                         font-size:20px;
                         cursor:pointer;
+                        ${EMBEDDED ? 'display:none;' : ''}
                     "
                 >
                     ×

@@ -73,7 +73,7 @@ export default function DashboardShell() {
                 className={styles.frame}
                 src={iframeSrc}
                 title={activeTool?.title ?? 'Career Services tool'}
-                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
+                sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
               />
             )}
           </div>

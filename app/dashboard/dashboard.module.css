@@ -145,25 +145,26 @@
 }
 
 .sidebarBrand {
-  padding: 18px 16px 14px;
+  padding: 12px 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebarBrand strong {
   display: block;
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--gold);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .sidebarBrand span {
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 1rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: #fff;
+  line-height: 1.2;
 }
 
 .nav {
@@ -178,24 +179,25 @@
 
 .navGroupLabel {
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.45);
-  padding: 0 14px 8px;
+  padding: 0 8px 6px;
 }
 
 .navItem {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
+  padding: 7px 8px;
   border: none;
   background: transparent;
   color: #c8d0e0;
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: background 0.12s, color 0.12s;
@@ -219,8 +221,8 @@
 }
 
 .sidebarFooter {
-  padding: 12px 14px;
-  font-size: 0.7rem;
+  padding: 8px 10px;
+  font-size: 0.58rem;
   color: rgba(255, 255, 255, 0.4);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   font-family: 'Trebuchet MS', Arial, sans-serif;
