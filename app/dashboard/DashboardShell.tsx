@@ -107,6 +107,18 @@ export default function DashboardShell() {
           aria-hidden={sidebarHidden}
         >
           <div className={styles.sidebarTop}>
+            {activeTool && activeId !== HOME_ID && (
+              <a
+                className={`${styles.openFullPage} ${iconsOnly ? styles.openFullPageIcon : ''}`}
+                href={activeTool.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open ${activeTool.title} in full page`}
+              >
+                {iconsOnly ? '↗' : 'Open full page ↗'}
+              </a>
+            )}
+
             <div className={styles.sidebarControls}>
               <span className={styles.sidebarControlsLabel}>Sidebar</span>
               <div className={styles.modeButtons}>
