@@ -56,14 +56,6 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     external: true,
   },
   {
-    id: 'student-portal',
-    title: 'Student portal',
-    description: 'Student-facing hub for career resources and NCST career services links.',
-    href: '/student-portal',
-    category: 'Student tools',
-    icon: '🎓',
-  },
-  {
     id: 'resume-search',
     title: 'Resume search',
     description:
