@@ -110,20 +110,72 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
 
 export const HOME_TOOL_ICON = '🏠';
 
+export type DashboardNavGroup = {
+  id: string;
+  label: string;
+  icon: string;
+  toolIds: string[];
+};
+
+/** Sidebar menu groups — multi-tool groups render as dropdowns. */
+export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
+  {
+    id: 'reporting',
+    label: 'Reporting',
+    icon: '📊',
+    toolIds: ['career-reports'],
+  },
+  {
+    id: 'resumes',
+    label: 'Resumes',
+    icon: '📄',
+    toolIds: ['resume-builder', 'cover-letter', 'resume-admin'],
+  },
+  {
+    id: 'jobs',
+    label: 'Jobs',
+    icon: '🧭',
+    toolIds: ['local-job-search', 'resume-search'],
+  },
+  {
+    id: 'employers',
+    label: 'Employers',
+    icon: '🏢',
+    toolIds: ['employer-portal', 'employer-portal-admin'],
+  },
+  {
+    id: 'communications',
+    label: 'Canvas',
+    icon: '📢',
+    toolIds: ['canvas-broadcast'],
+  },
+  {
+    id: 'rooms',
+    label: 'LG Room',
+    icon: '🚪',
+    toolIds: ['lga-room'],
+  },
+];
+
 export const DASHBOARD_LG_ROOM_PATH = '/dashboard?tool=lga-room';
 export const DASHBOARD_LOCAL_JOB_SEARCH_PATH = '/dashboard?tool=local-job-search';
 
-/** Pinned shortcuts shown in the dashboard sidebar toolbar (top of right menu). */
-export const DASHBOARD_TOOLBAR_TOOL_IDS = [
-  'local-job-search',
-  'resume-search',
-  'career-reports',
-] as const;
+export type DashboardNavGroupWithTools = DashboardNavGroup & { tools: CareerTool[] };
 
-export function dashboardToolbarTools() {
-  return DASHBOARD_TOOLBAR_TOOL_IDS
-    .map(id => CAREER_SERVICES_TOOLS.find(tool => tool.id === id))
-    .filter((tool): tool is CareerTool => Boolean(tool));
+export function dashboardNavGroups(): DashboardNavGroupWithTools[] {
+  return DASHBOARD_NAV_GROUPS
+    .map(group => ({
+      ...group,
+      tools: group.toolIds
+        .map(id => CAREER_SERVICES_TOOLS.find(tool => tool.id === id))
+        .filter((tool): tool is CareerTool => Boolean(tool)),
+    }))
+    .filter(group => group.tools.length > 0);
+}
+
+export function navGroupIdForTool(toolId: string): string | null {
+  const group = DASHBOARD_NAV_GROUPS.find(item => item.toolIds.includes(toolId));
+  return group?.id ?? null;
 }
 
 export function dashboardToolPath(toolId: string) {
