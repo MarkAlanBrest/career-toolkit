@@ -66,20 +66,6 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     category: 'Employer tools',
   },
   {
-    id: 'hire-ncst',
-    title: 'Hire NCST (info)',
-    description: 'Why employers hire NCST graduates, with links to connect with Career Services.',
-    href: '/hire-ncst',
-    category: 'Employer tools',
-  },
-  {
-    id: 'pac-membership',
-    title: 'PAC membership (info)',
-    description: 'Program Advisory Committee overview for industry partners.',
-    href: '/pac-membership',
-    category: 'Employer tools',
-  },
-  {
     id: 'canvas-broadcast',
     title: 'Canvas broadcast',
     description: 'Send career services emails and announcements to Canvas courses.',
