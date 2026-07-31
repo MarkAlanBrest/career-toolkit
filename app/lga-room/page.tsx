@@ -1,6 +1,9 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import type { ReactNode } from 'react';
+import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import { archivo, publicSans, ROOM_LOCATION, ROOM_NAME } from './shared';
 import RoomPhoto from './room-photo';
 import styles from './landing.module.css';
@@ -129,12 +132,17 @@ function AmenityCard({ title, body, icon }: { title: string; body: string; icon:
 }
 
 export default function LgaRoomLandingPage() {
+  const embedded = useDashboardEmbed();
+
   return (
-    <main className={`${publicSans.className} ${styles.page}`}>
+    <main className={`${publicSans.className} ${styles.page} ${embedded ? styles.embedded : ''}`}>
+      {!embedded && (
       <div className={styles.topBar}>
         <span>Training programs in Pennsylvania and Ohio</span>
         <a href="https://www.ncstrades.edu/" target="_blank" rel="noreferrer">Visit the NCST main site</a>
       </div>
+      )}
+      {!embedded && (
       <header className={styles.siteHeader}>
         <Link className={styles.brand} href="/lga-room" aria-label="LG Room home">
           <Image src="/ncst-logo.png" width={160} height={41} alt="New Castle School of Trades" priority />
@@ -148,6 +156,7 @@ export default function LgaRoomLandingPage() {
           <ArrowIcon />
         </Link>
       </header>
+      )}
 
       <section className={styles.hero}>
         <div className={styles.heroContent}>

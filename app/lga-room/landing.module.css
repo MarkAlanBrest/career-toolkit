@@ -12,6 +12,10 @@
   color: var(--ink);
 }
 
+.embedded {
+  min-height: 100%;
+}
+
 .page * { box-sizing: border-box; }
 
 .topBar {

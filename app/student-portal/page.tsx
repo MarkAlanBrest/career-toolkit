@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import type { StudentProfile } from '@/lib/studentPortal';
+import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import { archivo, publicSans } from '../lga-room/shared';
 import styles from './student-portal.module.css';
 
@@ -62,6 +63,7 @@ function authNoticeMessage(auth: string | null, reason: string | null): string |
 }
 
 function StudentPortalContent() {
+  const embedded = useDashboardEmbed();
   const searchParams = useSearchParams();
   const [activePanel, setActivePanel] = useState<PanelId>('overview');
   const [session, setSession] = useState<StudentProfile | null>(null);
@@ -96,7 +98,7 @@ function StudentPortalContent() {
   }
 
   return (
-    <main className={`${publicSans.className} ${styles.page}`}>
+    <main className={`${publicSans.className} ${styles.page} ${embedded ? styles.embedded : ''}`}>
       <section className={styles.dashboard}>
         <aside className={styles.sideNav}>
           <div className={styles.sidebarBrand}>
@@ -126,6 +128,7 @@ function StudentPortalContent() {
         </aside>
 
         <div className={styles.workspace}>
+          {!embedded && (
           <div className={styles.toolbar}>
             <div className={styles.toolbarWelcome}>
               <span>New Castle School of Trades</span>
@@ -144,6 +147,22 @@ function StudentPortalContent() {
               )}
             </div>
           </div>
+          )}
+
+          {embedded && (
+            <div className={styles.embeddedAuth}>
+              {session ? (
+                <>
+                  <span>{session.email}</span>
+                  <button type="button" onClick={signOut}>Sign out</button>
+                </>
+              ) : (
+                <a className={`${styles.signInButton} ${styles.signInButtonPrimary}`} href="/api/student-portal/auth/microsoft">
+                  Sign in with Microsoft
+                </a>
+              )}
+            </div>
+          )}
 
           <div className={styles.dashboardContent}>
             {authNotice && activePanel === 'overview' && (
