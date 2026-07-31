@@ -11,11 +11,18 @@ import {
 import styles from './dashboard.module.css';
 
 const HOME_ID = 'home';
-const SIDEBAR_MODE_KEY = 'ncstDashboardSidebarMode';
+const SIDEBAR_MODE_KEY = 'ncstDashboardSidebarModeV2';
+const LEGACY_SIDEBAR_MODE_KEY = 'ncstDashboardSidebarMode';
 
 type SidebarMode = 'text' | 'icons' | 'hidden';
 
 const SIDEBAR_MODE_CYCLE: SidebarMode[] = ['text', 'icons', 'hidden'];
+
+const SIDEBAR_MODE_CLASS: Record<SidebarMode, string> = {
+  text: styles.sidebarModeText,
+  icons: styles.sidebarModeIcons,
+  hidden: styles.sidebarModeHidden,
+};
 
 function isSidebarMode(value: string | null): value is SidebarMode {
   return value === 'text' || value === 'icons' || value === 'hidden';
@@ -26,17 +33,15 @@ function nextSidebarMode(current: SidebarMode): SidebarMode {
   return SIDEBAR_MODE_CYCLE[(index + 1) % SIDEBAR_MODE_CYCLE.length];
 }
 
-function sidebarModeToggleLabel(mode: SidebarMode): string {
-  if (mode === 'text') return 'Icons';
-  if (mode === 'icons') return 'Tab';
-  return 'Menu';
+function sidebarModeLabel(mode: SidebarMode): string {
+  if (mode === 'text') return 'Labels';
+  if (mode === 'icons') return 'Icons';
+  return 'Hidden';
 }
 
 function sidebarModeToggleHint(mode: SidebarMode): string {
   const next = nextSidebarMode(mode);
-  if (next === 'icons') return 'Switch to icons only';
-  if (next === 'hidden') return 'Hide menu (tab on edge)';
-  return 'Show full menu with labels';
+  return `Menu: ${sidebarModeLabel(mode)}. Click for ${sidebarModeLabel(next).toLowerCase()}.`;
 }
 
 export default function DashboardShell() {
@@ -45,11 +50,23 @@ export default function DashboardShell() {
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('text');
 
   useEffect(() => {
+    if (searchParams.get('resetSidebar') === '1') {
+      localStorage.removeItem(SIDEBAR_MODE_KEY);
+      localStorage.removeItem(LEGACY_SIDEBAR_MODE_KEY);
+      setSidebarMode('text');
+      return;
+    }
+
     const saved = localStorage.getItem(SIDEBAR_MODE_KEY);
     if (isSidebarMode(saved)) {
       setSidebarMode(saved);
+      return;
     }
-  }, []);
+
+    // Fresh default: show full labels (ignore legacy hidden preference).
+    localStorage.setItem(SIDEBAR_MODE_KEY, 'text');
+    setSidebarMode('text');
+  }, [searchParams]);
 
   useEffect(() => {
     const tool = searchParams.get('tool');
@@ -97,10 +114,25 @@ export default function DashboardShell() {
                   Canvas messaging, and room reservations.
                 </p>
                 <p className={styles.welcomeHint}>
-                  Use the gold menu button at the top of the right sidebar to cycle:
-                  full labels → icons → tab. When hidden, click the gold
-                  <strong> ☰ Menu</strong> tab on the right edge to bring it back.
+                  The gold <strong>Menu</strong> button at the top of the right sidebar cycles
+                  between <strong>Labels</strong>, <strong>Icons</strong>, and
+                  <strong> Hidden</strong>. If you only see a slim tab on the right edge, click
+                  <strong> ☰ Menu</strong> to reopen the sidebar.
                 </p>
+                {sidebarHidden && (
+                  <p className={styles.welcomeHiddenNotice}>
+                    Sidebar is hidden. Click the gold <strong>☰ Menu</strong> tab on the right
+                    edge, or{' '}
+                    <button
+                      type="button"
+                      className={styles.welcomeRestoreBtn}
+                      onClick={() => changeSidebarMode('text')}
+                    >
+                      show full menu
+                    </button>
+                    .
+                  </p>
+                )}
               </div>
             ) : (
               <iframe
@@ -126,7 +158,7 @@ export default function DashboardShell() {
         )}
 
         <aside
-          className={`${styles.sidebar} ${styles[`sidebarMode${sidebarMode.charAt(0).toUpperCase()}${sidebarMode.slice(1)}`]}`}
+          className={`${styles.sidebar} ${SIDEBAR_MODE_CLASS[sidebarMode]}`}
           aria-label="Tools menu"
           aria-hidden={sidebarHidden}
         >
@@ -146,12 +178,32 @@ export default function DashboardShell() {
             <div className={styles.sidebarControls}>
               <button
                 type="button"
-                className={styles.modeToggleBtn}
+                className={`${styles.modeToggleBtn} ${iconsOnly ? styles.modeToggleBtnCompact : ''}`}
                 onClick={cycleSidebarMode}
                 aria-label={sidebarModeToggleHint(sidebarMode)}
                 title={sidebarModeToggleHint(sidebarMode)}
               >
-                {sidebarModeToggleLabel(sidebarMode)}
+                {iconsOnly ? (
+                  <span className={styles.modeToggleCompact} aria-hidden="true">☰</span>
+                ) : (
+                  <>
+                    <span className={styles.modeToggleTitle}>Menu</span>
+                    <span className={styles.modeToggleModes}>
+                      {SIDEBAR_MODE_CYCLE.map(mode => (
+                        <span
+                          key={mode}
+                          className={
+                            mode === sidebarMode
+                              ? styles.modeToggleActive
+                              : styles.modeToggleInactive
+                          }
+                        >
+                          {sidebarModeLabel(mode)}
+                        </span>
+                      ))}
+                    </span>
+                  </>
+                )}
               </button>
             </div>
 
