@@ -59,8 +59,8 @@ export default function LocalJobSearchPage() {
               One search across NCST employer postings, Indeed, LinkedIn, Google Jobs,
               ZipRecruiter, and more — all results in one list.
             </p>
-            <Link href="/dashboard?tool=local-job-search" className={styles.headerLink}>
-              Open in Career Services dashboard
+            <Link href="/job-search" className={styles.headerLink}>
+              Open full job search page
             </Link>
           </header>
         )}
