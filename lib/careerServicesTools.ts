@@ -65,15 +65,6 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     icon: '🔍',
   },
   {
-    id: 'local-job-search',
-    title: 'Local job search',
-    description:
-      'Search NCST employers, Indeed, LinkedIn, Google Jobs, and ZipRecruiter in one combined results list.',
-    href: '/job-search',
-    category: 'Student tools',
-    icon: '🧭',
-  },
-  {
     id: 'employer-portal-admin',
     title: 'Employer portal admin',
     description: 'Post upcoming events and announcements on the employer portal overview.',
@@ -132,16 +123,10 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
     toolIds: ['resume-builder', 'cover-letter', 'resume-admin'],
   },
   {
-    id: 'jobs',
-    label: 'Jobs',
-    icon: '🧭',
-    toolIds: ['local-job-search', 'resume-search'],
-  },
-  {
     id: 'employers',
     label: 'Employers',
     icon: '🏢',
-    toolIds: ['employer-portal', 'employer-portal-admin'],
+    toolIds: ['employer-portal', 'employer-portal-admin', 'resume-search'],
   },
   {
     id: 'communications',
@@ -158,7 +143,6 @@ export const DASHBOARD_NAV_GROUPS: DashboardNavGroup[] = [
 ];
 
 export const DASHBOARD_LG_ROOM_PATH = '/dashboard?tool=lga-room';
-export const DASHBOARD_LOCAL_JOB_SEARCH_PATH = '/dashboard?tool=local-job-search';
 
 export type DashboardNavGroupWithTools = DashboardNavGroup & { tools: CareerTool[] };
 
