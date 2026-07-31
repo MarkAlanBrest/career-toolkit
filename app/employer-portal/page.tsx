@@ -6,7 +6,6 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { EmployerAdminLoginModal, EmployerAdminSettingsModal } from './admin-modals';
 import { EmployerLoginModal } from './employer-auth-modals';
 import { EmployerDashboard, EmployerRecentActivity } from './employer-dashboard';
-import { EmployerEventsAnnouncements } from './employer-events-announcements';
 import { SERVICE_FORMS, SERVICE_PANEL_BY_TITLE, ServiceFormPanel, type ServicePanelId } from './service-forms';
 import type { EmployerDashboard as EmployerDashboardData, EmployerProfile } from '@/lib/employerPortalUsers';
 import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
@@ -110,30 +109,6 @@ export default function EmployerPortalPage() {
     dashboard: EmployerDashboardData;
   } | null>(null);
   const [showEmployerLogin, setShowEmployerLogin] = useState(false);
-  const [eventAnnouncements, setEventAnnouncements] = useState<{
-    sectionKicker: string;
-    sectionTitle: string;
-    items: Array<{
-      id: string;
-      title: string;
-      message: string;
-      eventDate: string;
-      linkUrl: string;
-      linkLabel: string;
-    }>;
-  } | null>(null);
-
-  async function loadEventAnnouncements() {
-    try {
-      const response = await fetch('/api/employer-portal/announcements', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
-      setEventAnnouncements(data);
-    } catch {
-      setEventAnnouncements(null);
-    }
-  }
-
   async function loadEmployerSession() {
     const response = await fetch('/api/employer-portal/auth', { cache: 'no-store' });
     if (!response.ok) {
@@ -159,7 +134,6 @@ export default function EmployerPortalPage() {
       })
       .catch(() => null);
     void loadEmployerSession();
-    void loadEventAnnouncements();
   }, []);
 
   async function logout() {
@@ -267,13 +241,6 @@ export default function EmployerPortalPage() {
             <div aria-live="polite">
               {activePanel === 'overview' ? (
                 <>
-                {eventAnnouncements && eventAnnouncements.items.length > 0 && (
-                  <EmployerEventsAnnouncements
-                    sectionKicker={eventAnnouncements.sectionKicker}
-                    sectionTitle={eventAnnouncements.sectionTitle}
-                    items={eventAnnouncements.items}
-                  />
-                )}
                 <section className={styles.welcomePanel} id="overview">
                   <div>
                     <span className={styles.kicker}>NCST employer network</span>
@@ -408,8 +375,6 @@ export default function EmployerPortalPage() {
               <span aria-hidden="true">·</span>
               {adminMode ? (
                 <>
-                  <Link href="/employer-portal/admin/announcements">Event messages</Link>
-                  <span aria-hidden="true">·</span>
                   <button type="button" onClick={() => setShowAdminSettings(true)}>Email settings</button>
                   <span aria-hidden="true">·</span>
                   <button type="button" onClick={logout}>Log out</button>

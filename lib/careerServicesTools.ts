@@ -65,14 +65,6 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     icon: '🔍',
   },
   {
-    id: 'employer-portal-admin',
-    title: 'Employer portal admin',
-    description: 'Post upcoming events and announcements on the employer portal overview.',
-    href: '/employer-portal/admin/announcements',
-    category: 'Employer tools',
-    icon: '📣',
-  },
-  {
     id: 'employer-portal',
     title: 'Employer portal',
     description:
