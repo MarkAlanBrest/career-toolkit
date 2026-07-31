@@ -93,6 +93,11 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
 
 export const HOME_TOOL_ICON = '🏠';
 
+export const OUTLOOK_WEB_URL = 'https://outlook.office.com/mail/';
+
+export const CAREER_TOOLKIT_APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
+
 export const DASHBOARD_LG_ROOM_PATH = '/dashboard?tool=lga-room';
 
 export function dashboardToolPath(toolId: string) {

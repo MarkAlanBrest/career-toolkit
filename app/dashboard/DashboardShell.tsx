@@ -6,6 +6,7 @@ import {
   CAREER_SERVICES_TOOLS,
   CAREER_TOOL_CATEGORIES,
   HOME_TOOL_ICON,
+  OUTLOOK_WEB_URL,
   isCareerToolId,
 } from '@/lib/careerServicesTools';
 import styles from './dashboard.module.css';
@@ -138,6 +139,16 @@ export default function DashboardShell() {
           aria-hidden={sidebarHidden}
         >
           <div className={styles.sidebarTop}>
+            <a
+              className={`${styles.openFullPage} ${iconsOnly ? styles.openFullPageIcon : ''}`}
+              href={OUTLOOK_WEB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open Outlook with NCST tools"
+            >
+              {iconsOnly ? '✉' : 'Open Outlook ↗'}
+            </a>
+
             {activeTool && activeId !== HOME_ID && (
               <a
                 className={`${styles.openFullPage} ${iconsOnly ? styles.openFullPageIcon : ''}`}
