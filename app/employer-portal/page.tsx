@@ -353,6 +353,8 @@ export default function EmployerPortalPage() {
           <div className={styles.workspaceFooter}>
             <span>NCST Employer Portal</span>
             <div className={styles.footerAdmin}>
+              <Link href="/dashboard">Dashboard</Link>
+              <span aria-hidden="true">·</span>
               <Link href="/career-reports">Career reports</Link>
               <span aria-hidden="true">·</span>
               {adminMode ? (

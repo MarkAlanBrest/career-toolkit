@@ -149,8 +149,8 @@ export default function CareerReportsPage() {
   return (
     <main className={styles.careerReports}>
       <div className={styles.shell}>
-        <Link href="/employer-portal" className={styles.backLink}>← Employer Portal</Link>
-        <Link href="/ge-chart" className={styles.backLink} style={{ marginLeft: 16 }}>G&E Chart tool →</Link>
+        <Link href="/dashboard" className={styles.backLink}>← Dashboard</Link>
+        <Link href="/ge-chart" className={styles.backLink} style={{ marginLeft: 16 }}>G&E Chart →</Link>
 
         <header className={styles.header}>
           <h1>Career Services Reporting Hub</h1>
