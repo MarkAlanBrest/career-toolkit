@@ -1,5 +1,7 @@
 export type JobSourceId =
   | 'ncst-employers'
+  | 'jsearch'
+  | 'jooble'
   | 'usajobs'
   | 'adzuna'
   | 'rss';
@@ -45,5 +47,6 @@ export type JobSearchResponse = {
     error?: string;
     configured: boolean;
   }>;
+  aggregatorConfigured: boolean;
   searchedAt: string;
 };

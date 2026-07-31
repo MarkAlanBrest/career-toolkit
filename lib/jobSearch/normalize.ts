@@ -23,7 +23,8 @@ export function dedupeJobListings(listings: JobListing[]): JobListing[] {
   const output: JobListing[] = [];
 
   for (const item of listings) {
-    const key = normalizeText(`${item.title}|${item.employer}|${item.location}`);
+    const urlKey = normalizeText(item.url);
+    const key = urlKey || normalizeText(`${item.title}|${item.employer}|${item.location}`);
     if (seen.has(key)) continue;
     seen.add(key);
     output.push(item);
