@@ -147,57 +147,6 @@
   color: var(--navy-deep);
 }
 
-.toolbarQuickLinks {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.toolbarQuickLinksCompact {
-  gap: 3px;
-}
-
-.toolbarQuickBtn {
-  display: block;
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.06);
-  color: #e8ecf4;
-  font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.58rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: 0.02em;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.toolbarQuickBtn:hover {
-  background: rgba(250, 162, 0, 0.18);
-  border-color: var(--gold);
-  color: #fff;
-}
-
-.toolbarQuickBtnActive {
-  background: rgba(250, 162, 0, 0.22);
-  border-color: var(--gold);
-  color: var(--gold);
-}
-
-.toolbarQuickLinksCompact .toolbarQuickBtn {
-  padding: 7px 4px;
-  text-align: center;
-}
-
-.toolbarQuickIcon {
-  display: block;
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
 .sidebarBrand {
   padding: 10px 10px 8px;
 }
@@ -213,8 +162,8 @@
 }
 
 .sidebarModeText {
-  width: 130px;
-  min-width: 130px;
+  width: 148px;
+  min-width: 148px;
 }
 
 .sidebarModeIcons {
@@ -261,7 +210,60 @@
 }
 
 .navGroup {
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+}
+
+.navGroupToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: #e8ecf4;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background 0.12s, color 0.12s;
+}
+
+.navGroupToggle:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.navGroupToggleActive {
+  color: var(--gold);
+  border-left-color: rgba(250, 162, 0, 0.55);
+}
+
+.navGroupLabelText {
+  flex: 1;
+  min-width: 0;
+}
+
+.navChevron {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  opacity: 0.75;
+}
+
+.navSubmenu {
+  padding: 2px 0 4px;
+  border-left: 2px solid rgba(255, 255, 255, 0.12);
+  margin-left: 10px;
+}
+
+.navSubItem {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding-left: 10px;
 }
 
 .navGroupLabel {
@@ -317,6 +319,19 @@
 .navItemIcon.navItemActive {
   border-left: none;
   background: rgba(36, 79, 152, 0.55);
+}
+
+.navGroupToggle.navItemIcon {
+  text-align: center;
+  padding: 8px 4px;
+  border-left: none;
+  border-radius: 6px;
+  justify-content: center;
+}
+
+.navGroupToggle.navItemIcon.navGroupToggleActive {
+  background: rgba(36, 79, 152, 0.55);
+  border-left: none;
 }
 
 .navItemIcon.navItemExternal::after {
