@@ -1,0 +1,201 @@
+.page {
+  min-height: 100vh;
+  background: #e9ecef;
+  color: #3d4349;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.header {
+  background: #26315f;
+  color: #f4f4f0;
+  padding: 28px 32px;
+  border: 1px solid #1d2632;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1.6rem;
+  margin: 0 0 8px;
+  color: #fff;
+}
+
+.header p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #c8d0e0;
+}
+
+.card {
+  background: #f8f8f5;
+  border: 1px solid #d2d2cc;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1.1rem;
+  color: #26315f;
+  margin: 0 0 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #595c60;
+  margin-bottom: 6px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #c8c8c0;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.9rem;
+  padding: 10px 18px;
+  border: 1px solid #244f98;
+  background: #244f98;
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #1c3d78;
+}
+
+.btnSecondary {
+  background: #f8f8f5;
+  color: #244f98;
+}
+
+.btnSecondary:hover {
+  background: #e8ecf4;
+}
+
+.uploadZone {
+  border: 2px dashed #a8b4c8;
+  padding: 32px;
+  text-align: center;
+  background: #fff;
+  cursor: pointer;
+}
+
+.uploadZone input {
+  display: none;
+}
+
+.errors {
+  background: #fde8e8;
+  border: 1px solid #e8a8a8;
+  padding: 12px 16px;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat {
+  background: #e8ecf4;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid #c8d4e8;
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.5rem;
+  color: #26315f;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.stat span {
+  font-size: 0.8rem;
+  color: #595c60;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  border: 1px solid #d2d2cc;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.table th {
+  background: #26315f;
+  color: #fff;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.table tr:nth-child(even) td {
+  background: #f0f2f5;
+}
+
+.meta {
+  font-size: 0.9rem;
+  color: #595c60;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.gapBadge {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #244f98;
+  text-decoration: none;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.9rem;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
