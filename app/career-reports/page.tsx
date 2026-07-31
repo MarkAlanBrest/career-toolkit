@@ -130,38 +130,6 @@ export default function CareerReportsPage() {
     if (!busy) void onUpload(event.dataTransfer.files);
   };
 
-  const importPortal = async () => {
-    setBusy(true);
-    try {
-      const res = await fetch('/api/career-reports/employer-portal');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import failed');
-      const portalRecords = data.records as CareerRecord[];
-      const portalFile: ParsedFile = {
-        id: 'employer-portal',
-        filename: 'Employer Portal',
-        mimeType: 'portal',
-        kind: 'spreadsheet',
-        tables: [],
-        textPreview: `${data.submissionCount} portal submissions`,
-      };
-      setFiles(prev => [...prev.filter(f => f.id !== 'employer-portal'), portalFile]);
-      const merged = mergeRecords(records, portalRecords);
-      const mergedFlags = evaluateAccscFlags(merged);
-      applyRecords(merged);
-      const seriousFindings = mergedFlags.filter(flag => flag.severity === 'error').length;
-      const warningFindings = mergedFlags.filter(flag => flag.severity === 'warning').length;
-      setAnswer(
-        `I imported ${portalRecords.length} employer portal record${portalRecords.length === 1 ? '' : 's'}. Accreditation review found ${seriousFindings} serious issue${seriousFindings === 1 ? '' : 's'} and ${warningFindings} warning${warningFindings === 1 ? '' : 's'}. I can now create a report or answer questions about the data.`
-      );
-      setAnswerRules([]);
-    } catch (err) {
-      setParseErrors([(err as Error).message]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const ask = async (prompt = question) => {
     const nextQuestion = prompt.trim();
     if (!nextQuestion) return;
@@ -304,7 +272,6 @@ export default function CareerReportsPage() {
               <span className={styles.fileTypes}>Excel, CSV, PDF, Word, and text files</span>
             </div>
             <div style={{ marginTop: 12 }}>
-              <button type="button" className={styles.btn} onClick={importPortal} disabled={busy}>Import employer portal data</button>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={clearAll} disabled={busy}>Clear workspace</button>
             </div>
             {files.length > 0 && (
