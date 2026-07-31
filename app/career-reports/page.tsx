@@ -108,9 +108,12 @@ export default function CareerReportsPage() {
 
       const fromNew = buildRecordsFromFiles(newFiles);
       const merged = mergeRecords(records, fromNew);
+      const mergedFlags = evaluateAccscFlags(merged);
       applyRecords(merged);
+      const seriousFindings = mergedFlags.filter(flag => flag.severity === 'error').length;
+      const warningFindings = mergedFlags.filter(flag => flag.severity === 'warning').length;
       setAnswer(
-        `I processed ${newFiles.length} file${newFiles.length === 1 ? '' : 's'} and found ${fromNew.length} new record${fromNew.length === 1 ? '' : 's'}. Choose a suggestion below or ask me what you need.`
+        `I processed ${newFiles.length} file${newFiles.length === 1 ? '' : 's'} and found ${fromNew.length} new record${fromNew.length === 1 ? '' : 's'}. Accreditation review found ${seriousFindings} serious issue${seriousFindings === 1 ? '' : 's'} and ${warningFindings} warning${warningFindings === 1 ? '' : 's'}. Choose a suggestion below or ask me what you need.`
       );
       setAnswerRules([]);
     } catch (err) {
@@ -143,9 +146,13 @@ export default function CareerReportsPage() {
         textPreview: `${data.submissionCount} portal submissions`,
       };
       setFiles(prev => [...prev.filter(f => f.id !== 'employer-portal'), portalFile]);
-      applyRecords(mergeRecords(records, portalRecords));
+      const merged = mergeRecords(records, portalRecords);
+      const mergedFlags = evaluateAccscFlags(merged);
+      applyRecords(merged);
+      const seriousFindings = mergedFlags.filter(flag => flag.severity === 'error').length;
+      const warningFindings = mergedFlags.filter(flag => flag.severity === 'warning').length;
       setAnswer(
-        `I imported ${portalRecords.length} employer portal record${portalRecords.length === 1 ? '' : 's'}. I can now create a report or answer questions about the data.`
+        `I imported ${portalRecords.length} employer portal record${portalRecords.length === 1 ? '' : 's'}. Accreditation review found ${seriousFindings} serious issue${seriousFindings === 1 ? '' : 's'} and ${warningFindings} warning${warningFindings === 1 ? '' : 's'}. I can now create a report or answer questions about the data.`
       );
       setAnswerRules([]);
     } catch (err) {
@@ -252,13 +259,6 @@ export default function CareerReportsPage() {
         </header>
         )}
 
-        <div className={styles.stats}>
-          <div className={styles.stat}><strong>{files.length}</strong> files</div>
-          <div className={styles.stat}><strong>{records.length}</strong> records</div>
-          <div className={styles.stat}><strong>{errorCount}</strong> ACCSC errors</div>
-          <div className={styles.stat}><strong>{warningCount}</strong> warnings</div>
-        </div>
-
         <aside className={styles.rulesBanner} aria-label="Accreditation rules in use">
           <div>
             <strong>ACCSC rules always on</strong>
@@ -339,6 +339,24 @@ export default function CareerReportsPage() {
                       : `I can work with ${records.length} records from ${files.length} file${files.length === 1 ? '' : 's'}. What would you like to do?`)
                     : 'Add one or more files, and I will suggest reports and questions based on what I find.'}
               </p>
+              {records.length > 0 && (
+                <div className={`${styles.findingsNotice} ${errorCount > 0 ? styles.findingsSerious : warningCount > 0 ? styles.findingsWarning : styles.findingsClear}`}>
+                  <strong>
+                    {errorCount > 0
+                      ? 'Serious accreditation findings'
+                      : warningCount > 0
+                        ? 'Accreditation review warnings'
+                        : 'No accreditation findings detected'}
+                  </strong>
+                  <span>
+                    {errorCount > 0
+                      ? `${errorCount} serious issue${errorCount === 1 ? '' : 's'} and ${warningCount} warning${warningCount === 1 ? '' : 's'} need review.`
+                      : warningCount > 0
+                        ? `${warningCount} warning${warningCount === 1 ? '' : 's'} should be reviewed before submission.`
+                        : 'The automated checks found no errors or warnings in the available records.'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {assistantSuggestions.length > 0 && (
