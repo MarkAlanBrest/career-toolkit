@@ -8,7 +8,7 @@ import {
 } from '@/lib/lgaRoom';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://career-toolkit-ruby.vercel.app';
-const CALENDAR_URL = `${APP_URL}/lga-room/calendar`;
+const CALENDAR_URL = `${APP_URL}/dashboard?tool=lga-room`;
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type SenderConfig = {

@@ -307,7 +307,7 @@ export default function EmployerPortalPage() {
                   <p>Help keep NCST programs aligned with industry needs by sharing your experience on a Program Advisory Committee.</p>
                   <span className={styles.infoTag}>Explore PAC membership <ArrowIcon /></span>
                 </Link>
-                <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/lga-room" id="lga-room-landing">
+                <Link className={`${styles.spotlightCard} ${styles.goldCard}`} href="/dashboard?tool=lga-room" id="lga-room-landing">
                   <span className={styles.spotlightNumber}>02</span>
                   <span className={styles.spotlightIcon}><ServiceIcon name="building" /></span>
                   <h3 className={archivo.className}>Meet in the LG Room</h3>

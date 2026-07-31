@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   CAREER_SERVICES_TOOLS,
   CAREER_TOOL_CATEGORIES,
   HOME_TOOL_ICON,
+  isCareerToolId,
 } from '@/lib/careerServicesTools';
 import styles from './dashboard.module.css';
 
@@ -18,6 +20,7 @@ function isSidebarMode(value: string | null): value is SidebarMode {
 }
 
 export default function DashboardShell() {
+  const searchParams = useSearchParams();
   const [activeId, setActiveId] = useState<string>(HOME_ID);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('text');
 
@@ -28,6 +31,15 @@ export default function DashboardShell() {
     }
   }, []);
 
+  useEffect(() => {
+    const tool = searchParams.get('tool');
+    if (tool && isCareerToolId(tool)) {
+      setActiveId(tool);
+    } else if (!tool) {
+      setActiveId(HOME_ID);
+    }
+  }, [searchParams]);
+
   const activeTool = useMemo(
     () => CAREER_SERVICES_TOOLS.find(t => t.id === activeId),
     [activeId]
@@ -35,6 +47,8 @@ export default function DashboardShell() {
 
   const selectTool = useCallback((id: string) => {
     setActiveId(id);
+    const url = id === HOME_ID ? '/dashboard' : `/dashboard?tool=${id}`;
+    window.history.replaceState(null, '', url);
   }, []);
 
   const changeSidebarMode = useCallback((mode: SidebarMode) => {

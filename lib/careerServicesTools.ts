@@ -93,13 +93,23 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     id: 'lga-room',
     title: 'LG Room reservations',
     description: 'View availability and request the LG meeting room for employer visits and events.',
-    href: '/lga-room',
+    href: '/lga-room/calendar',
     category: 'Events & rooms',
     icon: '🚪',
   },
 ];
 
 export const HOME_TOOL_ICON = '🏠';
+
+export const DASHBOARD_LG_ROOM_PATH = '/dashboard?tool=lga-room';
+
+export function dashboardToolPath(toolId: string) {
+  return `/dashboard?tool=${toolId}`;
+}
+
+export function isCareerToolId(id: string) {
+  return CAREER_SERVICES_TOOLS.some(tool => tool.id === id);
+}
 
 export const CAREER_TOOL_CATEGORIES: CareerToolCategory[] = [
   'Reporting',
