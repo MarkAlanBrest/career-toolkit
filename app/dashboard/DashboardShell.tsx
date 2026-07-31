@@ -4,11 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   CAREER_SERVICES_TOOLS,
-  dashboardNavGroups,
+  CAREER_TOOL_CATEGORIES,
   HOME_TOOL_ICON,
   isCareerToolId,
-  navGroupIdForTool,
-  type CareerTool,
 } from '@/lib/careerServicesTools';
 import styles from './dashboard.module.css';
 
@@ -45,9 +43,6 @@ export default function DashboardShell() {
   const searchParams = useSearchParams();
   const [activeId, setActiveId] = useState<string>(HOME_ID);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('text');
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set());
-
-  const navGroups = useMemo(() => dashboardNavGroups(), []);
 
   useEffect(() => {
     const saved = localStorage.getItem(SIDEBAR_MODE_KEY);
@@ -64,17 +59,6 @@ export default function DashboardShell() {
       setActiveId(HOME_ID);
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const groupId = navGroupIdForTool(activeId);
-    if (!groupId) return;
-    setOpenGroups(prev => {
-      if (prev.has(groupId)) return prev;
-      const next = new Set(prev);
-      next.add(groupId);
-      return next;
-    });
-  }, [activeId]);
 
   const activeTool = useMemo(
     () => CAREER_SERVICES_TOOLS.find(t => t.id === activeId),
@@ -96,37 +80,9 @@ export default function DashboardShell() {
     changeSidebarMode(nextSidebarMode(sidebarMode));
   }, [changeSidebarMode, sidebarMode]);
 
-  const toggleGroup = useCallback((groupId: string) => {
-    setOpenGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(groupId)) next.delete(groupId);
-      else next.add(groupId);
-      return next;
-    });
-  }, []);
-
   const iframeSrc = activeTool?.href ?? '';
   const iconsOnly = sidebarMode === 'icons';
   const sidebarHidden = sidebarMode === 'hidden';
-
-  function renderToolButton(tool: CareerTool, submenu = false) {
-    return (
-      <button
-        key={tool.id}
-        type="button"
-        className={`${styles.navItem} ${submenu ? styles.navSubItem : ''} ${activeId === tool.id ? styles.navItemActive : ''} ${tool.external ? styles.navItemExternal : ''} ${iconsOnly ? styles.navItemIcon : ''}`}
-        onClick={() => selectTool(tool.id)}
-        title={iconsOnly ? tool.title : undefined}
-        aria-current={activeId === tool.id ? 'page' : undefined}
-      >
-        {iconsOnly ? (
-          <span className={styles.navIcon} aria-hidden="true">{tool.icon}</span>
-        ) : (
-          tool.title
-        )}
-      </button>
-    );
-  }
 
   return (
     <div className={styles.dashboard}>
@@ -142,8 +98,8 @@ export default function DashboardShell() {
                 </p>
                 <p className={styles.welcomeHint}>
                   Use the gold menu button at the top of the right sidebar to cycle:
-                  full labels → icons → tab. Grouped tools (like Resumes) open a dropdown
-                  when you click the group name.
+                  full labels → icons → tab. When hidden, click the gold
+                  <strong> ☰ Menu</strong> tab on the right edge to bring it back.
                 </p>
               </div>
             ) : (
@@ -227,40 +183,30 @@ export default function DashboardShell() {
               )}
             </button>
 
-            {navGroups.map(group => {
-              if (group.tools.length === 1) {
-                return renderToolButton(group.tools[0]);
-              }
-
-              const isOpen = openGroups.has(group.id);
-              const hasActiveChild = group.tools.some(tool => tool.id === activeId);
-
+            {CAREER_TOOL_CATEGORIES.map(category => {
+              const tools = CAREER_SERVICES_TOOLS.filter(t => t.category === category);
+              if (!tools.length) return null;
               return (
-                <div key={group.id} className={styles.navGroup}>
-                  <button
-                    type="button"
-                    className={`${styles.navGroupToggle} ${hasActiveChild ? styles.navGroupToggleActive : ''} ${iconsOnly ? styles.navItemIcon : ''}`}
-                    onClick={() => toggleGroup(group.id)}
-                    aria-expanded={isOpen}
-                    title={iconsOnly ? group.label : undefined}
-                  >
-                    {iconsOnly ? (
-                      <span className={styles.navIcon} aria-hidden="true">{group.icon}</span>
-                    ) : (
-                      <>
-                        <span className={styles.navGroupLabelText}>{group.label}</span>
-                        <span className={styles.navChevron} aria-hidden="true">
-                          {isOpen ? '▾' : '▸'}
-                        </span>
-                      </>
-                    )}
-                  </button>
-
-                  {isOpen && (
-                    <div className={styles.navSubmenu}>
-                      {group.tools.map(tool => renderToolButton(tool, true))}
-                    </div>
+                <div key={category} className={styles.navGroup}>
+                  {!iconsOnly && (
+                    <div className={styles.navGroupLabel}>{category}</div>
                   )}
+                  {tools.map(tool => (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      className={`${styles.navItem} ${activeId === tool.id ? styles.navItemActive : ''} ${tool.external ? styles.navItemExternal : ''} ${iconsOnly ? styles.navItemIcon : ''}`}
+                      onClick={() => selectTool(tool.id)}
+                      title={iconsOnly ? tool.title : undefined}
+                      aria-current={activeId === tool.id ? 'page' : undefined}
+                    >
+                      {iconsOnly ? (
+                        <span className={styles.navIcon} aria-hidden="true">{tool.icon}</span>
+                      ) : (
+                        tool.title
+                      )}
+                    </button>
+                  ))}
                 </div>
               );
             })}
