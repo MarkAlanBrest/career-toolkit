@@ -11,6 +11,7 @@ export type CareerTool = {
   description: string;
   href: string;
   category: CareerToolCategory;
+  icon: string;
   external?: boolean;
 };
 
@@ -25,6 +26,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
       'Upload spreadsheets and documents, ask questions, and generate reports (PAC, hires, ACCSC gaps).',
     href: '/career-reports',
     category: 'Reporting',
+    icon: '📊',
   },
   {
     id: 'resume-builder',
@@ -32,6 +34,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'Help students build polished trade-school resumes with guided sections and PDF export.',
     href: `${RESUME_BUILDER_BASE}/resume-builder-v3.html`,
     category: 'Student tools',
+    icon: '📄',
     external: true,
   },
   {
@@ -40,6 +43,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'Create cover letters matched to job applications and student programs.',
     href: `${RESUME_BUILDER_BASE}/cover-letter.html`,
     category: 'Student tools',
+    icon: '✉️',
     external: true,
   },
   {
@@ -48,6 +52,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'Manage resume templates, school branding, and builder settings.',
     href: `${RESUME_BUILDER_BASE}/admin`,
     category: 'Student tools',
+    icon: '⚙️',
     external: true,
   },
   {
@@ -56,6 +61,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'Student-facing hub for career resources and NCST career services links.',
     href: '/student-portal',
     category: 'Student tools',
+    icon: '🎓',
   },
   {
     id: 'resume-search',
@@ -64,6 +70,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
       'Search local resume folders, filter by distance, run AI deep scans, and build employer outreach emails.',
     href: '/resume-search.html',
     category: 'Employer tools',
+    icon: '🔍',
   },
   {
     id: 'employer-portal',
@@ -72,6 +79,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
       'Employers register, request applicants, post jobs, report hires, and register for PAC and career fairs.',
     href: '/employer-portal',
     category: 'Employer tools',
+    icon: '🏢',
   },
   {
     id: 'canvas-broadcast',
@@ -79,6 +87,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'Send career services emails and announcements to Canvas courses.',
     href: '/canvas-broadcast',
     category: 'Communications',
+    icon: '📢',
   },
   {
     id: 'lga-room',
@@ -86,8 +95,11 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     description: 'View availability and request the LG meeting room for employer visits and events.',
     href: '/lga-room',
     category: 'Events & rooms',
+    icon: '🚪',
   },
 ];
+
+export const HOME_TOOL_ICON = '🏠';
 
 export const CAREER_TOOL_CATEGORIES: CareerToolCategory[] = [
   'Reporting',
