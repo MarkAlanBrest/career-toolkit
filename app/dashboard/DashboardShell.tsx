@@ -15,8 +15,28 @@ const SIDEBAR_MODE_KEY = 'ncstDashboardSidebarMode';
 
 type SidebarMode = 'text' | 'icons' | 'hidden';
 
+const SIDEBAR_MODE_CYCLE: SidebarMode[] = ['text', 'icons', 'hidden'];
+
 function isSidebarMode(value: string | null): value is SidebarMode {
   return value === 'text' || value === 'icons' || value === 'hidden';
+}
+
+function nextSidebarMode(current: SidebarMode): SidebarMode {
+  const index = SIDEBAR_MODE_CYCLE.indexOf(current);
+  return SIDEBAR_MODE_CYCLE[(index + 1) % SIDEBAR_MODE_CYCLE.length];
+}
+
+function sidebarModeToggleLabel(mode: SidebarMode): string {
+  if (mode === 'text') return 'Icons';
+  if (mode === 'icons') return 'Tab';
+  return 'Menu';
+}
+
+function sidebarModeToggleHint(mode: SidebarMode): string {
+  const next = nextSidebarMode(mode);
+  if (next === 'icons') return 'Switch to icons only';
+  if (next === 'hidden') return 'Hide menu (tab on edge)';
+  return 'Show full menu with labels';
 }
 
 export default function DashboardShell() {
@@ -56,6 +76,10 @@ export default function DashboardShell() {
     localStorage.setItem(SIDEBAR_MODE_KEY, mode);
   }, []);
 
+  const cycleSidebarMode = useCallback(() => {
+    changeSidebarMode(nextSidebarMode(sidebarMode));
+  }, [changeSidebarMode, sidebarMode]);
+
   const iframeSrc = activeTool?.href ?? '';
   const iconsOnly = sidebarMode === 'icons';
   const sidebarHidden = sidebarMode === 'hidden';
@@ -73,9 +97,9 @@ export default function DashboardShell() {
                   Canvas messaging, and room reservations.
                 </p>
                 <p className={styles.welcomeHint}>
-                  Use the gold <strong>Labels · Icons · Hide</strong> buttons at the top of the
-                  right sidebar to change how the menu looks. When hidden, click the gold
-                  <strong> ☰ Menu</strong> tab on the right edge to reopen it.
+                  Use the gold menu button at the top of the right sidebar to cycle:
+                  full labels → icons → tab. When hidden, click the gold
+                  <strong> ☰ Menu</strong> tab on the right edge to bring it back.
                 </p>
               </div>
             ) : (
@@ -93,9 +117,9 @@ export default function DashboardShell() {
           <button
             type="button"
             className={styles.sidebarReveal}
-            onClick={() => changeSidebarMode('text')}
-            aria-label="Show tools menu"
-            title="Show tools menu"
+            onClick={cycleSidebarMode}
+            aria-label={sidebarModeToggleHint('hidden')}
+            title={sidebarModeToggleHint('hidden')}
           >
             ☰ Menu
           </button>
@@ -120,36 +144,15 @@ export default function DashboardShell() {
             )}
 
             <div className={styles.sidebarControls}>
-              <span className={styles.sidebarControlsLabel}>Sidebar</span>
-              <div className={styles.modeButtons}>
-                <button
-                  type="button"
-                  className={`${styles.modeBtn} ${sidebarMode === 'text' ? styles.modeBtnActive : ''}`}
-                  onClick={() => changeSidebarMode('text')}
-                  aria-label="Text labels"
-                  title="Show text labels"
-                >
-                  {iconsOnly ? 'Aa' : 'Labels'}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.modeBtn} ${sidebarMode === 'icons' ? styles.modeBtnActive : ''}`}
-                  onClick={() => changeSidebarMode('icons')}
-                  aria-label="Icons only"
-                  title="Show icons only"
-                >
-                  Icons
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.modeBtn} ${sidebarMode === 'hidden' ? styles.modeBtnActive : ''}`}
-                  onClick={() => changeSidebarMode('hidden')}
-                  aria-label="Hide sidebar"
-                  title="Hide sidebar"
-                >
-                  Hide
-                </button>
-              </div>
+              <button
+                type="button"
+                className={styles.modeToggleBtn}
+                onClick={cycleSidebarMode}
+                aria-label={sidebarModeToggleHint(sidebarMode)}
+                title={sidebarModeToggleHint(sidebarMode)}
+              >
+                {sidebarModeToggleLabel(sidebarMode)}
+              </button>
             </div>
 
             {!sidebarHidden && (

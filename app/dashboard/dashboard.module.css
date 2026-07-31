@@ -125,46 +125,25 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
-.sidebarControlsLabel {
+.modeToggleBtn {
   display: block;
-  font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.55rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--gold);
+  background: rgba(250, 162, 0, 0.12);
   color: var(--gold);
-  text-align: center;
-  margin-bottom: 6px;
-  font-weight: 700;
-}
-
-.modeButtons {
-  display: flex;
-  gap: 3px;
-}
-
-.modeBtn {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 2px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.06);
-  color: #e8ecf4;
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.58rem;
-  line-height: 1.1;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   cursor: pointer;
   border-radius: 4px;
-  font-weight: 600;
 }
 
-.modeBtn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
-}
-
-.modeBtnActive {
+.modeToggleBtn:hover {
   background: var(--gold);
-  border-color: var(--gold);
   color: var(--navy-deep);
 }
 
