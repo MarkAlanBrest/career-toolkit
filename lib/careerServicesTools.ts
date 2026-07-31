@@ -68,7 +68,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     id: 'local-job-search',
     title: 'Local job search',
     description:
-      'Search NCST employer postings and open local newspapers, PA CareerLink, and job boards in one place.',
+      'Search NCST employers, Indeed, LinkedIn, Google Jobs, and ZipRecruiter in one combined results list.',
     href: '/job-search',
     category: 'Student tools',
     icon: '🧭',

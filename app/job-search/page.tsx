@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { DEFAULT_JOB_SEARCH_LOCATION } from '@/lib/jobSearch/externalSites';
-import type { ExternalJobSite, JobListing, JobSearchResponse } from '@/lib/jobSearch/types';
+import type { JobListing, JobSearchResponse } from '@/lib/jobSearch/types';
 import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import styles from './job-search.module.css';
 
@@ -14,25 +14,6 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function openExternalSites(sites: ExternalJobSite[], selectedIds?: Set<string>) {
-  const targets = selectedIds
-    ? sites.filter(site => selectedIds.has(site.id))
-    : sites;
-
-  if (!targets.length) return;
-
-  const first = window.open(targets[0].url, '_blank', 'noopener,noreferrer');
-  if (!first && targets[0]) {
-    window.location.href = targets[0].url;
-  }
-
-  targets.slice(1).forEach((site, index) => {
-    window.setTimeout(() => {
-      window.open(site.url, '_blank', 'noopener,noreferrer');
-    }, (index + 1) * 400);
-  });
-}
-
 export default function LocalJobSearchPage() {
   const embedded = useDashboardEmbed();
   const [query, setQuery] = useState('');
@@ -40,20 +21,6 @@ export default function LocalJobSearchPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [response, setResponse] = useState<JobSearchResponse | null>(null);
-  const [selectedSites, setSelectedSites] = useState<Set<string>>(new Set());
-
-  const toggleSite = (id: string) => {
-    setSelectedSites(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllSites = (sites: ExternalJobSite[]) => {
-    setSelectedSites(new Set(sites.map(site => site.id)));
-  };
 
   const runSearch = useCallback(async () => {
     setBusy(true);
@@ -67,9 +34,7 @@ export default function LocalJobSearchPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Search failed.');
 
-      const payload = data as JobSearchResponse;
-      setResponse(payload);
-      selectAllSites(payload.externalSites);
+      setResponse(data as JobSearchResponse);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -91,8 +56,8 @@ export default function LocalJobSearchPage() {
           <header className={styles.header}>
             <h1>Local job search</h1>
             <p>
-              Search NCST employer postings and open local job boards, state sites, and newspaper
-              classifieds with one search — all from one workspace.
+              One search across NCST employer postings, Indeed, LinkedIn, Google Jobs,
+              ZipRecruiter, and more — all results in one list.
             </p>
             <Link href="/dashboard?tool=local-job-search" className={styles.headerLink}>
               Open in Career Services dashboard
@@ -101,10 +66,10 @@ export default function LocalJobSearchPage() {
         )}
 
         <form className={styles.searchCard} onSubmit={onSubmit}>
-          <h2>Search jobs</h2>
+          <h2>Search everywhere</h2>
           <p className={styles.meta}>
-            Enter a job title or keyword. We pull NCST employer postings here, then open local
-            newspapers and job boards in your browser with the same search.
+            Enter keywords and location once. We search every connected source at the same time
+            and combine the results below.
           </p>
           <div className={styles.searchRow}>
             <label className={styles.field}>
@@ -126,117 +91,88 @@ export default function LocalJobSearchPage() {
               />
             </label>
             <button type="submit" className={styles.btnPrimary} disabled={busy}>
-              {busy ? 'Searching…' : 'Search all sources'}
+              {busy ? 'Searching all sources…' : 'Search everywhere'}
             </button>
           </div>
           {error && <p className={styles.error}>{error}</p>}
         </form>
 
         {response && (
-          <>
-            <section className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2>NCST &amp; API results ({results.length})</h2>
-                <p className={styles.meta}>
-                  Searched {formatDate(response.searchedAt)} — {response.location}
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h2>All results ({results.length})</h2>
+              <p className={styles.meta}>
+                {response.location} · searched {formatDate(response.searchedAt)}
+              </p>
+            </div>
+
+            {!response.aggregatorConfigured && (
+              <div className={styles.setupNotice}>
+                <strong>Job board search needs an API key.</strong>
+                <p>
+                  NCST employer postings are included. To search Indeed, LinkedIn, Google Jobs,
+                  and ZipRecruiter in one shot, add <code>RAPIDAPI_KEY</code> in Vercel (free tier
+                  on RapidAPI → JSearch). Optional: <code>JOOBLE_API_KEY</code>, Adzuna, or USAJobs
+                  keys for more coverage.
                 </p>
               </div>
+            )}
 
-              <div className={styles.sourceGrid}>
-                {response.sourceStatus.map(item => (
-                  <div key={item.source} className={styles.sourceChip}>
-                    <strong>{item.label}</strong>
-                    <span>
-                      {item.count} result{item.count === 1 ? '' : 's'}
-                      {!item.configured && ' · not configured'}
-                      {item.error && ` · ${item.error}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className={styles.sourceGrid}>
+              {response.sourceStatus.map(item => (
+                <div key={item.source} className={styles.sourceChip}>
+                  <strong>{item.label}</strong>
+                  <span>
+                    {item.configured
+                      ? `${item.count} result${item.count === 1 ? '' : 's'}`
+                      : 'Not configured'}
+                    {item.error && item.configured && ` · ${item.error}`}
+                  </span>
+                </div>
+              ))}
+            </div>
 
-              {results.length === 0 ? (
-                <p className={styles.empty}>
-                  No direct results yet. Use the local sites below — many newspapers and job boards
-                  only allow searches from your browser.
-                </p>
-              ) : (
-                <ul className={styles.resultsList}>
-                  {results.map((job: JobListing) => (
-                    <li key={job.id} className={styles.resultItem}>
-                      <div className={styles.resultTop}>
-                        <a href={job.url} target="_blank" rel="noopener noreferrer">
-                          {job.title}
-                        </a>
-                        <span className={styles.badge}>{job.sourceLabel}</span>
-                      </div>
-                      <p className={styles.resultMeta}>
-                        {job.employer} · {job.location || response.location} ·{' '}
-                        {formatDate(job.postedAt)}
-                        {job.employmentType && ` · ${job.employmentType}`}
-                        {job.compensation && ` · ${job.compensation}`}
-                      </p>
-                      {job.snippet && <p className={styles.resultSnippet}>{job.snippet}</p>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className={styles.card}>
-              <div className={styles.cardHeader}>
-                <h2>Local newspapers &amp; job boards</h2>
-                <p className={styles.meta}>
-                  These sites block automated searches. Open them in your browser with your keywords
-                  pre-filled — use <strong>Open selected</strong> or <strong>Open all</strong>.
-                </p>
-              </div>
-
-              <div className={styles.externalActions}>
-                <button
-                  type="button"
-                  className={styles.btnPrimary}
-                  onClick={() =>
-                    openExternalSites(
-                      response.externalSites,
-                      selectedSites.size ? selectedSites : undefined
-                    )
-                  }
-                >
-                  Open {selectedSites.size || response.externalSites.length} selected sites
-                </button>
-                <button
-                  type="button"
-                  className={styles.btnSecondary}
-                  onClick={() => selectAllSites(response.externalSites)}
-                >
-                  Select all
-                </button>
-              </div>
-
-              <ul className={styles.externalList}>
-                {response.externalSites.map(site => (
-                  <li key={site.id} className={styles.externalItem}>
-                    <label className={styles.externalLabel}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSites.has(site.id)}
-                        onChange={() => toggleSite(site.id)}
-                      />
-                      <span>
-                        <strong>{site.name}</strong>
-                        <span className={styles.externalCategory}>{site.category}</span>
-                      </span>
-                    </label>
-                    <p>{site.description}</p>
-                    <a href={site.url} target="_blank" rel="noopener noreferrer">
-                      Open search ↗
-                    </a>
+            {results.length === 0 ? (
+              <p className={styles.empty}>
+                No listings matched this search. Try broader keywords, check spelling, or widen
+                the location.
+              </p>
+            ) : (
+              <ul className={styles.resultsList}>
+                {results.map((job: JobListing) => (
+                  <li key={job.id} className={styles.resultItem}>
+                    <div className={styles.resultTop}>
+                      <a href={job.url} target="_blank" rel="noopener noreferrer">
+                        {job.title}
+                      </a>
+                      <span className={styles.badge}>{job.sourceLabel}</span>
+                    </div>
+                    <p className={styles.resultMeta}>
+                      {job.employer} · {job.location || response.location} ·{' '}
+                      {formatDate(job.postedAt)}
+                      {job.employmentType && ` · ${job.employmentType}`}
+                      {job.compensation && ` · ${job.compensation}`}
+                    </p>
+                    {job.snippet && <p className={styles.resultSnippet}>{job.snippet}</p>}
                   </li>
                 ))}
               </ul>
-            </section>
-          </>
+            )}
+
+            {response.externalSites.length > 0 && (
+              <p className={styles.fallbackLinks}>
+                Also try state and newspaper sites:{' '}
+                {response.externalSites.slice(0, 4).map((site, index) => (
+                  <span key={site.id}>
+                    {index > 0 && ' · '}
+                    <a href={site.url} target="_blank" rel="noopener noreferrer">
+                      {site.name}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            )}
+          </section>
         )}
       </div>
     </div>

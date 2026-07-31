@@ -174,6 +174,44 @@
   line-height: 1.5;
 }
 
+.setupNotice {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: #fff8e6;
+  border: 1px solid #f0d080;
+  border-left: 4px solid #faa200;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #3d4349;
+}
+
+.setupNotice strong {
+  display: block;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  color: #26315f;
+  margin-bottom: 6px;
+}
+
+.setupNotice code {
+  font-size: 0.82rem;
+  background: #f4f4f0;
+  padding: 1px 4px;
+}
+
+.fallbackLinks {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #d2d2cc;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #595c60;
+}
+
+.fallbackLinks a {
+  color: #244f98;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
 .resultsList {
   list-style: none;
   padding: 0;
