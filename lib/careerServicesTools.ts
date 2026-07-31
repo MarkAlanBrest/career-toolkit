@@ -59,7 +59,7 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     id: 'resume-search',
     title: 'Resume search',
     description:
-      'Search local resume folders, filter by distance, run AI deep scans, and build employer outreach emails.',
+      'Search local resume folders, filter by distance, run AI deep scans, and open employer outreach drafts directly in Outlook.',
     href: '/resume-search.html',
     category: 'Employer tools',
     icon: '🔍',

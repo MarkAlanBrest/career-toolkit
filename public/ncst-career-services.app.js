@@ -27,6 +27,11 @@
     const GEOCODE_TIMEOUT_MS = 10000;
     const GEOCODE_THROTTLE_MS = 1100;
     const EARTH_RADIUS_MILES = 3958.8;
+    const OUTLOOK_COMPOSE_URL =
+        'https://outlook.office.com/mail/deeplink/compose';
+    const OUTLOOK_HELPER_URL =
+        'https://career-toolkit-ruby.vercel.app/ncst-career-services.user.js';
+    const OUTLOOK_HANDOFF_HASH_PREFIX = 'ncstHandoff=';
 
     let allResumes = [];
     let folderHandle = null;
@@ -150,6 +155,8 @@
 
     if (EMBEDDED) {
         initialize();
+    } else {
+        processOutlookHandoffFromHash();
     }
 
     // =========================================================
@@ -1066,12 +1073,32 @@
                         Deep Scan
                     </button>
 
+                    ${
+                        EMBEDDED
+                            ? `
+                    <button
+                        id="resume-download"
+                        style="${secondaryButton()}"
+                    >
+                        Download
+                    </button>
+
                     <button
                         id="resume-attach"
                         style="${primaryButton()}"
                     >
-                        ${EMBEDDED ? 'Download Selected' : 'Attach Selected'}
+                        Open in Outlook
                     </button>
+                            `
+                            : `
+                    <button
+                        id="resume-attach"
+                        style="${primaryButton()}"
+                    >
+                        Attach Selected
+                    </button>
+                            `
+                    }
 
                 </div>
 
@@ -1092,12 +1119,26 @@
         ).onclick =
             deepScanSelectedResumes;
 
-        document.getElementById(
-            'resume-attach'
-        ).onclick =
-            EMBEDDED
-                ? downloadSelectedResumes
-                : attachSelectedResumes;
+        if (EMBEDDED) {
+            document.getElementById(
+                'resume-download'
+            ).onclick =
+                downloadSelectedResumes;
+
+            document.getElementById(
+                'resume-attach'
+            ).onclick =
+                () =>
+                    openInOutlookFromDashboard({
+                        includeHtml: false,
+                        returnToView: renderSearch
+                    });
+        } else {
+            document.getElementById(
+                'resume-attach'
+            ).onclick =
+                attachSelectedResumes;
+        }
     }
 
     // =========================================================
@@ -2475,7 +2516,7 @@ Writing guidance:
                 <strong>${candidateSummaries.length}</strong>
                 selected resume${candidateSummaries.length === 1 ? '' : 's'}.
                 ${EMBEDDED
-                    ? 'Copy the employer email HTML below, or paste it into Outlook manually.'
+                    ? 'Open the draft in Outlook to auto-insert this summary and attach the selected resumes. Install the NCST Outlook helper if prompted.'
                     : 'Review the summary before inserting it into Outlook.'}
             </div>
 
@@ -2512,12 +2553,32 @@ Writing guidance:
                     ${USE_SERVER_API ? 'About AI' : 'Change API Key'}
                 </button>
 
+                ${
+                    EMBEDDED
+                        ? `
+                <button
+                    id="resume-ai-copy"
+                    style="${secondaryButton()} flex:1;"
+                >
+                    Copy Email HTML
+                </button>
+
                 <button
                     id="resume-ai-insert"
                     style="${primaryButton()} flex:1;"
                 >
-                    ${EMBEDDED ? 'Copy Email HTML' : 'Insert into Email'}
+                    Open in Outlook
                 </button>
+                        `
+                        : `
+                <button
+                    id="resume-ai-insert"
+                    style="${primaryButton()} flex:1;"
+                >
+                    Insert into Email
+                </button>
+                        `
+                }
             </div>
         `;
 
@@ -2538,17 +2599,33 @@ Writing guidance:
                 ? () => showMessage(
                     'AI Deep Scan',
                     'Deep Scan uses NCST Career Services AI on this dashboard.\n\n' +
-                    'In Outlook, install the Tampermonkey script to insert summaries and attach resumes directly.',
+                    'Use Open in Outlook to auto-insert summaries and attach resumes. ' +
+                    'Install the NCST Outlook helper userscript if you have not already:\n\n' +
+                    OUTLOOK_HELPER_URL,
                     showDeepScanPreview
                 )
                 : changeClaudeApiKey;
 
-        document.getElementById(
-            'resume-ai-insert'
-        ).onclick =
-            EMBEDDED
-                ? copyDeepScanHtml
-                : insertSummaryIntoOutlook;
+        if (EMBEDDED) {
+            document.getElementById(
+                'resume-ai-copy'
+            ).onclick =
+                copyDeepScanHtml;
+
+            document.getElementById(
+                'resume-ai-insert'
+            ).onclick =
+                () =>
+                    openInOutlookFromDashboard({
+                        includeHtml: true,
+                        returnToView: showDeepScanPreview
+                    });
+        } else {
+            document.getElementById(
+                'resume-ai-insert'
+            ).onclick =
+                insertSummaryIntoOutlook;
+        }
     }
 
     function changeClaudeApiKey() {
@@ -2815,6 +2892,440 @@ Writing guidance:
     }
 
     // =========================================================
+    // OUTLOOK HANDOFF (dashboard -> Outlook helper)
+    // =========================================================
+
+    function fetchCareerToolkitApi(path, options = {}) {
+        const url = API_BASE + path;
+        const method = options.method || 'GET';
+        const headers = options.headers || {};
+        const body = options.body;
+
+        if (USE_SERVER_API || typeof GM_xmlhttpRequest !== 'function') {
+            return fetch(url, {
+                method,
+                headers,
+                body
+            });
+        }
+
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method,
+                url,
+                headers,
+                data: body,
+                responseType: 'json',
+                timeout: 60000,
+                onload: response => {
+                    const ok =
+                        response.status >= 200 &&
+                        response.status < 300;
+
+                    resolve({
+                        ok,
+                        status: response.status,
+                        json: async () => {
+                            if (
+                                response.response &&
+                                typeof response.response === 'object'
+                            ) {
+                                return response.response;
+                            }
+
+                            try {
+                                return JSON.parse(
+                                    response.responseText || '{}'
+                                );
+                            } catch {
+                                return {};
+                            }
+                        }
+                    });
+                },
+                onerror: () =>
+                    reject(
+                        new Error(
+                            'Network error contacting NCST Career Services.'
+                        )
+                    ),
+                ontimeout: () =>
+                    reject(
+                        new Error(
+                            'Timed out contacting NCST Career Services.'
+                        )
+                    )
+            });
+        });
+    }
+
+    function readOutlookHandoffToken() {
+        const hash = window.location.hash || '';
+        const match = hash.match(/ncstHandoff=([^&]+)/i);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function clearOutlookHandoffHash() {
+        if (!window.location.hash.includes(OUTLOOK_HANDOFF_HASH_PREFIX)) {
+            return;
+        }
+
+        const nextHash = window.location.hash
+            .replace(/#?ncstHandoff=[^&]*/i, '')
+            .replace(/^#&/, '#')
+            .replace(/^#$/, '');
+
+        history.replaceState(
+            null,
+            '',
+            window.location.pathname +
+            window.location.search +
+            (nextHash ? nextHash : '')
+        );
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = () => {
+                const result = String(reader.result || '');
+                const comma = result.indexOf(',');
+                resolve(
+                    comma >= 0
+                        ? result.slice(comma + 1)
+                        : result
+                );
+            };
+
+            reader.onerror = () =>
+                reject(
+                    reader.error ||
+                    new Error('Could not read resume file.')
+                );
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function base64ToFile(attachment) {
+        const binary = atob(attachment.dataBase64);
+        const bytes = new Uint8Array(binary.length);
+
+        for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+        }
+
+        return new File(
+            [bytes],
+            attachment.name,
+            {
+                type: attachment.mimeType,
+                lastModified: Date.now()
+            }
+        );
+    }
+
+    async function collectSelectedResumeFiles(resumeIds) {
+        const selected =
+            allResumes.filter(
+                resume =>
+                    resumeIds.has(resume.id)
+            );
+
+        const attachments = [];
+
+        for (const resume of selected) {
+            const original =
+                await resume.handle.getFile();
+
+            attachments.push({
+                name: original.name,
+                mimeType:
+                    getResumeMimeType(
+                        original.name
+                    ),
+                dataBase64:
+                    await fileToBase64(original)
+            });
+        }
+
+        return attachments;
+    }
+
+    async function createOutlookHandoff({
+        html,
+        resumeIds
+    }) {
+        const attachments =
+            resumeIds && resumeIds.size
+                ? await collectSelectedResumeFiles(
+                    resumeIds
+                )
+                : [];
+
+        if (!html && !attachments.length) {
+            throw new Error(
+                'Select at least one resume or run Deep Scan first.'
+            );
+        }
+
+        const response =
+            await fetchCareerToolkitApi(
+                '/api/resume-search/outlook-handoff',
+                {
+                    method: 'POST',
+                    headers: {
+                        'content-type':
+                            'application/json'
+                    },
+                    body: JSON.stringify({
+                        html: html || undefined,
+                        attachments
+                    })
+                }
+            );
+
+        const data =
+            await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                'Outlook handoff could not be created.'
+            );
+        }
+
+        return data;
+    }
+
+    async function openInOutlookFromDashboard({
+        includeHtml,
+        returnToView
+    }) {
+        const resumeIds =
+            includeHtml &&
+            lastCandidateSummaries.length
+                ? new Set(
+                    lastCandidateSummaries.map(
+                        item =>
+                            item.resume.id
+                    )
+                )
+                : new Set(selectedResumes);
+
+        if (!resumeIds.size && !(includeHtml && lastDeepScanHtml)) {
+            showMessage(
+                'Selection Required',
+                'Select at least one resume first.',
+                returnToView
+            );
+            return;
+        }
+
+        const actionButton =
+            document.getElementById('resume-attach') ||
+            document.getElementById('resume-ai-insert');
+
+        const originalLabel =
+            actionButton
+                ? actionButton.textContent
+                : '';
+
+        if (actionButton) {
+            actionButton.disabled = true;
+            actionButton.textContent =
+                'Preparing Outlook...';
+        }
+
+        try {
+            const handoff =
+                await createOutlookHandoff({
+                    html:
+                        includeHtml
+                            ? lastDeepScanHtml
+                            : undefined,
+                    resumeIds
+                });
+
+            const outlookUrl =
+                handoff.outlookUrl ||
+                (
+                    OUTLOOK_COMPOSE_URL +
+                    '#' +
+                    OUTLOOK_HANDOFF_HASH_PREFIX +
+                    encodeURIComponent(
+                        handoff.token
+                    )
+                );
+
+            const opened =
+                window.open(
+                    outlookUrl,
+                    '_blank',
+                    'noopener,noreferrer'
+                );
+
+            if (!opened) {
+                throw new Error(
+                    'Your browser blocked the Outlook window. Allow pop-ups for this site and try again.'
+                );
+            }
+
+            showMessage(
+                'Opening Outlook',
+                'Outlook is opening with your resumes and summary.\n\n' +
+                'If nothing auto-inserts, install the NCST Outlook helper userscript:\n' +
+                OUTLOOK_HELPER_URL,
+                returnToView
+            );
+        } catch (error) {
+            console.error(
+                'NCST Outlook Handoff Error:',
+                error
+            );
+
+            showMessage(
+                'Outlook Handoff Error',
+                error && error.message
+                    ? error.message
+                    : String(error),
+                returnToView
+            );
+        } finally {
+            if (actionButton) {
+                actionButton.disabled = false;
+                actionButton.textContent =
+                    originalLabel;
+            }
+        }
+    }
+
+    async function waitForOutlookComposeEditor(
+        timeoutMs = 30000
+    ) {
+        const started = Date.now();
+
+        while (Date.now() - started < timeoutMs) {
+            const editor =
+                findOutlookComposeEditor();
+
+            if (editor) {
+                return editor;
+            }
+
+            await sleep(500);
+        }
+
+        return null;
+    }
+
+    async function processOutlookHandoffFromHash() {
+        const token = readOutlookHandoffToken();
+        if (!token) {
+            return;
+        }
+
+        clearOutlookHandoffHash();
+
+        try {
+            const response =
+                await fetchCareerToolkitApi(
+                    '/api/resume-search/outlook-handoff?token=' +
+                    encodeURIComponent(token)
+                );
+
+            const payload =
+                await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ||
+                    'Outlook handoff could not be loaded.'
+                );
+            }
+
+            if (payload.html) {
+                lastDeepScanHtml = payload.html;
+            }
+
+            const files =
+                Array.isArray(payload.attachments)
+                    ? payload.attachments.map(
+                        base64ToFile
+                    )
+                    : [];
+
+            if (payload.html) {
+                const editor =
+                    await waitForOutlookComposeEditor();
+
+                if (!editor) {
+                    throw new Error(
+                        'Outlook compose window was not ready in time. Open a new message and try again from the dashboard.'
+                    );
+                }
+
+                editor.focus();
+
+                const spacer =
+                    editor.innerHTML.trim()
+                        ? '<div><br></div>'
+                        : '';
+
+                editor.insertAdjacentHTML(
+                    'beforeend',
+                    spacer + payload.html
+                );
+
+                editor.dispatchEvent(
+                    new InputEvent(
+                        'input',
+                        {
+                            bubbles: true,
+                            composed: true,
+                            inputType: 'insertText',
+                            data: null
+                        }
+                    )
+                );
+
+                editor.dispatchEvent(
+                    new Event(
+                        'change',
+                        {
+                            bubbles: true,
+                            composed: true
+                        }
+                    )
+                );
+            }
+
+            if (files.length) {
+                await attachFilesToOutlook(files);
+            }
+
+            if (button) {
+                button.title =
+                    'Resume handoff applied to Outlook';
+            }
+
+            console.log(
+                'NCST: Outlook handoff applied.',
+                {
+                    html: Boolean(payload.html),
+                    attachments: files.length
+                }
+            );
+        } catch (error) {
+            console.error(
+                'NCST Outlook Handoff Error:',
+                error
+            );
+        }
+    }
+
+    // =========================================================
     // ATTACH SELECTED
     // =========================================================
 
@@ -2894,15 +3405,13 @@ Writing guidance:
         }
 
         try {
-
             const files = [];
 
             for (const resume of selected) {
-
                 const original =
                     await resume.handle.getFile();
 
-                const file =
+                files.push(
                     new File(
                         [original],
                         original.name,
@@ -2914,101 +3423,11 @@ Writing guidance:
                             lastModified:
                                 original.lastModified
                         }
-                    );
-
-                files.push(file);
-            }
-
-            const inputs =
-                [
-                    ...document.querySelectorAll(
-                        'input[type="file"]'
                     )
-                ];
-
-            console.log(
-                'NCST: Outlook file inputs found:',
-                inputs.length
-            );
-
-            inputs.forEach(
-                (input, index) => {
-                    console.log(
-                        `NCST input ${index}`,
-                        {
-                            accept:
-                                input.getAttribute(
-                                    'accept'
-                                ),
-                            multiple:
-                                input.multiple,
-                            disabled:
-                                input.disabled,
-                            outerHTML:
-                                input.outerHTML
-                        }
-                    );
-                }
-            );
-
-            const fileInput =
-                chooseDocumentFileInput(
-                    inputs
-                );
-
-            if (!fileInput) {
-
-                panel.style.display = 'block';
-
-                showMessage(
-                    'Outlook Not Found',
-                    'I could not find Outlook’s document attachment control.\n\n' +
-                    'Open a New Message or Reply first, then try Attach Selected again.',
-                    renderSearch
-                );
-
-                return;
-            }
-
-            console.log(
-                'NCST: Using attachment input:',
-                fileInput
-            );
-
-            if (
-                files.length > 1 &&
-                !fileInput.multiple
-            ) {
-
-                for (const file of files) {
-
-                    await attachOneFile(
-                        fileInput,
-                        file
-                    );
-
-                    await sleep(900);
-                }
-
-            } else {
-
-                const transfer =
-                    new DataTransfer();
-
-                files.forEach(
-                    file =>
-                        transfer.items.add(file)
-                );
-
-                fileInput.files =
-                    transfer.files;
-
-                fireFileEvents(
-                    fileInput
                 );
             }
 
-            await sleep(1200);
+            await attachFilesToOutlook(files);
 
             selectedResumes.clear();
 
@@ -3044,6 +3463,94 @@ Writing guidance:
                     'Attach Selected';
             }
         }
+    }
+
+    async function attachFilesToOutlook(files) {
+        if (!files.length) {
+            return;
+        }
+
+        const inputs =
+            [
+                ...document.querySelectorAll(
+                    'input[type="file"]'
+                )
+            ];
+
+        console.log(
+            'NCST: Outlook file inputs found:',
+            inputs.length
+        );
+
+        inputs.forEach(
+            (input, index) => {
+                console.log(
+                    `NCST input ${index}`,
+                    {
+                        accept:
+                            input.getAttribute(
+                                'accept'
+                            ),
+                        multiple:
+                            input.multiple,
+                        disabled:
+                            input.disabled,
+                        outerHTML:
+                            input.outerHTML
+                    }
+                );
+            }
+        );
+
+        const fileInput =
+            chooseDocumentFileInput(
+                inputs
+            );
+
+        if (!fileInput) {
+            panel.style.display = 'block';
+
+            throw new Error(
+                'I could not find Outlook’s document attachment control.\n\n' +
+                'Open a New Message or Reply first, then try again.'
+            );
+        }
+
+        console.log(
+            'NCST: Using attachment input:',
+            fileInput
+        );
+
+        if (
+            files.length > 1 &&
+            !fileInput.multiple
+        ) {
+            for (const file of files) {
+                await attachOneFile(
+                    fileInput,
+                    file
+                );
+
+                await sleep(900);
+            }
+        } else {
+            const transfer =
+                new DataTransfer();
+
+            files.forEach(
+                file =>
+                    transfer.items.add(file)
+            );
+
+            fileInput.files =
+                transfer.files;
+
+            fireFileEvents(
+                fileInput
+            );
+        }
+
+        await sleep(1200);
     }
 
     // =========================================================
