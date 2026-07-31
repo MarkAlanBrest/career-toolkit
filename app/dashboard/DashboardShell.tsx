@@ -12,6 +12,16 @@ import styles from './dashboard.module.css';
 
 const HOME_ID = 'home';
 const SIDEBAR_MODE_KEY = 'ncstDashboardSidebarMode';
+const RECENT_TOOLS_KEY = 'ncstDashboardRecentTools';
+
+const HOME_TASKS = [
+  { id: 'career-reports', eyebrow: 'Accreditation & reporting', action: 'Analyze files and build reports' },
+  { id: 'resume-search', eyebrow: 'Employer outreach', action: 'Find qualified student resumes' },
+  { id: 'employer-portal', eyebrow: 'Employer relationships', action: 'Manage employer services' },
+  { id: 'canvas-broadcast', eyebrow: 'Student communication', action: 'Send a Canvas broadcast' },
+  { id: 'lga-room', eyebrow: 'Events & meetings', action: 'Reserve the LG Room' },
+  { id: 'resume-builder', eyebrow: 'Student documents', action: 'Build a professional resume' },
+] as const;
 
 type SidebarMode = 'text' | 'icons' | 'hidden';
 
@@ -43,11 +53,29 @@ export default function DashboardShell() {
   const searchParams = useSearchParams();
   const [activeId, setActiveId] = useState<string>(HOME_ID);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>('text');
+  const [recentToolIds, setRecentToolIds] = useState<string[]>([]);
+
+  const rememberTool = useCallback((id: string) => {
+    if (id === HOME_ID || !isCareerToolId(id)) return;
+    setRecentToolIds(current => {
+      const next = [id, ...current.filter(toolId => toolId !== id)].slice(0, 3);
+      localStorage.setItem(RECENT_TOOLS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem(SIDEBAR_MODE_KEY);
     if (isSidebarMode(saved)) {
       setSidebarMode(saved);
+    }
+    try {
+      const recent = JSON.parse(localStorage.getItem(RECENT_TOOLS_KEY) || '[]');
+      if (Array.isArray(recent)) {
+        setRecentToolIds(recent.filter((id): id is string => typeof id === 'string' && isCareerToolId(id)).slice(0, 3));
+      }
+    } catch {
+      setRecentToolIds([]);
     }
   }, []);
 
@@ -55,10 +83,11 @@ export default function DashboardShell() {
     const tool = searchParams.get('tool');
     if (tool && isCareerToolId(tool)) {
       setActiveId(tool);
+      rememberTool(tool);
     } else if (!tool) {
       setActiveId(HOME_ID);
     }
-  }, [searchParams]);
+  }, [searchParams, rememberTool]);
 
   const activeTool = useMemo(
     () => CAREER_SERVICES_TOOLS.find(t => t.id === activeId),
@@ -67,9 +96,10 @@ export default function DashboardShell() {
 
   const selectTool = useCallback((id: string) => {
     setActiveId(id);
+    rememberTool(id);
     const url = id === HOME_ID ? '/dashboard' : `/dashboard?tool=${id}`;
     window.history.replaceState(null, '', url);
-  }, []);
+  }, [rememberTool]);
 
   const changeSidebarMode = useCallback((mode: SidebarMode) => {
     setSidebarMode(mode);
@@ -83,6 +113,14 @@ export default function DashboardShell() {
   const iframeSrc = activeTool?.href ?? '';
   const iconsOnly = sidebarMode === 'icons';
   const sidebarHidden = sidebarMode === 'hidden';
+  const homeTasks = HOME_TASKS.flatMap(task => {
+    const tool = CAREER_SERVICES_TOOLS.find(item => item.id === task.id);
+    return tool ? [{ ...task, tool }] : [];
+  });
+  const recentTools = recentToolIds.flatMap(id => {
+    const tool = CAREER_SERVICES_TOOLS.find(item => item.id === id);
+    return tool ? [tool] : [];
+  });
 
   return (
     <div className={styles.dashboard}>
@@ -90,17 +128,76 @@ export default function DashboardShell() {
         <section className={styles.main} aria-label="Tool workspace">
           <div className={styles.content}>
             {activeId === HOME_ID ? (
-              <div className={styles.welcome}>
-                <h2>Career Services toolkit</h2>
-                <p>
-                  One workspace for reporting, employer outreach, student career documents,
-                  Canvas messaging, and room reservations.
-                </p>
-                <p className={styles.welcomeHint}>
-                  Use the gold menu button at the top of the right sidebar to cycle:
-                  full labels → icons → tab. When hidden, click the gold
-                  <strong> ☰ Menu</strong> tab on the right edge to bring it back.
-                </p>
+              <div className={styles.homePage}>
+                <header className={styles.homeHero}>
+                  <div className={styles.heroCopy}>
+                    <span className={styles.heroEyebrow}>NCST Career Services</span>
+                    <h1>Everything you need to move students forward.</h1>
+                    <p>
+                      Build reports, connect employers with talent, communicate with students,
+                      and coordinate events from one focused workspace.
+                    </p>
+                    <div className={styles.heroActions}>
+                      <button type="button" onClick={() => selectTool('career-reports')}>Open Reporting Hub</button>
+                      <button type="button" className={styles.heroSecondary} onClick={() => selectTool('employer-portal')}>Employer Portal</button>
+                    </div>
+                  </div>
+                  <aside className={styles.heroAccreditation}>
+                    <span className={styles.heroAccreditationIcon} aria-hidden="true">A</span>
+                    <div>
+                      <strong>ACCSC rules built in</strong>
+                      <p>The Reporting Hub checks uploaded records against the current accreditation rule set and keeps those rules attached to generated work.</p>
+                      <button type="button" onClick={() => selectTool('career-reports')}>Analyze a file <span aria-hidden="true">→</span></button>
+                    </div>
+                  </aside>
+                </header>
+
+                <section className={styles.homeSection}>
+                  <div className={styles.homeSectionHeading}>
+                    <div><span>Start here</span><h2>What would you like to do?</h2></div>
+                    <p>Choose a task and the right tool will open in this workspace.</p>
+                  </div>
+                  <div className={styles.taskGrid}>
+                    {homeTasks.map(({ tool, eyebrow, action }) => (
+                      <button type="button" className={styles.taskCard} key={tool.id} onClick={() => selectTool(tool.id)}>
+                        <span className={styles.taskIcon} aria-hidden="true">{tool.icon}</span>
+                        <span className={styles.taskText}>
+                          <small>{eyebrow}</small>
+                          <strong>{action}</strong>
+                          <span>{tool.description}</span>
+                        </span>
+                        <span className={styles.taskArrow} aria-hidden="true">→</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <div className={styles.homeLower}>
+                  <section className={styles.recentPanel}>
+                    <div className={styles.homeSectionHeading}>
+                      <div><span>Your workspace</span><h2>Continue working</h2></div>
+                    </div>
+                    {recentTools.length ? (
+                      <div className={styles.recentList}>
+                        {recentTools.map(tool => (
+                          <button type="button" key={tool.id} onClick={() => selectTool(tool.id)}>
+                            <span aria-hidden="true">{tool.icon}</span>
+                            <span><strong>{tool.title}</strong><small>{tool.category}</small></span>
+                            <span aria-hidden="true">→</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={styles.recentEmpty}>Tools you open will appear here for quick access.</p>
+                    )}
+                  </section>
+
+                  <aside className={styles.menuTip}>
+                    <span>Workspace tip</span>
+                    <h2>Make the toolbar fit your day.</h2>
+                    <p>Use the gold control above the toolbar to switch between full labels, compact icons, or a hidden edge tab.</p>
+                  </aside>
+                </div>
               </div>
             ) : (
               <iframe
