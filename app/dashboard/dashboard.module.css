@@ -135,7 +135,7 @@
 
 /* —— Sidebar (right) —— */
 .sidebar {
-  width: 260px;
+  width: 130px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
