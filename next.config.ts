@@ -1,6 +1,15 @@
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/lga-room',
+        destination: '/dashboard?tool=lga-room',
+        permanent: false,
+      },
+    ];
+  },
   outputFileTracingRoot: process.cwd(),
   outputFileTracingIncludes: {
     // Document Creator is temporarily disabled (moved to disabled/app/document-creator and

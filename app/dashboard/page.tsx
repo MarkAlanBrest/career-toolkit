@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import DashboardShell from './DashboardShell';
 
 export default function CareerServicesDashboardPage() {
-  return <DashboardShell />;
+  return (
+    <Suspense fallback={null}>
+      <DashboardShell />
+    </Suspense>
+  );
 }
