@@ -9,6 +9,7 @@ import {
   OUTLOOK_WEB_URL,
   isCareerToolId,
 } from '@/lib/careerServicesTools';
+import DashboardHome from './DashboardHome';
 import styles from './dashboard.module.css';
 
 const HOME_ID = 'home';
@@ -91,25 +92,7 @@ export default function DashboardShell() {
         <section className={styles.main} aria-label="Tool workspace">
           <div className={styles.content}>
             {activeId === HOME_ID ? (
-              <div className={styles.homePage}>
-                <header className={styles.homeHero}>
-                  <div className={styles.heroCopy}>
-                    <span className={styles.heroEyebrow}>NCST Career Services</span>
-                    <h1>Everything you need to move students forward.</h1>
-                    <p>
-                      Build reports, connect employers with talent, communicate with students,
-                      and coordinate events from one focused workspace.
-                    </p>
-                  </div>
-                  <aside className={styles.heroAccreditation}>
-                    <span className={styles.heroAccreditationIcon} aria-hidden="true">A</span>
-                    <div>
-                      <strong>ACCSC rules built in</strong>
-                      <p>The Reporting Hub checks uploaded records against the current accreditation rule set and keeps those rules attached to generated work.</p>
-                    </div>
-                  </aside>
-                </header>
-              </div>
+              <DashboardHome onSelectTool={selectTool} />
             ) : (
               <iframe
                 className={styles.frame}

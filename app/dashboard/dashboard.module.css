@@ -88,12 +88,17 @@
 }
 
 .heroCopy h1 {
-  max-width: 680px;
+  max-width: 720px;
   margin: 10px 0 14px;
   font-family: 'Trebuchet MS', Arial, sans-serif;
   font-size: clamp(2rem, 4vw, 3.45rem);
-  line-height: 1.02;
+  line-height: 1.06;
   letter-spacing: -0.035em;
+}
+
+.heroAccent {
+  display: block;
+  color: var(--gold);
 }
 
 .heroCopy > p {
@@ -104,43 +109,266 @@
   line-height: 1.65;
 }
 
-.heroAccreditation {
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.heroPrimaryBtn,
+.heroSecondaryBtn,
+.ctaButton {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.heroPrimaryBtn,
+.ctaButton {
+  padding: 12px 20px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--navy-deep);
+}
+
+.heroPrimaryBtn:hover,
+.ctaButton:hover {
+  background: #e89200;
+  border-color: #e89200;
+}
+
+.heroSecondaryBtn {
+  padding: 12px 4px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 0;
+}
+
+.heroSecondaryBtn:hover {
+  border-bottom-color: var(--gold);
+  color: var(--gold);
+}
+
+.heroPanel {
   position: relative;
   z-index: 1;
   align-self: center;
-  display: flex;
-  gap: 14px;
-  padding: 20px;
-  border: 1px solid rgba(250, 162, 0, 0.45);
-  background: rgba(10, 19, 35, 0.5);
+  padding: 22px;
+  border: 1px solid rgba(250, 162, 0, 0.35);
+  background: rgba(10, 19, 35, 0.52);
   backdrop-filter: blur(8px);
 }
 
-.heroAccreditationIcon {
+.heroPanelLabel {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--gold);
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.heroPanelList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
+  gap: 16px;
+}
+
+.heroPanelList li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.heroPanelIcon {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--gold);
-  color: var(--navy-deep);
-  font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-weight: 900;
+  background: rgba(250, 162, 0, 0.18);
+  color: var(--gold);
+  font-size: 0.85rem;
 }
 
-.heroAccreditation strong {
+.heroPanelList strong {
   display: block;
-  margin-top: 2px;
   font-family: 'Trebuchet MS', Arial, sans-serif;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
 }
 
-.heroAccreditation p {
-  margin: 7px 0 0;
-  color: rgba(255, 255, 255, 0.68);
+.heroPanelList p {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.homeSection {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 0 36px;
+}
+
+.sectionHeading {
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+
+.sectionKicker {
+  color: var(--blue);
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sectionHeading h2 {
+  margin: 8px 0 10px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--navy-deep);
+}
+
+.sectionHeading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.toolCategory {
+  margin-bottom: 28px;
+}
+
+.toolCategoryLabel {
+  margin: 0 0 12px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.toolCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.toolCard:hover {
+  border-color: rgba(36, 79, 152, 0.35);
+  box-shadow: 0 8px 24px rgba(29, 38, 50, 0.08);
+  transform: translateY(-1px);
+}
+
+.toolCardIcon {
+  flex: 0 0 36px;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.toolCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.toolCardBody strong {
+  display: block;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.88rem;
+  color: var(--navy-deep);
+}
+
+.toolCardBody p {
+  margin: 6px 0 0;
   font-size: 0.78rem;
   line-height: 1.5;
+  color: var(--muted);
+}
+
+.toolCardArrow {
+  flex-shrink: 0;
+  color: var(--blue);
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1rem;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.toolCard:hover .toolCardArrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.homeCta {
+  max-width: 1180px;
+  margin: 0 auto 12px;
+}
+
+.ctaInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 32px 36px;
+  border: 1px solid rgba(36, 79, 152, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(36, 79, 152, 0.08) 0%, rgba(250, 162, 0, 0.08) 100%);
+}
+
+.ctaInner h2 {
+  margin: 8px 0 10px;
+  max-width: 520px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--navy-deep);
+}
+
+.ctaInner p {
+  margin: 0;
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
 .frame {
@@ -392,8 +620,13 @@
     grid-template-columns: 1fr;
   }
 
-  .heroAccreditation {
+  .heroPanel {
     max-width: 620px;
+  }
+
+  .ctaInner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
 }
