@@ -1,0 +1,289 @@
+.jobSearch {
+  min-height: 100vh;
+  background: #e9ecef;
+  color: #3d4349;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.embedded {
+  min-height: 100%;
+  background: #f8f8f5;
+}
+
+.embedded .shell {
+  max-width: none;
+  padding: 12px 14px 20px;
+}
+
+.shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.header {
+  background: #26315f;
+  color: #f4f4f0;
+  padding: 28px 32px;
+  border: 1px solid #1d2632;
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1.55rem;
+  margin: 0 0 8px;
+}
+
+.header p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #c8d0e0;
+}
+
+.headerLink {
+  display: inline-block;
+  margin-top: 12px;
+  color: #faa200;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.85rem;
+}
+
+.searchCard,
+.card {
+  background: #f8f8f5;
+  border: 1px solid #d2d2cc;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.searchCard h2,
+.card h2 {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1.05rem;
+  color: #26315f;
+  margin: 0 0 10px;
+}
+
+.cardHeader {
+  margin-bottom: 14px;
+}
+
+.meta {
+  font-size: 0.88rem;
+  color: #595c60;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.searchRow {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+@media (max-width: 800px) {
+  .searchRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.78rem;
+  color: #26315f;
+}
+
+.field input {
+  font-family: Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 0.92rem;
+  padding: 10px 12px;
+  border: 1px solid #c8c8c0;
+  background: #fff;
+}
+
+.btnPrimary,
+.btnSecondary {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  border: 1px solid #26315f;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  background: #26315f;
+  color: #fff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #1d2632;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: #fff;
+  color: #26315f;
+}
+
+.btnSecondary:hover {
+  background: #e8ecf4;
+}
+
+.error {
+  margin-top: 12px;
+  color: #a32020;
+  font-size: 0.88rem;
+}
+
+.sourceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sourceChip {
+  padding: 10px 12px;
+  background: #e8ecf4;
+  border: 1px solid #c8d4e8;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.sourceChip strong {
+  display: block;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  color: #26315f;
+  margin-bottom: 4px;
+}
+
+.empty {
+  font-size: 0.9rem;
+  color: #595c60;
+  line-height: 1.5;
+}
+
+.resultsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.resultItem {
+  padding: 14px 0;
+  border-top: 1px solid #e0e0d8;
+}
+
+.resultItem:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.resultTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resultTop a {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 1rem;
+  color: #244f98;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.resultTop a:hover {
+  text-decoration: underline;
+}
+
+.badge {
+  flex-shrink: 0;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  background: #faa200;
+  color: #1d2632;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.resultMeta {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: #595c60;
+}
+
+.resultSnippet {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #3d4349;
+}
+
+.externalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.externalList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.externalItem {
+  padding: 14px;
+  border: 1px solid #d2d2cc;
+  background: #fff;
+}
+
+.externalLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  color: #26315f;
+}
+
+.externalLabel strong {
+  display: block;
+}
+
+.externalCategory {
+  display: block;
+  font-size: 0.72rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.externalItem p {
+  margin: 8px 0 6px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #595c60;
+}
+
+.externalItem a {
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+  font-size: 0.82rem;
+  color: #244f98;
+}

@@ -65,6 +65,15 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     icon: '🔍',
   },
   {
+    id: 'local-job-search',
+    title: 'Local job search',
+    description:
+      'Search NCST employer postings and open local newspapers, PA CareerLink, and job boards in one place.',
+    href: '/job-search',
+    category: 'Student tools',
+    icon: '🧭',
+  },
+  {
     id: 'employer-portal-admin',
     title: 'Employer portal admin',
     description: 'Post upcoming events and announcements on the employer portal overview.',
