@@ -104,9 +104,9 @@ export function isCareerToolId(id: string) {
 }
 
 export const CAREER_TOOL_CATEGORIES: CareerToolCategory[] = [
-  'Reporting',
   'Student tools',
   'Employer tools',
   'Communications',
   'Events & rooms',
+  'Reporting',
 ];
