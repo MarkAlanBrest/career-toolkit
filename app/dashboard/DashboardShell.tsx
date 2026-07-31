@@ -59,9 +59,9 @@ export default function DashboardShell() {
                   Canvas messaging, and room reservations.
                 </p>
                 <p className={styles.welcomeHint}>
-                  Pick a tool from the right-hand menu. Use the menu controls at the bottom of
-                  the sidebar to switch between text labels, icons, or hide the menu for full-screen
-                  tools.
+                  Use the gold <strong>Labels · Icons · Hide</strong> buttons at the top of the
+                  right sidebar to change how the menu looks. When hidden, click the gold
+                  <strong> ☰ Menu</strong> tab on the right edge to reopen it.
                 </p>
               </div>
             ) : (
@@ -83,7 +83,7 @@ export default function DashboardShell() {
             aria-label="Show tools menu"
             title="Show tools menu"
           >
-            ☰
+            ☰ Menu
           </button>
         )}
 
@@ -92,14 +92,51 @@ export default function DashboardShell() {
           aria-label="Tools menu"
           aria-hidden={sidebarHidden}
         >
-          <div className={styles.sidebarBrand}>
-            {iconsOnly ? (
-              <span className={styles.sidebarBrandIcon} aria-hidden="true">N</span>
-            ) : (
-              <>
-                <strong>NCST</strong>
-                <span>Career Services</span>
-              </>
+          <div className={styles.sidebarTop}>
+            <div className={styles.sidebarControls}>
+              <span className={styles.sidebarControlsLabel}>Sidebar</span>
+              <div className={styles.modeButtons}>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${sidebarMode === 'text' ? styles.modeBtnActive : ''}`}
+                  onClick={() => changeSidebarMode('text')}
+                  aria-label="Text labels"
+                  title="Show text labels"
+                >
+                  {iconsOnly ? 'Aa' : 'Labels'}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${sidebarMode === 'icons' ? styles.modeBtnActive : ''}`}
+                  onClick={() => changeSidebarMode('icons')}
+                  aria-label="Icons only"
+                  title="Show icons only"
+                >
+                  Icons
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${sidebarMode === 'hidden' ? styles.modeBtnActive : ''}`}
+                  onClick={() => changeSidebarMode('hidden')}
+                  aria-label="Hide sidebar"
+                  title="Hide sidebar"
+                >
+                  Hide
+                </button>
+              </div>
+            </div>
+
+            {!sidebarHidden && (
+              <div className={styles.sidebarBrand}>
+                {iconsOnly ? (
+                  <span className={styles.sidebarBrandIcon} aria-hidden="true">N</span>
+                ) : (
+                  <>
+                    <strong>NCST</strong>
+                    <span>Career Services</span>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -144,39 +181,6 @@ export default function DashboardShell() {
               );
             })}
           </nav>
-
-          <div className={styles.sidebarControls}>
-            <span className={styles.sidebarControlsLabel}>Menu</span>
-            <div className={styles.modeButtons}>
-              <button
-                type="button"
-                className={`${styles.modeBtn} ${sidebarMode === 'text' ? styles.modeBtnActive : ''}`}
-                onClick={() => changeSidebarMode('text')}
-                aria-label="Text menu"
-                title="Text labels"
-              >
-                T
-              </button>
-              <button
-                type="button"
-                className={`${styles.modeBtn} ${sidebarMode === 'icons' ? styles.modeBtnActive : ''}`}
-                onClick={() => changeSidebarMode('icons')}
-                aria-label="Icon menu"
-                title="Icons only"
-              >
-                ⊞
-              </button>
-              <button
-                type="button"
-                className={`${styles.modeBtn} ${sidebarMode === 'hidden' ? styles.modeBtnActive : ''}`}
-                onClick={() => changeSidebarMode('hidden')}
-                aria-label="Hide menu"
-                title="Hide menu"
-              >
-                —
-              </button>
-            </div>
-          </div>
 
           {!iconsOnly && (
             <div className={styles.sidebarFooter}>New Castle School of Trades</div>

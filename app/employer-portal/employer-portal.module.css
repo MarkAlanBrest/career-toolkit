@@ -12,6 +12,29 @@
   color: var(--ink);
 }
 
+.embedded {
+  min-height: 100%;
+}
+
+.embeddedAuth {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.embeddedAuth button {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .page * { box-sizing: border-box; }
 .page a { color: inherit; }
 .topBar {

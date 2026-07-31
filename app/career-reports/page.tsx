@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { evaluateAccscFlags } from '@/lib/careerReports/accscFlags';
 import { buildRecordsFromFiles, listPrograms, mergeRecords } from '@/lib/careerReports/workspace';
 import type { AccscFlag, CareerRecord, ParsedFile, ReportResult } from '@/lib/careerReports/types';
+import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import styles from './career-reports.module.css';
 
 function downloadReportExcel(result: ReportResult) {
@@ -16,6 +17,7 @@ function downloadReportExcel(result: ReportResult) {
 }
 
 export default function CareerReportsPage() {
+  const embedded = useDashboardEmbed();
   const [files, setFiles] = useState<ParsedFile[]>([]);
   const [records, setRecords] = useState<CareerRecord[]>([]);
   const [flags, setFlags] = useState<AccscFlag[]>([]);
@@ -147,10 +149,13 @@ export default function CareerReportsPage() {
   };
 
   return (
-    <main className={styles.careerReports}>
+    <main className={`${styles.careerReports} ${embedded ? styles.embedded : ''}`}>
       <div className={styles.shell}>
-        <Link href="/dashboard" className={styles.backLink}>← Dashboard</Link>
+        {!embedded && (
+          <Link href="/dashboard" className={styles.backLink}>← Dashboard</Link>
+        )}
 
+        {!embedded && (
         <header className={styles.header}>
           <h1>Career Services Reporting Hub</h1>
           <p>
@@ -158,6 +163,7 @@ export default function CareerReportsPage() {
             Carrie keeps her Excel workflow — this tool sorts the files and flags what accreditation needs.
           </p>
         </header>
+        )}
 
         <div className={styles.stats}>
           <div className={styles.stat}><strong>{files.length}</strong> files</div>

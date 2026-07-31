@@ -5,6 +5,16 @@
   font-family: Georgia, 'Times New Roman', serif;
 }
 
+.embedded {
+  min-height: 100%;
+  background: #f8f8f5;
+}
+
+.embedded .shell {
+  max-width: none;
+  padding: 12px 14px 20px;
+}
+
 .shell {
   max-width: 1200px;
   margin: 0 auto;

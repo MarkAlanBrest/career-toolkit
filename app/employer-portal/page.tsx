@@ -8,6 +8,7 @@ import { EmployerLoginModal } from './employer-auth-modals';
 import { EmployerDashboard, EmployerRecentActivity } from './employer-dashboard';
 import { SERVICE_FORMS, SERVICE_PANEL_BY_TITLE, ServiceFormPanel, type ServicePanelId } from './service-forms';
 import type { EmployerDashboard as EmployerDashboardData, EmployerProfile } from '@/lib/employerPortalUsers';
+import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import { LgaRoomCalendar } from '../lga-room/calendar/lga-room-calendar';
 import { archivo, lgaRoomStyles, publicSans } from '../lga-room/shared';
 import styles from './employer-portal.module.css';
@@ -95,6 +96,7 @@ function ServiceIcon({ name }: { name: IconName }) {
 }
 
 export default function EmployerPortalPage() {
+  const embedded = useDashboardEmbed();
   const [activePanel, setActivePanel] = useState<ActivePanel>('overview');
   const [adminMode, setAdminMode] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
@@ -151,7 +153,7 @@ export default function EmployerPortalPage() {
   const activeServiceForm = activePanel !== 'overview' && activePanel !== 'lga-room' ? SERVICE_FORMS[activePanel] : null;
 
   return (
-    <main className={`${publicSans.className} ${styles.page}`}>
+    <main className={`${publicSans.className} ${styles.page} ${embedded ? styles.embedded : ''}`}>
       <style>{lgaRoomStyles}</style>
       <section className={styles.dashboard} id="services">
         <aside className={styles.sideNav}>
@@ -199,6 +201,7 @@ export default function EmployerPortalPage() {
         </aside>
 
         <div className={styles.workspace}>
+          {!embedded && (
           <div className={styles.toolbar}>
             <div className={styles.toolbarWelcome}>
               <span>New Castle School of Trades</span>
@@ -219,6 +222,20 @@ export default function EmployerPortalPage() {
               )}
             </div>
           </div>
+          )}
+
+          {embedded && (
+            <div className={styles.embeddedAuth}>
+              {employerSession ? (
+                <>
+                  <span>Signed in as {employerSession.profile.contactName}</span>
+                  <button type="button" onClick={employerLogout}>Sign out</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => setShowEmployerLogin(true)}>Employer sign in</button>
+              )}
+            </div>
+          )}
 
           <div className={`${styles.dashboardContent} ${activePanel === 'lga-room' ? styles.dashboardContentWide : ''}`}>
           <div className={styles.centerColumn}>

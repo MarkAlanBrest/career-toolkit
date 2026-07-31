@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useDashboardEmbed } from '@/lib/useDashboardEmbed';
 import styles from './broadcast.module.css';
 
 type CampusCode = 'NCST' | 'ELPC' | 'NATS';
@@ -80,6 +81,7 @@ function Icon({ name }: { name: 'people' | 'book' | 'clock' | 'shield' | 'send' 
 }
 
 export default function CanvasBroadcastPage() {
+  const embedded = useDashboardEmbed();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -440,7 +442,8 @@ export default function CanvasBroadcastPage() {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${embedded ? styles.embedded : ''}`}>
+      {!embedded && (
       <header className={styles.topbar}>
         <div className={styles.brand}>
           <div className={styles.mark}>C</div>
@@ -448,6 +451,7 @@ export default function CanvasBroadcastPage() {
         </div>
         <div className={styles.secure}><Icon name="shield" /> Server-secured Canvas connection</div>
       </header>
+      )}
 
       <div className={styles.shell}>
         <section className={styles.intro}>
