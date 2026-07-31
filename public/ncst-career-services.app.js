@@ -27,6 +27,372 @@
     const GEOCODE_TIMEOUT_MS = 10000;
     const GEOCODE_THROTTLE_MS = 1100;
     const EARTH_RADIUS_MILES = 3958.8;
+    const OUTLOOK_COMPOSE_URL =
+        'https://outlook.office.com/mail/deeplink/compose';
+    const OUTLOOK_HELPER_URL =
+        'https://career-toolkit-ruby.vercel.app/ncst-career-services.user.js';
+    const OUTLOOK_HANDOFF_HASH_PREFIX = 'ncstHandoff=';
+    const CAREER_TOOLKIT_URL =
+        window.NCST_CAREER_SERVICES_TOOLKIT_URL ||
+        'https://career-toolkit-ruby.vercel.app';
+    const OUTLOOK_WEB_URL =
+        'https://outlook.office.com/mail/';
+    const OUTLOOK_TOOLBAR_WIDTH = 130;
+    const OUTLOOK_PANEL_WIDTH = 520;
+    const OUTLOOK_TOOLBAR_TOOLS = [
+        {
+            id: 'resume-search',
+            title: 'Resume search',
+            icon: '🔍',
+            category: 'Employer tools',
+            outlook: true
+        },
+        {
+            id: 'employer-portal',
+            title: 'Employer portal',
+            icon: '🏢',
+            category: 'Employer tools',
+            href: '/employer-portal'
+        },
+        {
+            id: 'career-reports',
+            title: 'Reporting hub',
+            icon: '📊',
+            category: 'Reporting',
+            href: '/dashboard?tool=career-reports'
+        },
+        {
+            id: 'canvas-broadcast',
+            title: 'Canvas broadcast',
+            icon: '📢',
+            category: 'Communications',
+            href: '/dashboard?tool=canvas-broadcast'
+        },
+        {
+            id: 'lga-room',
+            title: 'LG Room',
+            icon: '🚪',
+            category: 'Events & rooms',
+            href: '/dashboard?tool=lga-room'
+        }
+    ];
+
+    let activeOutlookTool = null;
+    let outlookToolbar = null;
+
+    // =========================================================
+    // OUTLOOK TOOLBAR (Tampermonkey only)
+    // =========================================================
+
+    function injectOutlookToolbarStyles() {
+        if (document.getElementById('ncst-cs-toolbar-style')) {
+            return;
+        }
+
+        const css = `
+            #ncst-cs-toolbar {
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: ${OUTLOOK_TOOLBAR_WIDTH}px;
+                height: 100vh;
+                z-index: 2147483646;
+                display: flex;
+                flex-direction: column;
+                background: #1d2632;
+                color: #e8ecf4;
+                font-family: 'Trebuchet MS', Arial, sans-serif;
+                box-shadow: -2px 0 12px rgba(0, 0, 0, 0.18);
+                box-sizing: border-box;
+            }
+
+            #ncst-cs-toolbar a,
+            #ncst-cs-toolbar button {
+                font-family: 'Trebuchet MS', Arial, sans-serif;
+            }
+
+            #ncst-cs-toolbar-top {
+                flex-shrink: 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            #ncst-cs-toolbar .ncst-cs-link {
+                display: block;
+                margin: 8px 6px 0;
+                padding: 7px 8px;
+                border: 1px solid #faa200;
+                border-radius: 4px;
+                background: rgba(250, 162, 0, 0.12);
+                color: #faa200;
+                font-size: 0.58rem;
+                font-weight: 700;
+                line-height: 1.2;
+                text-align: center;
+                text-decoration: none;
+                letter-spacing: 0.02em;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-link:hover {
+                background: #faa200;
+                color: #1d2632;
+            }
+
+            #ncst-cs-toolbar-brand {
+                padding: 10px 10px 8px;
+            }
+
+            #ncst-cs-toolbar-brand strong {
+                display: block;
+                font-size: 0.6rem;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: #faa200;
+                margin-bottom: 2px;
+            }
+
+            #ncst-cs-toolbar-brand span {
+                display: block;
+                font-size: 0.78rem;
+                font-weight: 700;
+                color: #fff;
+                line-height: 1.2;
+            }
+
+            #ncst-cs-toolbar-nav {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                padding: 8px 0;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-group {
+                margin-bottom: 12px;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-group-label {
+                font-size: 0.58rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                color: rgba(255, 255, 255, 0.45);
+                padding: 0 8px 6px;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-tool {
+                display: block;
+                width: 100%;
+                text-align: left;
+                padding: 7px 8px;
+                border: none;
+                background: transparent;
+                color: #c8d0e0;
+                font-size: 0.72rem;
+                line-height: 1.25;
+                cursor: pointer;
+                border-left: 3px solid transparent;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-tool:hover {
+                background: rgba(255, 255, 255, 0.06);
+                color: #fff;
+            }
+
+            #ncst-cs-toolbar .ncst-cs-tool-active {
+                background: rgba(36, 79, 152, 0.45);
+                color: #fff;
+                border-left-color: #faa200;
+            }
+
+            #ncst-cs-toolbar-footer {
+                flex-shrink: 0;
+                padding: 8px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 0.55rem;
+                line-height: 1.35;
+                color: rgba(255, 255, 255, 0.45);
+                text-align: center;
+            }
+
+            #ncst-cs-panel.ncst-cs-panel-outlook {
+                position: fixed;
+                top: 0;
+                right: ${OUTLOOK_TOOLBAR_WIDTH}px;
+                bottom: 0;
+                width: min(${OUTLOOK_PANEL_WIDTH}px, calc(100vw - ${OUTLOOK_TOOLBAR_WIDTH + 10}px));
+                max-width: none;
+                max-height: none;
+                height: 100vh;
+                border-radius: 0;
+                border-right: 1px solid #d2d2cc;
+                box-shadow: -8px 0 30px rgba(0, 0, 0, 0.18);
+                z-index: 2147483645;
+            }
+        `;
+
+        if (typeof GM_addStyle === 'function') {
+            GM_addStyle(css);
+            return;
+        }
+
+        const style = document.createElement('style');
+        style.id = 'ncst-cs-toolbar-style';
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    function toolkitUrl(path) {
+        if (!path) {
+            return CAREER_TOOLKIT_URL + '/dashboard';
+        }
+
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+            return path;
+        }
+
+        return CAREER_TOOLKIT_URL + path;
+    }
+
+    function renderOutlookToolbar() {
+        if (!outlookToolbar) {
+            return;
+        }
+
+        const categories = [];
+
+        OUTLOOK_TOOLBAR_TOOLS.forEach(tool => {
+            if (!categories.includes(tool.category)) {
+                categories.push(tool.category);
+            }
+        });
+
+        const navHtml = categories.map(category => {
+            const tools = OUTLOOK_TOOLBAR_TOOLS.filter(
+                tool => tool.category === category
+            );
+
+            const items = tools.map(tool => {
+                const active =
+                    tool.outlook &&
+                    activeOutlookTool === tool.id;
+
+                return `
+                    <button
+                        type="button"
+                        class="ncst-cs-tool${active ? ' ncst-cs-tool-active' : ''}"
+                        data-tool-id="${escapeHtml(tool.id)}"
+                        data-tool-outlook="${tool.outlook ? '1' : '0'}"
+                        data-tool-href="${escapeHtml(tool.href || '')}"
+                        title="${escapeHtml(tool.title)}"
+                    >
+                        ${escapeHtml(tool.title)}
+                    </button>
+                `;
+            }).join('');
+
+            return `
+                <div class="ncst-cs-group">
+                    <div class="ncst-cs-group-label">
+                        ${escapeHtml(category)}
+                    </div>
+                    ${items}
+                </div>
+            `;
+        }).join('');
+
+        outlookToolbar.innerHTML = `
+            <div id="ncst-cs-toolbar-top">
+                <a
+                    class="ncst-cs-link"
+                    href="${escapeHtml(toolkitUrl('/dashboard'))}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open Career Toolkit"
+                >
+                    Open Toolkit ↗
+                </a>
+
+                <div id="ncst-cs-toolbar-brand">
+                    <strong>NCST</strong>
+                    <span>Career Services</span>
+                </div>
+            </div>
+
+            <nav id="ncst-cs-toolbar-nav" aria-label="Career Services tools">
+                ${navHtml}
+            </nav>
+
+            <div id="ncst-cs-toolbar-footer">
+                New Castle School of Trades
+            </div>
+        `;
+
+        outlookToolbar.querySelectorAll('.ncst-cs-tool').forEach(button => {
+            button.addEventListener('click', () => {
+                const toolId = button.getAttribute('data-tool-id');
+                const inOutlook =
+                    button.getAttribute('data-tool-outlook') === '1';
+                const href =
+                    button.getAttribute('data-tool-href') || '';
+
+                if (inOutlook) {
+                    toggleOutlookTool(toolId);
+                    return;
+                }
+
+                window.open(
+                    toolkitUrl(href),
+                    '_blank',
+                    'noopener,noreferrer'
+                );
+            });
+        });
+    }
+
+    function buildOutlookToolbar() {
+        injectOutlookToolbarStyles();
+
+        outlookToolbar = document.createElement('aside');
+        outlookToolbar.id = 'ncst-cs-toolbar';
+        outlookToolbar.setAttribute(
+            'aria-label',
+            'NCST Career Services'
+        );
+
+        document.body.appendChild(outlookToolbar);
+        renderOutlookToolbar();
+    }
+
+    async function openOutlookTool(toolId) {
+        if (activeOutlookTool === toolId && panel.style.display === 'block') {
+            return;
+        }
+
+        activeOutlookTool = toolId;
+        panel.style.display = 'block';
+        renderOutlookToolbar();
+
+        if (toolId === 'resume-search') {
+            await initialize();
+        }
+    }
+
+    function closeOutlookTool() {
+        activeOutlookTool = null;
+        panel.style.display = 'none';
+        renderOutlookToolbar();
+    }
+
+    async function toggleOutlookTool(toolId) {
+        if (
+            activeOutlookTool === toolId &&
+            panel.style.display === 'block'
+        ) {
+            closeOutlookTool();
+            return;
+        }
+
+        await openOutlookTool(toolId);
+    }
 
     let allResumes = [];
     let folderHandle = null;
@@ -40,49 +406,11 @@
     let lastLiveGeocodeAt = 0;
 
     // =========================================================
-    // FLOATING BUTTON (Outlook Tampermonkey only)
-    // =========================================================
-
-    let button = null;
-
-    if (!EMBEDDED) {
-        button = document.createElement('button');
-
-        button.textContent = '📄';
-        button.title = 'Resume Search';
-
-        Object.assign(button.style, {
-            position: 'fixed',
-            right: '62px',
-            bottom: '18px',
-            zIndex: '2147483646',
-            width: '38px',
-            height: '38px',
-            padding: '0',
-            margin: '0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'transparent',
-            color: '#1f2937',
-            border: 'none',
-            borderRadius: '0',
-            fontSize: '26px',
-            fontWeight: '400',
-            lineHeight: '1',
-            cursor: 'pointer',
-            boxShadow: 'none',
-            fontFamily: 'Segoe UI, Arial, sans-serif'
-        });
-
-        document.body.appendChild(button);
-    }
-
-    // =========================================================
     // PANEL
     // =========================================================
 
     const panel = document.createElement('div');
+    panel.id = 'ncst-cs-panel';
 
     Object.assign(
         panel.style,
@@ -107,19 +435,22 @@
             : {
                 display: 'none',
                 position: 'fixed',
-                right: '20px',
-                bottom: '70px',
-                width: '470px',
-                maxWidth: 'calc(100vw - 40px)',
-                maxHeight: '70vh',
+                right: `${OUTLOOK_TOOLBAR_WIDTH}px`,
+                top: '0',
+                bottom: '0',
+                width: `min(${OUTLOOK_PANEL_WIDTH}px, calc(100vw - ${OUTLOOK_TOOLBAR_WIDTH + 10}px))`,
+                maxWidth: 'none',
+                maxHeight: 'none',
+                height: '100vh',
                 overflowY: 'auto',
-                background: '#fff',
-                border: '1px solid #d1d5db',
-                borderRadius: '10px',
-                zIndex: '999999',
+                background: '#f8f8f5',
+                border: 'none',
+                borderRight: '1px solid #d2d2cc',
+                borderRadius: '0',
+                zIndex: '2147483645',
                 padding: '16px',
                 boxSizing: 'border-box',
-                boxShadow: '0 8px 30px rgba(0,0,0,.25)',
+                boxShadow: '-8px 0 30px rgba(0,0,0,.18)',
                 fontFamily: 'Segoe UI, Arial, sans-serif',
                 color: '#111827'
             }
@@ -127,17 +458,9 @@
 
     document.body.appendChild(panel);
 
-    if (button) {
-        button.addEventListener('click', async () => {
-            panel.style.display =
-                panel.style.display === 'none'
-                    ? 'block'
-                    : 'none';
-
-            if (panel.style.display === 'block') {
-                await initialize();
-            }
-        });
+    if (!EMBEDDED) {
+        panel.classList.add('ncst-cs-panel-outlook');
+        buildOutlookToolbar();
     }
 
     function closePanel() {
@@ -145,11 +468,13 @@
             return;
         }
 
-        panel.style.display = 'none';
+        closeOutlookTool();
     }
 
     if (EMBEDDED) {
         initialize();
+    } else {
+        processOutlookHandoffFromHash();
     }
 
     // =========================================================
@@ -1066,12 +1391,32 @@
                         Deep Scan
                     </button>
 
+                    ${
+                        EMBEDDED
+                            ? `
+                    <button
+                        id="resume-download"
+                        style="${secondaryButton()}"
+                    >
+                        Download
+                    </button>
+
                     <button
                         id="resume-attach"
                         style="${primaryButton()}"
                     >
-                        ${EMBEDDED ? 'Download Selected' : 'Attach Selected'}
+                        Open in Outlook
                     </button>
+                            `
+                            : `
+                    <button
+                        id="resume-attach"
+                        style="${primaryButton()}"
+                    >
+                        Attach Selected
+                    </button>
+                            `
+                    }
 
                 </div>
 
@@ -1092,12 +1437,26 @@
         ).onclick =
             deepScanSelectedResumes;
 
-        document.getElementById(
-            'resume-attach'
-        ).onclick =
-            EMBEDDED
-                ? downloadSelectedResumes
-                : attachSelectedResumes;
+        if (EMBEDDED) {
+            document.getElementById(
+                'resume-download'
+            ).onclick =
+                downloadSelectedResumes;
+
+            document.getElementById(
+                'resume-attach'
+            ).onclick =
+                () =>
+                    openInOutlookFromDashboard({
+                        includeHtml: false,
+                        returnToView: renderSearch
+                    });
+        } else {
+            document.getElementById(
+                'resume-attach'
+            ).onclick =
+                attachSelectedResumes;
+        }
     }
 
     // =========================================================
@@ -2475,7 +2834,7 @@ Writing guidance:
                 <strong>${candidateSummaries.length}</strong>
                 selected resume${candidateSummaries.length === 1 ? '' : 's'}.
                 ${EMBEDDED
-                    ? 'Copy the employer email HTML below, or paste it into Outlook manually.'
+                    ? 'Open the draft in Outlook to auto-insert this summary and attach the selected resumes. Install the NCST Outlook helper if prompted.'
                     : 'Review the summary before inserting it into Outlook.'}
             </div>
 
@@ -2512,12 +2871,32 @@ Writing guidance:
                     ${USE_SERVER_API ? 'About AI' : 'Change API Key'}
                 </button>
 
+                ${
+                    EMBEDDED
+                        ? `
+                <button
+                    id="resume-ai-copy"
+                    style="${secondaryButton()} flex:1;"
+                >
+                    Copy Email HTML
+                </button>
+
                 <button
                     id="resume-ai-insert"
                     style="${primaryButton()} flex:1;"
                 >
-                    ${EMBEDDED ? 'Copy Email HTML' : 'Insert into Email'}
+                    Open in Outlook
                 </button>
+                        `
+                        : `
+                <button
+                    id="resume-ai-insert"
+                    style="${primaryButton()} flex:1;"
+                >
+                    Insert into Email
+                </button>
+                        `
+                }
             </div>
         `;
 
@@ -2538,17 +2917,33 @@ Writing guidance:
                 ? () => showMessage(
                     'AI Deep Scan',
                     'Deep Scan uses NCST Career Services AI on this dashboard.\n\n' +
-                    'In Outlook, install the Tampermonkey script to insert summaries and attach resumes directly.',
+                    'Use Open in Outlook to auto-insert summaries and attach resumes. ' +
+                    'Install the NCST Outlook helper userscript if you have not already:\n\n' +
+                    OUTLOOK_HELPER_URL,
                     showDeepScanPreview
                 )
                 : changeClaudeApiKey;
 
-        document.getElementById(
-            'resume-ai-insert'
-        ).onclick =
-            EMBEDDED
-                ? copyDeepScanHtml
-                : insertSummaryIntoOutlook;
+        if (EMBEDDED) {
+            document.getElementById(
+                'resume-ai-copy'
+            ).onclick =
+                copyDeepScanHtml;
+
+            document.getElementById(
+                'resume-ai-insert'
+            ).onclick =
+                () =>
+                    openInOutlookFromDashboard({
+                        includeHtml: true,
+                        returnToView: showDeepScanPreview
+                    });
+        } else {
+            document.getElementById(
+                'resume-ai-insert'
+            ).onclick =
+                insertSummaryIntoOutlook;
+        }
     }
 
     function changeClaudeApiKey() {
@@ -2730,7 +3125,7 @@ Writing guidance:
                 )
             );
 
-            panel.style.display = 'none';
+            closeOutlookTool();
 
         } catch (error) {
             console.error(
@@ -2815,6 +3210,437 @@ Writing guidance:
     }
 
     // =========================================================
+    // OUTLOOK HANDOFF (dashboard -> Outlook helper)
+    // =========================================================
+
+    function fetchCareerToolkitApi(path, options = {}) {
+        const url = API_BASE + path;
+        const method = options.method || 'GET';
+        const headers = options.headers || {};
+        const body = options.body;
+
+        if (USE_SERVER_API || typeof GM_xmlhttpRequest !== 'function') {
+            return fetch(url, {
+                method,
+                headers,
+                body
+            });
+        }
+
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method,
+                url,
+                headers,
+                data: body,
+                responseType: 'json',
+                timeout: 60000,
+                onload: response => {
+                    const ok =
+                        response.status >= 200 &&
+                        response.status < 300;
+
+                    resolve({
+                        ok,
+                        status: response.status,
+                        json: async () => {
+                            if (
+                                response.response &&
+                                typeof response.response === 'object'
+                            ) {
+                                return response.response;
+                            }
+
+                            try {
+                                return JSON.parse(
+                                    response.responseText || '{}'
+                                );
+                            } catch {
+                                return {};
+                            }
+                        }
+                    });
+                },
+                onerror: () =>
+                    reject(
+                        new Error(
+                            'Network error contacting NCST Career Services.'
+                        )
+                    ),
+                ontimeout: () =>
+                    reject(
+                        new Error(
+                            'Timed out contacting NCST Career Services.'
+                        )
+                    )
+            });
+        });
+    }
+
+    function readOutlookHandoffToken() {
+        const hash = window.location.hash || '';
+        const match = hash.match(/ncstHandoff=([^&]+)/i);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function clearOutlookHandoffHash() {
+        if (!window.location.hash.includes(OUTLOOK_HANDOFF_HASH_PREFIX)) {
+            return;
+        }
+
+        const nextHash = window.location.hash
+            .replace(/#?ncstHandoff=[^&]*/i, '')
+            .replace(/^#&/, '#')
+            .replace(/^#$/, '');
+
+        history.replaceState(
+            null,
+            '',
+            window.location.pathname +
+            window.location.search +
+            (nextHash ? nextHash : '')
+        );
+    }
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = () => {
+                const result = String(reader.result || '');
+                const comma = result.indexOf(',');
+                resolve(
+                    comma >= 0
+                        ? result.slice(comma + 1)
+                        : result
+                );
+            };
+
+            reader.onerror = () =>
+                reject(
+                    reader.error ||
+                    new Error('Could not read resume file.')
+                );
+
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function base64ToFile(attachment) {
+        const binary = atob(attachment.dataBase64);
+        const bytes = new Uint8Array(binary.length);
+
+        for (let index = 0; index < binary.length; index += 1) {
+            bytes[index] = binary.charCodeAt(index);
+        }
+
+        return new File(
+            [bytes],
+            attachment.name,
+            {
+                type: attachment.mimeType,
+                lastModified: Date.now()
+            }
+        );
+    }
+
+    async function collectSelectedResumeFiles(resumeIds) {
+        const selected =
+            allResumes.filter(
+                resume =>
+                    resumeIds.has(resume.id)
+            );
+
+        const attachments = [];
+
+        for (const resume of selected) {
+            const original =
+                await resume.handle.getFile();
+
+            attachments.push({
+                name: original.name,
+                mimeType:
+                    getResumeMimeType(
+                        original.name
+                    ),
+                dataBase64:
+                    await fileToBase64(original)
+            });
+        }
+
+        return attachments;
+    }
+
+    async function createOutlookHandoff({
+        html,
+        resumeIds
+    }) {
+        const attachments =
+            resumeIds && resumeIds.size
+                ? await collectSelectedResumeFiles(
+                    resumeIds
+                )
+                : [];
+
+        if (!html && !attachments.length) {
+            throw new Error(
+                'Select at least one resume or run Deep Scan first.'
+            );
+        }
+
+        const response =
+            await fetchCareerToolkitApi(
+                '/api/resume-search/outlook-handoff',
+                {
+                    method: 'POST',
+                    headers: {
+                        'content-type':
+                            'application/json'
+                    },
+                    body: JSON.stringify({
+                        html: html || undefined,
+                        attachments
+                    })
+                }
+            );
+
+        const data =
+            await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                'Outlook handoff could not be created.'
+            );
+        }
+
+        return data;
+    }
+
+    async function openInOutlookFromDashboard({
+        includeHtml,
+        returnToView
+    }) {
+        const resumeIds =
+            includeHtml &&
+            lastCandidateSummaries.length
+                ? new Set(
+                    lastCandidateSummaries.map(
+                        item =>
+                            item.resume.id
+                    )
+                )
+                : new Set(selectedResumes);
+
+        if (!resumeIds.size && !(includeHtml && lastDeepScanHtml)) {
+            showMessage(
+                'Selection Required',
+                'Select at least one resume first.',
+                returnToView
+            );
+            return;
+        }
+
+        const actionButton =
+            document.getElementById('resume-attach') ||
+            document.getElementById('resume-ai-insert');
+
+        const originalLabel =
+            actionButton
+                ? actionButton.textContent
+                : '';
+
+        if (actionButton) {
+            actionButton.disabled = true;
+            actionButton.textContent =
+                'Preparing Outlook...';
+        }
+
+        try {
+            const handoff =
+                await createOutlookHandoff({
+                    html:
+                        includeHtml
+                            ? lastDeepScanHtml
+                            : undefined,
+                    resumeIds
+                });
+
+            const outlookUrl =
+                handoff.outlookUrl ||
+                (
+                    OUTLOOK_COMPOSE_URL +
+                    '#' +
+                    OUTLOOK_HANDOFF_HASH_PREFIX +
+                    encodeURIComponent(
+                        handoff.token
+                    )
+                );
+
+            const opened =
+                window.open(
+                    outlookUrl,
+                    '_blank',
+                    'noopener,noreferrer'
+                );
+
+            if (!opened) {
+                throw new Error(
+                    'Your browser blocked the Outlook window. Allow pop-ups for this site and try again.'
+                );
+            }
+
+            showMessage(
+                'Opening Outlook',
+                'Outlook is opening with your resumes and summary.\n\n' +
+                'If nothing auto-inserts, install the NCST Outlook helper userscript:\n' +
+                OUTLOOK_HELPER_URL,
+                returnToView
+            );
+        } catch (error) {
+            console.error(
+                'NCST Outlook Handoff Error:',
+                error
+            );
+
+            showMessage(
+                'Outlook Handoff Error',
+                error && error.message
+                    ? error.message
+                    : String(error),
+                returnToView
+            );
+        } finally {
+            if (actionButton) {
+                actionButton.disabled = false;
+                actionButton.textContent =
+                    originalLabel;
+            }
+        }
+    }
+
+    async function waitForOutlookComposeEditor(
+        timeoutMs = 30000
+    ) {
+        const started = Date.now();
+
+        while (Date.now() - started < timeoutMs) {
+            const editor =
+                findOutlookComposeEditor();
+
+            if (editor) {
+                return editor;
+            }
+
+            await sleep(500);
+        }
+
+        return null;
+    }
+
+    async function processOutlookHandoffFromHash() {
+        const token = readOutlookHandoffToken();
+        if (!token) {
+            return;
+        }
+
+        clearOutlookHandoffHash();
+
+        try {
+            await openOutlookTool('resume-search');
+
+            const response =
+                await fetchCareerToolkitApi(
+                    '/api/resume-search/outlook-handoff?token=' +
+                    encodeURIComponent(token)
+                );
+
+            const payload =
+                await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ||
+                    'Outlook handoff could not be loaded.'
+                );
+            }
+
+            if (payload.html) {
+                lastDeepScanHtml = payload.html;
+            }
+
+            const files =
+                Array.isArray(payload.attachments)
+                    ? payload.attachments.map(
+                        base64ToFile
+                    )
+                    : [];
+
+            if (payload.html) {
+                const editor =
+                    await waitForOutlookComposeEditor();
+
+                if (!editor) {
+                    throw new Error(
+                        'Outlook compose window was not ready in time. Open a new message and try again from the dashboard.'
+                    );
+                }
+
+                editor.focus();
+
+                const spacer =
+                    editor.innerHTML.trim()
+                        ? '<div><br></div>'
+                        : '';
+
+                editor.insertAdjacentHTML(
+                    'beforeend',
+                    spacer + payload.html
+                );
+
+                editor.dispatchEvent(
+                    new InputEvent(
+                        'input',
+                        {
+                            bubbles: true,
+                            composed: true,
+                            inputType: 'insertText',
+                            data: null
+                        }
+                    )
+                );
+
+                editor.dispatchEvent(
+                    new Event(
+                        'change',
+                        {
+                            bubbles: true,
+                            composed: true
+                        }
+                    )
+                );
+            }
+
+            if (files.length) {
+                await attachFilesToOutlook(files);
+            }
+
+            console.log(
+                'NCST: Outlook handoff applied.',
+                {
+                    html: Boolean(payload.html),
+                    attachments: files.length
+                }
+            );
+        } catch (error) {
+            console.error(
+                'NCST Outlook Handoff Error:',
+                error
+            );
+        }
+    }
+
+    // =========================================================
     // ATTACH SELECTED
     // =========================================================
 
@@ -2894,15 +3720,13 @@ Writing guidance:
         }
 
         try {
-
             const files = [];
 
             for (const resume of selected) {
-
                 const original =
                     await resume.handle.getFile();
 
-                const file =
+                files.push(
                     new File(
                         [original],
                         original.name,
@@ -2914,106 +3738,15 @@ Writing guidance:
                             lastModified:
                                 original.lastModified
                         }
-                    );
-
-                files.push(file);
-            }
-
-            const inputs =
-                [
-                    ...document.querySelectorAll(
-                        'input[type="file"]'
                     )
-                ];
-
-            console.log(
-                'NCST: Outlook file inputs found:',
-                inputs.length
-            );
-
-            inputs.forEach(
-                (input, index) => {
-                    console.log(
-                        `NCST input ${index}`,
-                        {
-                            accept:
-                                input.getAttribute(
-                                    'accept'
-                                ),
-                            multiple:
-                                input.multiple,
-                            disabled:
-                                input.disabled,
-                            outerHTML:
-                                input.outerHTML
-                        }
-                    );
-                }
-            );
-
-            const fileInput =
-                chooseDocumentFileInput(
-                    inputs
-                );
-
-            if (!fileInput) {
-
-                panel.style.display = 'block';
-
-                showMessage(
-                    'Outlook Not Found',
-                    'I could not find Outlook’s document attachment control.\n\n' +
-                    'Open a New Message or Reply first, then try Attach Selected again.',
-                    renderSearch
-                );
-
-                return;
-            }
-
-            console.log(
-                'NCST: Using attachment input:',
-                fileInput
-            );
-
-            if (
-                files.length > 1 &&
-                !fileInput.multiple
-            ) {
-
-                for (const file of files) {
-
-                    await attachOneFile(
-                        fileInput,
-                        file
-                    );
-
-                    await sleep(900);
-                }
-
-            } else {
-
-                const transfer =
-                    new DataTransfer();
-
-                files.forEach(
-                    file =>
-                        transfer.items.add(file)
-                );
-
-                fileInput.files =
-                    transfer.files;
-
-                fireFileEvents(
-                    fileInput
                 );
             }
 
-            await sleep(1200);
+            await attachFilesToOutlook(files);
 
             selectedResumes.clear();
 
-            panel.style.display =
-                'none';
+            closeOutlookTool();
 
             console.log(
                 `NCST: Attached ${files.length} resume(s).`
@@ -3026,8 +3759,9 @@ Writing guidance:
                 error
             );
 
-            panel.style.display =
-                'block';
+            if (activeOutlookTool === 'resume-search') {
+                panel.style.display = 'block';
+            }
 
             showMessage(
                 'Attachment Error',
@@ -3044,6 +3778,94 @@ Writing guidance:
                     'Attach Selected';
             }
         }
+    }
+
+    async function attachFilesToOutlook(files) {
+        if (!files.length) {
+            return;
+        }
+
+        const inputs =
+            [
+                ...document.querySelectorAll(
+                    'input[type="file"]'
+                )
+            ];
+
+        console.log(
+            'NCST: Outlook file inputs found:',
+            inputs.length
+        );
+
+        inputs.forEach(
+            (input, index) => {
+                console.log(
+                    `NCST input ${index}`,
+                    {
+                        accept:
+                            input.getAttribute(
+                                'accept'
+                            ),
+                        multiple:
+                            input.multiple,
+                        disabled:
+                            input.disabled,
+                        outerHTML:
+                            input.outerHTML
+                    }
+                );
+            }
+        );
+
+        const fileInput =
+            chooseDocumentFileInput(
+                inputs
+            );
+
+        if (!fileInput) {
+            panel.style.display = 'block';
+
+            throw new Error(
+                'I could not find Outlook’s document attachment control.\n\n' +
+                'Open a New Message or Reply first, then try again.'
+            );
+        }
+
+        console.log(
+            'NCST: Using attachment input:',
+            fileInput
+        );
+
+        if (
+            files.length > 1 &&
+            !fileInput.multiple
+        ) {
+            for (const file of files) {
+                await attachOneFile(
+                    fileInput,
+                    file
+                );
+
+                await sleep(900);
+            }
+        } else {
+            const transfer =
+                new DataTransfer();
+
+            files.forEach(
+                file =>
+                    transfer.items.add(file)
+            );
+
+            fileInput.files =
+                transfer.files;
+
+            fireFileEvents(
+                fileInput
+            );
+        }
+
+        await sleep(1200);
     }
 
     // =========================================================
