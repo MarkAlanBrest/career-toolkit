@@ -513,19 +513,41 @@
 }
 
 .suggestions > div {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 7px;
   margin-top: 8px;
 }
 
+.suggestionSource {
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: #737b85;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .suggestions button {
+  display: grid;
+  gap: 3px;
   padding: 7px 10px;
   border: 1px solid #aebbd0;
   background: #fff;
   color: #244f98;
-  font: 700 0.76rem 'Trebuchet MS', Arial, sans-serif;
+  text-align: left;
   cursor: pointer;
+}
+
+.suggestions button strong {
+  font: 700 0.78rem 'Trebuchet MS', Arial, sans-serif;
+}
+
+.suggestions button small {
+  color: #66707a;
+  font: 0.72rem Georgia, 'Times New Roman', serif;
+  line-height: 1.35;
 }
 
 .suggestions button:hover {

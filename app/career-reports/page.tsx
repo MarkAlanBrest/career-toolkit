@@ -71,14 +71,89 @@ export default function CareerReportsPage() {
   const warningCount = flags.filter(f => f.severity === 'warning').length;
   const assistantSuggestions = useMemo(() => {
     if (!records.length) return [];
-    return [
-      { label: 'Find missing ACCSC data', prompt: 'What data is missing for ACCSC?' },
-      { label: 'Make a hires report', prompt: 'Make a reported hires report', reportType: 'hires' as ReportType },
-      { label: 'Build employer directory', prompt: 'Make an employer directory', reportType: 'employer_directory' as ReportType },
-      { label: 'Create PAC report', prompt: 'Make a PAC attendees report', reportType: 'pac_attendees' as ReportType },
-      { label: 'Create career fair report', prompt: 'Make a career fair registrations report', reportType: 'career_fair_registrations' as ReportType },
-    ];
-  }, [records.length]);
+    const suggestions: Array<{ label: string; prompt: string; reason: string; reportType?: ReportType }> = [];
+    const hireRecords = records.filter(record =>
+      record.recordType === 'hire' || record.employmentStatus === 'employed_in_field'
+    );
+    const pacRecords = records.filter(record =>
+      record.eventType.includes('pac') || /pac|advisory committee/i.test(`${record.notes} ${record.sourceFile}`)
+    );
+    const careerFairRecords = records.filter(record =>
+      record.eventType.includes('career_fair') || /career fair/i.test(`${record.notes} ${record.sourceFile}`)
+    );
+    const employerCount = new Set(
+      records.map(record => record.employerName.trim().toLowerCase()).filter(Boolean)
+    ).size;
+    const missingVerification = hireRecords.filter(record => !record.verificationSource.trim()).length;
+    const unclassifiedRecords = records.filter(record => record.recordType === 'unknown').length;
+
+    if (flags.length) {
+      suggestions.push({
+        label: `Review ${flags.length} ACCSC finding${flags.length === 1 ? '' : 's'}`,
+        prompt: 'Make an ACCSC accreditation gaps report',
+        reason: `${errorCount} serious issue${errorCount === 1 ? '' : 's'} and ${warningCount} warning${warningCount === 1 ? '' : 's'} detected in the uploaded data.`,
+        reportType: 'accreditation_gaps',
+      });
+    }
+    if (hireRecords.length) {
+      suggestions.push({
+        label: `Create hires report (${hireRecords.length})`,
+        prompt: 'Make a reported hires report',
+        reason: `${hireRecords.length} uploaded record${hireRecords.length === 1 ? '' : 's'} appear to document employment or placement.`,
+        reportType: 'hires',
+      });
+    }
+    if (missingVerification) {
+      suggestions.push({
+        label: `Investigate missing verification (${missingVerification})`,
+        prompt: 'Which employed graduates are missing verification, and what ACCSC documentation is required?',
+        reason: `${missingVerification} employment record${missingVerification === 1 ? '' : 's'} lack a verification source.`,
+      });
+    }
+    if (pacRecords.length) {
+      suggestions.push({
+        label: `Create PAC report (${pacRecords.length})`,
+        prompt: 'Make a PAC attendees report',
+        reason: `${pacRecords.length} PAC or advisory-committee record${pacRecords.length === 1 ? '' : 's'} were identified.`,
+        reportType: 'pac_attendees',
+      });
+    }
+    if (careerFairRecords.length) {
+      suggestions.push({
+        label: `Create career fair report (${careerFairRecords.length})`,
+        prompt: 'Make a career fair registrations report',
+        reason: `${careerFairRecords.length} career-fair registration${careerFairRecords.length === 1 ? '' : 's'} were identified.`,
+        reportType: 'career_fair_registrations',
+      });
+    }
+    if (employerCount) {
+      suggestions.push({
+        label: `Build employer directory (${employerCount})`,
+        prompt: 'Make an employer directory',
+        reason: `${employerCount} unique employer${employerCount === 1 ? '' : 's'} were found across the uploaded files.`,
+        reportType: 'employer_directory',
+      });
+    }
+    if (unclassifiedRecords) {
+      suggestions.push({
+        label: `Review unclassified records (${unclassifiedRecords})`,
+        prompt: 'Review the unclassified records and explain what columns or information are needed to use them in reports.',
+        reason: `${unclassifiedRecords} row${unclassifiedRecords === 1 ? '' : 's'} could not be confidently classified.`,
+      });
+    }
+
+    suggestions.push({
+      label: 'Summarize the uploaded data',
+      prompt: 'Summarize the uploaded files, explain what the data contains, and recommend the most useful next activity.',
+      reason: `Uses all ${records.length} recognized record${records.length === 1 ? '' : 's'} in the current workspace.`,
+    });
+    return suggestions.slice(0, 7);
+  }, [records, flags, errorCount, warningCount]);
+
+  const uploadedFileLabel = useMemo(
+    () => files.map(file => file.filename).join(', '),
+    [files]
+  );
 
   const refreshFlags = useCallback((recs: CareerRecord[]) => {
     setFlags(evaluateAccscFlags(recs));
@@ -329,6 +404,7 @@ export default function CareerReportsPage() {
             {assistantSuggestions.length > 0 && (
               <div className={styles.suggestions} aria-label="Suggested actions">
                 <span>Suggested next steps</span>
+                <p className={styles.suggestionSource}>Based on: {uploadedFileLabel}</p>
                 <div>
                   {assistantSuggestions.map(suggestion => (
                     <button
@@ -337,7 +413,8 @@ export default function CareerReportsPage() {
                       onClick={() => handleAssistantPrompt(suggestion.prompt, suggestion.reportType)}
                       disabled={busy}
                     >
-                      {suggestion.label}
+                      <strong>{suggestion.label}</strong>
+                      <small>{suggestion.reason}</small>
                     </button>
                   ))}
                 </div>
@@ -357,22 +434,17 @@ export default function CareerReportsPage() {
               <button type="button" className={styles.btn} onClick={submitAssistantRequest} disabled={busy || !records.length || !question.trim()}>Send</button>
             </div>
 
+            {programs.length > 1 && (
             <div className={styles.quickReports}>
-              <span>Quick report controls</span>
+              <span>Report scope</span>
               <div className={styles.fieldRow}>
                 <select value={program} onChange={e => setProgram(e.target.value)} aria-label="Program">
                   <option value="">All programs</option>
                   {programs.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
-              <div>
-                <button type="button" onClick={() => void runReport('pac_attendees', true)} disabled={busy || !records.length}>PAC</button>
-                <button type="button" onClick={() => void runReport('career_fair_registrations', true)} disabled={busy || !records.length}>Career fair</button>
-                <button type="button" onClick={() => void runReport('hires', true)} disabled={busy || !records.length}>Hires</button>
-                <button type="button" onClick={() => void runReport('employer_directory', true)} disabled={busy || !records.length}>Employers</button>
-                <button type="button" onClick={() => void runReport('accreditation_gaps', true)} disabled={busy || !records.length}>ACCSC gaps</button>
-              </div>
             </div>
+            )}
           </section>
           </div>
 
