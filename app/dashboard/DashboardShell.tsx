@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   CAREER_SERVICES_TOOLS,
   CAREER_TOOL_CATEGORIES,
+  dashboardToolbarTools,
   HOME_TOOL_ICON,
   isCareerToolId,
 } from '@/lib/careerServicesTools';
@@ -83,6 +84,7 @@ export default function DashboardShell() {
   const iframeSrc = activeTool?.href ?? '';
   const iconsOnly = sidebarMode === 'icons';
   const sidebarHidden = sidebarMode === 'hidden';
+  const toolbarTools = dashboardToolbarTools();
 
   return (
     <div className={styles.dashboard}>
@@ -153,6 +155,31 @@ export default function DashboardShell() {
               >
                 {sidebarModeToggleLabel(sidebarMode)}
               </button>
+
+              {toolbarTools.length > 0 && (
+                <div
+                  className={`${styles.toolbarQuickLinks} ${iconsOnly ? styles.toolbarQuickLinksCompact : ''}`}
+                  aria-label="Quick tools"
+                >
+                  {toolbarTools.map(tool => (
+                    <button
+                      key={tool.id}
+                      type="button"
+                      className={`${styles.toolbarQuickBtn} ${activeId === tool.id ? styles.toolbarQuickBtnActive : ''}`}
+                      onClick={() => selectTool(tool.id)}
+                      title={tool.title}
+                      aria-label={tool.title}
+                      aria-current={activeId === tool.id ? 'page' : undefined}
+                    >
+                      {iconsOnly ? (
+                        <span className={styles.toolbarQuickIcon} aria-hidden="true">{tool.icon}</span>
+                      ) : (
+                        tool.title
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {!sidebarHidden && (

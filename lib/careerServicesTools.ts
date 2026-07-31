@@ -111,6 +111,20 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
 export const HOME_TOOL_ICON = '🏠';
 
 export const DASHBOARD_LG_ROOM_PATH = '/dashboard?tool=lga-room';
+export const DASHBOARD_LOCAL_JOB_SEARCH_PATH = '/dashboard?tool=local-job-search';
+
+/** Pinned shortcuts shown in the dashboard sidebar toolbar (top of right menu). */
+export const DASHBOARD_TOOLBAR_TOOL_IDS = [
+  'local-job-search',
+  'resume-search',
+  'career-reports',
+] as const;
+
+export function dashboardToolbarTools() {
+  return DASHBOARD_TOOLBAR_TOOL_IDS
+    .map(id => CAREER_SERVICES_TOOLS.find(tool => tool.id === id))
+    .filter((tool): tool is CareerTool => Boolean(tool));
+}
 
 export function dashboardToolPath(toolId: string) {
   return `/dashboard?tool=${toolId}`;
