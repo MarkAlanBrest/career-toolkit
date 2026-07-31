@@ -1,4 +1,5 @@
 import type { AccscFlag, CareerRecord, ReportResult, ReportType } from './types';
+import { rulesForReport } from './accreditationRules';
 
 function recordMatchesPac(r: CareerRecord): boolean {
   return r.eventType.includes('pac') || /pac|advisory committee/i.test(r.notes) || /pac/i.test(r.sourceFile);
@@ -33,6 +34,7 @@ export function runReport(
           Source: r.sourceFile,
         })),
         summary: `${pac.length} PAC-related record(s) found across uploaded files and portal data.`,
+        accreditationRules: rulesForReport(reportType),
       };
 
     case 'career_fair_registrations':
@@ -50,6 +52,7 @@ export function runReport(
           Notes: r.notes,
         })),
         summary: `${fairs.length} career fair registration(s) found.`,
+        accreditationRules: rulesForReport(reportType),
       };
 
     case 'hires':
@@ -67,6 +70,7 @@ export function runReport(
           Source: r.sourceFile,
         })),
         summary: `${hires.length} hire record(s) found.`,
+        accreditationRules: rulesForReport(reportType),
       };
 
     case 'employer_directory':
@@ -88,6 +92,7 @@ export function runReport(
           Address: r.employerAddress,
         })),
         summary: `${employers.size} unique employer(s) across all sources.`,
+        accreditationRules: rulesForReport(reportType),
       };
 
     case 'accreditation_gaps':
@@ -103,6 +108,7 @@ export function runReport(
           Rule: f.rule,
         })),
         summary: `${flags.filter(f => f.severity === 'error').length} error(s), ${flags.filter(f => f.severity === 'warning').length} warning(s).`,
+        accreditationRules: rulesForReport(reportType),
       };
 
     default:
@@ -112,6 +118,7 @@ export function runReport(
         columns: [],
         rows: [],
         summary: 'Unknown report type.',
+        accreditationRules: rulesForReport(reportType),
       };
   }
 }

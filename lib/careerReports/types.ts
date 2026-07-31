@@ -66,6 +66,7 @@ export type ReportResult = {
   columns: string[];
   rows: Record<string, string>[];
   summary: string;
+  accreditationRules: import('./accreditationRules').AccreditationRule[];
 };
 
 export type WorkspaceSnapshot = {

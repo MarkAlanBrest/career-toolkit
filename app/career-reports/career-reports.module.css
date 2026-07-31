@@ -43,14 +43,20 @@
   color: #c8d0e0;
 }
 
-.grid {
+.reportStudio {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.4fr);
   gap: 20px;
+  align-items: start;
 }
 
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
+  .reportStudio { grid-template-columns: 1fr; }
+  .outputCard { position: static; min-height: 480px; }
+}
+
+.controlColumn {
+  min-width: 0;
 }
 
 .card {
@@ -204,6 +210,103 @@
   margin-top: 10px;
 }
 
+.rulesBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 13px 15px;
+  border: 1px solid #c7a85a;
+  border-left: 5px solid #b58a24;
+  background: #fff9e8;
+}
+
+.rulesBanner > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.rulesBanner strong {
+  color: #6e5213;
+  font: 700 0.84rem 'Trebuchet MS', Arial, sans-serif;
+  text-transform: uppercase;
+}
+
+.rulesBanner span {
+  color: #5d5542;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.rulesLinks {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+.rulesLinks a,
+.reportRules a {
+  color: #244f98;
+  font: 700 0.76rem 'Trebuchet MS', Arial, sans-serif;
+}
+
+.answerRules {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #c8d4e8;
+  color: #505963;
+  font-size: 0.75rem;
+}
+
+.answerRules strong {
+  color: #26315f;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.answerRules ul {
+  margin: 5px 0 0;
+  padding-left: 18px;
+}
+
+.reportRules {
+  margin: 10px 0 16px;
+  padding: 14px;
+  border: 1px solid #d5c690;
+  background: #fffaf0;
+  font-size: 0.8rem;
+}
+
+.reportRules > strong {
+  color: #6e5213;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.reportRules ul {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding-left: 18px;
+}
+
+.reportRules li span {
+  display: block;
+  margin-top: 2px;
+  color: #595c60;
+  line-height: 1.4;
+}
+
+.reportRules p {
+  margin: 0;
+  color: #7a4c13;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .rulesBanner { align-items: flex-start; flex-direction: column; }
+  .rulesLinks { flex-wrap: wrap; }
+}
+
 .chatBox input {
   flex: 1;
   padding: 10px;
@@ -218,6 +321,210 @@
   margin-top: 12px;
   font-size: 0.9rem;
   line-height: 1.55;
+}
+
+.assistantCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.quickReports {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #d8dce2;
+}
+
+.quickReports > span {
+  display: block;
+  margin-bottom: 9px;
+  color: #596273;
+  font: 700 0.72rem 'Trebuchet MS', Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.quickReports > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quickReports button,
+.outputActions button {
+  padding: 8px 10px;
+  border: 1px solid #244f98;
+  background: #fff;
+  color: #244f98;
+  font: 700 0.76rem 'Trebuchet MS', Arial, sans-serif;
+  cursor: pointer;
+}
+
+.quickReports button:hover,
+.outputActions button:hover {
+  background: #eef4ff;
+}
+
+.quickReports button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.outputCard {
+  position: sticky;
+  top: 12px;
+  min-width: 0;
+  min-height: 620px;
+  background: #fff;
+}
+
+.outputHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #26315f;
+}
+
+.outputHeader span {
+  color: #69717b;
+  font: 700 0.68rem 'Trebuchet MS', Arial, sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.outputHeader h2 {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+}
+
+.outputActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.outputSummary {
+  margin: 16px 0;
+  color: #4f555c;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.generatedContent {
+  padding: 18px 2px;
+}
+
+.generatedContent > p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.outputEmpty {
+  display: grid;
+  min-height: 480px;
+  place-content: center;
+  padding: 30px;
+  text-align: center;
+  color: #777f88;
+}
+
+.outputEmpty strong {
+  color: #4c5661;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.outputEmpty p {
+  max-width: 360px;
+  margin: 8px auto 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.assistantHeading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 14px;
+}
+
+.assistantHeading h2 {
+  margin-bottom: 3px;
+}
+
+.assistantHeading p {
+  margin: 0;
+  color: #686d73;
+  font-size: 0.82rem;
+}
+
+.assistantMark {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #26315f;
+  color: #fff;
+  font: 700 0.78rem 'Trebuchet MS', Arial, sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.assistantWindow {
+  min-height: 112px;
+  padding: 16px;
+  border: 1px solid #c8d4e8;
+  border-left: 4px solid #244f98;
+  background: #f2f6fc;
+}
+
+.assistantWindow p {
+  margin: 7px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.assistantLabel,
+.suggestions > span {
+  color: #244f98;
+  font: 700 0.72rem 'Trebuchet MS', Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.suggestions {
+  margin-top: 14px;
+}
+
+.suggestions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.suggestions button {
+  padding: 7px 10px;
+  border: 1px solid #aebbd0;
+  background: #fff;
+  color: #244f98;
+  font: 700 0.76rem 'Trebuchet MS', Arial, sans-serif;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  border-color: #244f98;
+  background: #eef4ff;
+}
+
+.suggestions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .tableWrap { overflow-x: auto; margin-top: 12px; }
@@ -268,4 +575,44 @@
   padding: 10px 12px;
   font-size: 0.85rem;
   margin-top: 10px;
+}
+
+@media print {
+  .careerReports {
+    background: #fff;
+  }
+
+  .careerReports * {
+    visibility: hidden;
+  }
+
+  .outputCard,
+  .outputCard * {
+    visibility: visible;
+  }
+
+  .outputCard {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .outputActions {
+    display: none;
+  }
+
+  .tableWrap {
+    overflow: visible;
+  }
+
+  .table {
+    font-size: 9pt;
+  }
+
+  .reportRules {
+    break-inside: avoid;
+  }
 }

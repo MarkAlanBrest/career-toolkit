@@ -3,6 +3,7 @@ import { evaluateAccscFlags } from '@/lib/careerReports/accscFlags';
 import { askWithAi } from '@/lib/careerReports/ai';
 import { answerLocally } from '@/lib/careerReports/reports';
 import type { AccscFlag, CareerRecord, ParsedFile } from '@/lib/careerReports/types';
+import { ACCREDITATION_RULESET, rulesForQuestion } from '@/lib/careerReports/accreditationRules';
 
 export const maxDuration = 60;
 
@@ -19,5 +20,10 @@ export async function POST(req: NextRequest) {
   const localAnswer = answerLocally(body.question, records, flags);
   const answer = await askWithAi(body.question, records, files, localAnswer);
 
-  return NextResponse.json({ answer, localHint: localAnswer });
+  return NextResponse.json({
+    answer,
+    localHint: localAnswer,
+    accreditation: ACCREDITATION_RULESET,
+    rules: rulesForQuestion(body.question),
+  });
 }

@@ -15,8 +15,13 @@ export async function POST(req: NextRequest) {
   }
 
   const records = (body.records || []) as CareerRecord[];
-  const flags = body.flags || evaluateAccscFlags(records);
-  const result = runReport(reportType, records, flags);
+  const program = typeof body.program === 'string' ? body.program.trim() : '';
+  const reportRecords = program ? records.filter(record => record.program === program) : records;
+  const flags = body.flags || evaluateAccscFlags(reportRecords);
+  const reportFlags = program
+    ? flags.filter((flag: { recordId: string }) => reportRecords.some(record => record.id === flag.recordId))
+    : flags;
+  const result = runReport(reportType, reportRecords, reportFlags);
 
   return NextResponse.json({ result });
 }
