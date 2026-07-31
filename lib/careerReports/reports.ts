@@ -1,5 +1,3 @@
-import { generateGeChartReport } from '@/lib/geChart/generateReport';
-import type { StudentRow } from '@/lib/geChart/types';
 import type { AccscFlag, CareerRecord, ReportResult, ReportType } from './types';
 
 function recordMatchesPac(r: CareerRecord): boolean {
@@ -14,38 +12,10 @@ function recordMatchesHire(r: CareerRecord): boolean {
   return r.recordType === 'hire' || r.employmentStatus === 'employed_in_field' || /report-a-hire/i.test(r.raw.formId || '');
 }
 
-export function recordsToStudentRows(records: CareerRecord[]): StudentRow[] {
-  return records
-    .filter(r => r.studentName && (r.startDate || r.graduationDate))
-    .map((r, i) => ({
-      rowNumber: r.sourceRow || i + 1,
-      studentName: r.studentName,
-      program: r.program,
-      programLengthMonths: r.programLengthMonths || 12,
-      startDate: r.startDate ? new Date(r.startDate) : null,
-      graduationDate: r.graduationDate ? new Date(r.graduationDate) : null,
-      withdrawalDate: r.withdrawalDate ? new Date(r.withdrawalDate) : null,
-      unavailableGradReason: '' as const,
-      transferOut: false,
-      transferIn: false,
-      employmentStatus: (r.employmentStatus || (r.recordType === 'hire' ? 'employed_in_field' : '')) as StudentRow['employmentStatus'],
-      employerName: r.employerName,
-      employerAddress: r.employerAddress,
-      employerContact: r.employerContact,
-      employerPhone: r.employerPhone,
-      employerEmail: r.employerEmail,
-      jobTitle: r.jobTitle || r.positionTitle,
-      jobDuties: r.jobDuties,
-      employmentStartDate: r.employmentStartDate ? new Date(r.employmentStartDate) : null,
-      verificationSource: (r.verificationSource?.toLowerCase().includes('employer') ? 'employer' : r.verificationSource?.toLowerCase().includes('graduate') ? 'graduate' : '') as StudentRow['verificationSource'],
-    }));
-}
-
 export function runReport(
   reportType: ReportType,
   records: CareerRecord[],
   flags: AccscFlag[],
-  options?: { program?: string; reportDate?: string; programLengthMonths?: number; schoolName?: string }
 ): ReportResult {
   switch (reportType) {
     case 'pac_attendees':
@@ -135,42 +105,6 @@ export function runReport(
         summary: `${flags.filter(f => f.severity === 'error').length} error(s), ${flags.filter(f => f.severity === 'warning').length} warning(s).`,
       };
 
-    case 'ge_chart_summary':
-      const program = options?.program || '';
-      const students = recordsToStudentRows(records.filter(r => !program || r.program === program));
-      if (!program || students.length === 0) {
-        return {
-          reportType,
-          title: 'G&E Chart Summary',
-          columns: ['Metric', 'Value'],
-          rows: [
-            { Metric: 'Status', Value: 'Select a program with student start dates to generate G&E totals.' },
-          ],
-          summary: 'No program data available. Upload student spreadsheets or set program filter.',
-        };
-      }
-      const report = generateGeChartReport(students, {
-        reportDate: new Date(options?.reportDate || new Date().toISOString()),
-        schoolName: options?.schoolName || 'New Castle School of Trades',
-        programTitle: program,
-        programLengthMonths: options?.programLengthMonths || students[0]?.programLengthMonths || 12,
-      });
-      return {
-        reportType,
-        title: `G&E Chart — ${program}`,
-        columns: ['Metric', 'Value'],
-        rows: [
-          { Metric: 'Graduation Rate', Value: `${report.totals.graduationRate ?? '—'}%` },
-          { Metric: 'Employment Rate', Value: `${report.totals.employmentRate ?? '—'}%` },
-          { Metric: 'Graduates (150%)', Value: String(report.totals.graduatesWithin150) },
-          { Metric: 'Employed in Field', Value: String(report.totals.employedInField) },
-          { Metric: 'Students in Scope', Value: String(report.studentsInScope) },
-          { Metric: 'Reporting Period Start', Value: report.reportingPeriodStart.toISOString().slice(0, 10) },
-          { Metric: 'Reporting Period End', Value: report.reportingPeriodEnd.toISOString().slice(0, 10) },
-        ],
-        summary: `Program ${program}: ${report.totals.graduationRate ?? '—'}% graduation, ${report.totals.employmentRate ?? '—'}% employment. Use /ge-chart for full cohort export.`,
-      };
-
     default:
       return {
         reportType,
@@ -188,7 +122,6 @@ export const REPORT_CATALOG: Array<{ id: ReportType; label: string; description:
   { id: 'hires', label: 'Reported hires', description: 'Students hired by employers' },
   { id: 'employer_directory', label: 'Employer directory', description: 'Unique employers across all files' },
   { id: 'accreditation_gaps', label: 'ACCSC gaps', description: 'Missing fields and compliance warnings' },
-  { id: 'ge_chart_summary', label: 'G&E chart summary', description: 'Graduation and employment rates for selected program' },
 ];
 
 export function answerLocally(question: string, records: CareerRecord[], flags: AccscFlag[]): string {

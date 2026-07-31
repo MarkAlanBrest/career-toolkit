@@ -22,16 +22,8 @@ export const CAREER_SERVICES_TOOLS: CareerTool[] = [
     id: 'career-reports',
     title: 'Reporting hub',
     description:
-      'Upload spreadsheets and documents, ask questions, and generate ACCSC-aligned reports (PAC, hires, gaps, G&E summary).',
+      'Upload spreadsheets and documents, ask questions, and generate reports (PAC, hires, ACCSC gaps).',
     href: '/career-reports',
-    category: 'Reporting',
-  },
-  {
-    id: 'ge-chart',
-    title: 'G&E Chart builder',
-    description:
-      'Upload student Excel data and generate Graduation & Employment Chart totals for College360.',
-    href: '/ge-chart',
     category: 'Reporting',
   },
   {

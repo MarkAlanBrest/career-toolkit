@@ -16,12 +16,7 @@ export async function POST(req: NextRequest) {
 
   const records = (body.records || []) as CareerRecord[];
   const flags = body.flags || evaluateAccscFlags(records);
-  const result = runReport(reportType, records, flags, {
-    program: body.program,
-    reportDate: body.reportDate,
-    programLengthMonths: body.programLengthMonths,
-    schoolName: body.schoolName,
-  });
+  const result = runReport(reportType, records, flags);
 
   return NextResponse.json({ result });
 }

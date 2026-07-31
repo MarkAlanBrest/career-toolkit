@@ -58,8 +58,7 @@ export type ReportType =
   | 'career_fair_registrations'
   | 'hires'
   | 'employer_directory'
-  | 'accreditation_gaps'
-  | 'ge_chart_summary';
+  | 'accreditation_gaps';
 
 export type ReportResult = {
   reportType: ReportType;

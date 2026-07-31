@@ -150,7 +150,6 @@ export default function CareerReportsPage() {
     <main className={styles.careerReports}>
       <div className={styles.shell}>
         <Link href="/dashboard" className={styles.backLink}>← Dashboard</Link>
-        <Link href="/ge-chart" className={styles.backLink} style={{ marginLeft: 16 }}>G&E Chart →</Link>
 
         <header className={styles.header}>
           <h1>Career Services Reporting Hub</h1>
@@ -221,7 +220,6 @@ export default function CareerReportsPage() {
           <button type="button" className={styles.btn} onClick={() => runReport('hires')} disabled={busy}>Hires</button>
           <button type="button" className={styles.btn} onClick={() => runReport('employer_directory')} disabled={busy}>Employers</button>
           <button type="button" className={styles.btn} onClick={() => runReport('accreditation_gaps')} disabled={busy}>ACCSC gaps</button>
-          <button type="button" className={styles.btn} onClick={() => runReport('ge_chart_summary')} disabled={busy}>G&E summary</button>
 
           {reportResult && (
             <>
