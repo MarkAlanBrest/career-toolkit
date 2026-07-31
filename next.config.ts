@@ -1,6 +1,28 @@
 import type { NextConfig } from 'next';
 
 const config: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/dashboard',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/dashboard/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {
