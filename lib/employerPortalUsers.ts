@@ -290,6 +290,10 @@ export async function deleteEmployerSession(request: Request): Promise<void> {
   await saveEmployerSessions(sessions);
 }
 
+export async function listAllEmployerSubmissions(): Promise<SubmissionRecord[]> {
+  return getAllSubmissions();
+}
+
 export async function addSubmission(record: Omit<SubmissionRecord, 'id' | 'submittedAt'>): Promise<SubmissionRecord> {
   const submissions = await getAllSubmissions();
   const entry: SubmissionRecord = {
