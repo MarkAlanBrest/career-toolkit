@@ -99,13 +99,63 @@
 }
 
 .upload {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
   border: 2px dashed #a8b4c8;
   padding: 24px;
   text-align: center;
   background: #fff;
+  transition: border-color 150ms ease, background 150ms ease;
 }
 
-.upload input { display: none; }
+.upload strong {
+  color: #26315f;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+.upload p {
+  margin: 0;
+  color: #595c60;
+  font-size: 0.88rem;
+}
+
+.uploadDragging {
+  border-color: #244f98;
+  background: #eef4ff;
+}
+
+.fileInput {
+  width: min(100%, 360px);
+  padding: 6px;
+  border: 1px solid #b8c4d5;
+  background: #f8f8f5;
+  color: #3d4349;
+  font: 0.85rem 'Trebuchet MS', Arial, sans-serif;
+  cursor: pointer;
+}
+
+.fileInput::file-selector-button {
+  margin-right: 10px;
+  padding: 8px 12px;
+  border: 1px solid #244f98;
+  background: #244f98;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fileInput:disabled,
+.fileInput:disabled::file-selector-button {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.fileTypes {
+  color: #74787d;
+  font-size: 0.76rem;
+}
 
 .fileList {
   list-style: none;

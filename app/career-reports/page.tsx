@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react';
 import * as XLSX from 'xlsx';
 import { evaluateAccscFlags } from '@/lib/careerReports/accscFlags';
 import { buildRecordsFromFiles, listPrograms, mergeRecords } from '@/lib/careerReports/workspace';
@@ -28,6 +28,8 @@ export default function CareerReportsPage() {
   const [reportResult, setReportResult] = useState<ReportResult | null>(null);
   const [program, setProgram] = useState('');
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const programs = useMemo(() => listPrograms(records), [records]);
   const errorCount = flags.filter(f => f.severity === 'error').length;
@@ -43,15 +45,16 @@ export default function CareerReportsPage() {
     setReportResult(null);
   }, [refreshFlags]);
 
-  const onUpload = async (fileList: FileList | null) => {
-    if (!fileList?.length) return;
+  const onUpload = async (selectedFiles: FileList | File[] | null) => {
+    const filesToUpload = selectedFiles ? Array.from(selectedFiles) : [];
+    if (!filesToUpload.length) return;
     setBusy(true);
     setParseErrors([]);
     try {
       const form = new FormData();
-      Array.from(fileList).forEach(f => form.append('files', f));
+      filesToUpload.forEach(file => form.append('files', file));
       const res = await fetch('/api/career-reports/parse', { method: 'POST', body: form });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Upload failed');
 
       const newFiles = data.files as ParsedFile[];
@@ -67,7 +70,14 @@ export default function CareerReportsPage() {
       setParseErrors([(err as Error).message]);
     } finally {
       setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const onFileDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDraggingFiles(false);
+    if (!busy) void onUpload(event.dataTransfer.files);
   };
 
   const importPortal = async () => {
@@ -176,10 +186,32 @@ export default function CareerReportsPage() {
           <section className={styles.card}>
             <h2>Upload files</h2>
             <p className={styles.meta}>Excel, CSV, PDF, Word, or plain text. Multiple files at once.</p>
-            <label className={styles.upload}>
-              <input type="file" multiple accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt" onChange={e => onUpload(e.target.files)} disabled={busy} />
-              <p>{busy ? 'Processing…' : 'Click to add files'}</p>
-            </label>
+            <div
+              className={`${styles.upload} ${draggingFiles ? styles.uploadDragging : ''}`}
+              onDragEnter={event => {
+                event.preventDefault();
+                if (!busy) setDraggingFiles(true);
+              }}
+              onDragOver={event => event.preventDefault()}
+              onDragLeave={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDraggingFiles(false);
+              }}
+              onDrop={onFileDrop}
+            >
+              <strong>{busy ? 'Processing files…' : 'Add files to your workspace'}</strong>
+              <p>{busy ? 'Please keep this page open.' : 'Drag and drop files here, or use the picker below.'}</p>
+              <input
+                ref={fileInputRef}
+                className={styles.fileInput}
+                type="file"
+                multiple
+                accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,.txt"
+                aria-label="Choose report files"
+                onChange={event => void onUpload(event.currentTarget.files)}
+                disabled={busy}
+              />
+              <span className={styles.fileTypes}>Excel, CSV, PDF, Word, and text files</span>
+            </div>
             <div style={{ marginTop: 12 }}>
               <button type="button" className={styles.btn} onClick={importPortal} disabled={busy}>Import employer portal data</button>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={clearAll} disabled={busy}>Clear workspace</button>
