@@ -92,7 +92,7 @@ export default function DashboardShell() {
         <section className={styles.main} aria-label="Tool workspace">
           <div className={styles.content}>
             {activeId === HOME_ID ? (
-              <DashboardHome onSelectTool={selectTool} />
+              <DashboardHome />
             ) : (
               <iframe
                 className={styles.frame}
