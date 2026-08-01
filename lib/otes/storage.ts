@@ -1,7 +1,7 @@
-import type { ComponentRating, OtesWorkspace, TeacherProfile } from './types';
-import { getAllComponents } from './rubric';
+import { OTES_RUBRIC } from './rubric';
+import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
-export const STORAGE_KEY = 'otes-coach-workspace-v1';
+export const STORAGE_KEY = 'otes-coach-workspace-v2';
 
 function defaultProfile(): TeacherProfile {
   return {
@@ -14,39 +14,115 @@ function defaultProfile(): TeacherProfile {
   };
 }
 
-function defaultRatings(): ComponentRating[] {
+function defaultCategoryRatings(): CategoryRating[] {
   const now = new Date().toISOString();
-  return getAllComponents().map(component => ({
-    componentId: component.id,
+  return OTES_RUBRIC.map(domain => ({
+    categoryId: domain.id,
     currentLevel: null,
-    targetLevel: 'accomplished',
-    notes: '',
+    goal: '',
+    strategy: '',
     updatedAt: now,
   }));
 }
 
 export function createDefaultWorkspace(): OtesWorkspace {
-  const now = new Date().toISOString();
   return {
-    version: 1,
+    version: 2,
     profile: defaultProfile(),
-    ratings: defaultRatings(),
-    evidence: [],
-    goals: [],
-    observations: [],
-    lessonPlans: [],
-    dismissedSuggestions: [],
-    updatedAt: now,
+    categoryRatings: defaultCategoryRatings(),
+    actions: [],
+    coachMessages: [],
+    evalLessonPlans: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+type LegacyWorkspace = {
+  version?: number;
+  profile?: Partial<TeacherProfile>;
+  evidence?: Array<{ id: string; componentId: string; title: string; description: string; date: string; createdAt: string }>;
+  lessonPlans?: Array<{ id: string; topic?: string; title: string; subject: string; gradeLevel: string; duration: string; targetDomains?: string[]; objective: string; standards: string; hook: string; instruction: string[]; differentiation: string[]; assessment: string[]; closure: string; otesEvidence: string[]; createdAt: string }>;
+  ratings?: Array<{ componentId: string; currentLevel: string | null }>;
+  [key: string]: unknown;
+};
+
+function componentToCategory(componentId: string): string {
+  for (const domain of OTES_RUBRIC) {
+    if (domain.components.some(c => c.id === componentId)) return domain.id;
+  }
+  return OTES_RUBRIC[0].id;
+}
+
+function migrateFromLegacy(raw: LegacyWorkspace): OtesWorkspace {
+  const base = createDefaultWorkspace();
+  const profile = { ...base.profile, ...(raw.profile ?? {}) };
+
+  const actions = (raw.evidence ?? []).map(e => ({
+    id: e.id,
+    categoryId: componentToCategory(e.componentId),
+    date: e.date || e.createdAt.slice(0, 10),
+    title: e.title,
+    description: e.description,
+    createdAt: e.createdAt,
+  }));
+
+  const evalLessonPlans = (raw.lessonPlans ?? []).map(lp => ({
+    id: lp.id,
+    topic: lp.topic || lp.title,
+    title: lp.title,
+    subject: lp.subject,
+    gradeLevel: lp.gradeLevel,
+    duration: lp.duration,
+    categoryId: lp.targetDomains?.[0] || OTES_RUBRIC[0].id,
+    objective: lp.objective,
+    standards: lp.standards,
+    hook: lp.hook,
+    instruction: lp.instruction,
+    differentiation: lp.differentiation,
+    assessment: lp.assessment,
+    closure: lp.closure,
+    otesEvidence: lp.otesEvidence,
+    createdAt: lp.createdAt,
+  }));
+
+  const categoryRatings = base.categoryRatings.map(rating => {
+    const domain = OTES_RUBRIC.find(d => d.id === rating.categoryId);
+    if (!domain) return rating;
+    const componentLevels = domain.components
+      .map(c => raw.ratings?.find(r => r.componentId === c.id)?.currentLevel)
+      .filter(Boolean) as string[];
+    if (!componentLevels.length) return rating;
+    const scores = componentLevels.map(l => {
+      const order = ['ineffective', 'developing', 'skilled', 'accomplished'];
+      return order.indexOf(l);
+    });
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const level = ['ineffective', 'developing', 'skilled', 'accomplished'][Math.round(avg)] as CategoryRating['currentLevel'];
+    return { ...rating, currentLevel: level, updatedAt: new Date().toISOString() };
+  });
+
+  return {
+    ...base,
+    profile,
+    categoryRatings,
+    actions,
+    evalLessonPlans,
+    updatedAt: new Date().toISOString(),
   };
 }
 
 export function loadWorkspace(): OtesWorkspace {
   if (typeof window === 'undefined') return createDefaultWorkspace();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return createDefaultWorkspace();
-    const parsed = JSON.parse(raw) as OtesWorkspace;
-    return mergeWorkspace(parsed);
+    const v2 = localStorage.getItem(STORAGE_KEY);
+    if (v2) return mergeWorkspace(JSON.parse(v2) as Partial<OtesWorkspace>);
+    const v1 = localStorage.getItem('otes-coach-workspace-v1');
+    if (v1) {
+      const migrated = migrateFromLegacy(JSON.parse(v1) as LegacyWorkspace);
+      saveWorkspace(migrated);
+      return migrated;
+    }
+    return createDefaultWorkspace();
   } catch {
     return createDefaultWorkspace();
   }
@@ -54,22 +130,16 @@ export function loadWorkspace(): OtesWorkspace {
 
 function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
   const defaults = createDefaultWorkspace();
-  const ratingMap = new Map((saved.ratings ?? []).map(r => [r.componentId, r]));
-  const mergedRatings = defaults.ratings.map(defaultRating => {
-    const existing = ratingMap.get(defaultRating.componentId);
-    return existing ? { ...defaultRating, ...existing } : defaultRating;
-  });
-
+  const ratingMap = new Map((saved.categoryRatings ?? []).map(r => [r.categoryId, r]));
   return {
     ...defaults,
     ...saved,
+    version: 2,
     profile: { ...defaults.profile, ...(saved.profile ?? {}) },
-    ratings: mergedRatings,
-    evidence: saved.evidence ?? [],
-    goals: saved.goals ?? [],
-    observations: saved.observations ?? [],
-    lessonPlans: saved.lessonPlans ?? [],
-    dismissedSuggestions: saved.dismissedSuggestions ?? [],
+    categoryRatings: defaults.categoryRatings.map(r => ({ ...r, ...ratingMap.get(r.categoryId) })),
+    actions: saved.actions ?? [],
+    coachMessages: saved.coachMessages ?? [],
+    evalLessonPlans: saved.evalLessonPlans ?? [],
     updatedAt: saved.updatedAt ?? new Date().toISOString(),
   };
 }
@@ -79,15 +149,6 @@ export function saveWorkspace(workspace: OtesWorkspace) {
   const next = { ...workspace, updatedAt: new Date().toISOString() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   return next;
-}
-
-export function exportWorkspace(workspace: OtesWorkspace): string {
-  return JSON.stringify(workspace, null, 2);
-}
-
-export function importWorkspace(json: string): OtesWorkspace {
-  const parsed = JSON.parse(json) as Partial<OtesWorkspace>;
-  return mergeWorkspace(parsed);
 }
 
 export function newId(prefix: string) {
