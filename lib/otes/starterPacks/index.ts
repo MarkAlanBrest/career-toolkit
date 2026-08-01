@@ -25,7 +25,7 @@ export function applyStarterPack(workspace: OtesWorkspace, packId: StarterPackId
   return {
     ...workspace,
     profile: { ...workspace.profile, ...WOODS_TECH_PROFILE },
-    categoryRatings: buildWoodsTechCategoryRatings(workspace.categoryRatings),
+    categoryRatings: buildWoodsTechCategoryRatings(workspace.categoryRatings, { onlyIfEmpty: true }),
     actions: [
       ...WOODS_TECH_ACTIONS.map(action => ({
         ...action,

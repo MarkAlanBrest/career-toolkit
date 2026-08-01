@@ -281,15 +281,18 @@ export const WOODS_TECH_EVALUATOR_HANDOUTS = {
 
 export function buildWoodsTechCategoryRatings(
   baseRatings: CategoryRating[],
+  options?: { onlyIfEmpty?: boolean },
 ): CategoryRating[] {
   const now = new Date().toISOString();
   return baseRatings.map(rating => {
     const pack = WOODS_TECH_GOALS[rating.categoryId];
     if (!pack) return rating;
+    const goal = options?.onlyIfEmpty && rating.goal?.trim() ? rating.goal : pack.goal;
+    const strategy = options?.onlyIfEmpty && rating.strategy?.trim() ? rating.strategy : pack.strategy;
     return {
       ...rating,
-      goal: pack.goal,
-      strategy: pack.strategy,
+      goal,
+      strategy,
       updatedAt: now,
     };
   });

@@ -1,3 +1,4 @@
+import { buildWoodsTechCategoryRatings, WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
 import { OTES_RUBRIC } from './rubric';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
@@ -8,21 +9,22 @@ function defaultProfile(): TeacherProfile {
     name: '',
     school: '',
     district: '',
-    subject: '',
-    gradeLevel: '',
+    subject: WOODS_TECH_PROFILE.subject ?? '',
+    gradeLevel: WOODS_TECH_PROFILE.gradeLevel ?? '',
     evaluationYear: new Date().getFullYear().toString(),
   };
 }
 
 function defaultCategoryRatings(): CategoryRating[] {
   const now = new Date().toISOString();
-  return OTES_RUBRIC.map(domain => ({
+  const base = OTES_RUBRIC.map(domain => ({
     categoryId: domain.id,
     currentLevel: null,
     goal: '',
     strategy: '',
     updatedAt: now,
   }));
+  return buildWoodsTechCategoryRatings(base);
 }
 
 export function createDefaultWorkspace(): OtesWorkspace {
@@ -136,7 +138,16 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
     ...saved,
     version: 2,
     profile: { ...defaults.profile, ...(saved.profile ?? {}) },
-    categoryRatings: defaults.categoryRatings.map(r => ({ ...r, ...ratingMap.get(r.categoryId) })),
+    categoryRatings: defaults.categoryRatings.map(r => {
+      const saved = ratingMap.get(r.categoryId);
+      if (!saved) return r;
+      return {
+        ...r,
+        ...saved,
+        goal: saved.goal?.trim() ? saved.goal : r.goal,
+        strategy: saved.strategy?.trim() ? saved.strategy : r.strategy,
+      };
+    }),
     actions: saved.actions ?? [],
     coachMessages: saved.coachMessages ?? [],
     evalLessonPlans: saved.evalLessonPlans ?? [],

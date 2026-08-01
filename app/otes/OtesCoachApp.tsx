@@ -7,7 +7,7 @@ import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS } from '@/lib/otes/rubric';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
-import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
+import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace, STORAGE_KEY } from '@/lib/otes/storage';
 import type {
   CategoryAction,
   CategoryCoachMessage,
@@ -42,7 +42,20 @@ export default function OtesCoachApp() {
   const [generatedEvalPlan, setGeneratedEvalPlan] = useState<Partial<EvalLessonPlan> | null>(null);
 
   useEffect(() => {
-    setWorkspace(loadWorkspace());
+    const loaded = loadWorkspace();
+    setWorkspace(loaded);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        saveWorkspace(loaded);
+        return;
+      }
+      const parsed = JSON.parse(raw) as { categoryRatings?: Array<{ goal?: string; strategy?: string }> };
+      const needsBackfill = (parsed.categoryRatings ?? []).some(r => !r.goal?.trim() || !r.strategy?.trim());
+      if (needsBackfill) saveWorkspace(loaded);
+    } catch {
+      saveWorkspace(loaded);
+    }
   }, []);
 
   const persist = useCallback((updater: (prev: OtesWorkspace) => OtesWorkspace) => {
@@ -186,7 +199,7 @@ export default function OtesCoachApp() {
   };
 
   const loadWoodsTechStarterPack = () => {
-    if (!confirm('Load the Woods Technology starter pack? This adds goals, strategies, sample actions, and lesson plans. Your existing data will be kept.')) return;
+    if (!confirm('Load sample action logs and observation lesson plans? Your goals, strategies, and other data will be kept.')) return;
     persist(prev => applyStarterPack(prev, 'woods_technology'));
     setShowSettings(false);
   };
@@ -519,12 +532,12 @@ export default function OtesCoachApp() {
               </div>
             ))}
             <div className={styles.field}>
-              <label className={styles.label}>Starter packs</label>
+              <label className={styles.label}>Sample content</label>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
-                Pre-fill goals, strategies, action logs, and observation lesson plans for shop classes.
+                Goals and strategies are pre-filled for each category. Load sample action logs and observation lesson plans below.
               </p>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
-                Load Woods Technology pack
+                Load sample actions &amp; lesson plans
               </button>
             </div>
             <div className={styles.field}>
