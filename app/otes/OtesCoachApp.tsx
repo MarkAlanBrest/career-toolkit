@@ -5,6 +5,8 @@ import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS } from '@/lib/otes/rubric';
+import { applyStarterPack } from '@/lib/otes/starterPacks';
+import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
   CategoryAction,
@@ -181,6 +183,35 @@ export default function OtesCoachApp() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const loadWoodsTechStarterPack = () => {
+    if (!confirm('Load the Woods Technology starter pack? This adds goals, strategies, sample actions, and lesson plans. Your existing data will be kept.')) return;
+    persist(prev => applyStarterPack(prev, 'woods_technology'));
+    setShowSettings(false);
+  };
+
+  const downloadEvaluatorHandout = (key: 'wt1Rafter' | 'wt24Joinery') => {
+    const handout = WOODS_TECH_EVALUATOR_HANDOUTS[key];
+    const text = [
+      `# Evaluator Handout: ${handout.title}`,
+      '',
+      '## Pre-Conference Talking Points',
+      ...handout.preConference.map(item => `- ${item}`),
+      '',
+      '## Evidence Checklist',
+      ...handout.evidenceChecklist.map(item => `- [ ] ${item}`),
+      '',
+      '## Notes',
+      '',
+    ].join('\n');
+    const blob = new Blob([text], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `evaluator-handout-${key.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const downloadEvalPlan = (plan: EvalLessonPlan | Partial<EvalLessonPlan>) => {
@@ -487,6 +518,26 @@ export default function OtesCoachApp() {
                 />
               </div>
             ))}
+            <div className={styles.field}>
+              <label className={styles.label}>Starter packs</label>
+              <p className={styles.cardIntro} style={{ marginTop: 0 }}>
+                Pre-fill goals, strategies, action logs, and observation lesson plans for shop classes.
+              </p>
+              <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
+                Load Woods Technology pack
+              </button>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Evaluator handouts</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => downloadEvaluatorHandout('wt1Rafter')}>
+                  WT1 Rafter handout
+                </button>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => downloadEvaluatorHandout('wt24Joinery')}>
+                  WT2–4 Joinery handout
+                </button>
+              </div>
+            </div>
             <div className={styles.modalActions}>
               <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={() => { if (confirm('Reset all data?')) { setWorkspace(saveWorkspace(createDefaultWorkspace())!); setShowSettings(false); } }}>
                 Reset
