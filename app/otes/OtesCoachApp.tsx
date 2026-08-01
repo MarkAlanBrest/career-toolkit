@@ -5,6 +5,8 @@ import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS } from '@/lib/otes/rubric';
+import { applyDefaultGoals, WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
+import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
   CategoryAction,
@@ -24,7 +26,7 @@ function formatDate(iso: string) {
 }
 
 export default function OtesCoachApp() {
-  const [workspace, setWorkspace] = useState<OtesWorkspace>(createDefaultWorkspace);
+  const [workspace, setWorkspace] = useState<OtesWorkspace | null>(null);
   const [view, setView] = useState<View>('dashboard');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -44,11 +46,36 @@ export default function OtesCoachApp() {
   }, []);
 
   const persist = useCallback((updater: (prev: OtesWorkspace) => OtesWorkspace) => {
-    setWorkspace(prev => saveWorkspace(updater(prev))!);
+    setWorkspace(prev => {
+      if (!prev) return prev;
+      return saveWorkspace(updater(prev))!;
+    });
   }, []);
 
-  const categoryProgress = useMemo(() => computeAllCategoryProgress(workspace), [workspace]);
+  const restoreDefaultGoals = (categoryId?: string) => {
+    if (!workspace) return;
+    const cleared = {
+      ...workspace,
+      categoryRatings: workspace.categoryRatings.map(rating => {
+        if (categoryId && rating.categoryId !== categoryId) return rating;
+        return { ...rating, goal: '', strategy: '' };
+      }),
+    };
+    setWorkspace(saveWorkspace(applyDefaultGoals(cleared).workspace)!);
+  };
+
+  const categoryProgress = useMemo(() => (workspace ? computeAllCategoryProgress(workspace) : []), [workspace]);
   const totalProgress = useMemo(() => overallProgress(categoryProgress), [categoryProgress]);
+
+  if (!workspace) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <p>Loading your OTES workspace…</p>
+        </main>
+      </div>
+    );
+  }
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
   const selectedRating = workspace.categoryRatings.find(r => r.categoryId === selectedCategoryId);
@@ -181,6 +208,35 @@ export default function OtesCoachApp() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const loadWoodsTechStarterPack = () => {
+    if (!confirm('Load sample action logs and observation lesson plans? Your goals, strategies, and other data will be kept.')) return;
+    persist(prev => applyStarterPack(prev, 'woods_technology'));
+    setShowSettings(false);
+  };
+
+  const downloadEvaluatorHandout = (key: 'wt1Rafter' | 'wt24Joinery') => {
+    const handout = WOODS_TECH_EVALUATOR_HANDOUTS[key];
+    const text = [
+      `# Evaluator Handout: ${handout.title}`,
+      '',
+      '## Pre-Conference Talking Points',
+      ...handout.preConference.map(item => `- ${item}`),
+      '',
+      '## Evidence Checklist',
+      ...handout.evidenceChecklist.map(item => `- [ ] ${item}`),
+      '',
+      '## Notes',
+      '',
+    ].join('\n');
+    const blob = new Blob([text], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `evaluator-handout-${key.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const downloadEvalPlan = (plan: EvalLessonPlan | Partial<EvalLessonPlan>) => {
@@ -332,6 +388,16 @@ export default function OtesCoachApp() {
                     onChange={e => updateCategoryRating({ strategy: e.target.value })}
                     placeholder="How will you get there?"
                   />
+                  {!selectedRating?.goal?.trim() && !selectedRating?.strategy?.trim() && (
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
+                      style={{ marginTop: 8 }}
+                      onClick={() => restoreDefaultGoals(selectedCategoryId ?? undefined)}
+                    >
+                      Restore default goal &amp; strategy
+                    </button>
+                  )}
                 </div>
                 <div className={styles.statRow}>
                   <span><strong>{selectedActions.length}</strong> actions logged</span>
@@ -487,6 +553,31 @@ export default function OtesCoachApp() {
                 />
               </div>
             ))}
+            <div className={styles.field}>
+              <label className={styles.label}>Sample content</label>
+              <p className={styles.cardIntro} style={{ marginTop: 0 }}>
+                Goals and strategies are pre-filled for each category. Load sample action logs and observation lesson plans below.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => restoreDefaultGoals()}>
+                  Restore default goals &amp; strategies
+                </button>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
+                  Load sample actions &amp; lesson plans
+                </button>
+              </div>
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Evaluator handouts</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => downloadEvaluatorHandout('wt1Rafter')}>
+                  WT1 Rafter handout
+                </button>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => downloadEvaluatorHandout('wt24Joinery')}>
+                  WT2–4 Joinery handout
+                </button>
+              </div>
+            </div>
             <div className={styles.modalActions}>
               <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={() => { if (confirm('Reset all data?')) { setWorkspace(saveWorkspace(createDefaultWorkspace())!); setShowSettings(false); } }}>
                 Reset
