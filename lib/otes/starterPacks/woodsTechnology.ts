@@ -1,4 +1,4 @@
-import type { CategoryAction, CategoryRating, EvalLessonPlan, TeacherProfile } from '../types';
+import type { CategoryAction, CategoryRating, EvalLessonPlan, OtesWorkspace, TeacherProfile } from '../types';
 
 export const WOODS_TECH_PROFILE: Partial<TeacherProfile> = {
   subject: 'Woods Technology (WT1, WT2–4)',
@@ -278,6 +278,19 @@ export const WOODS_TECH_EVALUATOR_HANDOUTS = {
     ],
   },
 };
+
+export function applyDefaultGoals(workspace: OtesWorkspace): { workspace: OtesWorkspace; changed: boolean } {
+  const categoryRatings = buildWoodsTechCategoryRatings(workspace.categoryRatings, { onlyIfEmpty: true });
+  const changed = categoryRatings.some((rating, index) => {
+    const previous = workspace.categoryRatings[index];
+    return rating.goal !== previous?.goal || rating.strategy !== previous?.strategy;
+  });
+  if (!changed) return { workspace, changed: false };
+  return {
+    workspace: { ...workspace, categoryRatings, updatedAt: new Date().toISOString() },
+    changed: true,
+  };
+}
 
 export function buildWoodsTechCategoryRatings(
   baseRatings: CategoryRating[],

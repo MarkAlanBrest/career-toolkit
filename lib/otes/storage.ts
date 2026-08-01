@@ -1,8 +1,9 @@
-import { buildWoodsTechCategoryRatings, WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
+import { applyDefaultGoals, buildWoodsTechCategoryRatings, WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
 import { OTES_RUBRIC } from './rubric';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
-export const STORAGE_KEY = 'otes-coach-workspace-v2';
+export const STORAGE_KEY = 'otes-coach-workspace-v3';
+const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
 
 function defaultProfile(): TeacherProfile {
   return {
@@ -103,49 +104,32 @@ function migrateFromLegacy(raw: LegacyWorkspace): OtesWorkspace {
     return { ...rating, currentLevel: level, updatedAt: new Date().toISOString() };
   });
 
-  return {
+  return applyDefaultGoals({
     ...base,
     profile,
     categoryRatings,
     actions,
     evalLessonPlans,
     updatedAt: new Date().toISOString(),
-  };
-}
-
-export function loadWorkspace(): OtesWorkspace {
-  if (typeof window === 'undefined') return createDefaultWorkspace();
-  try {
-    const v2 = localStorage.getItem(STORAGE_KEY);
-    if (v2) return mergeWorkspace(JSON.parse(v2) as Partial<OtesWorkspace>);
-    const v1 = localStorage.getItem('otes-coach-workspace-v1');
-    if (v1) {
-      const migrated = migrateFromLegacy(JSON.parse(v1) as LegacyWorkspace);
-      saveWorkspace(migrated);
-      return migrated;
-    }
-    return createDefaultWorkspace();
-  } catch {
-    return createDefaultWorkspace();
-  }
+  }).workspace;
 }
 
 function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
   const defaults = createDefaultWorkspace();
   const ratingMap = new Map((saved.categoryRatings ?? []).map(r => [r.categoryId, r]));
-  return {
+  const merged: OtesWorkspace = {
     ...defaults,
     ...saved,
     version: 2,
     profile: { ...defaults.profile, ...(saved.profile ?? {}) },
     categoryRatings: defaults.categoryRatings.map(r => {
-      const saved = ratingMap.get(r.categoryId);
-      if (!saved) return r;
+      const savedRating = ratingMap.get(r.categoryId);
+      if (!savedRating) return r;
       return {
         ...r,
-        ...saved,
-        goal: saved.goal?.trim() ? saved.goal : r.goal,
-        strategy: saved.strategy?.trim() ? saved.strategy : r.strategy,
+        ...savedRating,
+        goal: savedRating.goal?.trim() ? savedRating.goal : r.goal,
+        strategy: savedRating.strategy?.trim() ? savedRating.strategy : r.strategy,
       };
     }),
     actions: saved.actions ?? [],
@@ -153,6 +137,46 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
     evalLessonPlans: saved.evalLessonPlans ?? [],
     updatedAt: saved.updatedAt ?? new Date().toISOString(),
   };
+  return applyDefaultGoals(merged).workspace;
+}
+
+function readStoredWorkspace(): Partial<OtesWorkspace> | null {
+  if (typeof window === 'undefined') return null;
+  const current = localStorage.getItem(STORAGE_KEY);
+  if (current) return JSON.parse(current) as Partial<OtesWorkspace>;
+
+  for (const legacyKey of LEGACY_STORAGE_KEYS) {
+    const legacy = localStorage.getItem(legacyKey);
+    if (!legacy) continue;
+    if (legacyKey === 'otes-coach-workspace-v1') {
+      return migrateFromLegacy(JSON.parse(legacy) as LegacyWorkspace);
+    }
+    return JSON.parse(legacy) as Partial<OtesWorkspace>;
+  }
+
+  return null;
+}
+
+export function loadWorkspace(): OtesWorkspace {
+  if (typeof window === 'undefined') return createDefaultWorkspace();
+  try {
+    const stored = readStoredWorkspace();
+    if (!stored) return finalizeWorkspace(createDefaultWorkspace());
+    if ('actions' in stored && Array.isArray(stored.actions)) {
+      return finalizeWorkspace(mergeWorkspace(stored));
+    }
+    return finalizeWorkspace(migrateFromLegacy(stored as LegacyWorkspace));
+  } catch {
+    return finalizeWorkspace(createDefaultWorkspace());
+  }
+}
+
+function finalizeWorkspace(workspace: OtesWorkspace): OtesWorkspace {
+  const { workspace: withGoals, changed } = applyDefaultGoals(workspace);
+  if (changed || !localStorage.getItem(STORAGE_KEY)) {
+    saveWorkspace(withGoals);
+  }
+  return withGoals;
 }
 
 export function saveWorkspace(workspace: OtesWorkspace) {

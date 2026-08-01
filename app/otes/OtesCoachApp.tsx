@@ -5,9 +5,9 @@ import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS } from '@/lib/otes/rubric';
+import { applyDefaultGoals, WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
-import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
-import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace, STORAGE_KEY } from '@/lib/otes/storage';
+import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
   CategoryAction,
   CategoryCoachMessage,
@@ -26,7 +26,7 @@ function formatDate(iso: string) {
 }
 
 export default function OtesCoachApp() {
-  const [workspace, setWorkspace] = useState<OtesWorkspace>(createDefaultWorkspace);
+  const [workspace, setWorkspace] = useState<OtesWorkspace | null>(null);
   const [view, setView] = useState<View>('dashboard');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -42,28 +42,40 @@ export default function OtesCoachApp() {
   const [generatedEvalPlan, setGeneratedEvalPlan] = useState<Partial<EvalLessonPlan> | null>(null);
 
   useEffect(() => {
-    const loaded = loadWorkspace();
-    setWorkspace(loaded);
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        saveWorkspace(loaded);
-        return;
-      }
-      const parsed = JSON.parse(raw) as { categoryRatings?: Array<{ goal?: string; strategy?: string }> };
-      const needsBackfill = (parsed.categoryRatings ?? []).some(r => !r.goal?.trim() || !r.strategy?.trim());
-      if (needsBackfill) saveWorkspace(loaded);
-    } catch {
-      saveWorkspace(loaded);
-    }
+    setWorkspace(loadWorkspace());
   }, []);
 
   const persist = useCallback((updater: (prev: OtesWorkspace) => OtesWorkspace) => {
-    setWorkspace(prev => saveWorkspace(updater(prev))!);
+    setWorkspace(prev => {
+      if (!prev) return prev;
+      return saveWorkspace(updater(prev))!;
+    });
   }, []);
 
-  const categoryProgress = useMemo(() => computeAllCategoryProgress(workspace), [workspace]);
+  const restoreDefaultGoals = (categoryId?: string) => {
+    if (!workspace) return;
+    const cleared = {
+      ...workspace,
+      categoryRatings: workspace.categoryRatings.map(rating => {
+        if (categoryId && rating.categoryId !== categoryId) return rating;
+        return { ...rating, goal: '', strategy: '' };
+      }),
+    };
+    setWorkspace(saveWorkspace(applyDefaultGoals(cleared).workspace)!);
+  };
+
+  const categoryProgress = useMemo(() => (workspace ? computeAllCategoryProgress(workspace) : []), [workspace]);
   const totalProgress = useMemo(() => overallProgress(categoryProgress), [categoryProgress]);
+
+  if (!workspace) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <p>Loading your OTES workspace…</p>
+        </main>
+      </div>
+    );
+  }
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
   const selectedRating = workspace.categoryRatings.find(r => r.categoryId === selectedCategoryId);
@@ -376,6 +388,16 @@ export default function OtesCoachApp() {
                     onChange={e => updateCategoryRating({ strategy: e.target.value })}
                     placeholder="How will you get there?"
                   />
+                  {!selectedRating?.goal?.trim() && !selectedRating?.strategy?.trim() && (
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
+                      style={{ marginTop: 8 }}
+                      onClick={() => restoreDefaultGoals(selectedCategoryId ?? undefined)}
+                    >
+                      Restore default goal &amp; strategy
+                    </button>
+                  )}
                 </div>
                 <div className={styles.statRow}>
                   <span><strong>{selectedActions.length}</strong> actions logged</span>
@@ -536,9 +558,14 @@ export default function OtesCoachApp() {
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
                 Goals and strategies are pre-filled for each category. Load sample action logs and observation lesson plans below.
               </p>
-              <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
-                Load sample actions &amp; lesson plans
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => restoreDefaultGoals()}>
+                  Restore default goals &amp; strategies
+                </button>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
+                  Load sample actions &amp; lesson plans
+                </button>
+              </div>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Evaluator handouts</label>
