@@ -1,47 +1,25 @@
 import type { CategoryAction, CategoryRating, EvalLessonPlan, OtesWorkspace, TeacherProfile } from '../types';
+import { buildCategoryAccomplishedGoalText } from '../rubric';
 
 export const WOODS_TECH_PROFILE: Partial<TeacherProfile> = {
   subject: 'Woods Technology (WT1, WT2–4)',
   gradeLevel: '9–12',
 };
 
-export const WOODS_TECH_GOALS: Record<string, { goal: string; strategy: string }> = {
-  focus_for_learning: {
-    goal:
-      'Move from Skilled to Accomplished by using at least two sources of student data (skill checklists, project rubrics, safety quizzes, and formative measurements) to set measurable growth goals for both WT1 and WT2–4, and help students track their own progress on core carpentry skills.',
-    strategy:
-      'WT1: Use a pre-unit tool/safety diagnostic and weekly skill checklists (measuring, squaring, cutting, fastening) to set a class SLO such as “80% of students will score proficient on the framing layout assessment by quarter end.” WT2–4: Pair project rubric scores with portfolio reviews to track growth on advanced skills (joinery, rafter layout, finish work). Post learning targets at the start of each shop period, give students a simple progress tracker, and bring data trends to your pre-conference.',
-  },
-  knowledge_of_students: {
-    goal:
-      'Reach Accomplished by consistently planning instruction that reflects students’ prior experience, interests, career goals, and learning needs across both intro and advanced woods classes.',
-    strategy:
-      'Administer a beginning-of-year interest/career inventory. WT1: Group students by prior experience and adjust pacing. WT2–4: Offer project pathways aligned to student goals (residential framing, furniture, custom builds). Consult with intervention staff or ESL support for individual learners before major projects, and document at least one planned adjustment per unit based on a specific student’s background or need.',
-  },
-  lesson_delivery: {
-    goal:
-      'Reach Accomplished by clearly communicating differentiated learning goals, modeling exemplary work, using trade-specific questioning, and balancing teacher demonstration with student-centered practice in the shop.',
-    strategy:
-      'Post “I can…” targets in student-friendly language. Use demo → guided practice → independent practice for both classes. WT1: Break skills into small steps with visual exemplars before tool use. WT2–4: Use higher-order questioning and peer teaching during complex builds. Build in peer feedback and self-assessment using project rubrics, and plan re-teaching moves for common misconceptions (measuring from the wrong edge, rafter layout errors).',
-  },
-  classroom_environment: {
-    goal:
-      'Reach Accomplished by maintaining shop routines that maximize safe, productive work time and building a respectful culture where students take ownership of the learning environment.',
-    strategy:
-      'Co-create shop procedures with students (tool checkout, cleanup zones, PPE, emergency stops). WT1: Practice routines until automatic before tool-heavy units; assign student safety and cleanup roles. WT2–4: Shift responsibility to student leaders (tool crib captain, quality checker, safety monitor). Survey students on shop climate once per semester and act on feedback.',
-  },
-  assessment_of_learning: {
-    goal:
-      'Reach Accomplished by using a diagnostic → formative → summative assessment cycle in both course levels, analyzing patterns to adjust instruction, and sharing evidence with students and families.',
-    strategy:
-      'WT1: Diagnostic (tool ID, measurement, safety) → formative layout checklists → summative framing/rafter rubric. WT2–4: Project milestones as formative checkpoints. Track two data sources and document growth over the semester. Offer assessment choice where appropriate (written plan, oral defense, or physical demonstration). Share progress with families through Canvas, not only at project completion.',
-  },
-  professional_responsibilities: {
-    goal:
-      'Reach Accomplished by strengthening partnerships with families, collaborating with colleagues on student success, and pursuing professional growth tied directly to improved student outcomes in the shop.',
-    strategy:
-      'Send monthly positive outreach to families. Collaborate with academic teachers on math application in layout and rafter calculations. Connect with local trades or SkillsUSA for WT2–4 authentic experiences. Set a Professional Growth Plan goal tied to HQSD-driven skill tracking in WT1, share a successful strategy at a department meeting, and document quarterly reflections with evidence of impact.',
-  },
+/** Shop-specific strategies; goals come from the OTES 2.0 Accomplished rubric. */
+export const WOODS_TECH_STRATEGIES: Record<string, string> = {
+  focus_for_learning:
+    'WT1: Use a pre-unit tool/safety diagnostic and weekly skill checklists (measuring, squaring, cutting, fastening) to set a class SLO such as “80% of students will score proficient on the framing layout assessment by quarter end.” WT2–4: Pair project rubric scores with portfolio reviews to track growth on advanced skills (joinery, rafter layout, finish work). Post learning targets at the start of each shop period, give students a simple progress tracker, and bring data trends to your pre-conference.',
+  knowledge_of_students:
+    'Administer a beginning-of-year interest/career inventory. WT1: Group students by prior experience and adjust pacing. WT2–4: Offer project pathways aligned to student goals (residential framing, furniture, custom builds). Consult with intervention staff or ESL support for individual learners before major projects, and document at least one planned adjustment per unit based on a specific student’s background or need.',
+  lesson_delivery:
+    'Post “I can…” targets in student-friendly language. Use demo → guided practice → independent practice for both classes. WT1: Break skills into small steps with visual exemplars before tool use. WT2–4: Use higher-order questioning and peer teaching during complex builds. Build in peer feedback and self-assessment using project rubrics, and plan re-teaching moves for common misconceptions (measuring from the wrong edge, rafter layout errors).',
+  classroom_environment:
+    'Co-create shop procedures with students (tool checkout, cleanup zones, PPE, emergency stops). WT1: Practice routines until automatic before tool-heavy units; assign student safety and cleanup roles. WT2–4: Shift responsibility to student leaders (tool crib captain, quality checker, safety monitor). Survey students on shop climate once per semester and act on feedback.',
+  assessment_of_learning:
+    'WT1: Diagnostic (tool ID, measurement, safety) → formative layout checklists → summative framing/rafter rubric. WT2–4: Project milestones as formative checkpoints. Track two data sources and document growth over the semester. Offer assessment choice where appropriate (written plan, oral defense, or physical demonstration). Share progress with families through Canvas, not only at project completion.',
+  professional_responsibilities:
+    'Send monthly positive outreach to families. Collaborate with academic teachers on math application in layout and rafter calculations. Connect with local trades or SkillsUSA for WT2–4 authentic experiences. Set a Professional Growth Plan goal tied to HQSD-driven skill tracking in WT1, share a successful strategy at a department meeting, and document quarterly reflections with evidence of impact.',
 };
 
 type StarterAction = Omit<CategoryAction, 'id' | 'createdAt'>;
@@ -279,8 +257,11 @@ export const WOODS_TECH_EVALUATOR_HANDOUTS = {
   },
 };
 
-export function applyDefaultGoals(workspace: OtesWorkspace): { workspace: OtesWorkspace; changed: boolean } {
-  const categoryRatings = buildWoodsTechCategoryRatings(workspace.categoryRatings, { onlyIfEmpty: true });
+export function applyDefaultGoals(
+  workspace: OtesWorkspace,
+  options?: { onlyIfEmpty?: boolean; forceGoals?: boolean },
+): { workspace: OtesWorkspace; changed: boolean } {
+  const categoryRatings = buildWoodsTechCategoryRatings(workspace.categoryRatings, options);
   const changed = categoryRatings.some((rating, index) => {
     const previous = workspace.categoryRatings[index];
     return rating.goal !== previous?.goal || rating.strategy !== previous?.strategy;
@@ -294,18 +275,24 @@ export function applyDefaultGoals(workspace: OtesWorkspace): { workspace: OtesWo
 
 export function buildWoodsTechCategoryRatings(
   baseRatings: CategoryRating[],
-  options?: { onlyIfEmpty?: boolean },
+  options?: { onlyIfEmpty?: boolean; forceGoals?: boolean },
 ): CategoryRating[] {
   const now = new Date().toISOString();
   return baseRatings.map(rating => {
-    const pack = WOODS_TECH_GOALS[rating.categoryId];
-    if (!pack) return rating;
-    const goal = options?.onlyIfEmpty && rating.goal?.trim() ? rating.goal : pack.goal;
-    const strategy = options?.onlyIfEmpty && rating.strategy?.trim() ? rating.strategy : pack.strategy;
+    const rubricGoal = buildCategoryAccomplishedGoalText(rating.categoryId);
+    const strategy = WOODS_TECH_STRATEGIES[rating.categoryId] ?? '';
+    const goal = options?.forceGoals
+      ? rubricGoal
+      : (options?.onlyIfEmpty !== false && rating.goal?.trim())
+        ? rating.goal
+        : rubricGoal;
+    const nextStrategy = (options?.onlyIfEmpty !== false && rating.strategy?.trim())
+      ? rating.strategy
+      : strategy;
     return {
       ...rating,
       goal,
-      strategy,
+      strategy: nextStrategy,
       updatedAt: now,
     };
   });

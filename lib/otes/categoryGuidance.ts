@@ -1,4 +1,4 @@
-import { OTES_RUBRIC } from './rubric';
+import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
 
 export type CategoryGuidance = {
   accomplishedSummary: string;
@@ -8,8 +8,7 @@ export type CategoryGuidance = {
 
 export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
   focus_for_learning: {
-    accomplishedSummary:
-      'You use multiple HQSD sources to set measurable goals, connect lessons to prior and future learning, align to Ohio standards, and help students track their own progress.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('focus_for_learning'),
     dailyHabits: [
       'Post a clear learning target at the start of each lesson.',
       'Reference one data point when planning (exit ticket, quiz, observation note).',
@@ -23,8 +22,7 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     ],
   },
   knowledge_of_students: {
-    accomplishedSummary:
-      'Your planning consistently reflects individual student experiences, culture, strengths, and needs — informed by colleagues and outside resources.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('knowledge_of_students'),
     dailyHabits: [
       'Use at least one student name with a specific strategy during instruction.',
       'Check in with a struggling or quiet student before the lesson ends.',
@@ -38,8 +36,7 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     ],
   },
   lesson_delivery: {
-    accomplishedSummary:
-      'You communicate differentiated goals, engage students in higher-level thinking, give timely individual feedback, and balance teacher-directed and student-directed learning.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('lesson_delivery'),
     dailyHabits: [
       'State the learning goal and what mastery looks like.',
       'Ask one higher-order question and wait for student thinking.',
@@ -53,8 +50,7 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     ],
   },
   classroom_environment: {
-    accomplishedSummary:
-      'You and your students maintain routines that maximize learning time, and you create a climate of respect, openness, and cultural responsiveness.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('classroom_environment'),
     dailyHabits: [
       'Greet students at the door by name.',
       'Use a consistent transition signal and praise on-task behavior.',
@@ -68,8 +64,7 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     ],
   },
   assessment_of_learning: {
-    accomplishedSummary:
-      'You strategically use diagnostic, formative, and summative assessments; analyze trends to differentiate; and share evidence with students, families, and colleagues.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('assessment_of_learning'),
     dailyHabits: [
       'Use one formative check to adjust instruction before the period ends.',
       'Share one piece of assessment feedback with a student.',
@@ -83,8 +78,7 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     ],
   },
   professional_responsibilities: {
-    accomplishedSummary:
-      'You communicate effectively with families and colleagues, follow professional standards, pursue ambitious growth goals, and contribute beyond your classroom.',
+    accomplishedSummary: buildCategoryAccomplishedGoalText('professional_responsibilities'),
     dailyHabits: [
       'Send one positive or informative message to a family.',
       'Collaborate with one colleague on instruction or student needs.',

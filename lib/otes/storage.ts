@@ -2,8 +2,8 @@ import { applyDefaultGoals, buildWoodsTechCategoryRatings, WOODS_TECH_PROFILE } 
 import { OTES_RUBRIC } from './rubric';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
-export const STORAGE_KEY = 'otes-coach-workspace-v3';
-const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
+export const STORAGE_KEY = 'otes-coach-workspace-v4';
+const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v3', 'otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
 
 function defaultProfile(): TeacherProfile {
   return {
@@ -172,7 +172,13 @@ export function loadWorkspace(): OtesWorkspace {
 }
 
 function finalizeWorkspace(workspace: OtesWorkspace): OtesWorkspace {
-  const { workspace: withGoals, changed } = applyDefaultGoals(workspace);
+  const upgradingFromV3 = typeof window !== 'undefined'
+    && !localStorage.getItem(STORAGE_KEY)
+    && Boolean(localStorage.getItem('otes-coach-workspace-v3'));
+  const { workspace: withGoals, changed } = applyDefaultGoals(workspace, {
+    onlyIfEmpty: true,
+    forceGoals: upgradingFromV3,
+  });
   if (changed || !localStorage.getItem(STORAGE_KEY)) {
     saveWorkspace(withGoals);
   }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
-import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS } from '@/lib/otes/rubric';
+import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
 import { applyDefaultGoals, WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
@@ -61,7 +61,7 @@ export default function OtesCoachApp() {
         return { ...rating, goal: '', strategy: '' };
       }),
     };
-    setWorkspace(saveWorkspace(applyDefaultGoals(cleared).workspace)!);
+    setWorkspace(saveWorkspace(applyDefaultGoals(cleared, { onlyIfEmpty: false, forceGoals: true }).workspace)!);
   };
 
   const categoryProgress = useMemo(() => (workspace ? computeAllCategoryProgress(workspace) : []), [workspace]);
@@ -350,6 +350,24 @@ export default function OtesCoachApp() {
               </button>
             </div>
 
+            <section className={styles.card}>
+              <h3>OTES 2.0 Accomplished Rubric</h3>
+              <p className={styles.cardIntro}>
+                Target level for each standard in {selectedDomain.name}. Ohio framework standards: {selectedDomain.standards.join(', ')}.
+              </p>
+              <div className={styles.rubricGoalList}>
+                {getDomainAccomplishedComponents(selectedDomain.id).map(component => (
+                  <article key={component.id} className={styles.rubricGoalBlock}>
+                    <h4 className={styles.rubricGoalTitle}>{component.name}</h4>
+                    <p className={styles.rubricGoalText}>{component.accomplished}</p>
+                    {component.elements.length > 0 && (
+                      <p className={styles.rubricGoalMeta}>Rubric elements: {component.elements.join(', ')}</p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+
             <div className={styles.grid2}>
               <section className={styles.card}>
                 <h3>My Progress</h3>
@@ -371,19 +389,21 @@ export default function OtesCoachApp() {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>My goal for this category</label>
+                  <p className={styles.fieldHint}>Pre-filled with the Accomplished descriptors above. Edit to personalize for your shop classes.</p>
                   <textarea
                     className={styles.textarea}
-                    style={{ minHeight: 60 }}
+                    style={{ minHeight: 120 }}
                     value={selectedRating?.goal ?? ''}
                     onChange={e => updateCategoryRating({ goal: e.target.value })}
-                    placeholder="What do you want to achieve toward Accomplished?"
+                    placeholder="Accomplished-level goals from the OTES 2.0 rubric"
                   />
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>My strategy</label>
+                  <p className={styles.fieldHint}>How you will reach Accomplished in your woods technology classes.</p>
                   <textarea
                     className={styles.textarea}
-                    style={{ minHeight: 60 }}
+                    style={{ minHeight: 80 }}
                     value={selectedRating?.strategy ?? ''}
                     onChange={e => updateCategoryRating({ strategy: e.target.value })}
                     placeholder="How will you get there?"
@@ -395,7 +415,7 @@ export default function OtesCoachApp() {
                       style={{ marginTop: 8 }}
                       onClick={() => restoreDefaultGoals(selectedCategoryId ?? undefined)}
                     >
-                      Restore default goal &amp; strategy
+                      Restore OTES rubric goal &amp; strategy
                     </button>
                   )}
                 </div>
@@ -560,7 +580,7 @@ export default function OtesCoachApp() {
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => restoreDefaultGoals()}>
-                  Restore default goals &amp; strategies
+                  Restore OTES rubric goals &amp; strategies
                 </button>
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
                   Load sample actions &amp; lesson plans
