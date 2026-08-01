@@ -18,7 +18,7 @@ import type {
 } from '@/lib/otes/types';
 import styles from './otes.module.css';
 
-type View = 'dashboard' | 'category' | 'eval';
+type View = 'dashboard' | 'category' | 'eval' | 'rubric';
 
 function formatDate(iso: string) {
   if (!iso) return '';
@@ -276,6 +276,11 @@ export default function OtesCoachApp() {
               Dashboard
             </button>
           )}
+          {view !== 'rubric' && (
+            <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setView('rubric')}>
+              Rubric
+            </button>
+          )}
           <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setView('eval')}>
             Eval Lesson Plan
           </button>
@@ -350,23 +355,20 @@ export default function OtesCoachApp() {
               </button>
             </div>
 
-            <section className={styles.card}>
-              <h3>OTES 2.0 Accomplished Rubric</h3>
-              <p className={styles.cardIntro}>
-                Target level for each standard in {selectedDomain.name}. Ohio framework standards: {selectedDomain.standards.join(', ')}.
-              </p>
-              <div className={styles.rubricGoalList}>
-                {getDomainAccomplishedComponents(selectedDomain.id).map(component => (
-                  <article key={component.id} className={styles.rubricGoalBlock}>
-                    <h4 className={styles.rubricGoalTitle}>{component.name}</h4>
-                    <p className={styles.rubricGoalText}>{component.accomplished}</p>
-                    {component.elements.length > 0 && (
-                      <p className={styles.rubricGoalMeta}>Rubric elements: {component.elements.join(', ')}</p>
-                    )}
-                  </article>
-                ))}
-              </div>
-            </section>
+            <p className={styles.rubricLinkRow}>
+              <button
+                type="button"
+                className={styles.rubricLinkBtn}
+                onClick={() => {
+                  setView('rubric');
+                  requestAnimationFrame(() => {
+                    document.getElementById(`rubric-${selectedDomain.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  });
+                }}
+              >
+                View OTES 2.0 Accomplished rubric for {selectedDomain.name} →
+              </button>
+            </p>
 
             <div className={styles.grid2}>
               <section className={styles.card}>
@@ -389,7 +391,7 @@ export default function OtesCoachApp() {
                 </div>
                 <div className={styles.field}>
                   <label className={styles.label}>My goal for this category</label>
-                  <p className={styles.fieldHint}>Pre-filled with the Accomplished descriptors above. Edit to personalize for your shop classes.</p>
+                  <p className={styles.fieldHint}>Pre-filled with Accomplished descriptors from the rubric. Edit to personalize for your classes.</p>
                   <textarea
                     className={styles.textarea}
                     style={{ minHeight: 120 }}
@@ -501,6 +503,56 @@ export default function OtesCoachApp() {
                 )}
               </div>
             </section>
+          </div>
+        )}
+
+        {view === 'rubric' && (
+          <div className={styles.categoryPage}>
+            <div className={styles.categoryPageHeader}>
+              <div>
+                <h2>OTES 2.0 Rubric</h2>
+                <p>Accomplished-level descriptors for every rubric category — your target for growth planning.</p>
+              </div>
+            </div>
+
+            {(['instructional_planning', 'instruction_and_assessment', 'professionalism'] as const).map(area => {
+              const domains = OTES_RUBRIC.filter(d => d.area === area);
+              if (!domains.length) return null;
+              return (
+                <section key={area} className={styles.rubricAreaSection}>
+                  <h3 className={styles.rubricAreaTitle}>{ORGANIZATIONAL_AREAS[area]}</h3>
+                  {domains.map(domain => (
+                    <article key={domain.id} className={styles.card} id={`rubric-${domain.id}`}>
+                      <div className={styles.rubricDomainHeader}>
+                        <h3>{domain.name}</h3>
+                        <span className={styles.rubricDomainMeta}>
+                          Standards: {domain.standards.join(', ')}
+                        </span>
+                      </div>
+                      <div className={styles.rubricGoalList}>
+                        {getDomainAccomplishedComponents(domain.id).map(component => (
+                          <article key={component.id} className={styles.rubricGoalBlock}>
+                            <h4 className={styles.rubricGoalTitle}>{component.name}</h4>
+                            <p className={styles.rubricGoalText}>{component.accomplished}</p>
+                            {component.elements.length > 0 && (
+                              <p className={styles.rubricGoalMeta}>Rubric elements: {component.elements.join(', ')}</p>
+                            )}
+                          </article>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
+                        style={{ marginTop: 12 }}
+                        onClick={() => openCategory(domain.id)}
+                      >
+                        Work on {domain.name} →
+                      </button>
+                    </article>
+                  ))}
+                </section>
+              );
+            })}
           </div>
         )}
 
