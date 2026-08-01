@@ -352,6 +352,31 @@ export function getDomainById(domainId: string) {
   return OTES_RUBRIC.find(d => d.id === domainId) ?? null;
 }
 
+export type DomainAccomplishedComponent = {
+  id: string;
+  name: string;
+  elements: string[];
+  accomplished: string;
+};
+
+export function getDomainAccomplishedComponents(domainId: string): DomainAccomplishedComponent[] {
+  const domain = getDomainById(domainId);
+  if (!domain) return [];
+  return domain.components.map(component => ({
+    id: component.id,
+    name: component.name,
+    elements: component.elements,
+    accomplished: component.levels.accomplished,
+  }));
+}
+
+/** Full "My goal" text: each rubric component's Accomplished descriptor. */
+export function buildCategoryAccomplishedGoalText(domainId: string): string {
+  return getDomainAccomplishedComponents(domainId)
+    .map(component => `${component.name} (Accomplished): ${component.accomplished}`)
+    .join('\n\n');
+}
+
 export function levelScore(level: string | null | undefined): number {
   const found = PERFORMANCE_LEVELS.find(l => l.id === level);
   return found?.score ?? -1;

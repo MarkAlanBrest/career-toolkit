@@ -209,6 +209,46 @@
   color: #4a5f73;
 }
 
+.rubricGoalList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rubricGoalBlock {
+  border: 1px solid #d8e2ec;
+  border-left: 4px solid #1e8449;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f8fbf9;
+}
+
+.rubricGoalTitle {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  color: #1a3a5c;
+}
+
+.rubricGoalText {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #2a3f52;
+}
+
+.rubricGoalMeta {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  color: #6b7f93;
+}
+
+.fieldHint {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  color: #6b7f93;
+  line-height: 1.4;
+}
+
 .grid2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
