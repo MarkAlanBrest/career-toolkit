@@ -1,108 +1,62 @@
 import { OTES_RUBRIC, levelScore } from './rubric';
-import type { ComponentRating, OtesWorkspace, ProgressSummary } from './types';
+import type { CategoryProgress, CategoryRating, OtesWorkspace, PerformanceLevel } from './types';
 
-export function computeProgress(ratings: ComponentRating[]): ProgressSummary {
-  const allComponents = OTES_RUBRIC.flatMap(d => d.components);
-  const ratingMap = new Map(ratings.map(r => [r.componentId, r]));
+const LEVEL_PERCENT: Record<PerformanceLevel, number> = {
+  ineffective: 10,
+  developing: 40,
+  skilled: 70,
+  accomplished: 100,
+};
 
-  let accomplishedCount = 0;
-  let skilledCount = 0;
-  let developingCount = 0;
-  let ineffectiveCount = 0;
-  let unratedCount = 0;
-  let totalScore = 0;
-  let ratedCount = 0;
-
-  for (const component of allComponents) {
-    const rating = ratingMap.get(component.id);
-    const level = rating?.currentLevel ?? null;
-    if (!level) {
-      unratedCount += 1;
-      continue;
-    }
-    ratedCount += 1;
-    const score = levelScore(level);
-    totalScore += score;
-    if (level === 'accomplished') accomplishedCount += 1;
-    else if (level === 'skilled') skilledCount += 1;
-    else if (level === 'developing') developingCount += 1;
-    else ineffectiveCount += 1;
-  }
-
-  const domainProgress = OTES_RUBRIC.map(domain => {
-    const componentScores = domain.components.map(component => {
-      const rating = ratingMap.get(component.id);
-      return levelScore(rating?.currentLevel);
-    });
-    const validScores = componentScores.filter(s => s >= 0);
-    const percent = validScores.length
-      ? Math.round((validScores.reduce((a, b) => a + b, 0) / (validScores.length * 3)) * 100)
-      : 0;
-    const gapCount = domain.components.filter(component => {
-      const rating = ratingMap.get(component.id);
-      return !rating?.currentLevel || rating.currentLevel !== 'accomplished';
-    }).length;
-    return {
-      domainId: domain.id,
-      domainName: domain.name,
-      percent,
-      gapCount,
-    };
-  });
-
-  const overallPercent = ratedCount
-    ? Math.round((totalScore / (ratedCount * 3)) * 100)
-    : 0;
+export function computeCategoryProgress(
+  categoryId: string,
+  rating: CategoryRating | undefined,
+  actionCount: number,
+  recentActionCount: number,
+): CategoryProgress {
+  const domain = OTES_RUBRIC.find(d => d.id === categoryId);
+  const level = rating?.currentLevel ?? null;
+  const basePercent = level ? LEVEL_PERCENT[level] : 0;
+  const actionBoost = Math.min(15, actionCount * 2);
+  const momentumBoost = Math.min(5, recentActionCount);
+  const levelPercent = Math.min(100, basePercent + (level === 'accomplished' ? 0 : actionBoost + momentumBoost));
 
   return {
-    overallPercent,
-    accomplishedCount,
-    skilledCount,
-    developingCount,
-    ineffectiveCount,
-    unratedCount,
-    totalComponents: allComponents.length,
-    domainProgress,
+    categoryId,
+    categoryName: domain?.name ?? categoryId,
+    currentLevel: level,
+    levelPercent,
+    actionCount,
+    recentActionCount,
+    goalSet: Boolean(rating?.goal?.trim()),
+    coachMessageCount: 0,
   };
 }
 
-export function getGapComponents(workspace: OtesWorkspace) {
-  const ratingMap = new Map(workspace.ratings.map(r => [r.componentId, r]));
-  const gaps: Array<{
-    componentId: string;
-    componentName: string;
-    domainId: string;
-    domainName: string;
-    currentLevel: string | null;
-    gapSize: number;
-  }> = [];
+export function computeAllCategoryProgress(workspace: OtesWorkspace): CategoryProgress[] {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const cutoff = thirtyDaysAgo.toISOString().slice(0, 10);
 
-  for (const domain of OTES_RUBRIC) {
-    for (const component of domain.components) {
-      const rating = ratingMap.get(component.id);
-      const current = rating?.currentLevel ?? null;
-      if (current === 'accomplished') continue;
-      const currentScore = levelScore(current);
-      gaps.push({
-        componentId: component.id,
-        componentName: component.name,
-        domainId: domain.id,
-        domainName: domain.name,
-        currentLevel: current,
-        gapSize: 3 - Math.max(0, currentScore),
-      });
-    }
-  }
-
-  return gaps.sort((a, b) => b.gapSize - a.gapSize);
+  return OTES_RUBRIC.map(domain => {
+    const rating = workspace.categoryRatings.find(r => r.categoryId === domain.id);
+    const actions = workspace.actions.filter(a => a.categoryId === domain.id);
+    const recent = actions.filter(a => a.date >= cutoff);
+    const progress = computeCategoryProgress(domain.id, rating, actions.length, recent.length);
+    progress.coachMessageCount = workspace.coachMessages.filter(m => m.categoryId === domain.id).length;
+    return progress;
+  });
 }
 
-export function daysUntil(dateIso: string): number | null {
-  if (!dateIso) return null;
-  const target = new Date(dateIso);
-  if (Number.isNaN(target.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+export function overallProgress(categories: CategoryProgress[]): number {
+  if (!categories.length) return 0;
+  const total = categories.reduce((sum, c) => sum + c.levelPercent, 0);
+  return Math.round(total / categories.length);
 }
+
+export function levelLabel(level: PerformanceLevel | null): string {
+  if (!level) return 'Not rated';
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+export { levelScore };

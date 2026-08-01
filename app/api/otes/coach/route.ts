@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getComponentById } from '@/lib/otes/rubric';
+import { getComponentById, getDomainById } from '@/lib/otes/rubric';
+import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import type { PerformanceLevel } from '@/lib/otes/types';
 
 const CORS = {
@@ -15,6 +16,7 @@ export async function OPTIONS() {
 type CoachRequest = {
   question?: string;
   componentId?: string;
+  categoryId?: string;
   currentLevel?: PerformanceLevel | null;
   context?: string;
   teacherProfile?: {
@@ -26,46 +28,56 @@ type CoachRequest = {
 };
 
 function fallbackCoach(body: CoachRequest) {
+  const domain = body.categoryId ? getDomainById(body.categoryId) : null;
+  if (domain) {
+    const guidance = getCategoryGuidance(domain.id);
+    return {
+      answer: `For **${domain.name}**, here are recommendations toward Accomplished:\n\n**Daily habits:**\n${guidance.dailyHabits.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\n**Strategies:**\n${guidance.strategies.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\n**This week:** Pick one daily habit and one strategy. Log what you did — it becomes evidence for your report.`,
+      actions: [...guidance.dailyHabits, ...guidance.strategies],
+    };
+  }
+
   const match = body.componentId ? getComponentById(body.componentId) : null;
   if (match) {
     return {
-      answer: `To move toward Accomplished in **${match.component.name}** (${match.domain.name}):\n\n${match.component.accomplishedActions.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\n**Accomplished descriptor:** ${match.component.levels.accomplished}\n\n**This week:** Pick one action above and implement it in your very next lesson. Document the evidence (student work, data, or observation notes) in your Evidence log.`,
+      answer: `To move toward Accomplished in **${match.component.name}** (${match.domain.name}):\n\n${match.component.accomplishedActions.map((a, i) => `${i + 1}. ${a}`).join('\n')}`,
       actions: match.component.accomplishedActions,
     };
   }
 
   return {
-    answer: 'Focus on the OTES 2.0 rubric domains where you have the largest gaps between your current self-rating and Accomplished. Start with one specific, observable practice change per week, document evidence, and discuss it in your pre-conference.',
-    actions: [
-      'Complete your rubric self-assessment honestly.',
-      'Create a growth plan goal tied to your biggest gap.',
-      'Build an observation lesson plan targeting Accomplished descriptors.',
-    ],
+    answer: 'Open a rubric category on your dashboard, set a goal and strategy, then log one action this week. Your coach works best when tied to a specific domain.',
+    actions: [],
   };
 }
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as CoachRequest | null;
-  if (!body?.question?.trim() && !body?.componentId) {
-    return NextResponse.json({ error: 'A question or component is required.' }, { status: 400, headers: CORS });
+  if (!body?.question?.trim() && !body?.componentId && !body?.categoryId) {
+    return NextResponse.json({ error: 'A question or category is required.' }, { status: 400, headers: CORS });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  const domain = body.categoryId ? getDomainById(body.categoryId) : null;
   const match = body.componentId ? getComponentById(body.componentId) : null;
 
   if (!apiKey) {
     return NextResponse.json(fallbackCoach(body), { headers: CORS });
   }
 
-  const rubricBlock = match
-    ? `Rubric component: ${match.component.name} (${match.domain.name})
+  const categoryGuidance = domain ? getCategoryGuidance(domain.id) : null;
+  const rubricBlock = domain
+    ? `Rubric category: ${domain.name}
 Current teacher self-rating: ${body.currentLevel || 'not rated'}
-Ineffective: ${match.component.levels.ineffective}
-Developing: ${match.component.levels.developing}
-Skilled: ${match.component.levels.skilled}
-Accomplished: ${match.component.levels.accomplished}
-Evidence sources: ${match.component.evidenceSources.join(', ')}`
-    : 'General OTES 2.0 coaching';
+Accomplished summary: ${categoryGuidance?.accomplishedSummary || ''}
+Daily habits: ${categoryGuidance?.dailyHabits.join('; ') || ''}
+Strategies: ${categoryGuidance?.strategies.join('; ') || ''}
+Components: ${domain.components.map(c => c.name).join(', ')}`
+    : match
+      ? `Rubric component: ${match.component.name} (${match.domain.name})
+Current teacher self-rating: ${body.currentLevel || 'not rated'}
+Accomplished: ${match.component.levels.accomplished}`
+      : 'General OTES 2.0 coaching';
 
   const prompt = `You are an expert Ohio teacher evaluation coach specializing in OTES 2.0.
 
