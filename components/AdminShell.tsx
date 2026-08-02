@@ -9,8 +9,9 @@ import {
   LayoutDashboard,
   LogOut,
   Plus,
-  ShieldCheck,
 } from "lucide-react";
+import Image from "next/image";
+import { headingFont } from "@/lib/brand";
 
 type Props = {
   children: ReactNode;
@@ -42,17 +43,23 @@ export default function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-[#edf1f2] text-[#17202b]">
+    <div className="min-h-screen bg-[#f4f5f7] text-[#25303d]">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 flex-col bg-[#10283f] text-white lg:flex">
+        <aside className="hidden w-64 shrink-0 flex-col bg-[#001f52] text-white lg:flex">
           <div className="border-b border-white/10 px-6 py-7">
             <div className="flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f2b744] text-[#10283f]">
-                <ShieldCheck size={23} />
-              </span>
+              <Image
+                src="/ncst-logo.png"
+                alt="NCST"
+                width={110}
+                height={29}
+                className="h-auto w-[100px] brightness-0 invert"
+              />
               <div>
-                <p className="font-serif text-xl font-semibold">Training Studio</p>
-                <p className="text-xs text-slate-400">Administration</p>
+                <p className={`${headingFont.className} text-sm font-bold uppercase tracking-[.06em]`}>
+                  Training
+                </p>
+                <p className="text-xs text-white/55">Administration</p>
               </div>
             </div>
           </div>
@@ -69,10 +76,10 @@ export default function AdminShell({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold transition ${
                     active
-                      ? "bg-white text-[#10283f]"
-                      : "text-slate-300 hover:bg-white/10 hover:text-white"
+                      ? "bg-[#f5a800] text-[#001f52]"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <Icon size={18} />
@@ -99,13 +106,13 @@ export default function AdminShell({
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="border-b border-[#10283f]/10 bg-white">
+          <header className="border-b border-[#d9dee7] bg-white">
             <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[.18em] text-[#a06e16]">
+                <p className={`${headingFont.className} text-[10px] font-bold uppercase tracking-[.15em] text-[#f5a800]`}>
                   {eyebrow}
                 </p>
-                <h1 className="mt-1 font-serif text-3xl font-semibold text-[#10283f]">
+                <h1 className={`${headingFont.className} mt-1 text-3xl font-bold uppercase text-[#002d74]`}>
                   {title}
                 </h1>
               </div>

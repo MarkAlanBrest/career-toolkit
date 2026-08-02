@@ -1,30 +1,27 @@
 @import "tailwindcss";
 
-/* Remove the forced white background */
 :root {
-  --foreground: #171717;
+  --ncst-navy: #002d74;
+  --ncst-navy-deep: #001f52;
+  --ncst-gold: #f5a800;
+  --ncst-ink: #25303d;
+  --ncst-muted: #606b78;
+  --ncst-line: #d9dee7;
+  --ncst-page: #f4f5f7;
+  --foreground: var(--ncst-ink);
 }
 
-/* Optional dark mode foreground */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground: #ededed;
-  }
-}
-
-/* Tailwind theme variables */
 @theme inline {
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
 }
 
-/* FIXED: no more white background override */
 body {
   margin: 0;
-  background: #0369a1; /* sky-800 blue */
+  background: var(--ncst-page);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "Roboto Condensed", Arial, sans-serif;
 }
 
 /*
@@ -40,7 +37,7 @@ body {
 .course-shell[data-course-theme="heritage"] {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
-    radial-gradient(circle at 85% 8%, rgba(217, 160, 54, 0.11), transparent 28rem);
+    radial-gradient(circle at 85% 8%, rgba(245, 168, 0, 0.11), transparent 28rem);
 }
 
 .course-shell[data-course-theme="heritage"] .course-article h1,
@@ -97,7 +94,7 @@ body {
 /* Clean: bright, open, restrained, and distinctly digital. */
 .course-shell[data-course-theme="clean"] {
   background-image:
-    radial-gradient(circle at 100% 0, rgba(49, 120, 198, 0.1), transparent 30rem),
+    radial-gradient(circle at 100% 0, rgba(0, 45, 116, 0.1), transparent 30rem),
     linear-gradient(#fff, #f8fbff);
 }
 
@@ -116,19 +113,19 @@ body {
 }
 
 .course-shell[data-course-theme="clean"] .course-article > div:first-child {
-  border-top: 1px solid rgba(49, 120, 198, 0.25);
+  border-top: 1px solid rgba(0, 45, 116, 0.25);
   padding-top: 2rem;
 }
 
 /* Field: earthy, tactile, and relaxed without losing professionalism. */
 .course-shell[data-course-theme="field"] {
   background-image:
-    radial-gradient(circle at 12% 12%, rgba(189, 113, 55, 0.12), transparent 24rem),
-    radial-gradient(circle at 90% 75%, rgba(36, 74, 59, 0.1), transparent 28rem);
+    radial-gradient(circle at 12% 12%, rgba(245, 168, 0, 0.12), transparent 24rem),
+    radial-gradient(circle at 90% 75%, rgba(0, 45, 116, 0.1), transparent 28rem);
 }
 
 .course-shell[data-course-theme="field"] .course-sidebar {
-  border-right: 4px solid rgba(189, 113, 55, 0.8);
+  border-right: 4px solid rgba(245, 168, 0, 0.8);
 }
 
 .course-shell[data-course-theme="field"] .course-article {
@@ -146,7 +143,7 @@ body {
 }
 
 .course-shell[data-course-theme="field"] .course-article > div:first-child {
-  border-left: 8px solid rgba(189, 113, 55, 0.35);
+  border-left: 8px solid rgba(245, 168, 0, 0.35);
   padding-left: clamp(1.25rem, 3vw, 2.5rem);
 }
 
