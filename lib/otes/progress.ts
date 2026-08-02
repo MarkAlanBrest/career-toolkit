@@ -28,7 +28,6 @@ export function computeCategoryProgress(
     levelPercent,
     actionCount,
     recentActionCount,
-    goalSet: Boolean(rating?.goal?.trim()),
     coachMessageCount: 0,
   };
 }

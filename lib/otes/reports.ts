@@ -1,5 +1,5 @@
 import { getCategoryGuidance } from './categoryGuidance';
-import { OTES_RUBRIC, PERFORMANCE_LEVELS } from './rubric';
+import { OTES_RUBRIC, PERFORMANCE_LEVELS, buildCategoryAccomplishedGoalText } from './rubric';
 import type { CategoryAction, CategoryCoachMessage, CategoryRating, OtesWorkspace, PerformanceLevel } from './types';
 
 function levelLabel(level: PerformanceLevel | null) {
@@ -50,8 +50,7 @@ function buildCategorySection(
   if (!domain) return '';
 
   const guidance = getCategoryGuidance(categoryId);
-  const goal = rating?.goal?.trim() || 'Work toward Accomplished in this domain.';
-  const strategy = rating?.strategy?.trim() || '';
+  const rubricTarget = buildCategoryAccomplishedGoalText(categoryId);
 
   const actionsHtml = actions.length
     ? actions
@@ -87,9 +86,8 @@ function buildCategorySection(
     </div>
 
     <div class="section goal-box">
-      <h3 style="margin-top:0">My Goal</h3>
-      <p>${escapeHtml(goal)}</p>
-      ${strategy ? `<h3>My Strategy</h3><p>${escapeHtml(strategy)}</p>` : ''}
+      <h3 style="margin-top:0">OTES 2.0 Rubric Target — Accomplished</h3>
+      <p style="white-space:pre-wrap">${escapeHtml(rubricTarget)}</p>
       <p style="margin-bottom:0"><span class="badge">Current level: ${escapeHtml(levelLabel(rating?.currentLevel ?? null))}</span>
       &nbsp; Target: <strong>Accomplished</strong></p>
     </div>

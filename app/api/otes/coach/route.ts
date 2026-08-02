@@ -46,7 +46,7 @@ function fallbackCoach(body: CoachRequest) {
   }
 
   return {
-    answer: 'Open a rubric category on your dashboard, set a goal and strategy, then log one action this week. Your coach works best when tied to a specific domain.',
+    answer: 'Open a rubric category on your dashboard, review the Accomplished descriptors, and log one action this week. Your coach works best when tied to a specific domain.',
     actions: [],
   };
 }

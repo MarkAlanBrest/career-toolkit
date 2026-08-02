@@ -92,7 +92,6 @@ export type CategoryProgress = {
   levelPercent: number;
   actionCount: number;
   recentActionCount: number;
-  goalSet: boolean;
   coachMessageCount: number;
 };
 
