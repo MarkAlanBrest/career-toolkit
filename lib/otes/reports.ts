@@ -1,6 +1,5 @@
 import { getCategoryGuidance } from './categoryGuidance';
 import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
-import { cadenceLabel } from './tasks';
 import type { CategoryTask, OtesWorkspace } from './types';
 
 function escapeHtml(text: string) {
@@ -26,7 +25,6 @@ function reportStyles() {
     .section { margin-bottom: 20px; }
     .task { border-left: 4px solid #2d5a87; padding: 10px 14px; margin-bottom: 12px; background: #fffef5; }
     .task-label { font-weight: bold; margin-bottom: 4px; }
-    .task-cadence { font-size: 10pt; color: #6b7f93; font-weight: bold; text-transform: uppercase; }
     .task-notes { margin: 8px 0 0; white-space: pre-wrap; }
     ul { margin: 8px 0; padding-left: 22px; }
     li { margin-bottom: 6px; }
@@ -51,7 +49,7 @@ function buildCategorySection(
         .map(
           task => `
         <div class="task">
-          <div class="task-cadence">${escapeHtml(cadenceLabel(task.cadence))} · ${escapeHtml(task.label)}</div>
+          <div class="task-label">${escapeHtml(task.label)}</div>
           <div class="task-notes">${escapeHtml(task.notes)}</div>
         </div>`,
         )

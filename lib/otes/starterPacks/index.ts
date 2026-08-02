@@ -22,7 +22,7 @@ export function applyStarterPack(workspace: OtesWorkspace, packId: StarterPackId
 
   const now = new Date().toISOString();
   const sampleTasks = WOODS_TECH_ACTIONS.map(action =>
-    createTask(action.categoryId, action.title, 'custom', action.description),
+    createTask(action.categoryId, action.title, action.description),
   );
 
   return {
