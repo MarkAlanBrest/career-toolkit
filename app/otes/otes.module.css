@@ -28,6 +28,12 @@
   font-size: 0.88rem;
 }
 
+.syncStatus {
+  margin-top: 6px !important;
+  font-size: 0.8rem !important;
+  opacity: 0.75 !important;
+}
+
 .headerActions {
   display: flex;
   gap: 8px;
