@@ -28,6 +28,12 @@ function scrollToCategory(categoryId: string) {
   });
 }
 
+function resizeTextarea(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export default function OtesCoachApp() {
   const [workspace, setWorkspace] = useState<OtesWorkspace | null>(null);
   const [view, setView] = useState<View>('home');
@@ -264,10 +270,15 @@ export default function OtesCoachApp() {
                       {tasks.map(task => (
                         <article key={task.id} className={styles.taskSticky}>
                           <div className={styles.taskStickyHeader}>
-                            <input
+                            <textarea
                               className={styles.taskLabelInput}
                               value={task.label}
-                              onChange={e => updateTask(task.id, { label: e.target.value })}
+                              rows={1}
+                              onChange={e => {
+                                updateTask(task.id, { label: e.target.value });
+                                resizeTextarea(e.target);
+                              }}
+                              ref={resizeTextarea}
                               aria-label="Task title"
                             />
                             <button
