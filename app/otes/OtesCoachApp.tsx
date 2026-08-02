@@ -9,7 +9,6 @@ import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
   CategoryAction,
-  CategoryCoachMessage,
   EvalLessonPlan,
   OtesWorkspace,
   TeacherProfile,
@@ -33,7 +32,6 @@ export default function OtesCoachApp() {
   const [actionTitle, setActionTitle] = useState('');
   const [actionDescription, setActionDescription] = useState('');
   const [actionDate, setActionDate] = useState(new Date().toISOString().slice(0, 10));
-  const [coachInput, setCoachInput] = useState('');
 
   const [evalTopic, setEvalTopic] = useState('');
   const [evalCategoryId, setEvalCategoryId] = useState('');
@@ -62,7 +60,6 @@ export default function OtesCoachApp() {
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
   const selectedActions = workspace.actions.filter(a => a.categoryId === selectedCategoryId);
-  const selectedMessages = workspace.coachMessages.filter(m => m.categoryId === selectedCategoryId);
   const selectedGuidance = selectedCategoryId ? getCategoryGuidance(selectedCategoryId) : null;
 
   const updateProfile = (patch: Partial<TeacherProfile>) => {
@@ -72,7 +69,6 @@ export default function OtesCoachApp() {
   const openCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
     setView('category');
-    setCoachInput('');
   };
 
   const addAction = () => {
@@ -88,53 +84,6 @@ export default function OtesCoachApp() {
     persist(prev => ({ ...prev, actions: [action, ...prev.actions] }));
     setActionTitle('');
     setActionDescription('');
-  };
-
-  const sendCoachMessage = async () => {
-    if (!selectedCategoryId || !coachInput.trim()) return;
-    const userMessage: CategoryCoachMessage = {
-      id: newId('msg'),
-      categoryId: selectedCategoryId,
-      role: 'user',
-      content: coachInput.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    persist(prev => ({ ...prev, coachMessages: [...prev.coachMessages, userMessage] }));
-    setCoachInput('');
-    setBusy(true);
-
-    try {
-      const res = await fetch('/api/otes/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: userMessage.content,
-          categoryId: selectedCategoryId,
-          context: `Target: Accomplished. Actions logged: ${selectedActions.length}.`,
-          teacherProfile: workspace.profile,
-        }),
-      });
-      const data = await res.json();
-      const coachMessage: CategoryCoachMessage = {
-        id: newId('msg'),
-        categoryId: selectedCategoryId,
-        role: 'coach',
-        content: data.answer || 'Keep logging your actions and working toward Accomplished.',
-        createdAt: new Date().toISOString(),
-      };
-      persist(prev => ({ ...prev, coachMessages: [...prev.coachMessages, coachMessage] }));
-    } catch {
-      const fallback: CategoryCoachMessage = {
-        id: newId('msg'),
-        categoryId: selectedCategoryId,
-        role: 'coach',
-        content: 'Could not reach the coach. Try again, or use the suggestions above.',
-        createdAt: new Date().toISOString(),
-      };
-      persist(prev => ({ ...prev, coachMessages: [...prev.coachMessages, fallback] }));
-    } finally {
-      setBusy(false);
-    }
   };
 
   const generateEvalLesson = async () => {
@@ -235,8 +184,8 @@ export default function OtesCoachApp() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <h1>OTES 2.0 Coach</h1>
-          <p>Rubric → Actions → Report</p>
+          <h1>OTES Action Log</h1>
+          <p>Log your practice · Export your report</p>
         </div>
         <div className={styles.headerActions}>
           {view !== 'dashboard' && (
@@ -266,7 +215,7 @@ export default function OtesCoachApp() {
           <>
             <div className={styles.dashboardHero}>
               <div>
-                <div className={styles.heroLabel}>Your OTES workspace</div>
+                <div className={styles.heroLabel}>OTES action log</div>
                 <div className={styles.heroValue}>{workspace.actions.length}</div>
                 <div className={styles.heroLabel}>actions logged</div>
               </div>
@@ -337,50 +286,8 @@ export default function OtesCoachApp() {
 
             <div className={styles.categoryColumns}>
             <section className={styles.card}>
-              <h3>Suggestions</h3>
-                <h4 className={styles.subheading}>Daily habits</h4>
-                <ul className={styles.suggestionList}>
-                  {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
-                </ul>
-                <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
-                <ul className={styles.suggestionList}>
-                  {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
-                </ul>
-                <h4 className={styles.subheading}>What Accomplished looks like</h4>
-                <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
-            </section>
-
-            <section className={styles.card}>
-              <h3>Category Coach</h3>
-              <p className={styles.cardIntro}>Ask for recommendations specific to {selectedDomain.name}.</p>
-              <div className={styles.coachThread}>
-                {selectedMessages.length === 0 && (
-                  <p className={styles.empty}>Start a conversation — try: &quot;What should I focus on this week?&quot;</p>
-                )}
-                {selectedMessages.map(msg => (
-                  <div key={msg.id} className={msg.role === 'coach' ? styles.coachBubble : styles.userBubble}>
-                    <div className={styles.bubbleRole}>{msg.role === 'coach' ? 'Coach' : 'You'}</div>
-                    <div className={styles.bubbleText}>{msg.content}</div>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.coachInputRow}>
-                <input
-                  className={styles.input}
-                  value={coachInput}
-                  onChange={e => setCoachInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !busy && sendCoachMessage()}
-                  placeholder="Ask your coach for this category…"
-                />
-                <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={sendCoachMessage} disabled={busy}>
-                  {busy ? '…' : 'Send'}
-                </button>
-              </div>
-            </section>
-
-            <section className={styles.card}>
               <h3>Actions I Took</h3>
-              <p className={styles.cardIntro}>Log what you did — this becomes your evidence in the Word report.</p>
+              <p className={styles.cardIntro}>Record what you did — this becomes your evidence in the Word report.</p>
               <div className={styles.grid2}>
                 <div className={styles.field}>
                   <label className={styles.label}>What did you do?</label>
@@ -410,6 +317,21 @@ export default function OtesCoachApp() {
                   ))
                 )}
               </div>
+            </section>
+
+            <section className={styles.card}>
+              <h3>Rubric Reference</h3>
+              <p className={styles.cardIntro}>OTES 2.0 Accomplished descriptors for {selectedDomain.name}.</p>
+                <h4 className={styles.subheading}>Daily habits</h4>
+                <ul className={styles.suggestionList}>
+                  {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
+                <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
+                <ul className={styles.suggestionList}>
+                  {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
+                <h4 className={styles.subheading}>What Accomplished looks like</h4>
+                <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
             </section>
             </div>
           </div>
