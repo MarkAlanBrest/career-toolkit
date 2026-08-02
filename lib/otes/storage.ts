@@ -3,8 +3,8 @@ import { OTES_RUBRIC } from './rubric';
 import { initializeWorkspaceTasks, migrateTasksToStrategies } from './tasks';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
-export const STORAGE_KEY = 'otes-coach-workspace-v6';
-const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v5', 'otes-coach-workspace-v4', 'otes-coach-workspace-v3', 'otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
+export const STORAGE_KEY = 'otes-coach-workspace-v7';
+const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v6', 'otes-coach-workspace-v5', 'otes-coach-workspace-v4', 'otes-coach-workspace-v3', 'otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
 
 function defaultProfile(): TeacherProfile {
   return {
@@ -176,8 +176,11 @@ function finalizeWorkspace(workspace: OtesWorkspace): OtesWorkspace {
   const upgradingFromV5 = typeof window !== 'undefined'
     && !localStorage.getItem(STORAGE_KEY)
     && Boolean(localStorage.getItem('otes-coach-workspace-v5'));
+  const upgradingFromV6 = typeof window !== 'undefined'
+    && !localStorage.getItem(STORAGE_KEY)
+    && Boolean(localStorage.getItem('otes-coach-workspace-v6'));
   let next = initializeWorkspaceTasks({ ...workspace, version: 3, tasks: workspace.tasks ?? [] });
-  if (upgradingFromV5) {
+  if (upgradingFromV5 || upgradingFromV6) {
     next = migrateTasksToStrategies(next);
   }
   if (!localStorage.getItem(STORAGE_KEY)) {
