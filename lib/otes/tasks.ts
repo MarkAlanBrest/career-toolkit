@@ -6,12 +6,9 @@ function makeId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export type TaskCadence = CategoryTask['cadence'];
-
 export function createTask(
   categoryId: string,
   label: string,
-  cadence: TaskCadence = 'custom',
   notes = '',
 ): CategoryTask {
   const now = new Date().toISOString();
@@ -20,7 +17,6 @@ export function createTask(
     categoryId,
     label,
     notes,
-    cadence,
     createdAt: now,
     updatedAt: now,
   };
@@ -28,10 +24,8 @@ export function createTask(
 
 export function buildDefaultTasksForCategory(categoryId: string): CategoryTask[] {
   const guidance = getCategoryGuidance(categoryId);
-  return [
-    ...guidance.dailyHabits.map(label => createTask(categoryId, label, 'daily')),
-    ...guidance.weeklyHabits.map(label => createTask(categoryId, label, 'weekly')),
-  ];
+  const labels = [...guidance.dailyHabits, ...guidance.weeklyHabits];
+  return labels.map(label => createTask(categoryId, label));
 }
 
 export function getCategoryTasks(workspace: OtesWorkspace, categoryId: string): CategoryTask[] {
@@ -60,16 +54,8 @@ export function initializeWorkspaceTasks(workspace: OtesWorkspace): OtesWorkspac
       task => task.id === action.id || (task.categoryId === action.categoryId && task.label === action.title),
     );
     if (alreadyMigrated) continue;
-    tasks.push(createTask(action.categoryId, action.title, 'custom', action.description));
+    tasks.push(createTask(action.categoryId, action.title, action.description));
   }
 
   return { ...workspace, tasks };
-}
-
-export function cadenceLabel(cadence: TaskCadence): string {
-  switch (cadence) {
-    case 'daily': return 'Daily';
-    case 'weekly': return 'Weekly';
-    default: return 'Custom';
-  }
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
-import { cadenceLabel, countTasksWithNotes, createTask, getCategoryTasks } from '@/lib/otes/tasks';
+import { countTasksWithNotes, createTask, getCategoryTasks } from '@/lib/otes/tasks';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
@@ -15,21 +15,25 @@ import type {
 } from '@/lib/otes/types';
 import styles from './otes.module.css';
 
-type View = 'dashboard' | 'category' | 'eval' | 'rubric';
+type View = 'home' | 'eval' | 'rubric';
 
 function formatDate(iso: string) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function scrollToCategory(categoryId: string) {
+  requestAnimationFrame(() => {
+    document.getElementById(`category-${categoryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
 export default function OtesCoachApp() {
   const [workspace, setWorkspace] = useState<OtesWorkspace | null>(null);
-  const [view, setView] = useState<View>('dashboard');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [view, setView] = useState<View>('home');
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  const [newTaskLabel, setNewTaskLabel] = useState('');
+  const [newTaskLabels, setNewTaskLabels] = useState<Record<string, string>>({});
 
   const [evalTopic, setEvalTopic] = useState('');
   const [evalCategoryId, setEvalCategoryId] = useState('');
@@ -56,26 +60,16 @@ export default function OtesCoachApp() {
     );
   }
 
-  const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
-  const selectedTasks = selectedCategoryId ? getCategoryTasks(workspace, selectedCategoryId) : [];
-  const selectedGuidance = selectedCategoryId ? getCategoryGuidance(selectedCategoryId) : null;
-
   const updateProfile = (patch: Partial<TeacherProfile>) => {
     persist(prev => ({ ...prev, profile: { ...prev.profile, ...patch } }));
   };
 
-  const openCategory = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
-    setView('category');
-    setNewTaskLabel('');
-  };
-
-  const updateTaskNotes = (taskId: string, notes: string) => {
+  const updateTask = (taskId: string, patch: Partial<{ label: string; notes: string }>) => {
     const now = new Date().toISOString();
     persist(prev => ({
       ...prev,
       tasks: prev.tasks.map(task =>
-        task.id === taskId ? { ...task, notes, updatedAt: now } : task,
+        task.id === taskId ? { ...task, ...patch, updatedAt: now } : task,
       ),
     }));
   };
@@ -87,13 +81,19 @@ export default function OtesCoachApp() {
     }));
   };
 
-  const addTask = () => {
-    if (!selectedCategoryId || !newTaskLabel.trim()) return;
+  const addTask = (categoryId: string) => {
+    const label = newTaskLabels[categoryId]?.trim();
+    if (!label) return;
     persist(prev => ({
       ...prev,
-      tasks: [...prev.tasks, createTask(selectedCategoryId, newTaskLabel.trim(), 'custom')],
+      tasks: [...prev.tasks, createTask(categoryId, label)],
     }));
-    setNewTaskLabel('');
+    setNewTaskLabels(prev => ({ ...prev, [categoryId]: '' }));
+  };
+
+  const goToCategory = (categoryId: string) => {
+    setView('home');
+    scrollToCategory(categoryId);
   };
 
   const generateEvalLesson = async () => {
@@ -198,9 +198,9 @@ export default function OtesCoachApp() {
           <p>Log your practice · Export your report</p>
         </div>
         <div className={styles.headerActions}>
-          {view !== 'dashboard' && (
-            <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => { setView('dashboard'); setSelectedCategoryId(null); }}>
-              Dashboard
+          {view !== 'home' && (
+            <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setView('home')}>
+              Action Log
             </button>
           )}
           {view !== 'rubric' && (
@@ -221,136 +221,95 @@ export default function OtesCoachApp() {
       </header>
 
       <main className={styles.main}>
-        {view === 'dashboard' && (
-          <>
-            <div className={styles.dashboardHero}>
-              <div>
-                <div className={styles.heroLabel}>OTES action log</div>
-                <div className={styles.heroValue}>{countTasksWithNotes(workspace)}</div>
-                <div className={styles.heroLabel}>tasks with notes</div>
-              </div>
-              <div className={styles.heroStats}>
-                <span>{workspace.evalLessonPlans.length} eval lesson plan{workspace.evalLessonPlans.length === 1 ? '' : 's'}</span>
-                <span>{OTES_RUBRIC.length} rubric categories</span>
-              </div>
+        {view === 'home' && (
+          <div className={styles.logPage}>
+            <div className={styles.logIntro}>
+              <p>{countTasksWithNotes(workspace)} sticky notes with content across all categories.</p>
             </div>
 
-            <div className={styles.categoryGrid}>
-              {OTES_RUBRIC.map(domain => {
-                const taskCount = getCategoryTasks(workspace, domain.id).length;
-                const notesCount = countTasksWithNotes(workspace, domain.id);
-                return (
-                  <button
-                    key={domain.id}
-                    type="button"
-                    className={styles.categoryCard}
-                    onClick={() => openCategory(domain.id)}
-                  >
-                    <div className={styles.categoryCardTop}>
+            {OTES_RUBRIC.map(domain => {
+              const guidance = getCategoryGuidance(domain.id);
+              const tasks = getCategoryTasks(workspace, domain.id);
+              return (
+                <section key={domain.id} id={`category-${domain.id}`} className={styles.categorySection}>
+                  <div className={styles.categoryPageHeader}>
+                    <div>
                       <h2>{domain.name}</h2>
+                      <p>{ORGANIZATIONAL_AREAS[domain.area]}</p>
                     </div>
-                    <div className={styles.categoryMeta}>{ORGANIZATIONAL_AREAS[domain.area]}</div>
-                    <div className={styles.categoryCardFooter}>
-                      <span>{notesCount} of {taskCount} task{taskCount === 1 ? '' : 's'} with notes</span>
-                      <span>Open category →</span>
+                    <button
+                      type="button"
+                      className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
+                      onClick={() => downloadWordReport(
+                        buildCategoryReportHtml(workspace, domain.id),
+                        `otes-${domain.id}-report`,
+                      )}
+                    >
+                      Print report
+                    </button>
+                  </div>
+
+                  <section className={styles.card}>
+                    <h3>Guide for this category</h3>
+                    <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
+                    <ul className={styles.suggestionList}>
+                      {guidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
+                    </ul>
+                    <h4 className={styles.subheading}>What Accomplished looks like</h4>
+                    <p className={styles.accomplishedText}>{guidance.accomplishedSummary}</p>
+                  </section>
+
+                  <section className={styles.taskSection}>
+                    <div className={styles.taskSectionHeader}>
+                      <h3>Sticky notes</h3>
+                      <p className={styles.cardIntro}>Edit the title, write your notes, add new stickies, or delete ones you do not need.</p>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
 
-        {view === 'category' && selectedDomain && selectedGuidance && (
-          <div className={styles.categoryPage}>
-            <div className={styles.categoryPageHeader}>
-              <div>
-                <h2>{selectedDomain.name}</h2>
-                <p>{ORGANIZATIONAL_AREAS[selectedDomain.area]}</p>
-              </div>
-              <button
-                type="button"
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => downloadWordReport(
-                  buildCategoryReportHtml(workspace, selectedCategoryId!),
-                  `otes-${selectedDomain.id}-report`,
-                )}
-              >
-                Print Category Report
-              </button>
-            </div>
+                    <div className={styles.taskGrid}>
+                      {tasks.map(task => (
+                        <article key={task.id} className={styles.taskSticky}>
+                          <div className={styles.taskStickyHeader}>
+                            <input
+                              className={styles.taskLabelInput}
+                              value={task.label}
+                              onChange={e => updateTask(task.id, { label: e.target.value })}
+                              aria-label="Task title"
+                            />
+                            <button
+                              type="button"
+                              className={styles.taskDelete}
+                              onClick={() => deleteTask(task.id)}
+                              aria-label={`Delete ${task.label}`}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <textarea
+                            className={styles.taskNotes}
+                            value={task.notes}
+                            onChange={e => updateTask(task.id, { notes: e.target.value })}
+                            placeholder="Your notes…"
+                          />
+                        </article>
+                      ))}
+                    </div>
 
-            <p className={styles.rubricLinkRow}>
-              <button
-                type="button"
-                className={styles.rubricLinkBtn}
-                onClick={() => {
-                  setView('rubric');
-                  requestAnimationFrame(() => {
-                    document.getElementById(`rubric-${selectedDomain.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  });
-                }}
-              >
-                View OTES 2.0 Accomplished rubric for {selectedDomain.name} →
-              </button>
-            </p>
-
-            <section className={styles.card}>
-              <h3>Guide for this category</h3>
-              <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
-              <ul className={styles.suggestionList}>
-                {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
-              </ul>
-              <h4 className={styles.subheading}>What Accomplished looks like</h4>
-              <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
-            </section>
-
-            <section className={styles.taskSection}>
-              <div className={styles.taskSectionHeader}>
-                <div>
-                  <h3>My tracking tasks</h3>
-                  <p className={styles.cardIntro}>Each task is a sticky note — jot down what you need to track for that habit or goal.</p>
-                </div>
-              </div>
-
-              <div className={styles.taskGrid}>
-                {selectedTasks.map(task => (
-                  <article key={task.id} className={styles.taskSticky}>
-                    <div className={styles.taskStickyHeader}>
-                      <span className={styles.taskCadence}>{cadenceLabel(task.cadence)}</span>
-                      <button
-                        type="button"
-                        className={styles.taskDelete}
-                        onClick={() => deleteTask(task.id)}
-                        aria-label={`Delete task ${task.label}`}
-                      >
-                        Delete
+                    <div className={styles.addTaskRow}>
+                      <input
+                        className={styles.input}
+                        value={newTaskLabels[domain.id] ?? ''}
+                        onChange={e => setNewTaskLabels(prev => ({ ...prev, [domain.id]: e.target.value }))}
+                        onKeyDown={e => e.key === 'Enter' && addTask(domain.id)}
+                        placeholder="New sticky note title…"
+                      />
+                      <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => addTask(domain.id)}>
+                        Add sticky
                       </button>
                     </div>
-                    <p className={styles.taskLabel}>{task.label}</p>
-                    <textarea
-                      className={styles.taskNotes}
-                      value={task.notes}
-                      onChange={e => updateTaskNotes(task.id, e.target.value)}
-                      placeholder="Your notes for this task…"
-                    />
-                  </article>
-                ))}
-              </div>
-
-              <div className={styles.addTaskRow}>
-                <input
-                  className={styles.input}
-                  value={newTaskLabel}
-                  onChange={e => setNewTaskLabel(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addTask()}
-                  placeholder="Add a custom task to track…"
-                />
-                <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={addTask}>
-                  Add task
-                </button>
-              </div>
-            </section>
+                  </section>
+                </section>
+              );
+            })}
           </div>
         )}
 
@@ -359,7 +318,7 @@ export default function OtesCoachApp() {
             <div className={styles.categoryPageHeader}>
               <div>
                 <h2>OTES 2.0 Rubric</h2>
-                <p>Accomplished-level descriptors for every rubric category — your target for growth planning.</p>
+                <p>Accomplished-level descriptors for every rubric category.</p>
               </div>
             </div>
 
@@ -392,9 +351,9 @@ export default function OtesCoachApp() {
                         type="button"
                         className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
                         style={{ marginTop: 12 }}
-                        onClick={() => openCategory(domain.id)}
+                        onClick={() => goToCategory(domain.id)}
                       >
-                        Work on {domain.name} →
+                        Go to {domain.name} →
                       </button>
                     </article>
                   ))}
@@ -479,7 +438,7 @@ export default function OtesCoachApp() {
                 Load sample task notes and observation lesson plans for woods technology classes.
               </p>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
-                Load sample actions &amp; lesson plans
+                Load sample stickies &amp; lesson plans
               </button>
             </div>
             <div className={styles.field}>

@@ -35,7 +35,6 @@ export type CategoryTask = {
   categoryId: string;
   label: string;
   notes: string;
-  cadence: 'daily' | 'weekly' | 'custom';
   createdAt: string;
   updatedAt: string;
 };
