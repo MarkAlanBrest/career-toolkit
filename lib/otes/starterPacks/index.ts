@@ -1,5 +1,6 @@
 import type { OtesWorkspace } from '../types';
 import { newId } from '../storage';
+import { createTask } from '../tasks';
 import {
   WOODS_TECH_ACTIONS,
   WOODS_TECH_LESSON_PLANS,
@@ -12,7 +13,7 @@ export const STARTER_PACKS: Record<StarterPackId, { label: string; description: 
   woods_technology: {
     label: 'Woods Technology (WT1 & WT2–4)',
     description:
-      'Sample actions and observation lesson plans for a shop teacher teaching basic carpentry and advanced woods classes.',
+      'Sample task notes and observation lesson plans for a shop teacher teaching basic carpentry and advanced woods classes.',
   },
 };
 
@@ -20,18 +21,14 @@ export function applyStarterPack(workspace: OtesWorkspace, packId: StarterPackId
   if (packId !== 'woods_technology') return workspace;
 
   const now = new Date().toISOString();
+  const sampleTasks = WOODS_TECH_ACTIONS.map(action =>
+    createTask(action.categoryId, action.title, 'custom', action.description),
+  );
 
   return {
     ...workspace,
     profile: { ...workspace.profile, ...WOODS_TECH_PROFILE },
-    actions: [
-      ...WOODS_TECH_ACTIONS.map(action => ({
-        ...action,
-        id: newId('action'),
-        createdAt: now,
-      })),
-      ...workspace.actions,
-    ],
+    tasks: [...sampleTasks, ...workspace.tasks],
     evalLessonPlans: [
       ...WOODS_TECH_LESSON_PLANS.map(plan => ({
         ...plan,

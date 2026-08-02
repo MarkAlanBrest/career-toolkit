@@ -1,6 +1,7 @@
 import { getCategoryGuidance } from './categoryGuidance';
 import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
-import type { CategoryAction, OtesWorkspace } from './types';
+import { cadenceLabel } from './tasks';
+import type { CategoryTask, OtesWorkspace } from './types';
 
 function escapeHtml(text: string) {
   return text
@@ -22,10 +23,11 @@ function reportStyles() {
     h2 { color: #2d5a87; font-size: 14pt; margin-top: 28px; margin-bottom: 8px; }
     h3 { color: #1a3a5c; font-size: 12pt; margin-top: 18px; margin-bottom: 6px; }
     .meta { color: #5a6f83; font-size: 11pt; margin-bottom: 24px; }
-    .badge { display: inline-block; background: #e8f2ec; color: #1e5f4a; padding: 4px 12px; border-radius: 4px; font-weight: bold; font-size: 11pt; }
     .section { margin-bottom: 20px; }
-    .action { border-left: 4px solid #2d5a87; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
-    .action-date { font-size: 10pt; color: #6b7f93; font-weight: bold; }
+    .task { border-left: 4px solid #2d5a87; padding: 10px 14px; margin-bottom: 12px; background: #fffef5; }
+    .task-label { font-weight: bold; margin-bottom: 4px; }
+    .task-cadence { font-size: 10pt; color: #6b7f93; font-weight: bold; text-transform: uppercase; }
+    .task-notes { margin: 8px 0 0; white-space: pre-wrap; }
     ul { margin: 8px 0; padding-left: 22px; }
     li { margin-bottom: 6px; }
     .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #d8e2ec; font-size: 10pt; color: #6b7f93; }
@@ -35,27 +37,26 @@ function reportStyles() {
 
 function buildCategorySection(
   categoryId: string,
-  actions: CategoryAction[],
+  tasks: CategoryTask[],
 ) {
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   if (!domain) return '';
 
   const guidance = getCategoryGuidance(categoryId);
   const rubricTarget = buildCategoryAccomplishedGoalText(categoryId);
+  const tasksWithNotes = tasks.filter(task => task.notes.trim());
 
-  const actionsHtml = actions.length
-    ? actions
-        .sort((a, b) => b.date.localeCompare(a.date))
+  const tasksHtml = tasksWithNotes.length
+    ? tasksWithNotes
         .map(
-          a => `
-        <div class="action">
-          <div class="action-date">${escapeHtml(formatDate(a.date))}</div>
-          <strong>${escapeHtml(a.title)}</strong>
-          ${a.description ? `<p style="margin:6px 0 0">${escapeHtml(a.description)}</p>` : ''}
+          task => `
+        <div class="task">
+          <div class="task-cadence">${escapeHtml(cadenceLabel(task.cadence))} · ${escapeHtml(task.label)}</div>
+          <div class="task-notes">${escapeHtml(task.notes)}</div>
         </div>`,
         )
         .join('')
-    : '<p><em>No actions logged yet for this category.</em></p>';
+    : '<p><em>No task notes recorded yet for this category.</em></p>';
 
   return `
     <h1>${escapeHtml(domain.name)}</h1>
@@ -69,11 +70,16 @@ function buildCategorySection(
       <p style="margin-bottom:0">Target: <strong>Accomplished</strong></p>
     </div>
 
+    <h2>Strategies toward Accomplished</h2>
+    <ul>
+      ${guidance.strategies.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+    </ul>
+
     <h2>What Accomplished Looks Like</h2>
     <p>${escapeHtml(guidance.accomplishedSummary)}</p>
 
-    <h2>Actions I Took</h2>
-    ${actionsHtml}
+    <h2>Task Notes</h2>
+    ${tasksHtml}
 
     <h2>OTES 2.0 Rubric Components in This Domain</h2>
     <ul>
@@ -109,7 +115,7 @@ function reportHeader(workspace: OtesWorkspace, title: string) {
 
 export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: string) {
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
-  const actions = workspace.actions.filter(a => a.categoryId === categoryId);
+  const tasks = workspace.tasks.filter(task => task.categoryId === categoryId);
 
   const body = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
@@ -117,7 +123,7 @@ export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: st
     <style>${reportStyles()}</style></head>
     <body>
       ${reportHeader(workspace, `${domain?.name ?? 'Category'} — Action Log Report`)}
-      ${buildCategorySection(categoryId, actions)}
+      ${buildCategorySection(categoryId, tasks)}
       <div class="footer">
         Prepared for administrator review · OTES 2.0 Teacher Performance Evaluation Rubric
       </div>
@@ -128,8 +134,8 @@ export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: st
 
 export function buildFullReportHtml(workspace: OtesWorkspace) {
   const sections = OTES_RUBRIC.map(domain => {
-    const actions = workspace.actions.filter(a => a.categoryId === domain.id);
-    return buildCategorySection(domain.id, actions);
+    const tasks = workspace.tasks.filter(task => task.categoryId === domain.id);
+    return buildCategorySection(domain.id, tasks);
   }).join('<hr style="margin:40px 0;border:none;border-top:2px solid #d8e2ec">');
 
   return `

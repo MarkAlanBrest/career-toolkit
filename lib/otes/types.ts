@@ -30,6 +30,16 @@ export type CategoryRating = {
   updatedAt: string;
 };
 
+export type CategoryTask = {
+  id: string;
+  categoryId: string;
+  label: string;
+  notes: string;
+  cadence: 'daily' | 'weekly' | 'custom';
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CategoryAction = {
   id: string;
   categoryId: string;
@@ -76,9 +86,10 @@ export type TeacherProfile = {
 };
 
 export type OtesWorkspace = {
-  version: 2;
+  version: 3;
   profile: TeacherProfile;
   categoryRatings: CategoryRating[];
+  tasks: CategoryTask[];
   actions: CategoryAction[];
   coachMessages: CategoryCoachMessage[];
   evalLessonPlans: EvalLessonPlan[];
