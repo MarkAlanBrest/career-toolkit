@@ -63,7 +63,9 @@ export function migrateTasksToStrategies(workspace: OtesWorkspace): OtesWorkspac
 
     for (const old of oldTasks) {
       if (!usedIds.has(old.id) && !strategyLabels.has(old.label)) {
-        tasks.push(old);
+        if (old.notes.trim()) {
+          tasks.push(old);
+        }
       }
     }
   }
