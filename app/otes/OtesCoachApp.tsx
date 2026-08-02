@@ -224,7 +224,7 @@ export default function OtesCoachApp() {
         {view === 'home' && (
           <div className={styles.logPage}>
             <div className={styles.logIntro}>
-              <p>{countTasksWithNotes(workspace)} sticky notes with content across all categories.</p>
+              <p>{countTasksWithNotes(workspace)} strategies with notes across all categories.</p>
             </div>
 
             {OTES_RUBRIC.map(domain => {
@@ -250,19 +250,14 @@ export default function OtesCoachApp() {
                   </div>
 
                   <section className={styles.card}>
-                    <h3>Guide for this category</h3>
-                    <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
-                    <ul className={styles.suggestionList}>
-                      {guidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
-                    </ul>
-                    <h4 className={styles.subheading}>What Accomplished looks like</h4>
+                    <h3>What Accomplished looks like</h3>
                     <p className={styles.accomplishedText}>{guidance.accomplishedSummary}</p>
                   </section>
 
                   <section className={styles.taskSection}>
                     <div className={styles.taskSectionHeader}>
-                      <h3>Sticky notes</h3>
-                      <p className={styles.cardIntro}>Edit the title, write your notes, add new stickies, or delete ones you do not need.</p>
+                      <h3>Strategies &amp; tasks</h3>
+                      <p className={styles.cardIntro}>Each card is a strategy toward Accomplished — edit the title, track your notes, add your own, or delete what you do not need.</p>
                     </div>
 
                     <div className={styles.taskGrid}>
@@ -300,10 +295,10 @@ export default function OtesCoachApp() {
                         value={newTaskLabels[domain.id] ?? ''}
                         onChange={e => setNewTaskLabels(prev => ({ ...prev, [domain.id]: e.target.value }))}
                         onKeyDown={e => e.key === 'Enter' && addTask(domain.id)}
-                        placeholder="New sticky note title…"
+                        placeholder="New strategy to track…"
                       />
                       <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => addTask(domain.id)}>
-                        Add sticky
+                        Add strategy
                       </button>
                     </div>
                   </section>
@@ -435,10 +430,10 @@ export default function OtesCoachApp() {
             <div className={styles.field}>
               <label className={styles.label}>Sample content</label>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
-                Load sample task notes and observation lesson plans for woods technology classes.
+                Load sample strategy notes and observation lesson plans for woods technology classes.
               </p>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
-                Load sample stickies &amp; lesson plans
+                Load sample strategies &amp; lesson plans
               </button>
             </div>
             <div className={styles.field}>

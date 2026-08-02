@@ -54,7 +54,7 @@ function buildCategorySection(
         </div>`,
         )
         .join('')
-    : '<p><em>No task notes recorded yet for this category.</em></p>';
+    : '<p><em>No strategy notes recorded yet for this category.</em></p>';
 
   return `
     <h1>${escapeHtml(domain.name)}</h1>
@@ -68,15 +68,10 @@ function buildCategorySection(
       <p style="margin-bottom:0">Target: <strong>Accomplished</strong></p>
     </div>
 
-    <h2>Strategies toward Accomplished</h2>
-    <ul>
-      ${guidance.strategies.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-    </ul>
-
     <h2>What Accomplished Looks Like</h2>
     <p>${escapeHtml(guidance.accomplishedSummary)}</p>
 
-    <h2>Task Notes</h2>
+    <h2>Strategies &amp; Notes</h2>
     ${tasksHtml}
 
     <h2>OTES 2.0 Rubric Components in This Domain</h2>
