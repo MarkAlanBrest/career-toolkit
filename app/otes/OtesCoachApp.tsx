@@ -326,6 +326,14 @@ export default function OtesCoachApp() {
                 <ul className={styles.suggestionList}>
                   {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
                 </ul>
+                {selectedGuidance.weeklyHabits.length > 0 && (
+                  <>
+                    <h4 className={styles.subheading}>Weekly habits</h4>
+                    <ul className={styles.suggestionList}>
+                      {selectedGuidance.weeklyHabits.map((item, i) => <li key={i}>{item}</li>)}
+                    </ul>
+                  </>
+                )}
                 <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
                 <ul className={styles.suggestionList}>
                   {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}

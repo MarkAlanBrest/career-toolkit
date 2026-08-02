@@ -3,6 +3,7 @@ import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
 export type CategoryGuidance = {
   accomplishedSummary: string;
   dailyHabits: string[];
+  weeklyHabits: string[];
   strategies: string[];
 };
 
@@ -11,9 +12,12 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     accomplishedSummary: buildCategoryAccomplishedGoalText('focus_for_learning'),
     dailyHabits: [
       'Post a clear learning target at the start of each lesson.',
-      'Reference one data point when planning (exit ticket, quiz, observation note).',
       'Make one explicit connection to prior learning or what comes next.',
       'Name the Ohio standard you are teaching today.',
+    ],
+    weeklyHabits: [
+      'Reference at least one HQSD data point when planning the week.',
+      'Review student progress trackers and note one trend to address.',
     ],
     strategies: [
       'Set a measurable student growth goal using at least two HQSD sources.',
@@ -27,7 +31,10 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
       'Use at least one student name with a specific strategy during instruction.',
       'Check in with a struggling or quiet student before the lesson ends.',
       'Reference something you know about a student\'s interest or background.',
-      'Note one student need to address in tomorrow\'s plan.',
+    ],
+    weeklyHabits: [
+      'Note one student need to address in next week\'s plans.',
+      'Review interest or background notes and plan one grouping or pathway adjustment.',
     ],
     strategies: [
       'Complete student interest or learning-style inventories and use them in planning.',
@@ -43,6 +50,10 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
       'Give one specific, actionable feedback comment to a student.',
       'Use a quick formative check (thumbs, whiteboard, exit slip).',
     ],
+    weeklyHabits: [
+      'Review formative checks from the week and plan one re-teaching move.',
+      'Identify one anticipated misconception to address next week.',
+    ],
     strategies: [
       'Build accountable talk stems into your observation lesson.',
       'Add peer feedback or self-assessment to a major assignment.',
@@ -57,6 +68,10 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
       'Address one student perspective with genuine regard.',
       'End class with a calm, predictable routine.',
     ],
+    weeklyHabits: [
+      'Spot-check that routines are running smoothly and reteach one if needed.',
+      'Notice one climate pattern (positive or concern) to follow up on.',
+    ],
     strategies: [
       'Co-create classroom procedures with students and practice them.',
       'Assign student leadership roles for transitions during observations.',
@@ -68,8 +83,11 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
     dailyHabits: [
       'Use one formative check to adjust instruction before the period ends.',
       'Share one piece of assessment feedback with a student.',
-      'Record one data point in your tracker after class.',
       'Offer one way for students to show learning differently.',
+    ],
+    weeklyHabits: [
+      'Record assessment data in your tracker and look for one pattern.',
+      'Compare this week\'s formative results to your unit goal.',
     ],
     strategies: [
       'Run a diagnostic → formative → summative cycle in your observation unit.',
@@ -80,9 +98,11 @@ export const CATEGORY_GUIDANCE: Record<string, CategoryGuidance> = {
   professional_responsibilities: {
     accomplishedSummary: buildCategoryAccomplishedGoalText('professional_responsibilities'),
     dailyHabits: [
+      'Follow district policies and document one professional decision.',
+    ],
+    weeklyHabits: [
       'Send one positive or informative message to a family.',
       'Collaborate with one colleague on instruction or student needs.',
-      'Follow district policies and document one professional decision.',
       'Spend 10 minutes on your growth plan goal.',
     ],
     strategies: [
@@ -97,11 +117,11 @@ export function getCategoryGuidance(categoryId: string): CategoryGuidance {
   if (CATEGORY_GUIDANCE[categoryId]) return CATEGORY_GUIDANCE[categoryId];
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   if (!domain) {
-    return { accomplishedSummary: '', dailyHabits: [], strategies: [] };
+    return { accomplishedSummary: '', dailyHabits: [], weeklyHabits: [], strategies: [] };
   }
   const strategies = domain.components.flatMap(c => c.accomplishedActions).slice(0, 5);
   const accomplishedSummary = domain.components
     .map(c => c.levels.accomplished)
     .join(' ');
-  return { accomplishedSummary, dailyHabits: [], strategies };
+  return { accomplishedSummary, dailyHabits: [], weeklyHabits: [], strategies };
 }
