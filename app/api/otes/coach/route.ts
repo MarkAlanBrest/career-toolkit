@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getComponentById, getDomainById } from '@/lib/otes/rubric';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
-import type { PerformanceLevel } from '@/lib/otes/types';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +16,6 @@ type CoachRequest = {
   question?: string;
   componentId?: string;
   categoryId?: string;
-  currentLevel?: PerformanceLevel | null;
   context?: string;
   teacherProfile?: {
     name?: string;
@@ -68,14 +66,12 @@ export async function POST(req: NextRequest) {
   const categoryGuidance = domain ? getCategoryGuidance(domain.id) : null;
   const rubricBlock = domain
     ? `Rubric category: ${domain.name}
-Current teacher self-rating: ${body.currentLevel || 'not rated'}
 Accomplished summary: ${categoryGuidance?.accomplishedSummary || ''}
 Daily habits: ${categoryGuidance?.dailyHabits.join('; ') || ''}
 Strategies: ${categoryGuidance?.strategies.join('; ') || ''}
 Components: ${domain.components.map(c => c.name).join(', ')}`
     : match
       ? `Rubric component: ${match.component.name} (${match.domain.name})
-Current teacher self-rating: ${body.currentLevel || 'not rated'}
 Accomplished: ${match.component.levels.accomplished}`
       : 'General OTES 2.0 coaching';
 
@@ -91,7 +87,7 @@ ${rubricBlock}
 
 Additional context: ${body.context || 'None'}
 
-Teacher question: ${body.question || `How do I move from ${body.currentLevel || 'my current level'} to Accomplished on this component?`}
+Teacher question: ${body.question || 'How do I demonstrate Accomplished performance on this rubric category?'}
 
 Provide practical, specific coaching advice for an Ohio teacher working toward an Accomplished rating. Be encouraging but concrete. Reference OTES 2.0 language. Include 3-5 actionable steps they can take this week. Keep the response under 400 words. Use markdown formatting.`;
 

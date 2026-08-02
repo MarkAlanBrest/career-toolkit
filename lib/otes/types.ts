@@ -88,7 +88,6 @@ export type OtesWorkspace = {
 export type CategoryProgress = {
   categoryId: string;
   categoryName: string;
-  currentLevel: PerformanceLevel | null;
   levelPercent: number;
   actionCount: number;
   recentActionCount: number;

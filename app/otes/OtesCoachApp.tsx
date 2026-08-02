@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
-import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
+import { computeAllCategoryProgress, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
-import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
+import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
@@ -13,7 +13,6 @@ import type {
   CategoryCoachMessage,
   EvalLessonPlan,
   OtesWorkspace,
-  PerformanceLevel,
   TeacherProfile,
 } from '@/lib/otes/types';
 import styles from './otes.module.css';
@@ -66,26 +65,12 @@ export default function OtesCoachApp() {
   }
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
-  const selectedRating = workspace.categoryRatings.find(r => r.categoryId === selectedCategoryId);
   const selectedActions = workspace.actions.filter(a => a.categoryId === selectedCategoryId);
   const selectedMessages = workspace.coachMessages.filter(m => m.categoryId === selectedCategoryId);
   const selectedGuidance = selectedCategoryId ? getCategoryGuidance(selectedCategoryId) : null;
-  const selectedProgress = categoryProgress.find(p => p.categoryId === selectedCategoryId);
 
   const updateProfile = (patch: Partial<TeacherProfile>) => {
     persist(prev => ({ ...prev, profile: { ...prev.profile, ...patch } }));
-  };
-
-  const updateCategoryRating = (patch: Partial<{ currentLevel: PerformanceLevel | null }>) => {
-    if (!selectedCategoryId) return;
-    persist(prev => ({
-      ...prev,
-      categoryRatings: prev.categoryRatings.map(r =>
-        r.categoryId === selectedCategoryId
-          ? { ...r, ...patch, updatedAt: new Date().toISOString() }
-          : r,
-      ),
-    }));
   };
 
   const openCategory = (categoryId: string) => {
@@ -129,8 +114,7 @@ export default function OtesCoachApp() {
         body: JSON.stringify({
           question: userMessage.content,
           categoryId: selectedCategoryId,
-          currentLevel: selectedRating?.currentLevel,
-          context: `Self-rating: ${selectedRating?.currentLevel || 'not rated'}. Target: Accomplished. Actions logged: ${selectedActions.length}.`,
+          context: `Target: Accomplished. Actions logged: ${selectedActions.length}.`,
           teacherProfile: workspace.profile,
         }),
       });
@@ -286,7 +270,7 @@ export default function OtesCoachApp() {
           <>
             <div className={styles.dashboardHero}>
               <div>
-                <div className={styles.heroLabel}>Overall progress toward Accomplished</div>
+                <div className={styles.heroLabel}>Evidence documented toward Accomplished</div>
                 <div className={styles.heroValue}>{totalProgress}%</div>
               </div>
               <div className={styles.heroStats}>
@@ -307,7 +291,6 @@ export default function OtesCoachApp() {
                   >
                     <div className={styles.categoryCardTop}>
                       <h2>{progress.categoryName}</h2>
-                      <span className={styles.levelBadge}>{levelLabel(progress.currentLevel)}</span>
                     </div>
                     <div className={styles.categoryMeta}>{ORGANIZATIONAL_AREAS[domain.area]}</div>
                     <div className={styles.progressBar}>
@@ -324,7 +307,7 @@ export default function OtesCoachApp() {
           </>
         )}
 
-        {view === 'category' && selectedDomain && selectedGuidance && selectedProgress && (
+        {view === 'category' && selectedDomain && selectedGuidance && (
           <div className={styles.categoryPage}>
             <div className={styles.categoryPageHeader}>
               <div>
@@ -358,36 +341,8 @@ export default function OtesCoachApp() {
               </button>
             </p>
 
-            <div className={styles.grid2}>
-              <section className={styles.card}>
-                <h3>My Progress</h3>
-                <p className={styles.fieldHint} style={{ marginTop: 0 }}>
-                  Rate where you are now on the OTES 2.0 rubric. Your target is always Accomplished — use the rubric and suggestions to guide your work.
-                </p>
-                <div className={styles.progressBar} style={{ marginBottom: 12 }}>
-                  <div className={styles.progressFill} style={{ width: `${selectedProgress.levelPercent}%` }} />
-                </div>
-                <div className={styles.levelPicker}>
-                  {PERFORMANCE_LEVELS.map(level => (
-                    <button
-                      key={level.id}
-                      type="button"
-                      className={`${styles.levelBtn} ${selectedRating?.currentLevel === level.id ? styles.levelBtnActive : ''}`}
-                      style={selectedRating?.currentLevel === level.id ? { color: level.color, borderColor: level.color } : undefined}
-                      onClick={() => updateCategoryRating({ currentLevel: level.id })}
-                    >
-                      {level.label}
-                    </button>
-                  ))}
-                </div>
-                <div className={styles.statRow}>
-                  <span><strong>{selectedActions.length}</strong> actions logged</span>
-                  <span>Target: <strong>Accomplished</strong></span>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <h3>Suggestions</h3>
+            <section className={styles.card}>
+              <h3>Suggestions</h3>
                 <h4 className={styles.subheading}>Daily habits</h4>
                 <ul className={styles.suggestionList}>
                   {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
@@ -398,8 +353,7 @@ export default function OtesCoachApp() {
                 </ul>
                 <h4 className={styles.subheading}>What Accomplished looks like</h4>
                 <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
-              </section>
-            </div>
+            </section>
 
             <section className={styles.card}>
               <h3>Category Coach</h3>

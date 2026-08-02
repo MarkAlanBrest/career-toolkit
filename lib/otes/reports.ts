@@ -1,10 +1,6 @@
 import { getCategoryGuidance } from './categoryGuidance';
-import { OTES_RUBRIC, PERFORMANCE_LEVELS, buildCategoryAccomplishedGoalText } from './rubric';
-import type { CategoryAction, CategoryCoachMessage, CategoryRating, OtesWorkspace, PerformanceLevel } from './types';
-
-function levelLabel(level: PerformanceLevel | null) {
-  return PERFORMANCE_LEVELS.find(l => l.id === level)?.label ?? 'Not yet rated';
-}
+import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
+import type { CategoryAction, CategoryCoachMessage, OtesWorkspace } from './types';
 
 function escapeHtml(text: string) {
   return text
@@ -40,11 +36,9 @@ function reportStyles() {
 }
 
 function buildCategorySection(
-  workspace: OtesWorkspace,
   categoryId: string,
   actions: CategoryAction[],
   messages: CategoryCoachMessage[],
-  rating: CategoryRating | undefined,
 ) {
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   if (!domain) return '';
@@ -88,8 +82,7 @@ function buildCategorySection(
     <div class="section goal-box">
       <h3 style="margin-top:0">OTES 2.0 Rubric Target — Accomplished</h3>
       <p style="white-space:pre-wrap">${escapeHtml(rubricTarget)}</p>
-      <p style="margin-bottom:0"><span class="badge">Current level: ${escapeHtml(levelLabel(rating?.currentLevel ?? null))}</span>
-      &nbsp; Target: <strong>Accomplished</strong></p>
+      <p style="margin-bottom:0">Target: <strong>Accomplished</strong></p>
     </div>
 
     <h2>What Accomplished Looks Like</h2>
@@ -136,7 +129,6 @@ export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: st
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   const actions = workspace.actions.filter(a => a.categoryId === categoryId);
   const messages = workspace.coachMessages.filter(m => m.categoryId === categoryId);
-  const rating = workspace.categoryRatings.find(r => r.categoryId === categoryId);
 
   const body = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
@@ -144,7 +136,7 @@ export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: st
     <style>${reportStyles()}</style></head>
     <body>
       ${reportHeader(workspace, `${domain?.name ?? 'Category'} — Professional Growth Report`)}
-      ${buildCategorySection(workspace, categoryId, actions, messages, rating)}
+      ${buildCategorySection(categoryId, actions, messages)}
       <div class="footer">
         Prepared for administrator review · OTES 2.0 Teacher Performance Evaluation Rubric
       </div>
@@ -157,8 +149,7 @@ export function buildFullReportHtml(workspace: OtesWorkspace) {
   const sections = OTES_RUBRIC.map(domain => {
     const actions = workspace.actions.filter(a => a.categoryId === domain.id);
     const messages = workspace.coachMessages.filter(m => m.categoryId === domain.id);
-    const rating = workspace.categoryRatings.find(r => r.categoryId === domain.id);
-    return buildCategorySection(workspace, domain.id, actions, messages, rating);
+    return buildCategorySection(domain.id, actions, messages);
   }).join('<hr style="margin:40px 0;border:none;border-top:2px solid #d8e2ec">');
 
   return `
