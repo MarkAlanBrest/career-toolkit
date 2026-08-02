@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
+import { cadenceLabel, countTasksWithNotes, createTask, getCategoryTasks } from '@/lib/otes/tasks';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
-  CategoryAction,
   EvalLessonPlan,
   OtesWorkspace,
   TeacherProfile,
@@ -29,9 +29,7 @@ export default function OtesCoachApp() {
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const [actionTitle, setActionTitle] = useState('');
-  const [actionDescription, setActionDescription] = useState('');
-  const [actionDate, setActionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [newTaskLabel, setNewTaskLabel] = useState('');
 
   const [evalTopic, setEvalTopic] = useState('');
   const [evalCategoryId, setEvalCategoryId] = useState('');
@@ -59,7 +57,7 @@ export default function OtesCoachApp() {
   }
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
-  const selectedActions = workspace.actions.filter(a => a.categoryId === selectedCategoryId);
+  const selectedTasks = selectedCategoryId ? getCategoryTasks(workspace, selectedCategoryId) : [];
   const selectedGuidance = selectedCategoryId ? getCategoryGuidance(selectedCategoryId) : null;
 
   const updateProfile = (patch: Partial<TeacherProfile>) => {
@@ -69,21 +67,33 @@ export default function OtesCoachApp() {
   const openCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
     setView('category');
+    setNewTaskLabel('');
   };
 
-  const addAction = () => {
-    if (!selectedCategoryId || !actionTitle.trim()) return;
-    const action: CategoryAction = {
-      id: newId('action'),
-      categoryId: selectedCategoryId,
-      date: actionDate,
-      title: actionTitle.trim(),
-      description: actionDescription.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    persist(prev => ({ ...prev, actions: [action, ...prev.actions] }));
-    setActionTitle('');
-    setActionDescription('');
+  const updateTaskNotes = (taskId: string, notes: string) => {
+    const now = new Date().toISOString();
+    persist(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(task =>
+        task.id === taskId ? { ...task, notes, updatedAt: now } : task,
+      ),
+    }));
+  };
+
+  const deleteTask = (taskId: string) => {
+    persist(prev => ({
+      ...prev,
+      tasks: prev.tasks.filter(task => task.id !== taskId),
+    }));
+  };
+
+  const addTask = () => {
+    if (!selectedCategoryId || !newTaskLabel.trim()) return;
+    persist(prev => ({
+      ...prev,
+      tasks: [...prev.tasks, createTask(selectedCategoryId, newTaskLabel.trim(), 'custom')],
+    }));
+    setNewTaskLabel('');
   };
 
   const generateEvalLesson = async () => {
@@ -128,7 +138,7 @@ export default function OtesCoachApp() {
   };
 
   const loadWoodsTechStarterPack = () => {
-    if (!confirm('Load sample action logs and observation lesson plans? Your ratings and other data will be kept.')) return;
+    if (!confirm('Load sample task notes and observation lesson plans? Your current data will be kept.')) return;
     persist(prev => applyStarterPack(prev, 'woods_technology'));
     setShowSettings(false);
   };
@@ -216,8 +226,8 @@ export default function OtesCoachApp() {
             <div className={styles.dashboardHero}>
               <div>
                 <div className={styles.heroLabel}>OTES action log</div>
-                <div className={styles.heroValue}>{workspace.actions.length}</div>
-                <div className={styles.heroLabel}>actions logged</div>
+                <div className={styles.heroValue}>{countTasksWithNotes(workspace)}</div>
+                <div className={styles.heroLabel}>tasks with notes</div>
               </div>
               <div className={styles.heroStats}>
                 <span>{workspace.evalLessonPlans.length} eval lesson plan{workspace.evalLessonPlans.length === 1 ? '' : 's'}</span>
@@ -227,7 +237,8 @@ export default function OtesCoachApp() {
 
             <div className={styles.categoryGrid}>
               {OTES_RUBRIC.map(domain => {
-                const actionCount = workspace.actions.filter(a => a.categoryId === domain.id).length;
+                const taskCount = getCategoryTasks(workspace, domain.id).length;
+                const notesCount = countTasksWithNotes(workspace, domain.id);
                 return (
                   <button
                     key={domain.id}
@@ -240,7 +251,7 @@ export default function OtesCoachApp() {
                     </div>
                     <div className={styles.categoryMeta}>{ORGANIZATIONAL_AREAS[domain.area]}</div>
                     <div className={styles.categoryCardFooter}>
-                      <span>{actionCount} action{actionCount === 1 ? '' : 's'} logged</span>
+                      <span>{notesCount} of {taskCount} task{taskCount === 1 ? '' : 's'} with notes</span>
                       <span>Open category →</span>
                     </div>
                   </button>
@@ -284,68 +295,62 @@ export default function OtesCoachApp() {
               </button>
             </p>
 
-            <div className={styles.categoryColumns}>
             <section className={styles.card}>
-              <h3>Actions I Took</h3>
-              <p className={styles.cardIntro}>Record what you did — this becomes your evidence in the Word report.</p>
-              <div className={styles.grid2}>
-                <div className={styles.field}>
-                  <label className={styles.label}>What did you do?</label>
-                  <input className={styles.input} value={actionTitle} onChange={e => setActionTitle(e.target.value)} placeholder="e.g. Used exit tickets to adjust tomorrow's lesson" />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>Date</label>
-                  <input className={styles.input} type="date" value={actionDate} onChange={e => setActionDate(e.target.value)} />
-                </div>
-              </div>
-              <div className={styles.field}>
-                <label className={styles.label}>Details (optional)</label>
-                <textarea className={styles.textarea} style={{ minHeight: 50 }} value={actionDescription} onChange={e => setActionDescription(e.target.value)} placeholder="Any details for your report…" />
-              </div>
-              <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={addAction}>Log Action</button>
+              <h3>Guide for this category</h3>
+              <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
+              <ul className={styles.suggestionList}>
+                {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
+              </ul>
+              <h4 className={styles.subheading}>What Accomplished looks like</h4>
+              <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
+            </section>
 
-              <div style={{ marginTop: 20 }}>
-                {selectedActions.length === 0 ? (
-                  <p className={styles.empty}>No actions yet. Log your first one above.</p>
-                ) : (
-                  selectedActions.map(action => (
-                    <div key={action.id} className={styles.actionItem}>
-                      <div className={styles.actionDate}>{formatDate(action.date)}</div>
-                      <strong>{action.title}</strong>
-                      {action.description && <p>{action.description}</p>}
+            <section className={styles.taskSection}>
+              <div className={styles.taskSectionHeader}>
+                <div>
+                  <h3>My tracking tasks</h3>
+                  <p className={styles.cardIntro}>Each task is a sticky note — jot down what you need to track for that habit or goal.</p>
+                </div>
+              </div>
+
+              <div className={styles.taskGrid}>
+                {selectedTasks.map(task => (
+                  <article key={task.id} className={styles.taskSticky}>
+                    <div className={styles.taskStickyHeader}>
+                      <span className={styles.taskCadence}>{cadenceLabel(task.cadence)}</span>
+                      <button
+                        type="button"
+                        className={styles.taskDelete}
+                        onClick={() => deleteTask(task.id)}
+                        aria-label={`Delete task ${task.label}`}
+                      >
+                        Delete
+                      </button>
                     </div>
-                  ))
-                )}
+                    <p className={styles.taskLabel}>{task.label}</p>
+                    <textarea
+                      className={styles.taskNotes}
+                      value={task.notes}
+                      onChange={e => updateTaskNotes(task.id, e.target.value)}
+                      placeholder="Your notes for this task…"
+                    />
+                  </article>
+                ))}
+              </div>
+
+              <div className={styles.addTaskRow}>
+                <input
+                  className={styles.input}
+                  value={newTaskLabel}
+                  onChange={e => setNewTaskLabel(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addTask()}
+                  placeholder="Add a custom task to track…"
+                />
+                <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={addTask}>
+                  Add task
+                </button>
               </div>
             </section>
-
-            <section className={styles.card}>
-              <h3>Rubric Reference</h3>
-              <p className={styles.cardIntro}>OTES 2.0 Accomplished descriptors for {selectedDomain.name}.</p>
-                <h4 className={styles.subheading}>Daily habits</h4>
-                {selectedGuidance.dailyHabits.length > 0 ? (
-                  <ul className={styles.suggestionList}>
-                    {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
-                  </ul>
-                ) : (
-                  <p className={styles.accomplishedText}>Nothing required every day — use the weekly habits below.</p>
-                )}
-                {selectedGuidance.weeklyHabits.length > 0 && (
-                  <>
-                    <h4 className={styles.subheading}>Weekly habits</h4>
-                    <ul className={styles.suggestionList}>
-                      {selectedGuidance.weeklyHabits.map((item, i) => <li key={i}>{item}</li>)}
-                    </ul>
-                  </>
-                )}
-                <h4 className={styles.subheading}>Strategies toward Accomplished</h4>
-                <ul className={styles.suggestionList}>
-                  {selectedGuidance.strategies.map((item, i) => <li key={i}>{item}</li>)}
-                </ul>
-                <h4 className={styles.subheading}>What Accomplished looks like</h4>
-                <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
-            </section>
-            </div>
           </div>
         )}
 
@@ -471,7 +476,7 @@ export default function OtesCoachApp() {
             <div className={styles.field}>
               <label className={styles.label}>Sample content</label>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
-                Load sample action logs and observation lesson plans for woods technology classes.
+                Load sample task notes and observation lesson plans for woods technology classes.
               </p>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
                 Load sample actions &amp; lesson plans

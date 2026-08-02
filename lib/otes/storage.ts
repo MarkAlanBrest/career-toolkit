@@ -1,9 +1,10 @@
 import { WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
 import { OTES_RUBRIC } from './rubric';
+import { initializeWorkspaceTasks } from './tasks';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
-export const STORAGE_KEY = 'otes-coach-workspace-v4';
-const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v3', 'otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
+export const STORAGE_KEY = 'otes-coach-workspace-v5';
+const LEGACY_STORAGE_KEYS = ['otes-coach-workspace-v4', 'otes-coach-workspace-v3', 'otes-coach-workspace-v2', 'otes-coach-workspace-v1'] as const;
 
 function defaultProfile(): TeacherProfile {
   return {
@@ -28,15 +29,17 @@ function defaultCategoryRatings(): CategoryRating[] {
 }
 
 export function createDefaultWorkspace(): OtesWorkspace {
-  return {
-    version: 2,
+  const workspace: OtesWorkspace = {
+    version: 3,
     profile: defaultProfile(),
     categoryRatings: defaultCategoryRatings(),
+    tasks: [],
     actions: [],
     coachMessages: [],
     evalLessonPlans: [],
     updatedAt: new Date().toISOString(),
   };
+  return initializeWorkspaceTasks(workspace);
 }
 
 type LegacyWorkspace = {
@@ -103,14 +106,14 @@ function migrateFromLegacy(raw: LegacyWorkspace): OtesWorkspace {
     return { ...rating, currentLevel: level, updatedAt: new Date().toISOString() };
   });
 
-  return {
+  return initializeWorkspaceTasks({
     ...base,
     profile,
     categoryRatings,
     actions,
     evalLessonPlans,
     updatedAt: new Date().toISOString(),
-  };
+  });
 }
 
 function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
@@ -119,7 +122,7 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
   const merged: OtesWorkspace = {
     ...defaults,
     ...saved,
-    version: 2,
+    version: 3,
     profile: { ...defaults.profile, ...(saved.profile ?? {}) },
     categoryRatings: defaults.categoryRatings.map(r => {
       const savedRating = ratingMap.get(r.categoryId);
@@ -129,12 +132,13 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
         ...savedRating,
       };
     }),
+    tasks: saved.tasks ?? [],
     actions: saved.actions ?? [],
     coachMessages: saved.coachMessages ?? [],
     evalLessonPlans: saved.evalLessonPlans ?? [],
     updatedAt: saved.updatedAt ?? new Date().toISOString(),
   };
-  return merged;
+  return initializeWorkspaceTasks(merged);
 }
 
 function readStoredWorkspace(): Partial<OtesWorkspace> | null {
@@ -169,10 +173,11 @@ export function loadWorkspace(): OtesWorkspace {
 }
 
 function finalizeWorkspace(workspace: OtesWorkspace): OtesWorkspace {
+  const withTasks = initializeWorkspaceTasks({ ...workspace, version: 3, tasks: workspace.tasks ?? [] });
   if (!localStorage.getItem(STORAGE_KEY)) {
-    saveWorkspace(workspace);
+    saveWorkspace(withTasks);
   }
-  return workspace;
+  return withTasks;
 }
 
 export function saveWorkspace(workspace: OtesWorkspace) {
