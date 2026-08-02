@@ -1,6 +1,6 @@
 import { getCategoryGuidance } from './categoryGuidance';
 import { OTES_RUBRIC, buildCategoryAccomplishedGoalText } from './rubric';
-import type { CategoryAction, CategoryCoachMessage, OtesWorkspace } from './types';
+import type { CategoryAction, OtesWorkspace } from './types';
 
 function escapeHtml(text: string) {
   return text
@@ -26,8 +26,6 @@ function reportStyles() {
     .section { margin-bottom: 20px; }
     .action { border-left: 4px solid #2d5a87; padding: 10px 14px; margin-bottom: 12px; background: #f8fafc; }
     .action-date { font-size: 10pt; color: #6b7f93; font-weight: bold; }
-    .coach { background: #f0f4f8; padding: 10px 14px; margin-bottom: 10px; border-radius: 4px; font-size: 11pt; }
-    .coach-role { font-weight: bold; color: #2d5a87; font-size: 10pt; text-transform: uppercase; }
     ul { margin: 8px 0; padding-left: 22px; }
     li { margin-bottom: 6px; }
     .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #d8e2ec; font-size: 10pt; color: #6b7f93; }
@@ -38,7 +36,6 @@ function reportStyles() {
 function buildCategorySection(
   categoryId: string,
   actions: CategoryAction[],
-  messages: CategoryCoachMessage[],
 ) {
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   if (!domain) return '';
@@ -60,19 +57,6 @@ function buildCategorySection(
         .join('')
     : '<p><em>No actions logged yet for this category.</em></p>';
 
-  const coachHtml = messages.length
-    ? messages
-        .slice(-6)
-        .map(
-          m => `
-        <div class="coach">
-          <div class="coach-role">${m.role === 'coach' ? 'Coach' : 'Teacher'}</div>
-          ${escapeHtml(m.content)}
-        </div>`,
-        )
-        .join('')
-    : '';
-
   return `
     <h1>${escapeHtml(domain.name)}</h1>
     <div class="meta">
@@ -90,8 +74,6 @@ function buildCategorySection(
 
     <h2>Actions I Took</h2>
     ${actionsHtml}
-
-    ${coachHtml ? `<h2>Coach Dialogue Highlights</h2>${coachHtml}` : ''}
 
     <h2>OTES 2.0 Rubric Components in This Domain</h2>
     <ul>
@@ -121,22 +103,21 @@ function reportHeader(workspace: OtesWorkspace, title: string) {
       <br>Evaluation Year: ${escapeHtml(p.evaluationYear)} · Generated ${escapeHtml(formatDate(new Date().toISOString()))}
     </p>
     <h1 style="margin-top:0">${escapeHtml(title)}</h1>
-    <p class="meta">This report documents professional growth toward Accomplished performance on the OTES 2.0 Teacher Performance Evaluation Rubric.</p>
+    <p class="meta">This report documents professional practice and evidence toward Accomplished performance on the OTES 2.0 Teacher Performance Evaluation Rubric.</p>
   `;
 }
 
 export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: string) {
   const domain = OTES_RUBRIC.find(d => d.id === categoryId);
   const actions = workspace.actions.filter(a => a.categoryId === categoryId);
-  const messages = workspace.coachMessages.filter(m => m.categoryId === categoryId);
 
   const body = `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
     <head><meta charset="utf-8"><title>${escapeHtml(domain?.name ?? 'OTES Report')}</title>
     <style>${reportStyles()}</style></head>
     <body>
-      ${reportHeader(workspace, `${domain?.name ?? 'Category'} — Professional Growth Report`)}
-      ${buildCategorySection(categoryId, actions, messages)}
+      ${reportHeader(workspace, `${domain?.name ?? 'Category'} — Action Log Report`)}
+      ${buildCategorySection(categoryId, actions)}
       <div class="footer">
         Prepared for administrator review · OTES 2.0 Teacher Performance Evaluation Rubric
       </div>
@@ -148,16 +129,15 @@ export function buildCategoryReportHtml(workspace: OtesWorkspace, categoryId: st
 export function buildFullReportHtml(workspace: OtesWorkspace) {
   const sections = OTES_RUBRIC.map(domain => {
     const actions = workspace.actions.filter(a => a.categoryId === domain.id);
-    const messages = workspace.coachMessages.filter(m => m.categoryId === domain.id);
-    return buildCategorySection(domain.id, actions, messages);
+    return buildCategorySection(domain.id, actions);
   }).join('<hr style="margin:40px 0;border:none;border-top:2px solid #d8e2ec">');
 
   return `
     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
-    <head><meta charset="utf-8"><title>OTES 2.0 Full Growth Report</title>
+    <head><meta charset="utf-8"><title>OTES 2.0 Action Log Report</title>
     <style>${reportStyles()}</style></head>
     <body>
-      ${reportHeader(workspace, 'OTES 2.0 Professional Growth Report — All Domains')}
+      ${reportHeader(workspace, 'OTES 2.0 Action Log — All Domains')}
       ${sections}
       <div class="footer">
         Prepared for administrator review · OTES 2.0 Teacher Performance Evaluation Rubric
