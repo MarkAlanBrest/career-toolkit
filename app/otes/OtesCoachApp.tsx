@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
-import { computeAllCategoryProgress, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
@@ -50,9 +49,6 @@ export default function OtesCoachApp() {
       return saveWorkspace(updater(prev))!;
     });
   }, []);
-
-  const categoryProgress = useMemo(() => (workspace ? computeAllCategoryProgress(workspace) : []), [workspace]);
-  const totalProgress = useMemo(() => overallProgress(categoryProgress), [categoryProgress]);
 
   if (!workspace) {
     return (
@@ -270,35 +266,33 @@ export default function OtesCoachApp() {
           <>
             <div className={styles.dashboardHero}>
               <div>
-                <div className={styles.heroLabel}>Evidence documented toward Accomplished</div>
-                <div className={styles.heroValue}>{totalProgress}%</div>
+                <div className={styles.heroLabel}>Your OTES workspace</div>
+                <div className={styles.heroValue}>{workspace.actions.length}</div>
+                <div className={styles.heroLabel}>actions logged</div>
               </div>
               <div className={styles.heroStats}>
-                <span>{workspace.actions.length} actions logged</span>
-                <span>{workspace.evalLessonPlans.length} eval lesson plans</span>
+                <span>{workspace.evalLessonPlans.length} eval lesson plan{workspace.evalLessonPlans.length === 1 ? '' : 's'}</span>
+                <span>{OTES_RUBRIC.length} rubric categories</span>
               </div>
             </div>
 
             <div className={styles.categoryGrid}>
-              {categoryProgress.map(progress => {
-                const domain = OTES_RUBRIC.find(d => d.id === progress.categoryId)!;
+              {OTES_RUBRIC.map(domain => {
+                const actionCount = workspace.actions.filter(a => a.categoryId === domain.id).length;
                 return (
                   <button
-                    key={progress.categoryId}
+                    key={domain.id}
                     type="button"
                     className={styles.categoryCard}
-                    onClick={() => openCategory(progress.categoryId)}
+                    onClick={() => openCategory(domain.id)}
                   >
                     <div className={styles.categoryCardTop}>
-                      <h2>{progress.categoryName}</h2>
+                      <h2>{domain.name}</h2>
                     </div>
                     <div className={styles.categoryMeta}>{ORGANIZATIONAL_AREAS[domain.area]}</div>
-                    <div className={styles.progressBar}>
-                      <div className={styles.progressFill} style={{ width: `${progress.levelPercent}%` }} />
-                    </div>
                     <div className={styles.categoryCardFooter}>
-                      <span>{progress.actionCount} action{progress.actionCount === 1 ? '' : 's'} logged</span>
-                      <span>Target: Accomplished</span>
+                      <span>{actionCount} action{actionCount === 1 ? '' : 's'} logged</span>
+                      <span>Open category →</span>
                     </div>
                   </button>
                 );
