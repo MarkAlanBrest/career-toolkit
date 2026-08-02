@@ -39,7 +39,7 @@ function syncStatusLabel(status: SyncStatus): string {
   switch (status) {
     case 'loading': return 'Loading…';
     case 'syncing': return 'Saving…';
-    case 'synced': return 'Saved to Google Drive';
+    case 'synced': return 'Saved';
     case 'offline': return 'Offline — saved on this device';
     case 'disabled': return 'Saved on this device';
   }
@@ -244,7 +244,7 @@ export default function OtesCoachApp() {
     try {
       const { workspace: remote } = await fetchCloudWorkspace();
       if (remote && workspace && isRemoteNewer(workspace, remote)) {
-        if (confirm('A newer copy was found on Google Drive. Replace this device\'s data?')) {
+        if (confirm('A newer copy was found online. Replace this device\'s data?')) {
           const imported = importWorkspaceFromJson(JSON.stringify(remote));
           setWorkspace(imported);
         }
@@ -549,11 +549,11 @@ export default function OtesCoachApp() {
               </div>
             ))}
             <div className={styles.field}>
-              <label className={styles.label}>Google Drive sync</label>
+              <label className={styles.label}>Cloud sync</label>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
                 {syncStatus === 'disabled'
-                  ? 'Cloud sync is not configured on this deployment yet. Use export/import below, or ask your admin to connect the Hubbard Apps Script.'
-                  : 'Your strategies and notes save automatically to otes-workspace.json on your Google Drive.'}
+                  ? 'Cloud sync is not enabled on this deployment yet. Use export/import below for a manual backup.'
+                  : 'Your strategies and notes save automatically to a file on Vercel. Open the app on any device to pick up where you left off.'}
               </p>
               {syncStatus !== 'disabled' && (
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => void syncNow()}>
