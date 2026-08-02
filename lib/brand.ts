@@ -16,7 +16,7 @@ export const brand = {
   navy: '#002d74',
   navyDeep: '#001f52',
   navyMid: '#003d8f',
-  gold: '#f5a800',
+  gold: '#faa200',
   goldSoft: '#fcd88a',
   ink: '#25303d',
   muted: '#606b78',
