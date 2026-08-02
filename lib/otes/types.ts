@@ -85,17 +85,6 @@ export type OtesWorkspace = {
   updatedAt: string;
 };
 
-export type CategoryProgress = {
-  categoryId: string;
-  categoryName: string;
-  currentLevel: PerformanceLevel | null;
-  levelPercent: number;
-  actionCount: number;
-  recentActionCount: number;
-  goalSet: boolean;
-  coachMessageCount: number;
-};
-
 export type CategorySuggestion = {
   type: 'daily' | 'strategy' | 'coach';
   text: string;

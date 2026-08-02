@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
-import { computeAllCategoryProgress, levelLabel, overallProgress } from '@/lib/otes/progress';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
-import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, PERFORMANCE_LEVELS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
-import { applyDefaultGoals, WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
+import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
+import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
 import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
@@ -13,7 +12,6 @@ import type {
   CategoryCoachMessage,
   EvalLessonPlan,
   OtesWorkspace,
-  PerformanceLevel,
   TeacherProfile,
 } from '@/lib/otes/types';
 import styles from './otes.module.css';
@@ -52,21 +50,6 @@ export default function OtesCoachApp() {
     });
   }, []);
 
-  const restoreDefaultGoals = (categoryId?: string) => {
-    if (!workspace) return;
-    const cleared = {
-      ...workspace,
-      categoryRatings: workspace.categoryRatings.map(rating => {
-        if (categoryId && rating.categoryId !== categoryId) return rating;
-        return { ...rating, goal: '', strategy: '' };
-      }),
-    };
-    setWorkspace(saveWorkspace(applyDefaultGoals(cleared, { onlyIfEmpty: false, forceGoals: true }).workspace)!);
-  };
-
-  const categoryProgress = useMemo(() => (workspace ? computeAllCategoryProgress(workspace) : []), [workspace]);
-  const totalProgress = useMemo(() => overallProgress(categoryProgress), [categoryProgress]);
-
   if (!workspace) {
     return (
       <div className={styles.page}>
@@ -78,26 +61,12 @@ export default function OtesCoachApp() {
   }
 
   const selectedDomain = OTES_RUBRIC.find(d => d.id === selectedCategoryId);
-  const selectedRating = workspace.categoryRatings.find(r => r.categoryId === selectedCategoryId);
   const selectedActions = workspace.actions.filter(a => a.categoryId === selectedCategoryId);
   const selectedMessages = workspace.coachMessages.filter(m => m.categoryId === selectedCategoryId);
   const selectedGuidance = selectedCategoryId ? getCategoryGuidance(selectedCategoryId) : null;
-  const selectedProgress = categoryProgress.find(p => p.categoryId === selectedCategoryId);
 
   const updateProfile = (patch: Partial<TeacherProfile>) => {
     persist(prev => ({ ...prev, profile: { ...prev.profile, ...patch } }));
-  };
-
-  const updateCategoryRating = (patch: Partial<{ currentLevel: PerformanceLevel | null; goal: string; strategy: string }>) => {
-    if (!selectedCategoryId) return;
-    persist(prev => ({
-      ...prev,
-      categoryRatings: prev.categoryRatings.map(r =>
-        r.categoryId === selectedCategoryId
-          ? { ...r, ...patch, updatedAt: new Date().toISOString() }
-          : r,
-      ),
-    }));
   };
 
   const openCategory = (categoryId: string) => {
@@ -141,8 +110,7 @@ export default function OtesCoachApp() {
         body: JSON.stringify({
           question: userMessage.content,
           categoryId: selectedCategoryId,
-          currentLevel: selectedRating?.currentLevel,
-          context: `Goal: ${selectedRating?.goal || 'Reach Accomplished'}. Strategy: ${selectedRating?.strategy || 'Not set'}. Actions logged: ${selectedActions.length}.`,
+          context: `Target: Accomplished. Actions logged: ${selectedActions.length}.`,
           teacherProfile: workspace.profile,
         }),
       });
@@ -211,7 +179,7 @@ export default function OtesCoachApp() {
   };
 
   const loadWoodsTechStarterPack = () => {
-    if (!confirm('Load sample action logs and observation lesson plans? Your goals, strategies, and other data will be kept.')) return;
+    if (!confirm('Load sample action logs and observation lesson plans? Your ratings and other data will be kept.')) return;
     persist(prev => applyStarterPack(prev, 'woods_technology'));
     setShowSettings(false);
   };
@@ -268,7 +236,7 @@ export default function OtesCoachApp() {
       <header className={styles.header}>
         <div>
           <h1>OTES 2.0 Coach</h1>
-          <p>Goal → Strategy → Actions → Report</p>
+          <p>Rubric → Actions → Report</p>
         </div>
         <div className={styles.headerActions}>
           {view !== 'dashboard' && (
@@ -298,36 +266,33 @@ export default function OtesCoachApp() {
           <>
             <div className={styles.dashboardHero}>
               <div>
-                <div className={styles.heroLabel}>Overall progress toward Accomplished</div>
-                <div className={styles.heroValue}>{totalProgress}%</div>
+                <div className={styles.heroLabel}>Your OTES workspace</div>
+                <div className={styles.heroValue}>{workspace.actions.length}</div>
+                <div className={styles.heroLabel}>actions logged</div>
               </div>
               <div className={styles.heroStats}>
-                <span>{workspace.actions.length} actions logged</span>
-                <span>{workspace.evalLessonPlans.length} eval lesson plans</span>
+                <span>{workspace.evalLessonPlans.length} eval lesson plan{workspace.evalLessonPlans.length === 1 ? '' : 's'}</span>
+                <span>{OTES_RUBRIC.length} rubric categories</span>
               </div>
             </div>
 
             <div className={styles.categoryGrid}>
-              {categoryProgress.map(progress => {
-                const domain = OTES_RUBRIC.find(d => d.id === progress.categoryId)!;
+              {OTES_RUBRIC.map(domain => {
+                const actionCount = workspace.actions.filter(a => a.categoryId === domain.id).length;
                 return (
                   <button
-                    key={progress.categoryId}
+                    key={domain.id}
                     type="button"
                     className={styles.categoryCard}
-                    onClick={() => openCategory(progress.categoryId)}
+                    onClick={() => openCategory(domain.id)}
                   >
                     <div className={styles.categoryCardTop}>
-                      <h2>{progress.categoryName}</h2>
-                      <span className={styles.levelBadge}>{levelLabel(progress.currentLevel)}</span>
+                      <h2>{domain.name}</h2>
                     </div>
                     <div className={styles.categoryMeta}>{ORGANIZATIONAL_AREAS[domain.area]}</div>
-                    <div className={styles.progressBar}>
-                      <div className={styles.progressFill} style={{ width: `${progress.levelPercent}%` }} />
-                    </div>
                     <div className={styles.categoryCardFooter}>
-                      <span>{progress.actionCount} action{progress.actionCount === 1 ? '' : 's'} logged</span>
-                      <span>{progress.goalSet ? 'Goal set' : 'Set a goal →'}</span>
+                      <span>{actionCount} action{actionCount === 1 ? '' : 's'} logged</span>
+                      <span>Open category →</span>
                     </div>
                   </button>
                 );
@@ -336,7 +301,7 @@ export default function OtesCoachApp() {
           </>
         )}
 
-        {view === 'category' && selectedDomain && selectedGuidance && selectedProgress && (
+        {view === 'category' && selectedDomain && selectedGuidance && (
           <div className={styles.categoryPage}>
             <div className={styles.categoryPageHeader}>
               <div>
@@ -370,65 +335,8 @@ export default function OtesCoachApp() {
               </button>
             </p>
 
-            <div className={styles.grid2}>
-              <section className={styles.card}>
-                <h3>My Progress</h3>
-                <div className={styles.progressBar} style={{ marginBottom: 12 }}>
-                  <div className={styles.progressFill} style={{ width: `${selectedProgress.levelPercent}%` }} />
-                </div>
-                <div className={styles.levelPicker}>
-                  {PERFORMANCE_LEVELS.map(level => (
-                    <button
-                      key={level.id}
-                      type="button"
-                      className={`${styles.levelBtn} ${selectedRating?.currentLevel === level.id ? styles.levelBtnActive : ''}`}
-                      style={selectedRating?.currentLevel === level.id ? { color: level.color, borderColor: level.color } : undefined}
-                      onClick={() => updateCategoryRating({ currentLevel: level.id })}
-                    >
-                      {level.label}
-                    </button>
-                  ))}
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>My goal for this category</label>
-                  <p className={styles.fieldHint}>Pre-filled with Accomplished descriptors from the rubric. Edit to personalize for your classes.</p>
-                  <textarea
-                    className={styles.textarea}
-                    style={{ minHeight: 120 }}
-                    value={selectedRating?.goal ?? ''}
-                    onChange={e => updateCategoryRating({ goal: e.target.value })}
-                    placeholder="Accomplished-level goals from the OTES 2.0 rubric"
-                  />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>My strategy</label>
-                  <p className={styles.fieldHint}>How you will reach Accomplished in your woods technology classes.</p>
-                  <textarea
-                    className={styles.textarea}
-                    style={{ minHeight: 80 }}
-                    value={selectedRating?.strategy ?? ''}
-                    onChange={e => updateCategoryRating({ strategy: e.target.value })}
-                    placeholder="How will you get there?"
-                  />
-                  {!selectedRating?.goal?.trim() && !selectedRating?.strategy?.trim() && (
-                    <button
-                      type="button"
-                      className={`${styles.btn} ${styles.btnSecondary} ${styles.btnSmall}`}
-                      style={{ marginTop: 8 }}
-                      onClick={() => restoreDefaultGoals(selectedCategoryId ?? undefined)}
-                    >
-                      Restore OTES rubric goal &amp; strategy
-                    </button>
-                  )}
-                </div>
-                <div className={styles.statRow}>
-                  <span><strong>{selectedActions.length}</strong> actions logged</span>
-                  <span>Target: <strong>Accomplished</strong></span>
-                </div>
-              </section>
-
-              <section className={styles.card}>
-                <h3>Suggestions</h3>
+            <section className={styles.card}>
+              <h3>Suggestions</h3>
                 <h4 className={styles.subheading}>Daily habits</h4>
                 <ul className={styles.suggestionList}>
                   {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
@@ -439,8 +347,7 @@ export default function OtesCoachApp() {
                 </ul>
                 <h4 className={styles.subheading}>What Accomplished looks like</h4>
                 <p className={styles.accomplishedText}>{selectedGuidance.accomplishedSummary}</p>
-              </section>
-            </div>
+            </section>
 
             <section className={styles.card}>
               <h3>Category Coach</h3>
@@ -628,16 +535,11 @@ export default function OtesCoachApp() {
             <div className={styles.field}>
               <label className={styles.label}>Sample content</label>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
-                Goals and strategies are pre-filled for each category. Load sample action logs and observation lesson plans below.
+                Load sample action logs and observation lesson plans for woods technology classes.
               </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => restoreDefaultGoals()}>
-                  Restore OTES rubric goals &amp; strategies
-                </button>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
-                  Load sample actions &amp; lesson plans
-                </button>
-              </div>
+              <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={loadWoodsTechStarterPack}>
+                Load sample actions &amp; lesson plans
+              </button>
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Evaluator handouts</label>

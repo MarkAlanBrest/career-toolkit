@@ -1,4 +1,4 @@
-import { applyDefaultGoals, buildWoodsTechCategoryRatings, WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
+import { WOODS_TECH_PROFILE } from './starterPacks/woodsTechnology';
 import { OTES_RUBRIC } from './rubric';
 import type { CategoryRating, OtesWorkspace, TeacherProfile } from './types';
 
@@ -18,14 +18,13 @@ function defaultProfile(): TeacherProfile {
 
 function defaultCategoryRatings(): CategoryRating[] {
   const now = new Date().toISOString();
-  const base = OTES_RUBRIC.map(domain => ({
+  return OTES_RUBRIC.map(domain => ({
     categoryId: domain.id,
     currentLevel: null,
     goal: '',
     strategy: '',
     updatedAt: now,
   }));
-  return buildWoodsTechCategoryRatings(base);
 }
 
 export function createDefaultWorkspace(): OtesWorkspace {
@@ -104,14 +103,14 @@ function migrateFromLegacy(raw: LegacyWorkspace): OtesWorkspace {
     return { ...rating, currentLevel: level, updatedAt: new Date().toISOString() };
   });
 
-  return applyDefaultGoals({
+  return {
     ...base,
     profile,
     categoryRatings,
     actions,
     evalLessonPlans,
     updatedAt: new Date().toISOString(),
-  }).workspace;
+  };
 }
 
 function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
@@ -128,8 +127,6 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
       return {
         ...r,
         ...savedRating,
-        goal: savedRating.goal?.trim() ? savedRating.goal : r.goal,
-        strategy: savedRating.strategy?.trim() ? savedRating.strategy : r.strategy,
       };
     }),
     actions: saved.actions ?? [],
@@ -137,7 +134,7 @@ function mergeWorkspace(saved: Partial<OtesWorkspace>): OtesWorkspace {
     evalLessonPlans: saved.evalLessonPlans ?? [],
     updatedAt: saved.updatedAt ?? new Date().toISOString(),
   };
-  return applyDefaultGoals(merged).workspace;
+  return merged;
 }
 
 function readStoredWorkspace(): Partial<OtesWorkspace> | null {
@@ -172,17 +169,10 @@ export function loadWorkspace(): OtesWorkspace {
 }
 
 function finalizeWorkspace(workspace: OtesWorkspace): OtesWorkspace {
-  const upgradingFromV3 = typeof window !== 'undefined'
-    && !localStorage.getItem(STORAGE_KEY)
-    && Boolean(localStorage.getItem('otes-coach-workspace-v3'));
-  const { workspace: withGoals, changed } = applyDefaultGoals(workspace, {
-    onlyIfEmpty: true,
-    forceGoals: upgradingFromV3,
-  });
-  if (changed || !localStorage.getItem(STORAGE_KEY)) {
-    saveWorkspace(withGoals);
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    saveWorkspace(workspace);
   }
-  return withGoals;
+  return workspace;
 }
 
 export function saveWorkspace(workspace: OtesWorkspace) {
