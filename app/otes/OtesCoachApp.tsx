@@ -323,9 +323,13 @@ export default function OtesCoachApp() {
               <h3>Rubric Reference</h3>
               <p className={styles.cardIntro}>OTES 2.0 Accomplished descriptors for {selectedDomain.name}.</p>
                 <h4 className={styles.subheading}>Daily habits</h4>
-                <ul className={styles.suggestionList}>
-                  {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
-                </ul>
+                {selectedGuidance.dailyHabits.length > 0 ? (
+                  <ul className={styles.suggestionList}>
+                    {selectedGuidance.dailyHabits.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                ) : (
+                  <p className={styles.accomplishedText}>Nothing required every day — use the weekly habits below.</p>
+                )}
                 {selectedGuidance.weeklyHabits.length > 0 && (
                   <>
                     <h4 className={styles.subheading}>Weekly habits</h4>
