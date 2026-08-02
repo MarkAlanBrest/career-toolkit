@@ -335,6 +335,7 @@ export default function OtesCoachApp() {
               </button>
             </p>
 
+            <div className={styles.categoryColumns}>
             <section className={styles.card}>
               <h3>Suggestions</h3>
                 <h4 className={styles.subheading}>Daily habits</h4>
@@ -410,6 +411,7 @@ export default function OtesCoachApp() {
                 )}
               </div>
             </section>
+            </div>
           </div>
         )}
 
