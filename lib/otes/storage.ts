@@ -199,6 +199,34 @@ export function saveWorkspace(workspace: OtesWorkspace) {
   return next;
 }
 
+export const WORKSPACE_FILENAME = 'otes-workspace.json';
+
+export function exportWorkspaceJson(workspace: OtesWorkspace): string {
+  return JSON.stringify(workspace, null, 2);
+}
+
+export function downloadWorkspaceBackup(workspace: OtesWorkspace) {
+  const blob = new Blob([exportWorkspaceJson(workspace)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = WORKSPACE_FILENAME;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export function importWorkspaceFromJson(json: string): OtesWorkspace {
+  const parsed = JSON.parse(json) as Partial<OtesWorkspace>;
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid backup file.');
+  }
+  const merged = mergeWorkspace(parsed);
+  const next = initializeWorkspaceTasks({ ...merged, version: 3 });
+  const saved = saveWorkspace(next);
+  if (!saved) throw new Error('Could not save imported data.');
+  return saved;
+}
+
 export function newId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }

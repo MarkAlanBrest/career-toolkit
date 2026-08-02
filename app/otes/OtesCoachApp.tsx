@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCategoryGuidance } from '@/lib/otes/categoryGuidance';
+import { fetchCloudWorkspace, isRemoteNewer, saveCloudWorkspace, type SyncStatus } from '@/lib/otes/cloudSync';
 import { buildCategoryReportHtml, buildFullReportHtml, downloadWordReport } from '@/lib/otes/reports';
 import { OTES_RUBRIC, ORGANIZATIONAL_AREAS, getDomainAccomplishedComponents } from '@/lib/otes/rubric';
 import { countTasksWithNotes, createTask, getCategoryTasks } from '@/lib/otes/tasks';
 import { WOODS_TECH_EVALUATOR_HANDOUTS } from '@/lib/otes/starterPacks/woodsTechnology';
 import { applyStarterPack } from '@/lib/otes/starterPacks';
-import { createDefaultWorkspace, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
+import { createDefaultWorkspace, downloadWorkspaceBackup, importWorkspaceFromJson, loadWorkspace, newId, saveWorkspace } from '@/lib/otes/storage';
 import type {
   EvalLessonPlan,
   OtesWorkspace,
@@ -34,6 +35,16 @@ function resizeTextarea(el: HTMLTextAreaElement | null) {
   el.style.height = `${el.scrollHeight}px`;
 }
 
+function syncStatusLabel(status: SyncStatus): string {
+  switch (status) {
+    case 'loading': return 'Loading…';
+    case 'syncing': return 'Saving…';
+    case 'synced': return 'Saved to Google Drive';
+    case 'offline': return 'Offline — saved on this device';
+    case 'disabled': return 'Saved on this device';
+  }
+}
+
 export default function OtesCoachApp() {
   const [workspace, setWorkspace] = useState<OtesWorkspace | null>(null);
   const [view, setView] = useState<View>('home');
@@ -44,17 +55,76 @@ export default function OtesCoachApp() {
   const [evalTopic, setEvalTopic] = useState('');
   const [evalCategoryId, setEvalCategoryId] = useState('');
   const [generatedEvalPlan, setGeneratedEvalPlan] = useState<Partial<EvalLessonPlan> | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('loading');
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cloudEnabledRef = useRef(false);
+
+  const queueCloudSave = useCallback((workspaceToSave: OtesWorkspace) => {
+    if (!cloudEnabledRef.current) return;
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    setSyncStatus('syncing');
+    syncTimeoutRef.current = setTimeout(() => {
+      void saveCloudWorkspace(workspaceToSave)
+        .then(() => setSyncStatus('synced'))
+        .catch(() => setSyncStatus('offline'));
+    }, 1500);
+  }, []);
 
   useEffect(() => {
-    setWorkspace(loadWorkspace());
+    let cancelled = false;
+
+    async function initWorkspace() {
+      const local = loadWorkspace();
+      try {
+        const { enabled, workspace: remote } = await fetchCloudWorkspace();
+        if (cancelled) return;
+
+        cloudEnabledRef.current = enabled;
+        if (!enabled) {
+          setWorkspace(local);
+          setSyncStatus('disabled');
+          return;
+        }
+
+        let resolved = local;
+        if (remote && isRemoteNewer(local, remote)) {
+          resolved = importWorkspaceFromJson(JSON.stringify(remote));
+        } else {
+          try {
+            await saveCloudWorkspace(local);
+          } catch {
+            setSyncStatus('offline');
+            setWorkspace(local);
+            return;
+          }
+        }
+
+        setWorkspace(resolved);
+        setSyncStatus('synced');
+      } catch {
+        if (!cancelled) {
+          setWorkspace(local);
+          setSyncStatus('offline');
+        }
+      }
+    }
+
+    void initWorkspace();
+    return () => {
+      cancelled = true;
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+    };
   }, []);
 
   const persist = useCallback((updater: (prev: OtesWorkspace) => OtesWorkspace) => {
     setWorkspace(prev => {
       if (!prev) return prev;
-      return saveWorkspace(updater(prev))!;
+      const next = saveWorkspace(updater(prev))!;
+      queueCloudSave(next);
+      return next;
     });
-  }, []);
+  }, [queueCloudSave]);
 
   if (!workspace) {
     return (
@@ -149,6 +219,45 @@ export default function OtesCoachApp() {
     setShowSettings(false);
   };
 
+  const exportBackup = () => {
+    downloadWorkspaceBackup(workspace);
+  };
+
+  const importBackup = async (file: File) => {
+    try {
+      const text = await file.text();
+      if (!confirm('Replace this browser\'s data with the backup file?')) return;
+      const imported = importWorkspaceFromJson(text);
+      setWorkspace(imported);
+      queueCloudSave(imported);
+      setShowSettings(false);
+    } catch {
+      alert('Could not read that file. Choose an otes-workspace.json backup.');
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  };
+
+  const syncNow = async () => {
+    if (!cloudEnabledRef.current) return;
+    setSyncStatus('syncing');
+    try {
+      const { workspace: remote } = await fetchCloudWorkspace();
+      if (remote && workspace && isRemoteNewer(workspace, remote)) {
+        if (confirm('A newer copy was found on Google Drive. Replace this device\'s data?')) {
+          const imported = importWorkspaceFromJson(JSON.stringify(remote));
+          setWorkspace(imported);
+        }
+      } else if (workspace) {
+        await saveCloudWorkspace(workspace);
+      }
+      setSyncStatus('synced');
+    } catch {
+      setSyncStatus('offline');
+      alert('Could not sync right now. Your data is still saved on this device.');
+    }
+  };
+
   const downloadEvaluatorHandout = (key: 'wt1Rafter' | 'wt24Joinery') => {
     const handout = WOODS_TECH_EVALUATOR_HANDOUTS[key];
     const text = [
@@ -202,6 +311,7 @@ export default function OtesCoachApp() {
         <div>
           <h1>OTES Action Log</h1>
           <p>Log your practice · Export your report</p>
+          <p className={styles.syncStatus}>{syncStatusLabel(syncStatus)}</p>
         </div>
         <div className={styles.headerActions}>
           {view !== 'home' && (
@@ -439,7 +549,47 @@ export default function OtesCoachApp() {
               </div>
             ))}
             <div className={styles.field}>
-              <label className={styles.label}>Sample content</label>
+              <label className={styles.label}>Google Drive sync</label>
+              <p className={styles.cardIntro} style={{ marginTop: 0 }}>
+                {syncStatus === 'disabled'
+                  ? 'Cloud sync is not configured on this deployment yet. Use export/import below, or ask your admin to connect the Hubbard Apps Script.'
+                  : 'Your strategies and notes save automatically to otes-workspace.json on your Google Drive.'}
+              </p>
+              {syncStatus !== 'disabled' && (
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => void syncNow()}>
+                  Sync now
+                </button>
+              )}
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Backup &amp; restore</label>
+              <p className={styles.cardIntro} style={{ marginTop: 0 }}>
+                Download or upload a backup file if you need a manual copy.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={exportBackup}>
+                  Export backup
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.btnSecondary}`}
+                  onClick={() => importInputRef.current?.click()}
+                >
+                  Import backup
+                </button>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept="application/json,.json"
+                  hidden
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void importBackup(file);
+                  }}
+                />
+              </div>
+            </div>
+            <div className={styles.field}>
               <p className={styles.cardIntro} style={{ marginTop: 0 }}>
                 Load sample strategy notes and observation lesson plans for woods technology classes.
               </p>
@@ -459,7 +609,7 @@ export default function OtesCoachApp() {
               </div>
             </div>
             <div className={styles.modalActions}>
-              <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={() => { if (confirm('Reset all data?')) { setWorkspace(saveWorkspace(createDefaultWorkspace())!); setShowSettings(false); } }}>
+              <button type="button" className={`${styles.btn} ${styles.btnDanger}`} onClick={() => { if (confirm('Reset all data?')) { const reset = saveWorkspace(createDefaultWorkspace())!; setWorkspace(reset); queueCloudSave(reset); setShowSettings(false); } }}>
                 Reset
               </button>
               <button type="button" className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowSettings(false)}>Done</button>
