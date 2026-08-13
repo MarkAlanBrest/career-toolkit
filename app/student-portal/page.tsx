@@ -45,11 +45,44 @@ const SECTIONS: PortalSection[] = [
 const CAREER_SERVICES_EMAIL = 'careerservices@ncstrades.edu';
 const FINANCIAL_AID_EMAIL = 'financialaid@ncstrades.edu';
 
+const STUDENT_EMAIL_URL = 'https://outlook.cloud.microsoft/mail/?realm=ncstrades.edu';
+const CANVAS_URL = 'https://mytrades.instructure.com/login/canvas';
+
+type QuickLink = {
+  label: string;
+  description: string;
+  href: string;
+  icon: 'mail' | 'canvas';
+};
+
+const QUICK_LINKS: QuickLink[] = [
+  {
+    label: 'Student Email',
+    description: 'Open your NCST Outlook inbox.',
+    href: STUDENT_EMAIL_URL,
+    icon: 'mail',
+  },
+  {
+    label: 'Canvas',
+    description: 'Sign in to your courses on MyTrades.',
+    href: CANVAS_URL,
+    icon: 'canvas',
+  },
+];
+
 function SectionIcon({ name }: { name: PortalSection['icon'] }) {
   const icons: Record<PortalSection['icon'], ReactNode> = {
     home: <><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z" /></>,
     briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18" /></>,
     aid: <><path d="M12 3v18M7.5 8.5C9 6.5 11 6 12 6s3 .5 4.5 2.5M7.5 15.5C9 17.5 11 18 12 18s3-.5 4.5-2.5" /></>,
+  };
+  return <svg viewBox="0 0 24 24" aria-hidden="true">{icons[name]}</svg>;
+}
+
+function QuickLinkIcon({ name }: { name: QuickLink['icon'] }) {
+  const icons: Record<QuickLink['icon'], ReactNode> = {
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+    canvas: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><path d="M8 7h8M8 11h8M8 15h5" /></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{icons[name]}</svg>;
 }
@@ -120,6 +153,21 @@ function StudentPortalContent() {
               </button>
             ))}
           </nav>
+          <div className={styles.sideQuickLinks}>
+            <span className={styles.navSectionLabel}>Daily tools</span>
+            {QUICK_LINKS.map(link => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.sideQuickLink}
+              >
+                <QuickLinkIcon name={link.icon} />
+                {link.label}
+              </a>
+            ))}
+          </div>
           <div className={styles.sideHelp}>
             <span>Need help now?</span>
             <strong>We are building this portal step by step.</strong>
@@ -186,6 +234,30 @@ function StudentPortalContent() {
                   <div className={styles.welcomeMark} aria-hidden="true">
                     <SectionIcon name="home" />
                     <span>Student<br />Resources</span>
+                  </div>
+                </section>
+
+                <section className={styles.quickLinksSection} aria-label="Quick links">
+                  <span className={styles.kicker}>Quick links</span>
+                  <div className={styles.quickLinks}>
+                    {QUICK_LINKS.map(link => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.quickLinkCard}
+                      >
+                        <span className={styles.quickLinkIcon}>
+                          <QuickLinkIcon name={link.icon} />
+                        </span>
+                        <span className={styles.quickLinkCopy}>
+                          <strong>{link.label}</strong>
+                          <span>{link.description}</span>
+                        </span>
+                        <span className={styles.quickLinkAction}>Open</span>
+                      </a>
+                    ))}
                   </div>
                 </section>
 

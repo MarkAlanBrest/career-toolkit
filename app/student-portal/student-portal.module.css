@@ -357,6 +357,123 @@
   text-transform: uppercase;
 }
 
+.sideQuickLinks {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid #edf0f4;
+}
+
+.sideQuickLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 13px;
+  border-radius: 7px;
+  color: #40516a;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.sideQuickLink:hover {
+  background: #eef2f8;
+  color: var(--navy);
+}
+
+.sideQuickLink svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.quickLinksSection {
+  margin-top: 18px;
+}
+
+.quickLinks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.quickLinkCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid #dbe2ec;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0,31,82,.04);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.quickLinkCard:hover {
+  border-color: #b8c6d8;
+  box-shadow: 0 10px 24px rgba(0,31,82,.08);
+  transform: translateY(-1px);
+}
+
+.quickLinkIcon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #e9eef7;
+  color: var(--navy);
+}
+
+.quickLinkIcon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.quickLinkCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.quickLinkCopy strong {
+  color: var(--navy);
+  font-size: 15px;
+  text-transform: uppercase;
+}
+
+.quickLinkCopy span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.quickLinkAction {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--navy);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 .authNotice {
   margin-top: 16px;
   padding: 12px 14px;
@@ -381,9 +498,254 @@
 }
 
 @media (max-width: 980px) {
-  .dashboard { grid-template-columns: 1fr; width: min(100%, calc(100% - 24px)); margin: 16px auto; }
-  .sideNav { border-right: none; border-bottom: 1px solid #e2e6ec; }
-  .overviewCards { grid-template-columns: 1fr; }
-  .welcomePanel { display: block; }
-  .welcomeMark { display: none; }
+  .page {
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100dvh;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard {
+    grid-template-columns: 1fr;
+    width: min(100%, calc(100% - 24px));
+    min-height: calc(100dvh - 32px);
+    margin: 16px auto;
+  }
+
+  .sideNav {
+    min-height: auto;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid #e2e6ec;
+  }
+
+  .sidebarBrand {
+    min-height: 0;
+    margin-bottom: 12px;
+    padding: 4px 0 14px;
+  }
+
+  .sidebarBrand img {
+    width: 135px;
+  }
+
+  .sideHelp {
+    display: none;
+  }
+
+  .sideQuickLinks {
+    display: flex;
+    gap: 6px;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sideQuickLinks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sideQuickLinks .navSectionLabel {
+    display: none;
+  }
+
+  .sideQuickLink {
+    flex: 0 0 auto;
+    justify-content: center;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
+  .sideNav nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sideNav nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sideNav nav .navSectionLabel {
+    display: none;
+  }
+
+  .sideNav nav button {
+    flex: 0 0 auto;
+    justify-content: center;
+    padding: 0 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .overviewCards {
+    grid-template-columns: 1fr;
+  }
+
+  .quickLinks {
+    grid-template-columns: 1fr;
+  }
+
+  .welcomePanel {
+    display: block;
+  }
+
+  .welcomeMark {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard {
+    width: calc(100% - 20px);
+    margin: 10px auto 18px;
+    min-height: calc(100dvh - 20px);
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    min-height: 0;
+    padding: 14px 16px 12px;
+  }
+
+  .toolbarWelcome strong {
+    font-size: 16px;
+  }
+
+  .toolbarActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    width: 100%;
+  }
+
+  .toolbarSignedIn {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboardContent {
+    padding: 16px;
+  }
+
+  .welcomePanel,
+  .placeholderPanel {
+    padding: 22px 18px;
+  }
+
+  .welcomePanel h1 {
+    font-size: clamp(24px, 8vw, 32px);
+  }
+
+  .overviewCard {
+    padding: 18px;
+  }
+
+  .quickLinkCard {
+    padding: 16px;
+  }
+
+  .quickLinkAction {
+    display: none;
+  }
+
+  .workspaceFooter {
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 16px;
+    text-align: center;
+  }
+
+  .embeddedAuth {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .embeddedAuth span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 540px) {
+  .dashboard {
+    width: 100%;
+    margin: 0;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    min-height: 100dvh;
+  }
+
+  .sideNav {
+    padding: 14px 12px 12px;
+  }
+
+  .sidebarBrand img {
+    width: 120px;
+  }
+
+  .toolbarWelcome span {
+    display: none;
+  }
+
+  .toolbarActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbarActions button,
+  .signInButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .toolbarSignedIn {
+    text-align: center;
+  }
+
+  .welcomePanel h1 {
+    font-size: clamp(22px, 7.5vw, 28px);
+  }
+
+  .welcomePanel p,
+  .placeholderPanel p {
+    font-size: 13px;
+  }
+
+  .authNotice {
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-size: 12px;
+  }
+
+  .workspaceFooter {
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .embeddedAuth {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .embeddedAuth button {
+    width: 100%;
+    min-height: 40px;
+  }
 }
